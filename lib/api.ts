@@ -1,33 +1,41 @@
 // app/lib/api.ts
-export const API = process.env.NEXT_PUBLIC_API_BASE_URL!;
+export const tokenKey = "__token";
 
-// --- Token helpers (localStorage, simple MVP)
-const TOKEN_KEY = "lgd_token";
-export const setToken = (t: string) => localStorage.setItem(TOKEN_KEY, t);
-export const getToken = () => (typeof window !== "undefined" ? localStorage.getItem(TOKEN_KEY) : null);
-export const clearToken = () => localStorage.removeItem(TOKEN_KEY);
+export const getToken = () =>
+  typeof window !== "undefined" ? localStorage.getItem(tokenKey) : null;
 
-export async function api<T>(path: string, init?: RequestInit): Promise<T> {
+export const setToken = (t: string) =>
+  typeof window !== "undefined" ? localStorage.setItem(tokenKey, t) : undefined;
+
+export const clearToken = () =>
+  typeof window !== "undefined" ? localStorage.removeItem(tokenKey) : undefined;
+
+export async function api<T = any>(
+  path: string,
+  init: RequestInit = {}
+): Promise<T> {
+  const base = process.env.NEXT_PUBLIC_API_BASE_URL!;
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+    ...(init.headers || {}),
+  };
   const token = getToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
 
-  const res = await fetch(`${API}${path}`, {
+  const res = await fetch(`${base}${path}`, {
     ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(init?.headers || {}),
-    },
+    headers,
     cache: "no-store",
   });
 
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`${res.status} ${res.statusText} – ${text}`);
+    let message = `${res.status} ${res.statusText}`;
+    try {
+      const data = await res.json();
+      message = (data as any)?.detail || (data as any)?.message || message;
+    } catch {}
+    throw new Error(message);
   }
-
-  // Certains endpoints (ex. logout) peuvent retourner 204 sans body
-  const contentType = res.headers.get("content-type") || "";
-  if (!contentType.includes("application/json")) return undefined as T;
-
-  return res.json();
+  if (res.status === 204) return {} as T;
+  return res.json() as Promise<T>;
 }
