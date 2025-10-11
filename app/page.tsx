@@ -52,3 +52,16 @@ export default function Home() {
     </main>
   );
 }
+export default function Home() {
+  return (
+    <main className="p-6 space-y-3">
+      <h1 className="text-2xl font-semibold">Le Générateur Digital</h1>
+
+      <div className="space-x-3">
+        <a className="underline" href="/auth/register">Créer un compte</a>
+        <a className="underline" href="/auth/login">Se connecter</a>
+        <a className="underline" href="/dashboard">Dashboard</a>
+      </div>
+    </main>
+  );
+}
