@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { api } from '@/lib/api';
+import api, { setToken } from '@/lib/api';
 
 export default function Home() {
   const [status, setStatus] = useState<'checking' | 'ok' | 'ko'>('checking');
