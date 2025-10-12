@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { api } from '@/lib/api';
+import api, { setToken } from '@/lib/api';
 
 export default function RegisterPage() {
   const [name, setName] = useState('');
