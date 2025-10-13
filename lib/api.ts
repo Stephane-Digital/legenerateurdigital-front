@@ -1,75 +1,58 @@
 // lib/api.ts
-export const tokenKey = "_token";
+const base = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://legenerateurdigital-backend.onrender.com';
 
-/* 🔑 Gestion du token en localStorage */
-export const getToken = (): string | null => {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem(tokenKey);
-};
+// === Gestion du token dans localStorage ===
+export function setToken(token: string) {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('token', token);
+  }
+}
 
-export const setToken = (t: string): void => {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(tokenKey, t);
-};
+export function getToken(): string | null {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('token');
+  }
+  return null;
+}
 
-export const clearToken = (): void => {
-  if (typeof window === "undefined") return;
-  localStorage.removeItem(tokenKey);
-};
+export function clearToken() {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('token');
+  }
+}
 
-/* 🌐 Client API principal */
-export async function api(
-  path: string,
-  init: RequestInit = {}
-): Promise<any> {
-  const base = process.env.NEXT_PUBLIC_API_BASE_URL;
-  const headers: HeadersInit = {
-    "Content-Type": "application/json",
-    ...(init.headers || {}),
+// === Fonction API principale ===
+export default async function api(path: string, options: RequestInit = {}) {
+  const token = getToken();
+
+  // ✅ Type corrigé pour éviter l’erreur de typage
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers ? (options.headers as Record<string, string>) : {}),
   };
 
-  const token = getToken();
   if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
+    // ✅ Utilise 'Bearer' standard HTTP, pas "Porteur"
+    headers['Authorization'] = `Bearer ${token}`;
   }
 
-  // 🔄 Envoi de la requête
+  // ✅ Exécution de la requête
   const res = await fetch(`${base}${path}`, {
-    ...init,
+    ...options,
     headers,
-    cache: "no-store",
   });
 
-  // ✅ Lire la réponse JSON une seule fois
-  let data: any = null;
+  // ✅ Gestion sécurisée de la réponse JSON
+  let data: any;
   try {
     data = await res.json();
   } catch {
-    // Cas sans body (ex: 204 No Content)
+    data = null;
   }
 
   if (!res.ok) {
-    const message =
-      data?.detail || data?.message || res.statusText || "Erreur inconnue";
-    throw new Error(message);
+    throw new Error(data?.detail || data?.message || `Erreur API ${res.status}`);
   }
 
   return data;
-}
-
-/* 🔍 Vérification simple pour /health */
-export async function checkHealth(): Promise<{
-  ok: boolean;
-  message: string;
-}> {
-  const base = process.env.NEXT_PUBLIC_API_BASE_URL;
-  try {
-    const res = await fetch(`${base}/health`, { cache: "no-store" });
-    if (!res.ok) return { ok: false, message: `${res.statusText}` };
-
-    const data = await res.json();
-    return { ok: data.status === "ok", message: "API joignable ✅" };
-  } catch (e: any) {
-    return { ok: false, message: e.message ?? "Erreur de connexion" };
-  }
 }
