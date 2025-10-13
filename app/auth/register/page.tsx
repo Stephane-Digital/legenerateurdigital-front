@@ -19,13 +19,10 @@ export default function RegisterPage() {
 
     try {
       // Adapte les clés à ton backend si besoin (username vs email, etc.)
-      const res = await api<{ access_token?: string; token?: string }>(
-        '/auth/register',
-        {
-          method: 'POST',
-          body: JSON.stringify({ name, email, password }),
-        }
-      );
+     const res = await api('/auth/register', {
+  method: 'POST',
+  body: JSON.stringify({ name, email, password }),
+});
 
       // Plusieurs backends renvoient soit access_token, soit token.
       const token = res?.access_token ?? res?.token;
