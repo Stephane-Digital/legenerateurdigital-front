@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { api, setToken } from '@/lib/api'; // ✅ ← corrige ici
+import { api, setToken } from '@/lib/api';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -22,10 +22,12 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password }),
       });
 
+      // Stocker le token
       setToken(res.access_token ?? res.token);
+
       router.push('/dashboard');
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message ?? 'Erreur inconnue');
     } finally {
       setLoading(false);
     }
@@ -34,7 +36,7 @@ export default function LoginPage() {
   return (
     <main style={{ padding: 24 }}>
       <h1>Connexion</h1>
-      <form onSubmit={onSubmit}>
+      <form onSubmit={onSubmit} style={{ display: 'grid', gap: 8, maxWidth: 320 }}>
         <input
           type="email"
           placeholder="Email"
@@ -49,7 +51,9 @@ export default function LoginPage() {
           onChange={(e) => setPassword(e.target.value)}
           required
         />
-        <button disabled={loading}>Se connecter</button>
+        <button type="submit" disabled={loading}>
+          {loading ? 'Connexion...' : 'Se connecter'}
+        </button>
       </form>
       {error && <p style={{ color: 'red' }}>{error}</p>}
     </main>
