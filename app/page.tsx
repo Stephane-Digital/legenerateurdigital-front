@@ -13,15 +13,15 @@ export default function HomePage() {
       setStatus('checking');
       setMessage('');
 
-      const res = await checkHealth();
+      const isHealthy = await checkHealth();
 
-      if (res.ok) {
-        setStatus('ok');
-        setMessage(res.message);
-      } else {
-        setStatus('ko');
-        setMessage(res.message);
-      }
+if (isHealthy) {
+  setStatus('ok');
+  setMessage('API joignable !');
+} else {
+  setStatus('error');
+  setMessage('API non joignable 😢');
+}
     };
 
     testAPI();
