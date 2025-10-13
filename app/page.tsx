@@ -19,7 +19,7 @@ if (isHealthy) {
   setStatus('ok');
   setMessage('API joignable !');
 } else {
-  setStatus('error');
+  setStatus('ko');
   setMessage('API non joignable 😢');
 }
     };
