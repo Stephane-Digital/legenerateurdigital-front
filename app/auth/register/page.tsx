@@ -19,9 +19,10 @@ export default function RegisterPage() {
 
     try {
       const res = await api('/auth/register', {
-        method: 'POST',
-        body: JSON.stringify({ name, email, password }),
-      });
+  method: 'POST',
+  body: JSON.stringify({ name, email, password }),
+});
+
 
       // Stocker le token reçu
       setToken(res.access_token ?? res.token);
