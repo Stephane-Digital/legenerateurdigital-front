@@ -1,43 +1,35 @@
-// lib/api.ts
-export const tokenKey = '__token__';
-
-export const getToken = () =>
-  typeof window !== 'undefined' ? localStorage.getItem(tokenKey) : undefined;
-
-export const setToken = (t: string) => {
-  if (typeof window !== 'undefined') localStorage.setItem(tokenKey, t);
-};
-
-export const clearToken = () => {
-  if (typeof window !== 'undefined') localStorage.removeItem(tokenKey);
-};
-
-export default async function api<T = any>(
+export async function api(
   path: string,
   init: RequestInit = {}
-): Promise<T> {
-  const base = process.env.NEXT_PUBLIC_API_BASE_URL!;
-  const headers = new Headers(init.headers);
-
-  if (!headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+): Promise<any> {
+  const base = process.env.NEXT_PUBLIC_API_BASE_URL;
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+    ...(init.headers || {}),
+  };
 
   const token = getToken();
-  if (token) headers.set('Authorization', `Bearer ${token}`);
+  if (token) headers["Authorization"] = `Bearer ${token}`;
 
   const res = await fetch(`${base}${path}`, {
     ...init,
     headers,
-    cache: 'no-store',
+    cache: "no-store",
   });
 
+  // ✅ Ne lit le body qu’une seule fois
+  let data: any = null;
+  try {
+    data = await res.json();
+  } catch {
+    // le backend n’a pas renvoyé de JSON (ex: 204 No Content)
+  }
+
   if (!res.ok) {
-    let message = `${res.status} ${res.statusText}`;
-    try {
-      const data = await res.json();
-      message = (data as any)?.detail || (data as any)?.message || message;
-    } catch {}
+    const message =
+      data?.detail || data?.message || res.statusText || "Erreur inconnue";
     throw new Error(message);
   }
 
-  return (await res.text()) ? (res.json() as Promise<T>) : (undefined as T);
+  return data;
 }
