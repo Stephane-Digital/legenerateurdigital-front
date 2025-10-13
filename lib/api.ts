@@ -1,7 +1,7 @@
 // lib/api.ts
 const base = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://legenerateurdigital-backend.onrender.com';
 
-// === Gestion du token dans localStorage ===
+// === Gestion du token ===
 export function setToken(token: string) {
   if (typeof window !== 'undefined') {
     localStorage.setItem('token', token);
@@ -21,28 +21,24 @@ export function clearToken() {
   }
 }
 
-// === Fonction API principale ===
-export default async function api(path: string, options: RequestInit = {}) {
+// === Appel API principal ===
+export async function api(path: string, options: RequestInit = {}) {
   const token = getToken();
 
-  // ✅ Type corrigé pour éviter l’erreur de typage
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers ? (options.headers as Record<string, string>) : {}),
   };
 
   if (token) {
-    // ✅ Utilise 'Bearer' standard HTTP, pas "Porteur"
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  // ✅ Exécution de la requête
   const res = await fetch(`${base}${path}`, {
     ...options,
     headers,
   });
 
-  // ✅ Gestion sécurisée de la réponse JSON
   let data: any;
   try {
     data = await res.json();
@@ -56,3 +52,15 @@ export default async function api(path: string, options: RequestInit = {}) {
 
   return data;
 }
+
+// ✅ Fonction pour vérifier la santé de l’API
+export async function checkHealth() {
+  try {
+    const res = await fetch(`${base}/health`);
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+export { setToken, getToken, clearToken };
