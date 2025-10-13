@@ -62,5 +62,3 @@ export async function checkHealth() {
     return false;
   }
 }
-
-export { setToken, getToken, clearToken };
