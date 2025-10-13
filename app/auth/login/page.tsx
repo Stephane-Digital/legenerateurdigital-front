@@ -22,12 +22,10 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password }),
       });
 
-      // Stocker le token
       setToken(res.access_token ?? res.token);
-
       router.push('/dashboard');
     } catch (err: any) {
-      setError(err.message ?? 'Erreur inconnue');
+      setError(err.message ?? 'Erreur serveur');
     } finally {
       setLoading(false);
     }
