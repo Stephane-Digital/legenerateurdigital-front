@@ -19,14 +19,11 @@ export default function RegisterPage() {
 
     try {
       const res = await api('/auth/register', {
-  method: 'POST',
-  body: JSON.stringify({ name, email, password }),
-});
+        method: 'POST',
+        body: JSON.stringify({ name, email, password }),
+      });
 
-
-      // Stocker le token reçu
       setToken(res.access_token ?? res.token);
-
       router.push('/dashboard');
     } catch (err: any) {
       setError(err.message ?? 'Erreur serveur');
@@ -41,7 +38,7 @@ export default function RegisterPage() {
       <form onSubmit={onSubmit} style={{ display: 'grid', gap: 8, maxWidth: 320 }}>
         <input
           type="text"
-          placeholder="Nom"
+          placeholder="Nom complet"
           value={name}
           onChange={(e) => setName(e.target.value)}
           required
