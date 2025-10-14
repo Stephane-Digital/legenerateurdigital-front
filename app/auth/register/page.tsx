@@ -31,17 +31,11 @@ export default function RegisterPage() {
         throw new Error(data.detail || "Erreur lors de l'inscription");
       }
 
-      // ✅ Afficher le message immédiatement
-      setMessage("✅ Compte créé avec succès 🎉");
-      setLoading(false);
+      // ✅ Sauvegarder le message dans localStorage
+      localStorage.setItem("successMessage", "✅ Compte créé avec succès 🎉");
 
-      // ✅ Attendre 2 secondes avant redirection
-      setTimeout(() => {
-        router.push("/auth/login");
-      }, 3000);
-      
-      return; // ⛔ empêcher d'aller plus loin
-
+      // ✅ Redirection immédiate vers /auth/login
+      router.push("/auth/login");
     } catch (err: any) {
       setError(err.message || "Erreur inconnue");
     } finally {
@@ -79,12 +73,6 @@ export default function RegisterPage() {
         </button>
       </form>
 
-      {/* ✅ Le message reste visible avant redirection */}
-      {message && (
-        <p style={{ color: "green", marginTop: 10, fontWeight: "bold" }}>
-          {message}
-        </p>
-      )}
       {error && (
         <p style={{ color: "red", marginTop: 10, fontWeight: "bold" }}>
           {error}
