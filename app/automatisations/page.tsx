@@ -11,6 +11,7 @@ export default function AutomatisationsPage() {
   ]);
 
   const [activeIndex, setActiveIndex] = useState(0);
+  const [isOnline, setIsOnline] = useState(true);
 
   // 🔄 Simulation des automatisations actives
   useEffect(() => {
@@ -19,6 +20,16 @@ export default function AutomatisationsPage() {
     }, 4000);
     return () => clearInterval(interval);
   }, [tasks.length]);
+
+  // 🔁 Simulation d’un statut IA “vivant”
+  useEffect(() => {
+    const statusInterval = setInterval(() => {
+      // 90% du temps en ligne, 10% maintenance (aléatoire)
+      const random = Math.random() > 0.1;
+      setIsOnline(random);
+    }, 8000);
+    return () => clearInterval(statusInterval);
+  }, []);
 
   return (
     <main
@@ -72,6 +83,39 @@ export default function AutomatisationsPage() {
           backdropFilter: "blur(10px)",
         }}
       >
+        {/* 🧠 Statut IA */}
+        <div
+          style={{
+            marginBottom: 25,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 10,
+          }}
+        >
+          <div
+            style={{
+              width: 12,
+              height: 12,
+              borderRadius: "50%",
+              background: isOnline ? "#00ff88" : "#ff4b2b",
+              boxShadow: isOnline
+                ? "0 0 8px #00ff88cc"
+                : "0 0 8px #ff4b2bcc",
+              transition: "all 0.4s ease",
+            }}
+          ></div>
+          <span
+            style={{
+              color: isOnline ? "#00ffb3" : "#ff726f",
+              fontWeight: 500,
+              letterSpacing: 0.5,
+            }}
+          >
+            {isOnline ? "IA opérationnelle ✅" : "Maintenance en cours 🛠️"}
+          </span>
+        </div>
+
         <h1
           style={{
             color: "#00e0ff",
