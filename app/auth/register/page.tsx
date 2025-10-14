@@ -10,12 +10,12 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeUsers, setActiveUsers] = useState<number>(50);
+  const [activeUsers, setActiveUsers] = useState<number>(48);
   const [displayedUsers, setDisplayedUsers] = useState<number>(50);
 
   // 🔄 Compteur d’utilisateurs simulé
   useEffect(() => {
-    const update = () => setActiveUsers(Math.floor(Math.random() * 80) + 50);
+    const update = () => setActiveUsers(Math.floor(Math.random() * 80) + 2);
     update();
     const interval = setInterval(update, 10000);
     return () => clearInterval(interval);
