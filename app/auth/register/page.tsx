@@ -31,13 +31,14 @@ export default function RegisterPage() {
         throw new Error(data.detail || "Erreur lors de l'inscription");
       }
 
-      // ✅ Message de succès affiché ici
+      // ✅ Message visible
       setMessage(data.message || "Compte créé avec succès 🎉");
 
-      // ✅ Redirection vers le login après 2 secondes
-      setTimeout(() => {
-        router.push("/auth/login");
-      }, 2000);
+      // ✅ Attendre 2 secondes avant la redirection
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      // ✅ Rediriger vers la page de connexion
+      router.push("/auth/login");
 
     } catch (err: any) {
       setError(err.message || "Erreur inconnue");
@@ -76,7 +77,6 @@ export default function RegisterPage() {
         </button>
       </form>
 
-      {/* ✅ Affichage dynamique des messages */}
       {message && <p style={{ color: "green", marginTop: 10 }}>{message}</p>}
       {error && <p style={{ color: "red", marginTop: 10 }}>{error}</p>}
     </main>
