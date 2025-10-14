@@ -8,6 +8,7 @@ export default function DashboardPage() {
   const [user, setUser] = useState<string | null>(null);
   const [time, setTime] = useState<string>("");
 
+  // 🔐 Vérification du token et mise à jour de l’heure
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) {
@@ -38,8 +39,6 @@ export default function DashboardPage() {
       style={{
         minHeight: "100vh",
         display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
         fontFamily: "'Poppins', sans-serif",
         color: "#fff",
         position: "relative",
@@ -59,7 +58,7 @@ export default function DashboardPage() {
         }}
       ></div>
 
-      {/* ✨ Effet de lumière */}
+      {/* ✨ Effet lumineux */}
       <div
         style={{
           position: "absolute",
@@ -70,53 +69,80 @@ export default function DashboardPage() {
         }}
       ></div>
 
-      {/* 🧠 Tableau de bord */}
-      <div
+      {/* 🧭 Barre latérale */}
+      <aside
         style={{
-          position: "relative",
-          zIndex: 2,
+          width: "240px",
           background: "rgba(255, 255, 255, 0.1)",
-          padding: "50px 60px",
-          borderRadius: 20,
-          boxShadow: "0 8px 24px rgba(0,0,0,0.3)",
-          maxWidth: 550,
-          width: "90%",
-          textAlign: "center",
           backdropFilter: "blur(10px)",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between",
+          padding: "30px 20px",
+          borderRight: "1px solid rgba(255,255,255,0.15)",
+          zIndex: 2,
         }}
       >
-        <h1
-          style={{
-            color: "#00e0ff",
-            marginBottom: 10,
-            fontWeight: 600,
-            fontSize: 28,
-          }}
-        >
+        <div>
+          <h2 style={{ color: "#00e0ff", marginBottom: 40, fontWeight: 600 }}>
+            ⚙️ Générateur Digital
+          </h2>
+
+          <nav style={{ display: "grid", gap: 18 }}>
+            <a href="/dashboard" style={navLinkStyle}>
+              📊 Tableau de bord
+            </a>
+            <a href="/automatisations" style={navLinkStyle}>
+              🤖 Automatisations
+            </a>
+            <a href="/profil" style={navLinkStyle}>
+              👤 Profil
+            </a>
+            <a href="/paiement" style={navLinkStyle}>
+              💳 Abonnement
+            </a>
+          </nav>
+        </div>
+
+        <button onClick={logout} style={logoutButtonStyle}>
+          🚪 Déconnexion
+        </button>
+      </aside>
+
+      {/* 🧠 Contenu principal */}
+      <section
+        style={{
+          flex: 1,
+          zIndex: 2,
+          padding: "60px 80px",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          textAlign: "center",
+        }}
+      >
+        <h1 style={{ color: "#00e0ff", marginBottom: 10, fontSize: 30 }}>
           👋 Bienvenue {user || "Utilisateur"}
         </h1>
-        <p style={{ color: "#cfeaff", marginBottom: 20 }}>
-          Vous êtes connecté au <strong>Générateur Digital</strong>
+        <p style={{ color: "#cfeaff", marginBottom: 25, fontSize: 18 }}>
+          Vous êtes connecté à votre espace <strong>Générateur Digital</strong>.
         </p>
 
         <div
           style={{
             background: "rgba(255,255,255,0.12)",
-            padding: 20,
-            borderRadius: 12,
-            marginBottom: 25,
+            padding: 25,
+            borderRadius: 14,
+            minWidth: 280,
           }}
         >
           <h3 style={{ color: "#00ffb3", marginBottom: 6 }}>🕒 Heure actuelle</h3>
-          <p style={{ fontSize: 18 }}>{time}</p>
+          <p style={{ fontSize: 20, fontWeight: "bold" }}>{time}</p>
         </div>
+      </section>
 
-        <button onClick={logout} style={buttonStyle}>
-          Se déconnecter
-        </button>
-      </div>
-
-      {/* 🌀 Animation CSS */}
+      {/* 🌀 Animation du fond */}
       <style>{`
         @keyframes gradientMove {
           0% { background-position: 0% 50%; }
@@ -128,13 +154,24 @@ export default function DashboardPage() {
   );
 }
 
-const buttonStyle = {
-  background: "linear-gradient(90deg, #00e0ff, #007bff)",
+const navLinkStyle = {
+  color: "#fff",
+  textDecoration: "none",
+  padding: "10px 15px",
+  borderRadius: "8px",
+  background: "rgba(255,255,255,0.05)",
+  transition: "all 0.3s ease",
+  fontWeight: 500,
+  fontSize: "16px",
+};
+
+const logoutButtonStyle = {
+  background: "linear-gradient(90deg, #ff416c, #ff4b2b)",
   color: "white",
-  padding: "16px 40px",
+  padding: "12px 0",
   border: "none",
-  borderRadius: 12,
-  fontSize: 17,
+  borderRadius: 10,
+  fontSize: 16,
   cursor: "pointer",
   fontWeight: 600,
   transition: "all 0.3s ease",
