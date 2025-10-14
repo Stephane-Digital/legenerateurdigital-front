@@ -10,8 +10,8 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeUsers, setActiveUsers] = useState<number>(48);
-  const [displayedUsers, setDisplayedUsers] = useState<number>(50);
+  const [activeUsers, setActiveUsers] = useState<number>(2);
+  const [displayedUsers, setDisplayedUsers] = useState<number>(2);
 
   // 🔄 Compteur d’utilisateurs simulé
   useEffect(() => {
