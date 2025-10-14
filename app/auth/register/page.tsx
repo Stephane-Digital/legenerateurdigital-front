@@ -10,31 +10,21 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeUsers, setActiveUsers] = useState<number>(48); // Démarre à 50
-  const [displayedUsers, setDisplayedUsers] = useState<number>(48); // Pour l'animation
+  const [activeUsers, setActiveUsers] = useState<number>(50);
+  const [displayedUsers, setDisplayedUsers] = useState<number>(50);
 
-  // 🔄 Simulation / API + animation du compteur
+  // 🔄 Compteur d’utilisateurs simulé
   useEffect(() => {
-    async function fetchActiveUsers() {
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/users/active`);
-        const data = await res.json();
-        const target = data.count || Math.floor(Math.random() * 80) + 50;
-        setActiveUsers(target);
-      } catch {
-        setActiveUsers(Math.floor(Math.random() * 80) + 50); // Valeur simulée
-      }
-    }
-
-    fetchActiveUsers();
-    const interval = setInterval(fetchActiveUsers, 10000);
+    const update = () => setActiveUsers(Math.floor(Math.random() * 80) + 50);
+    update();
+    const interval = setInterval(update, 10000);
     return () => clearInterval(interval);
   }, []);
 
-  // 🧮 Animation fluide du compteur (incrémentation progressive)
+  // 🧮 Animation du compteur
   useEffect(() => {
-    const duration = 1000; // 1 seconde d’animation
-    const frameRate = 30; // images/seconde
+    const duration = 1000;
+    const frameRate = 30;
     const totalFrames = Math.round(duration / (1000 / frameRate));
     let frame = 0;
 
@@ -85,26 +75,37 @@ export default function RegisterPage() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        backgroundImage: "url('/ai-tech-bg.jpg')", // 📷 Image IA
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundAttachment: "fixed",
-        position: "relative",
         fontFamily: "'Poppins', sans-serif",
         color: "#fff",
+        position: "relative",
+        overflow: "hidden",
       }}
     >
-      {/* Couche de flou semi-transparente */}
+      {/* 🌌 Dégradé animé */}
       <div
         style={{
           position: "absolute",
           inset: 0,
-          backgroundColor: "rgba(20, 20, 40, 0.6)",
-          backdropFilter: "blur(6px)",
+          background:
+            "linear-gradient(-45deg, #0f2027, #203a43, #2c5364, #1a2a6c, #0f2027)",
+          backgroundSize: "400% 400%",
+          animation: "gradientMove 15s ease infinite",
+          zIndex: 0,
         }}
       ></div>
 
-      {/* Contenu principal */}
+      {/* ✨ Effet de particules lumineuses */}
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          background:
+            "radial-gradient(circle at 20% 30%, rgba(0,255,255,0.1) 0%, transparent 70%), radial-gradient(circle at 80% 70%, rgba(0,100,255,0.15) 0%, transparent 70%)",
+          zIndex: 1,
+        }}
+      ></div>
+
+      {/* 🧩 Formulaire */}
       <div
         style={{
           position: "relative",
@@ -116,6 +117,7 @@ export default function RegisterPage() {
           maxWidth: 420,
           width: "90%",
           textAlign: "center",
+          backdropFilter: "blur(10px)",
         }}
       >
         <h1 style={{ color: "#00e0ff", marginBottom: 6, fontWeight: 600 }}>
@@ -141,15 +143,7 @@ export default function RegisterPage() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
-            style={{
-              padding: "16px 18px",
-              borderRadius: 12,
-              border: "none",
-              fontSize: 16,
-              background: "rgba(255,255,255,0.15)",
-              color: "white",
-              outline: "none",
-            }}
+            style={inputStyle}
           />
           <input
             type="email"
@@ -157,15 +151,7 @@ export default function RegisterPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            style={{
-              padding: "16px 18px",
-              borderRadius: 12,
-              border: "none",
-              fontSize: 16,
-              background: "rgba(255,255,255,0.15)",
-              color: "white",
-              outline: "none",
-            }}
+            style={inputStyle}
           />
           <input
             type="password"
@@ -173,39 +159,9 @@ export default function RegisterPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            style={{
-              padding: "16px 18px",
-              borderRadius: 12,
-              border: "none",
-              fontSize: 16,
-              background: "rgba(255,255,255,0.15)",
-              color: "white",
-              outline: "none",
-            }}
+            style={inputStyle}
           />
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              background: "linear-gradient(90deg, #00e0ff, #007bff)",
-              color: "white",
-              padding: "16px 0",
-              border: "none",
-              borderRadius: 12,
-              fontSize: 17,
-              cursor: "pointer",
-              fontWeight: 600,
-              transition: "all 0.3s ease",
-            }}
-            onMouseEnter={(e) =>
-              ((e.target as HTMLButtonElement).style.background =
-                "linear-gradient(90deg, #00b8e6, #0066cc)")
-            }
-            onMouseLeave={(e) =>
-              ((e.target as HTMLButtonElement).style.background =
-                "linear-gradient(90deg, #00e0ff, #007bff)")
-            }
-          >
+          <button type="submit" disabled={loading} style={buttonStyle}>
             {loading ? "Création..." : "Créer un compte"}
           </button>
         </form>
@@ -216,6 +172,37 @@ export default function RegisterPage() {
           </p>
         )}
       </div>
+
+      {/* 🌀 Animation CSS du dégradé */}
+      <style>{`
+        @keyframes gradientMove {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+      `}</style>
     </main>
   );
 }
+
+const inputStyle = {
+  padding: "16px 18px",
+  borderRadius: 12,
+  border: "none",
+  fontSize: 16,
+  background: "rgba(255,255,255,0.15)",
+  color: "white",
+  outline: "none",
+};
+
+const buttonStyle = {
+  background: "linear-gradient(90deg, #00e0ff, #007bff)",
+  color: "white",
+  padding: "16px 0",
+  border: "none",
+  borderRadius: 12,
+  fontSize: 17,
+  cursor: "pointer",
+  fontWeight: 600,
+  transition: "all 0.3s ease",
+};
