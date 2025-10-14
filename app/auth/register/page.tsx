@@ -15,7 +15,7 @@ export default function RegisterPage() {
 
   // 🔄 Compteur d’utilisateurs simulé
   useEffect(() => {
-    const update = () => setActiveUsers(Math.floor(Math.random() * 80) + 2);
+    const update = () => setActiveUsers(Math.floor(Math.random() * 2) + 2);
     update();
     const interval = setInterval(update, 10000);
     return () => clearInterval(interval);
