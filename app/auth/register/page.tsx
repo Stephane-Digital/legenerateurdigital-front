@@ -10,24 +10,46 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeUsers, setActiveUsers] = useState<number>(0);
+  const [activeUsers, setActiveUsers] = useState<number>(48); // Démarre à 50
+  const [displayedUsers, setDisplayedUsers] = useState<number>(48); // Pour l'animation
 
-  // 🔄 Simulation : compteur d'utilisateurs actifs
+  // 🔄 Simulation / API + animation du compteur
   useEffect(() => {
     async function fetchActiveUsers() {
       try {
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/users/active`);
         const data = await res.json();
-        setActiveUsers(data.count || 0);
+        const target = data.count || Math.floor(Math.random() * 80) + 50;
+        setActiveUsers(target);
       } catch {
-        setActiveUsers(Math.floor(Math.random() * 50) + 10); // Valeur simulée si API non dispo
+        setActiveUsers(Math.floor(Math.random() * 80) + 50); // Valeur simulée
       }
     }
 
     fetchActiveUsers();
-    const interval = setInterval(fetchActiveUsers, 10000); // refresh toutes les 10 sec
+    const interval = setInterval(fetchActiveUsers, 10000);
     return () => clearInterval(interval);
   }, []);
+
+  // 🧮 Animation fluide du compteur (incrémentation progressive)
+  useEffect(() => {
+    const duration = 1000; // 1 seconde d’animation
+    const frameRate = 30; // images/seconde
+    const totalFrames = Math.round(duration / (1000 / frameRate));
+    let frame = 0;
+
+    const counter = setInterval(() => {
+      frame++;
+      const progress = frame / totalFrames;
+      const newValue = Math.round(
+        displayedUsers + (activeUsers - displayedUsers) * progress
+      );
+      setDisplayedUsers(newValue);
+      if (frame === totalFrames) clearInterval(counter);
+    }, 1000 / frameRate);
+
+    return () => clearInterval(counter);
+  }, [activeUsers]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -63,26 +85,47 @@ export default function RegisterPage() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "linear-gradient(135deg, #5f6caf, #2e3a59)",
+        backgroundImage: "url('/ai-tech-bg.jpg')", // 📷 Image IA
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundAttachment: "fixed",
+        position: "relative",
         fontFamily: "'Poppins', sans-serif",
-        padding: 20,
+        color: "#fff",
       }}
     >
+      {/* Couche de flou semi-transparente */}
       <div
         style={{
-          background: "rgba(255,255,255,0.95)",
+          position: "absolute",
+          inset: 0,
+          backgroundColor: "rgba(20, 20, 40, 0.6)",
+          backdropFilter: "blur(6px)",
+        }}
+      ></div>
+
+      {/* Contenu principal */}
+      <div
+        style={{
+          position: "relative",
+          zIndex: 2,
+          background: "rgba(255, 255, 255, 0.1)",
           padding: "40px 50px",
           borderRadius: 16,
-          boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
+          boxShadow: "0 8px 24px rgba(0,0,0,0.3)",
           maxWidth: 420,
-          width: "100%",
+          width: "90%",
           textAlign: "center",
         }}
       >
-        <h1 style={{ color: "#2e3a59", marginBottom: 8 }}>Créer un compte</h1>
-        <p style={{ color: "#555", fontSize: 14, marginBottom: 20 }}>
+        <h1 style={{ color: "#00e0ff", marginBottom: 6, fontWeight: 600 }}>
+          Créer un compte
+        </h1>
+        <p style={{ fontSize: 14, marginBottom: 20, color: "#d0eaff" }}>
           👥 Utilisateurs actifs :{" "}
-          <strong style={{ color: "#1a73e8" }}>{activeUsers}</strong>
+          <strong style={{ color: "#00ffb3", fontSize: 18 }}>
+            {displayedUsers}
+          </strong>
         </p>
 
         <form
@@ -99,10 +142,13 @@ export default function RegisterPage() {
             onChange={(e) => setName(e.target.value)}
             required
             style={{
-              padding: "14px 16px",
+              padding: "16px 18px",
               borderRadius: 12,
-              border: "1px solid #ccc",
+              border: "none",
               fontSize: 16,
+              background: "rgba(255,255,255,0.15)",
+              color: "white",
+              outline: "none",
             }}
           />
           <input
@@ -112,10 +158,13 @@ export default function RegisterPage() {
             onChange={(e) => setEmail(e.target.value)}
             required
             style={{
-              padding: "14px 16px",
+              padding: "16px 18px",
               borderRadius: 12,
-              border: "1px solid #ccc",
+              border: "none",
               fontSize: 16,
+              background: "rgba(255,255,255,0.15)",
+              color: "white",
+              outline: "none",
             }}
           />
           <input
@@ -125,30 +174,36 @@ export default function RegisterPage() {
             onChange={(e) => setPassword(e.target.value)}
             required
             style={{
-              padding: "14px 16px",
+              padding: "16px 18px",
               borderRadius: 12,
-              border: "1px solid #ccc",
+              border: "none",
               fontSize: 16,
+              background: "rgba(255,255,255,0.15)",
+              color: "white",
+              outline: "none",
             }}
           />
           <button
             type="submit"
             disabled={loading}
             style={{
-              background: "#1a73e8",
+              background: "linear-gradient(90deg, #00e0ff, #007bff)",
               color: "white",
-              padding: "14px 0",
+              padding: "16px 0",
               border: "none",
               borderRadius: 12,
               fontSize: 17,
               cursor: "pointer",
-              transition: "0.3s",
+              fontWeight: 600,
+              transition: "all 0.3s ease",
             }}
             onMouseEnter={(e) =>
-              ((e.target as HTMLButtonElement).style.background = "#185abc")
+              ((e.target as HTMLButtonElement).style.background =
+                "linear-gradient(90deg, #00b8e6, #0066cc)")
             }
             onMouseLeave={(e) =>
-              ((e.target as HTMLButtonElement).style.background = "#1a73e8")
+              ((e.target as HTMLButtonElement).style.background =
+                "linear-gradient(90deg, #00e0ff, #007bff)")
             }
           >
             {loading ? "Création..." : "Créer un compte"}
@@ -156,7 +211,7 @@ export default function RegisterPage() {
         </form>
 
         {error && (
-          <p style={{ color: "red", marginTop: 16, fontWeight: "bold" }}>
+          <p style={{ color: "#ff8080", marginTop: 16, fontWeight: "bold" }}>
             {error}
           </p>
         )}
