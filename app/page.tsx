@@ -1,54 +1,45 @@
-// app/page.tsx
+import Link from "next/link";
+
 export default function Home() {
   return (
     <main
       style={{
-        minHeight: "100vh",
+        minHeight: "60vh",
         display: "grid",
         placeItems: "center",
+        gap: 16,
         fontFamily: "'Poppins', sans-serif",
-        background:
-          "linear-gradient(-45deg, #0f2027, #203a43, #2c5364, #1a2a6c, #0f2027)",
-        color: "#fff",
-        padding: 24,
       }}
     >
-      <div style={{ textAlign: "center", maxWidth: 720 }}>
-        <h1 style={{ marginBottom: 12, fontWeight: 700, color: "#00e0ff" }}>
-          LeGenerateurDigital
+      <div style={{ textAlign: "center" }}>
+        <h1 style={{ fontSize: 36, marginBottom: 8 }}>
+          <span style={{ color: "#00e0ff" }}>LeGenerateur</span>Digital
         </h1>
-        <p style={{ opacity: 0.9, marginBottom: 24 }}>
-          Bienvenue 👋 — Utilise les liens ci-dessous pour t’inscrire ou te
-          connecter.
-        </p>
-        <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
-          <a
+        <p>Bienvenue 👋 — Utilise les liens ci-dessous pour t’inscrire ou te connecter.</p>
+        <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 16 }}>
+          <Link
             href="/register"
             style={{
               background: "linear-gradient(90deg, #00e0ff, #007bff)",
               color: "white",
               padding: "12px 18px",
               borderRadius: 10,
-              textDecoration: "none",
-              fontWeight: 600,
             }}
           >
             Créer un compte
-          </a>
-          <a
-            href="/login"
+          </Link>
+          <Link
+            href="/auth/login"
             style={{
-              background: "rgba(255,255,255,0.15)",
+              background: "#2b2f3a",
               color: "white",
               padding: "12px 18px",
               borderRadius: 10,
-              textDecoration: "none",
-              fontWeight: 600,
-              border: "1px solid rgba(255,255,255,0.35)",
+              border: "1px solid #3d4455",
             }}
           >
             Se connecter
-          </a>
+          </Link>
         </div>
       </div>
     </main>
