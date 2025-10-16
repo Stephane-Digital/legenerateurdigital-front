@@ -1,7 +1,14 @@
+// app/register/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+
+// Base API : accepte les 2 noms d'env pour éviter toute confusion
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_URL ||
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
+  "https://legenerateurdigital-backend-m9b5.onrender.com";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -39,7 +46,7 @@ export default function RegisterPage() {
     }, 1000 / frameRate);
 
     return () => clearInterval(counter);
-  }, [activeUsers]);
+  }, [activeUsers, displayedUsers]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -47,20 +54,28 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/register`, {
+      // IMPORTANT : l’API attend { email, password, full_name }
+      const res = await fetch(`${API_BASE}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ email, password, full_name: name }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.detail || "Erreur lors de l'inscription");
+        throw new Error(data?.detail || "Erreur lors de l'inscription");
+      }
+
+      // L’API renvoie { access_token, token_type } → on le stocke pour être connecté
+      if (data?.access_token) {
+        localStorage.setItem("token", data.access_token);
       }
 
       localStorage.setItem("successMessage", "✅ Compte créé avec succès 🎉");
-      router.push("/auth/login");
+
+      // Redirection vers le dashboard (tu peux changer en /auth/login si tu préfères)
+      router.push("/dashboard");
     } catch (err: any) {
       setError(err.message || "Erreur inconnue");
     } finally {
@@ -92,7 +107,7 @@ export default function RegisterPage() {
           animation: "gradientMove 15s ease infinite",
           zIndex: 0,
         }}
-      ></div>
+      />
 
       {/* ✨ Effet de particules lumineuses */}
       <div
@@ -100,20 +115,20 @@ export default function RegisterPage() {
           position: "absolute",
           inset: 0,
           background:
-            "radial-gradient(circle at 20% 30%, rgba(0,255,255,0.1) 0%, transparent 70%), radial-gradient(circle at 80% 70%, rgba(0,100,255,0.15) 0%, transparent 70%)",
+            "radial-gradient(circle at 20% 30%, rgba(0,255,255,0.10) 0%, transparent 70%), radial-gradient(circle at 80% 70%, rgba(0,100,255,0.15) 0%, transparent 70%)",
           zIndex: 1,
         }}
-      ></div>
+      />
 
       {/* 🧩 Formulaire */}
       <div
         style={{
           position: "relative",
           zIndex: 2,
-          background: "rgba(255, 255, 255, 0.1)",
+          background: "rgba(30, 35, 50, 0.55)", // + lisible
           padding: "40px 50px",
           borderRadius: 16,
-          boxShadow: "0 8px 24px rgba(0,0,0,0.3)",
+          boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
           maxWidth: 420,
           width: "90%",
           textAlign: "center",
@@ -130,14 +145,9 @@ export default function RegisterPage() {
           </strong>
         </p>
 
-        <form
-          onSubmit={onSubmit}
-          style={{
-            display: "grid",
-            gap: 14,
-          }}
-        >
+        <form onSubmit={onSubmit} style={{ display: "grid", gap: 14 }}>
           <input
+            className="auth-input"
             type="text"
             placeholder="Nom complet"
             value={name}
@@ -146,6 +156,7 @@ export default function RegisterPage() {
             style={inputStyle}
           />
           <input
+            className="auth-input"
             type="email"
             placeholder="Adresse email"
             value={email}
@@ -154,6 +165,7 @@ export default function RegisterPage() {
             style={inputStyle}
           />
           <input
+            className="auth-input"
             type="password"
             placeholder="Mot de passe"
             value={password}
@@ -173,7 +185,7 @@ export default function RegisterPage() {
         )}
       </div>
 
-      {/* 🌀 Animation CSS du dégradé */}
+      {/* CSS : animation + lisibilité des inputs */}
       <style>{`
         @keyframes gradientMove {
           0% { background-position: 0% 50%; }
@@ -181,21 +193,42 @@ export default function RegisterPage() {
           100% { background-position: 0% 50%; }
         }
       `}</style>
+
+      <style jsx global>{`
+        /* Placeholder bien visible */
+        .auth-input::placeholder {
+          color: rgba(255,255,255,0.88);
+        }
+        /* Focus net et lisible */
+        .auth-input:focus {
+          background: rgba(255,255,255,0.28);
+          outline: 2px solid #00e0ff;
+        }
+        /* Compat Chrome / autofill */
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover,
+        input:-webkit-autofill:focus {
+          -webkit-text-fill-color: #fff;
+          transition: background-color 5000s ease-in-out 0s;
+          caret-color: #fff;
+        }
+      `}</style>
     </main>
   );
 }
 
-const inputStyle = {
+const inputStyle: React.CSSProperties = {
   padding: "16px 18px",
   borderRadius: 12,
-  border: "none",
+  border: "1px solid rgba(255,255,255,0.35)", // + contraste
   fontSize: 16,
-  background: "rgba(255,255,255,0.15)",
-  color: "white",
+  background: "rgba(255,255,255,0.22)", // moins transparent => plus lisible
+  color: "#fff",
   outline: "none",
+  caretColor: "#fff",
 };
 
-const buttonStyle = {
+const buttonStyle: React.CSSProperties = {
   background: "linear-gradient(90deg, #00e0ff, #007bff)",
   color: "white",
   padding: "16px 0",
@@ -203,6 +236,4 @@ const buttonStyle = {
   borderRadius: 12,
   fontSize: 17,
   cursor: "pointer",
-  fontWeight: 600,
-  transition: "all 0.3s ease",
 };
