@@ -1,14 +1,13 @@
 // lib/api.ts
 
-// 1) Base URL : accepte les deux noms d'env variables
 const base =
   process.env.NEXT_PUBLIC_API_URL ||
   process.env.NEXT_PUBLIC_API_BASE_URL ||
-  "https://legenerateurdigital-backend-m9b5.onrender.com"; // fallback utile en dev
+  "https://legenerateurdigital-backend-m9b5.onrender.com";
 
-// -----------------------------
-// Gestion très simple du token
-// -----------------------------
+/* =======================
+   Gestion du token (client)
+   ======================= */
 export function setToken(token: string) {
   if (typeof window !== "undefined") {
     localStorage.setItem("token", token);
@@ -28,106 +27,79 @@ export function clearToken() {
   }
 }
 
-// --------------------------------------
-// Helper générique pour les appels JSON
-// --------------------------------------
-type ApiOptions = RequestInit & { headers?: Record<string, string> };
+/* =========================
+   Helper API (normalisé)
+   ========================= */
+
+type ApiOptions = RequestInit & {
+  headers?: HeadersInit;
+};
+
+function mergeHeaders(baseHeaders: Record<string, string>, extra?: HeadersInit): Record<string, string> {
+  const out: Record<string, string> = { ...baseHeaders };
+
+  if (!extra) return out;
+
+  // Cas 1 : Headers
+  if (extra instanceof Headers) {
+    extra.forEach((value, key) => {
+      out[key] = value;
+    });
+    return out;
+  }
+
+  // Cas 2 : string[][]
+  if (Array.isArray(extra)) {
+    for (const [k, v] of extra) {
+      out[k] = String(v);
+    }
+    return out;
+  }
+
+  // Cas 3 : Record<string, string>
+  return { ...out, ...(extra as Record<string, string>) };
+}
 
 export async function api(path: string, options: ApiOptions = {}) {
   const token = getToken();
 
-  const headers: Record<string, string> = {
+  const baseHeaders: Record<string, string> = {
     "Content-Type": "application/json",
-    ...(options.headers || {}),
   };
 
   if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
+    baseHeaders["Authorization"] = `Bearer ${token}`;
   }
+
+  const headers = mergeHeaders(baseHeaders, options.headers);
 
   const res = await fetch(`${base}${path}`, {
     ...options,
     headers,
   });
 
-  let data: any = null;
+  let data: any;
   try {
     data = await res.json();
   } catch {
-    // ignore parse errors
+    data = null;
   }
 
   if (!res.ok) {
-    const msg =
-      (data && (data.detail || data.message)) ||
-      `API error ${res.status}`;
-    throw new Error(msg);
+    throw new Error(data?.detail || data?.message || `Erreur API ${res.status}`);
   }
 
   return data;
 }
 
-// --------------------------------------
-// Fonctions spécifiques à l'auth
-// --------------------------------------
-
-// /auth/register : JSON
-export async function register(email: string, password: string, full_name?: string) {
-  const data = await api("/auth/register", {
-    method: "POST",
-    body: JSON.stringify({ email, password, full_name }),
-  });
-  // data = { access_token, token_type }
-  setToken(data.access_token);
-  return data;
-}
-
-// /auth/login : x-www-form-urlencoded (très important)
-export async function login(email: string, password: string) {
-  const form = new URLSearchParams();
-  form.set("username", email);
-  form.set("password", password);
-
-  const res = await fetch(`${base}/auth/login`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: form.toString(),
-  });
-
-  let data: any = null;
-  try {
-    data = await res.json();
-  } catch {
-    // ignore
-  }
-
-  if (!res.ok) {
-    const msg =
-      (data && (data.detail || data.message)) ||
-      `API error ${res.status}`;
-    throw new Error(msg);
-  }
-
-  setToken(data.access_token);
-  return data; // { access_token, token_type }
-}
-
-export async function me() {
-  // utilise le header Authorization via api()
-  return api("/users/me", { method: "GET", cache: "no-store" });
-}
-
-// Santé simple (utile pour une page /status)
+/* =========================
+   Healthcheck
+   ========================= */
 export async function checkHealth() {
   try {
-    const res = await fetch(`${base}/health`, { cache: "no-store" });
+    const res = await fetch(`${base}/health`);
     return res.ok;
   } catch {
     return false;
   }
 }
-
-// Optionnel : exposer la base pour debug
-export const API_BASE = base;
