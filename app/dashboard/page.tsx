@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import type { CSSProperties } from "react";
 
 // Base API : accepte les 2 noms d'env
 const API_BASE =
@@ -26,7 +27,8 @@ export default function Dashboard() {
 
   async function fetchMe() {
     try {
-      const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+      const token =
+        typeof window !== "undefined" ? localStorage.getItem("token") : null;
       if (!token) {
         setErr("Non connecté");
         setLoading(false);
@@ -116,9 +118,20 @@ export default function Dashboard() {
           backdropFilter: "blur(10px)",
         }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-          <h1 style={{ color: "#00e0ff", margin: 0, fontWeight: 700 }}>Mon espace</h1>
-          <button onClick={logout} style={buttonStyle}>Se déconnecter</button>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
+          <h1 style={{ color: "#00e0ff", margin: 0, fontWeight: 700 }}>
+            Mon espace
+          </h1>
+          <button onClick={logout} style={buttonStyle}>
+            Se déconnecter
+          </button>
         </div>
 
         <div style={{ marginTop: 18 }}>
@@ -146,7 +159,11 @@ export default function Dashboard() {
               <Row label="Email">{user.email || "—"}</Row>
               <Row label="Actif">{user.is_active ? "Oui" : "Non"}</Row>
               <Row label="ID">{String(user.id ?? "—")}</Row>
-              {user.created_at && <Row label="Créé le">{new Date(user.created_at).toLocaleString()}</Row>}
+              {user.created_at && (
+                <Row label="Créé le">
+                  {new Date(user.created_at).toLocaleString()}
+                </Row>
+              )}
             </div>
           ) : (
             <p>Aucune donnée.</p>
@@ -166,7 +183,13 @@ export default function Dashboard() {
   );
 }
 
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
+function Row({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <div style={{ display: "grid", gridTemplateColumns: "160px 1fr", gap: 12 }}>
       <div style={{ opacity: 0.9, color: "#d0eaff" }}>{label}</div>
@@ -175,7 +198,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   );
 }
 
-const buttonStyle: React.CSSProperties = {
+const buttonStyle: CSSProperties = {
   background: "linear-gradient(90deg, #00e0ff, #007bff)",
   color: "white",
   padding: "10px 14px",
