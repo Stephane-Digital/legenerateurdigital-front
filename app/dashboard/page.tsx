@@ -1,37 +1,68 @@
+// app/dashboard/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-export default function DashboardPage() {
+// Base API : accepte les 2 noms d'env
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_URL ||
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
+  "https://legenerateurdigital-backend-m9b5.onrender.com";
+
+type Me = {
+  id?: number | string;
+  email?: string;
+  full_name?: string | null;
+  is_active?: boolean;
+  created_at?: string | null;
+};
+
+export default function Dashboard() {
   const router = useRouter();
-  const [user, setUser] = useState<string | null>(null);
-  const [time, setTime] = useState<string>("");
+  const [user, setUser] = useState<Me | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // 🔐 Vérification du token et mise à jour de l’heure
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      router.push("/auth/login");
-      return;
+  async function fetchMe() {
+    try {
+      const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+      if (!token) {
+        setErr("Non connecté");
+        setLoading(false);
+        return;
+      }
+
+      const res = await fetch(`${API_BASE}/users/me`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        cache: "no-store",
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.detail || "Impossible de récupérer le profil");
+      }
+
+      setUser(data);
+      setErr(null);
+    } catch (e: any) {
+      setErr(e.message || "Erreur");
+    } finally {
+      setLoading(false);
     }
+  }
 
-    const email = localStorage.getItem("user_email");
-    setUser(email || "Utilisateur connecté");
-
-    const updateTime = () => {
-      const now = new Date();
-      setTime(now.toLocaleTimeString());
-    };
-    updateTime();
-    const interval = setInterval(updateTime, 1000);
-    return () => clearInterval(interval);
-  }, [router]);
+  useEffect(() => {
+    fetchMe();
+  }, []);
 
   function logout() {
     localStorage.removeItem("token");
-    localStorage.removeItem("user_email");
-    router.push("/auth/login");
+    router.push("/login");
   }
 
   return (
@@ -39,13 +70,15 @@ export default function DashboardPage() {
       style={{
         minHeight: "100vh",
         display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
         fontFamily: "'Poppins', sans-serif",
         color: "#fff",
         position: "relative",
         overflow: "hidden",
       }}
     >
-      {/* 🌌 Fond animé */}
+      {/* 🌌 Dégradé animé */}
       <div
         style={{
           position: "absolute",
@@ -56,93 +89,72 @@ export default function DashboardPage() {
           animation: "gradientMove 15s ease infinite",
           zIndex: 0,
         }}
-      ></div>
+      />
 
-      {/* ✨ Effet lumineux */}
+      {/* ✨ Effets lumineux */}
       <div
         style={{
           position: "absolute",
           inset: 0,
           background:
-            "radial-gradient(circle at 20% 30%, rgba(0,255,255,0.1) 0%, transparent 70%), radial-gradient(circle at 80% 70%, rgba(0,100,255,0.15) 0%, transparent 70%)",
+            "radial-gradient(circle at 20% 30%, rgba(0,255,255,0.10) 0%, transparent 70%), radial-gradient(circle at 80% 70%, rgba(0,100,255,0.15) 0%, transparent 70%)",
           zIndex: 1,
         }}
-      ></div>
+      />
 
-      {/* 🧭 Barre latérale */}
-      <aside
+      {/* Carte */}
+      <div
         style={{
-          width: "240px",
-          background: "rgba(255, 255, 255, 0.1)",
+          position: "relative",
+          zIndex: 2,
+          background: "rgba(30, 35, 50, 0.55)",
+          padding: "36px 44px",
+          borderRadius: 16,
+          boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
+          maxWidth: 720,
+          width: "92%",
           backdropFilter: "blur(10px)",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
-          padding: "30px 20px",
-          borderRight: "1px solid rgba(255,255,255,0.15)",
-          zIndex: 2,
         }}
       >
-        <div>
-          <h2 style={{ color: "#00e0ff", marginBottom: 40, fontWeight: 600 }}>
-            ⚙️ Générateur Digital
-          </h2>
-
-          <nav style={{ display: "grid", gap: 18 }}>
-            <a href="/dashboard" style={navLinkStyle}>
-              📊 Tableau de bord
-            </a>
-            <a href="/automatisations" style={navLinkStyle}>
-              🤖 Automatisations
-            </a>
-            <a href="/profil" style={navLinkStyle}>
-              👤 Profil
-            </a>
-            <a href="/paiement" style={navLinkStyle}>
-              💳 Abonnement
-            </a>
-          </nav>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+          <h1 style={{ color: "#00e0ff", margin: 0, fontWeight: 700 }}>Mon espace</h1>
+          <button onClick={logout} style={buttonStyle}>Se déconnecter</button>
         </div>
 
-        <button onClick={logout} style={logoutButtonStyle}>
-          🚪 Déconnexion
-        </button>
-      </aside>
-
-      {/* 🧠 Contenu principal */}
-      <section
-        style={{
-          flex: 1,
-          zIndex: 2,
-          padding: "60px 80px",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          textAlign: "center",
-        }}
-      >
-        <h1 style={{ color: "#00e0ff", marginBottom: 10, fontSize: 30 }}>
-          👋 Bienvenue {user || "Utilisateur"}
-        </h1>
-        <p style={{ color: "#cfeaff", marginBottom: 25, fontSize: 18 }}>
-          Vous êtes connecté à votre espace <strong>Générateur Digital</strong>.
-        </p>
-
-        <div
-          style={{
-            background: "rgba(255,255,255,0.12)",
-            padding: 25,
-            borderRadius: 14,
-            minWidth: 280,
-          }}
-        >
-          <h3 style={{ color: "#00ffb3", marginBottom: 6 }}>🕒 Heure actuelle</h3>
-          <p style={{ fontSize: 20, fontWeight: "bold" }}>{time}</p>
+        <div style={{ marginTop: 18 }}>
+          {loading ? (
+            <p>Chargement...</p>
+          ) : err ? (
+            <div>
+              <p style={{ color: "#ff8080", fontWeight: "bold" }}>{err}</p>
+              <button onClick={() => router.push("/login")} style={buttonStyle}>
+                Aller à la connexion
+              </button>
+            </div>
+          ) : user ? (
+            <div
+              style={{
+                display: "grid",
+                gap: 12,
+                background: "rgba(255,255,255,0.10)",
+                padding: 18,
+                borderRadius: 12,
+                marginTop: 8,
+              }}
+            >
+              <Row label="Nom">{user.full_name || "—"}</Row>
+              <Row label="Email">{user.email || "—"}</Row>
+              <Row label="Actif">{user.is_active ? "Oui" : "Non"}</Row>
+              <Row label="ID">{String(user.id ?? "—")}</Row>
+              {user.created_at && <Row label="Créé le">{new Date(user.created_at).toLocaleString()}</Row>}
+            </div>
+          ) : (
+            <p>Aucune donnée.</p>
+          )}
         </div>
-      </section>
+      </div>
 
-      {/* 🌀 Animation du fond */}
+      {/* Styles */}
       <style>{`
         @keyframes gradientMove {
           0% { background-position: 0% 50%; }
@@ -154,25 +166,21 @@ export default function DashboardPage() {
   );
 }
 
-const navLinkStyle = {
-  color: "#fff",
-  textDecoration: "none",
-  padding: "10px 15px",
-  borderRadius: "8px",
-  background: "rgba(255,255,255,0.05)",
-  transition: "all 0.3s ease",
-  fontWeight: 500,
-  fontSize: "16px",
-};
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "160px 1fr", gap: 12 }}>
+      <div style={{ opacity: 0.9, color: "#d0eaff" }}>{label}</div>
+      <div style={{ fontWeight: 600 }}>{children}</div>
+    </div>
+  );
+}
 
-const logoutButtonStyle = {
-  background: "linear-gradient(90deg, #ff416c, #ff4b2b)",
+const buttonStyle: React.CSSProperties = {
+  background: "linear-gradient(90deg, #00e0ff, #007bff)",
   color: "white",
-  padding: "12px 0",
+  padding: "10px 14px",
   border: "none",
   borderRadius: 10,
-  fontSize: 16,
+  fontSize: 15,
   cursor: "pointer",
-  fontWeight: 600,
-  transition: "all 0.3s ease",
 };
