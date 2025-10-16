@@ -1,75 +1,55 @@
-'use client';
-
-import { useEffect, useState } from 'react';
-import { checkHealth } from '@/lib/api';
-
-export default function HomePage() {
-  const [status, setStatus] = useState<'checking' | 'ok' | 'ko'>('checking');
-  const [message, setMessage] = useState('');
-  const base = process.env.NEXT_PUBLIC_API_BASE_URL;
-
-  useEffect(() => {
-    const testAPI = async () => {
-      setStatus('checking');
-      setMessage('');
-
-      const isHealthy = await checkHealth();
-
-if (isHealthy) {
-  setStatus('ok');
-  setMessage('API joignable !');
-} else {
-  setStatus('ko');
-  setMessage('API non joignable 😢');
-}
-    };
-
-    testAPI();
-  }, []);
-
+// app/page.tsx
+export default function Home() {
   return (
     <main
       style={{
+        minHeight: "100vh",
+        display: "grid",
+        placeItems: "center",
+        fontFamily: "'Poppins', sans-serif",
+        background:
+          "linear-gradient(-45deg, #0f2027, #203a43, #2c5364, #1a2a6c, #0f2027)",
+        color: "#fff",
         padding: 24,
-        maxWidth: 800,
-        margin: '0 auto',
-        fontFamily: 'system-ui, sans-serif',
       }}
     >
-      <h1 style={{ fontSize: 28, marginBottom: 16 }}>Le Générateur Digital</h1>
-
-      <div
-        style={{
-          background: '#111',
-          color: 'white',
-          padding: 24,
-          borderRadius: 12,
-        }}
-      >
-        <p>
-          <strong>Base URL API :</strong>{' '}
+      <div style={{ textAlign: "center", maxWidth: 720 }}>
+        <h1 style={{ marginBottom: 12, fontWeight: 700, color: "#00e0ff" }}>
+          LeGenerateurDigital
+        </h1>
+        <p style={{ opacity: 0.9, marginBottom: 24 }}>
+          Bienvenue 👋 — Utilise les liens ci-dessous pour t’inscrire ou te
+          connecter.
+        </p>
+        <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
           <a
-            href={base}
-            target="_blank"
-            rel="noreferrer"
-            style={{ color: '#0af' }}
+            href="/register"
+            style={{
+              background: "linear-gradient(90deg, #00e0ff, #007bff)",
+              color: "white",
+              padding: "12px 18px",
+              borderRadius: 10,
+              textDecoration: "none",
+              fontWeight: 600,
+            }}
           >
-            {base}
+            Créer un compte
           </a>
-        </p>
-
-        <p style={{ marginTop: 12 }}>
-          <strong>API :</strong>{' '}
-          {status === 'checking' && <span>⏳ Vérification...</span>}
-          {status === 'ok' && (
-            <span style={{ color: 'limegreen' }}>Joignable ✅</span>
-          )}
-          {status === 'ko' && (
-            <span style={{ color: 'red' }}>Non joignable ❌</span>
-          )}
-        </p>
-
-        <p style={{ marginTop: 8, color: '#ccc' }}>{message}</p>
+          <a
+            href="/login"
+            style={{
+              background: "rgba(255,255,255,0.15)",
+              color: "white",
+              padding: "12px 18px",
+              borderRadius: 10,
+              textDecoration: "none",
+              fontWeight: 600,
+              border: "1px solid rgba(255,255,255,0.35)",
+            }}
+          >
+            Se connecter
+          </a>
+        </div>
       </div>
     </main>
   );
