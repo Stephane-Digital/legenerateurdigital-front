@@ -1,7 +1,14 @@
+// app/login/page.tsx
 "use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+
+// Base API : accepte les 2 noms d'env
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_URL ||
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
+  "https://legenerateurdigital-backend-m9b5.onrender.com";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -9,33 +16,40 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    setMessage(null);
+    setSuccess(null);
     setLoading(true);
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/login`, {
+      // ⚠️ FastAPI /auth/login attend du form-url-encoded avec username & password
+      const form = new URLSearchParams();
+      form.set("username", email);
+      form.set("password", password);
+
+      const res = await fetch(`${API_BASE}/auth/login`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: form.toString(),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.detail || "Email ou mot de passe invalide");
+        throw new Error(data?.detail || "Identifiants invalides");
       }
 
-      // Sauvegarde du token
-      localStorage.setItem("token", data.access_token || data.token);
-      setMessage("✅ Connexion réussie !");
-      setTimeout(() => router.push("/dashboard"), 1500);
+      if (data?.access_token) {
+        localStorage.setItem("token", data.access_token);
+      }
+
+      setSuccess("Connecté !");
+      router.push("/dashboard");
     } catch (err: any) {
-      setError(err.message || "Erreur serveur");
+      setError(err.message || "Erreur inconnue");
     } finally {
       setLoading(false);
     }
@@ -65,43 +79,41 @@ export default function LoginPage() {
           animation: "gradientMove 15s ease infinite",
           zIndex: 0,
         }}
-      ></div>
+      />
 
-      {/* ✨ Lumières IA */}
+      {/* ✨ Effets lumineux */}
       <div
         style={{
           position: "absolute",
           inset: 0,
           background:
-            "radial-gradient(circle at 25% 30%, rgba(0,255,255,0.1) 0%, transparent 70%), radial-gradient(circle at 75% 70%, rgba(0,100,255,0.15) 0%, transparent 70%)",
+            "radial-gradient(circle at 20% 30%, rgba(0,255,255,0.10) 0%, transparent 70%), radial-gradient(circle at 80% 70%, rgba(0,100,255,0.15) 0%, transparent 70%)",
           zIndex: 1,
         }}
-      ></div>
+      />
 
-      {/* 🔐 Formulaire Login */}
+      {/* Carte */}
       <div
         style={{
           position: "relative",
           zIndex: 2,
-          background: "rgba(255, 255, 255, 0.1)",
+          background: "rgba(30, 35, 50, 0.55)",
           padding: "40px 50px",
           borderRadius: 16,
-          boxShadow: "0 8px 24px rgba(0,0,0,0.3)",
+          boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
           maxWidth: 420,
           width: "90%",
           textAlign: "center",
           backdropFilter: "blur(10px)",
         }}
       >
-        <h1 style={{ color: "#00e0ff", marginBottom: 6, fontWeight: 600 }}>
-          Connexion
+        <h1 style={{ color: "#00e0ff", marginBottom: 10, fontWeight: 600 }}>
+          Se connecter
         </h1>
-        <p style={{ fontSize: 14, marginBottom: 20, color: "#d0eaff" }}>
-          Bienvenue dans <strong>Le Générateur Digital</strong>
-        </p>
 
         <form onSubmit={onSubmit} style={{ display: "grid", gap: 14 }}>
           <input
+            className="auth-input"
             type="email"
             placeholder="Adresse email"
             value={email}
@@ -110,6 +122,7 @@ export default function LoginPage() {
             style={inputStyle}
           />
           <input
+            className="auth-input"
             type="password"
             placeholder="Mot de passe"
             value={password}
@@ -122,33 +135,19 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {message && (
-          <p style={{ color: "#00ffb3", marginTop: 16, fontWeight: "bold" }}>
-            {message}
-          </p>
-        )}
         {error && (
           <p style={{ color: "#ff8080", marginTop: 16, fontWeight: "bold" }}>
             {error}
           </p>
         )}
-
-        <p style={{ marginTop: 20, fontSize: 14 }}>
-          Pas encore de compte ?{" "}
-          <a
-            href="/auth/register"
-            style={{
-              color: "#00e0ff",
-              textDecoration: "none",
-              fontWeight: "bold",
-            }}
-          >
-            S’inscrire
-          </a>
-        </p>
+        {success && (
+          <p style={{ color: "#00ffb3", marginTop: 12, fontWeight: "bold" }}>
+            {success}
+          </p>
+        )}
       </div>
 
-      {/* 🌀 Animation CSS */}
+      {/* Styles */}
       <style>{`
         @keyframes gradientMove {
           0% { background-position: 0% 50%; }
@@ -156,21 +155,39 @@ export default function LoginPage() {
           100% { background-position: 0% 50%; }
         }
       `}</style>
+
+      <style jsx global>{`
+        .auth-input::placeholder {
+          color: rgba(255,255,255,0.88);
+        }
+        .auth-input:focus {
+          background: rgba(255,255,255,0.28);
+          outline: 2px solid #00e0ff;
+        }
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover,
+        input:-webkit-autofill:focus {
+          -webkit-text-fill-color: #fff;
+          transition: background-color 5000s ease-in-out 0s;
+          caret-color: #fff;
+        }
+      `}</style>
     </main>
   );
 }
 
-const inputStyle = {
+const inputStyle: React.CSSProperties = {
   padding: "16px 18px",
   borderRadius: 12,
-  border: "none",
+  border: "1px solid rgba(255,255,255,0.35)",
   fontSize: 16,
-  background: "rgba(255,255,255,0.15)",
-  color: "white",
+  background: "rgba(255,255,255,0.22)",
+  color: "#fff",
   outline: "none",
+  caretColor: "#fff",
 };
 
-const buttonStyle = {
+const buttonStyle: React.CSSProperties = {
   background: "linear-gradient(90deg, #00e0ff, #007bff)",
   color: "white",
   padding: "16px 0",
@@ -178,6 +195,4 @@ const buttonStyle = {
   borderRadius: 12,
   fontSize: 17,
   cursor: "pointer",
-  fontWeight: 600,
-  transition: "all 0.3s ease",
 };
