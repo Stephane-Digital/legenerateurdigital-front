@@ -5,9 +5,7 @@ const base =
   process.env.NEXT_PUBLIC_API_BASE_URL ||
   "https://legenerateurdigital-backend-m9b5.onrender.com";
 
-/* =======================
-   Gestion du token (client)
-   ======================= */
+// --- Token côté client ---
 export function setToken(token: string) {
   if (typeof window !== "undefined") {
     localStorage.setItem("token", token);
@@ -27,55 +25,32 @@ export function clearToken() {
   }
 }
 
-/* =========================
-   Helper API (normalisé)
-   ========================= */
-
-type ApiOptions = RequestInit & {
-  headers?: HeadersInit;
-};
-
-function mergeHeaders(baseHeaders: Record<string, string>, extra?: HeadersInit): Record<string, string> {
-  const out: Record<string, string> = { ...baseHeaders };
-
-  if (!extra) return out;
-
-  // Cas 1 : Headers
-  if (extra instanceof Headers) {
-    extra.forEach((value, key) => {
-      out[key] = value;
-    });
-    return out;
-  }
-
-  // Cas 2 : string[][]
-  if (Array.isArray(extra)) {
-    for (const [k, v] of extra) {
-      out[k] = String(v);
-    }
-    return out;
-  }
-
-  // Cas 3 : Record<string, string>
-  return { ...out, ...(extra as Record<string, string>) };
+// --- Helper pour normaliser les headers ---
+function toHeaders(init?: HeadersInit): Headers {
+  if (!init) return new Headers();
+  if (init instanceof Headers) return new Headers(init);
+  if (Array.isArray(init)) return new Headers(init);
+  return new Headers(init as Record<string, string>);
 }
+
+// --- Appel API générique ---
+type ApiOptions = RequestInit & { headers?: HeadersInit };
 
 export async function api(path: string, options: ApiOptions = {}) {
   const token = getToken();
 
-  const baseHeaders: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
+  // On part d’une instance `Headers` => plus de conflit de types
+  const headers = new Headers({ "Content-Type": "application/json" });
 
-  if (token) {
-    baseHeaders["Authorization"] = `Bearer ${token}`;
-  }
+  if (token) headers.set("Authorization", `Bearer ${token}`);
 
-  const headers = mergeHeaders(baseHeaders, options.headers);
+  // On fusionne proprement les headers passés en option
+  const extra = toHeaders(options.headers);
+  extra.forEach((value, key) => headers.set(key, value));
 
   const res = await fetch(`${base}${path}`, {
     ...options,
-    headers,
+    headers, // <== on passe une instance `Headers`
   });
 
   let data: any;
@@ -92,9 +67,7 @@ export async function api(path: string, options: ApiOptions = {}) {
   return data;
 }
 
-/* =========================
-   Healthcheck
-   ========================= */
+// --- Healthcheck ---
 export async function checkHealth() {
   try {
     const res = await fetch(`${base}/health`);
