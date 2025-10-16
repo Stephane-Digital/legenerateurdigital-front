@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import type { CSSProperties } from "react";
 
 // Base API : accepte les 2 noms d'env
 const API_BASE =
@@ -176,7 +177,7 @@ export default function LoginPage() {
   );
 }
 
-const inputStyle: React.CSSProperties = {
+const inputStyle: CSSProperties = {
   padding: "16px 18px",
   borderRadius: 12,
   border: "1px solid rgba(255,255,255,0.35)",
@@ -187,7 +188,7 @@ const inputStyle: React.CSSProperties = {
   caretColor: "#fff",
 };
 
-const buttonStyle: React.CSSProperties = {
+const buttonStyle: CSSProperties = {
   background: "linear-gradient(90deg, #00e0ff, #007bff)",
   color: "white",
   padding: "16px 0",
