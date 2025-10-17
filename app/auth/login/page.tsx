@@ -16,7 +16,7 @@ export default function LoginPage() {
     setErr(null);
     setLoading(true);
     try {
-      await login(email, pwd); // stocke le token via lib/api
+      await login(email, pwd); // stocke le token via lib/api.ts
       router.push("/dashboard");
     } catch (e: any) {
       setErr(e?.message || "Impossible de se connecter");
@@ -92,7 +92,7 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: 6,
     fontWeight: 800,
     fontSize: 28,
-    color: "#00E0FF", // couleur pleine pour éviter les soucis de gradient clip
+    color: "#00E0FF",
     textShadow: "0 4px 14px rgba(0,224,255,.25)",
   },
   title: {
