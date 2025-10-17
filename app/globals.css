@@ -1,8 +1,6 @@
-/* styles globaux minimalistes */
 :root {
-  /* le fond passe en dégradé */
-  --bg: linear-gradient(180deg, #102a3a 0%, #0b2b45 100%);
-  --fg: #ffffff;
+  --bg: #0d2a3b;      /* bleu profond fixe */
+  --fg: #e9f0f6;
 }
 
 * { box-sizing: border-box; }
@@ -11,9 +9,8 @@ html, body {
   margin: 0;
   padding: 0;
   background: var(--bg);
-  /* fixe le dégradé pour éviter tout effet d'animation */
-  background-attachment: fixed;
   color: var(--fg);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Helvetica Neue", "Liberation Sans", sans-serif;
 }
 
 a { color: inherit; text-decoration: none; }
