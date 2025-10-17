@@ -6,7 +6,7 @@ import { register } from "@/lib/api";
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [name, setName] = useState("");
+  const [name, setName] = useState(""); // si ton API attend `full_name`, vois NOTE ci-dessous
   const [email, setEmail] = useState("");
   const [pwd, setPwd] = useState("");
   const [loading, setLoading] = useState(false);
@@ -90,7 +90,7 @@ const styles: Record<string, React.CSSProperties> = {
       "'Poppins', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif",
     color: "#fff",
     background:
-      "linear-gradient(180deg, #0E2A3A 0%, #0F3E5A 50%, #0B2740 100%)", // fond bleu dégradé statique
+      "linear-gradient(180deg, #0E2A3A 0%, #0F3E5A 50%, #0B2740 100%)",
     padding: 16,
   },
   card: {
