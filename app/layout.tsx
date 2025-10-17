@@ -1,11 +1,5 @@
-// app/layout.tsx
 import "./globals.css";
-import type { Metadata } from "next";
-
-export const metadata: Metadata = {
-  title: "LeGenerateurDigital",
-  description: "Application de démonstration – Auth + Dashboard",
-};
+import React from "react";
 
 export default function RootLayout({
   children,
@@ -17,10 +11,9 @@ export default function RootLayout({
       <body style={{ margin: 0 }}>
         {/* Titre global, toujours visible */}
         <div
-          aria-hidden="true"
           style={{
             position: "fixed",
-            top: 24,
+            top: 28,
             left: "50%",
             transform: "translateX(-50%)",
             zIndex: 9999,
