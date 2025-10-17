@@ -1,56 +1,41 @@
-// app/login/page.tsx
 "use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { CSSProperties } from "react";
-
-// Base API : accepte les 2 noms d'env
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL ||
-  process.env.NEXT_PUBLIC_API_BASE_URL ||
-  "https://legenerateurdigital-backend-m9b5.onrender.com";
 
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [pwd, setPwd] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
-    setSuccess(null);
+    setErr(null);
     setLoading(true);
 
     try {
-      // ⚠️ FastAPI /auth/login attend du form-url-encoded avec username & password
-      const form = new URLSearchParams();
-      form.set("username", email);
-      form.set("password", password);
-
-      const res = await fetch(`${API_BASE}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: form.toString(),
-      });
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/login`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password: pwd }),
+        }
+      );
 
       const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Identifiants invalides");
 
-      if (!res.ok) {
-        throw new Error(data?.detail || "Identifiants invalides");
-      }
-
-      if (data?.access_token) {
+      // stocker le token (localStorage côté client)
+      if (typeof window !== "undefined") {
         localStorage.setItem("token", data.access_token);
       }
 
-      setSuccess("Connecté !");
       router.push("/dashboard");
-    } catch (err: any) {
-      setError(err.message || "Erreur inconnue");
+    } catch (e: any) {
+      setErr(e.message || "Erreur inconnue");
     } finally {
       setLoading(false);
     }
@@ -63,132 +48,147 @@ export default function LoginPage() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        fontFamily: "'Poppins', sans-serif",
+        background:
+          "linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%)",
         color: "#fff",
+        fontFamily: "'Poppins', sans-serif",
         position: "relative",
         overflow: "hidden",
+        paddingTop: 80, // laisse de la place pour le header
       }}
     >
-      {/* 🌌 Dégradé animé */}
-      <div
+      {/* === HEADER / TITRE === */}
+      <header
         style={{
-          position: "absolute",
-          inset: 0,
-          background:
-            "linear-gradient(-45deg, #0f2027, #203a43, #2c5364, #1a2a6c, #0f2027)",
-          backgroundSize: "400% 400%",
-          animation: "gradientMove 15s ease infinite",
-          zIndex: 0,
-        }}
-      />
-
-      {/* ✨ Effets lumineux */}
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          background:
-            "radial-gradient(circle at 20% 30%, rgba(0,255,255,0.10) 0%, transparent 70%), radial-gradient(circle at 80% 70%, rgba(0,100,255,0.15) 0%, transparent 70%)",
-          zIndex: 1,
-        }}
-      />
-
-      {/* Carte */}
-      <div
-        style={{
-          position: "relative",
+          position: "fixed",
+          top: 18,
+          left: 0,
+          right: 0,
+          display: "flex",
+          justifyContent: "center",
           zIndex: 2,
-          background: "rgba(30, 35, 50, 0.55)",
-          padding: "40px 50px",
-          borderRadius: 16,
-          boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
-          maxWidth: 420,
-          width: "90%",
-          textAlign: "center",
-          backdropFilter: "blur(10px)",
+          pointerEvents: "none",
         }}
       >
-        <h1 style={{ color: "#00e0ff", marginBottom: 10, fontWeight: 600 }}>
-          Se connecter
+        <h1
+          style={{
+            margin: 0,
+            fontSize: 28,
+            fontWeight: 800,
+            letterSpacing: 0.3,
+            background:
+              "linear-gradient(90deg, #00e0ff 0%, #00ffb3 50%, #007bff 100%)",
+            WebkitBackgroundClip: "text",
+            backgroundClip: "text",
+            color: "transparent",
+            textShadow: "0 0 30px rgba(0, 224, 255, 0.15)",
+          }}
+        >
+          Le Générateur Digital
         </h1>
+      </header>
 
-        <form onSubmit={onSubmit} style={{ display: "grid", gap: 14 }}>
-          <input
-            className="auth-input"
-            type="email"
-            placeholder="Adresse email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            style={inputStyle}
-          />
-          <input
-            className="auth-input"
-            type="password"
-            placeholder="Mot de passe"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            style={inputStyle}
-          />
-          <button type="submit" disabled={loading} style={buttonStyle}>
-            {loading ? "Connexion..." : "Se connecter"}
-          </button>
-        </form>
+      {/* Carte / Formulaire */}
+      <div
+        style={{
+          width: "92%",
+          maxWidth: 640,
+          margin: "0 auto",
+          display: "grid",
+          gridTemplateColumns: "1fr",
+          gap: 0,
+        }}
+      >
+        <div
+          style={{
+            background:
+              "radial-gradient(1200px 600px at 0% 0%, rgba(0, 255, 255, 0.08), transparent 60%), radial-gradient(1200px 600px at 100% 100%, rgba(0, 100, 255, 0.08), transparent 60%)",
+            borderRadius: 18,
+            padding: 28,
+            boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
+            backdropFilter: "blur(8px)",
+          }}
+        >
+          <div
+            style={{
+              background: "rgba(255,255,255,0.06)",
+              borderRadius: 16,
+              padding: "38px 32px",
+            }}
+          >
+            <h2
+              style={{
+                textAlign: "center",
+                fontSize: 28,
+                margin: 0,
+                marginBottom: 22,
+                fontWeight: 700,
+                color: "#00e0ff",
+              }}
+            >
+              Se connecter
+            </h2>
 
-        {error && (
-          <p style={{ color: "#ff8080", marginTop: 16, fontWeight: "bold" }}>
-            {error}
-          </p>
-        )}
-        {success && (
-          <p style={{ color: "#00ffb3", marginTop: 12, fontWeight: "bold" }}>
-            {success}
-          </p>
-        )}
+            <form
+              onSubmit={onSubmit}
+              style={{
+                display: "grid",
+                gap: 14,
+                maxWidth: 520,
+                margin: "0 auto",
+              }}
+            >
+              <input
+                type="email"
+                placeholder="Adresse email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                style={inputStyle}
+              />
+              <input
+                type="password"
+                placeholder="Mot de passe"
+                value={pwd}
+                onChange={(e) => setPwd(e.target.value)}
+                required
+                style={inputStyle}
+              />
+              <button type="submit" disabled={loading} style={buttonStyle}>
+                {loading ? "Connexion..." : "Se connecter"}
+              </button>
+
+              {err && (
+                <p
+                  style={{
+                    color: "#ff9595",
+                    textAlign: "center",
+                    marginTop: 6,
+                    fontWeight: 600,
+                  }}
+                >
+                  {err}
+                </p>
+              )}
+            </form>
+          </div>
+        </div>
       </div>
-
-      {/* Styles */}
-      <style>{`
-        @keyframes gradientMove {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
-      `}</style>
-
-      <style jsx global>{`
-        .auth-input::placeholder {
-          color: rgba(255,255,255,0.88);
-        }
-        .auth-input:focus {
-          background: rgba(255,255,255,0.28);
-          outline: 2px solid #00e0ff;
-        }
-        input:-webkit-autofill,
-        input:-webkit-autofill:hover,
-        input:-webkit-autofill:focus {
-          -webkit-text-fill-color: #fff;
-          transition: background-color 5000s ease-in-out 0s;
-          caret-color: #fff;
-        }
-      `}</style>
     </main>
   );
 }
 
-const inputStyle: CSSProperties = {
+const inputStyle: React.CSSProperties = {
   padding: "16px 18px",
   borderRadius: 12,
-  border: "1px solid rgba(255,255,255,0.35)",
+  border: "none",
   fontSize: 16,
-  background: "rgba(255,255,255,0.22)",
-  color: "#fff",
+  background: "rgba(255,255,255,0.15)",
+  color: "white",
   outline: "none",
-  caretColor: "#fff",
 };
 
-const buttonStyle: CSSProperties = {
+const buttonStyle: React.CSSProperties = {
   background: "linear-gradient(90deg, #00e0ff, #007bff)",
   color: "white",
   padding: "16px 0",
@@ -196,4 +196,5 @@ const buttonStyle: CSSProperties = {
   borderRadius: 12,
   fontSize: 17,
   cursor: "pointer",
+  fontWeight: 700,
 };
