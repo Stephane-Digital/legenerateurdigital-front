@@ -9,15 +9,15 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [pwd, setPwd] = useState("");
   const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErr(null);
+    setMsg(null);
     setLoading(true);
 
     try {
-      // login attend UN objet { email, password }
+      // IMPORTANT: pass a single object { email, password }
       const data = await login({ email, password: pwd });
 
       if (!data?.access_token) {
@@ -26,85 +26,79 @@ export default function LoginPage() {
 
       setToken(data.access_token);
       router.push("/dashboard");
-    } catch (e: any) {
-      setErr(e?.message || "Erreur de connexion");
+    } catch (err: any) {
+      setMsg(err?.message || "Échec de la connexion");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        color: "#fff",
-        fontFamily: "'Poppins', system-ui, -apple-system, Segoe UI, Roboto, Arial",
-      }}
-    >
-      <div
+    <main style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
+      <form
+        onSubmit={onSubmit}
         style={{
-          background: "rgba(255,255,255,0.08)",
-          padding: "34px 40px",
+          width: 480,
+          maxWidth: "92vw",
+          padding: 24,
           borderRadius: 16,
-          boxShadow: "0 8px 24px rgba(0,0,0,0.3)",
-          width: "min(480px, 92%)",
-          backdropFilter: "blur(10px)",
+          background: "rgba(0,0,0,0.35)",
+          boxShadow: "0 10px 25px rgba(0,0,0,0.25)",
         }}
       >
-        <h1 style={{ color: "#00e0ff", marginTop: 0, marginBottom: 12 }}>Se connecter</h1>
+        <h1 style={{ marginBottom: 16, color: "#00e0ff", textAlign: "center" }}>
+          Se connecter
+        </h1>
 
-        <form onSubmit={onSubmit} style={{ display: "grid", gap: 12 }}>
-          <input
-            type="email"
-            placeholder="Adresse email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            style={inputStyle}
-          />
-          <input
-            type="password"
-            placeholder="Mot de passe"
-            value={pwd}
-            onChange={(e) => setPwd(e.target.value)}
-            required
-            style={inputStyle}
-          />
+        <input
+          type="email"
+          placeholder="Adresse email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          style={inputStyle}
+        />
+        <input
+          type="password"
+          placeholder="Mot de passe"
+          value={pwd}
+          onChange={(e) => setPwd(e.target.value)}
+          required
+          style={inputStyle}
+        />
 
-          <button type="submit" disabled={loading} style={buttonStyle}>
-            {loading ? "Connexion…" : "Se connecter"}
-          </button>
-        </form>
+        <button type="submit" disabled={loading} style={buttonStyle}>
+          {loading ? "Connexion..." : "Se connecter"}
+        </button>
 
-        {err && (
-          <p style={{ color: "#ff8080", marginTop: 16, fontWeight: "bold" }}>
-            {err}
+        {msg && (
+          <p style={{ color: "#ff7b7b", marginTop: 12, textAlign: "center" }}>
+            {msg}
           </p>
         )}
-      </div>
+      </form>
     </main>
   );
 }
 
 const inputStyle: React.CSSProperties = {
+  width: "100%",
   padding: "14px 16px",
-  borderRadius: 12,
+  marginBottom: 12,
+  borderRadius: 10,
   border: "none",
-  fontSize: 16,
-  background: "rgba(255,255,255,0.15)",
-  color: "white",
+  background: "rgba(255,255,255,0.12)",
+  color: "#fff",
   outline: "none",
 };
 
 const buttonStyle: React.CSSProperties = {
-  background: "linear-gradient(90deg, #00e0ff, #007bff)",
-  color: "white",
-  padding: "14px 0",
+  width: "100%",
+  padding: "14px 16px",
+  borderRadius: 10,
   border: "none",
-  borderRadius: 12,
-  fontSize: 16,
   cursor: "pointer",
+  color: "#fff",
+  background: "linear-gradient(90deg,#00e0ff,#007bff)",
+  fontWeight: 600,
 };
