@@ -8,51 +8,70 @@ export default function Home() {
     <main
       style={{
         minHeight: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        gap: 16,
-        alignItems: "center",
-        justifyContent: "center",
-        background:
-          "linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%)",
-        color: "#fff",
-        fontFamily: "'Poppins', sans-serif",
+        display: "grid",
+        placeItems: "center",
+        padding: "40px 16px",
       }}
     >
-      <h1 style={{ fontSize: 42, fontWeight: 700, color: "#00e0ff" }}>
-        LeGenerateurDigital
-      </h1>
-
-      <p>Bienvenue 👋 — Utilise les liens ci-dessous pour t’inscrire ou te connecter.</p>
-
-      <div style={{ display: "flex", gap: 12 }}>
-        <Link
-          href="/auth/register"
+      <div
+        style={{
+          width: "100%",
+          maxWidth: 880,
+          margin: "0 auto",
+          textAlign: "center",
+        }}
+      >
+        <h1
           style={{
-            padding: "12px 18px",
-            borderRadius: 10,
-            background: "linear-gradient(90deg, #00e0ff, #007bff)",
-            color: "#fff",
-            textDecoration: "none",
-            fontWeight: 600,
+            fontSize: "clamp(28px, 4vw, 48px)",
+            marginBottom: 16,
+            color: "#00e0ff",
+            fontWeight: 700,
+            textShadow: "0 0 10px rgba(0,224,255,.25)",
           }}
         >
-          Créer un compte
-        </Link>
+          LeGenerateurDigital
+        </h1>
 
-        <Link
-          href="/auth/login"
+        <p style={{ color: "#d0eaff", opacity: 0.9, marginBottom: 28 }}>
+          Bienvenue 👋 — Utilise les liens ci-dessous pour t’inscrire ou te connecter.
+        </p>
+
+        <div
           style={{
-            padding: "12px 18px",
-            borderRadius: 10,
-            background: "rgba(255,255,255,0.15)",
-            color: "#fff",
-            textDecoration: "none",
-            fontWeight: 600,
+            display: "flex",
+            gap: 12,
+            justifyContent: "center",
+            flexWrap: "wrap",
           }}
         >
-          Se connecter
-        </Link>
+          <Link
+            href="/auth/register"
+            style={{
+              background:
+                "linear-gradient(90deg, rgba(0,224,255,1) 0%, rgba(0,123,255,1) 100%)",
+              padding: "14px 18px",
+              borderRadius: 10,
+              color: "#fff",
+              fontWeight: 600,
+            }}
+          >
+            Créer un compte
+          </Link>
+          <Link
+            href="/auth/login"
+            style={{
+              background: "rgba(255,255,255,0.08)",
+              padding: "14px 18px",
+              borderRadius: 10,
+              color: "#e6f3ff",
+              fontWeight: 600,
+              border: "1px solid rgba(255,255,255,.1)",
+            }}
+          >
+            Se connecter
+          </Link>
+        </div>
       </div>
     </main>
   );
