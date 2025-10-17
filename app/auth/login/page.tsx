@@ -48,129 +48,55 @@ export default function LoginPage() {
   }
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontFamily:
-          "'Poppins', system-ui, -apple-system, Segoe UI, Roboto, Arial",
-        color: "#fff",
-        position: "relative",
-        overflow: "hidden",
-      }}
-    >
-      {/* Fond animé */}
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          background:
-            "linear-gradient(-45deg, #0f2027, #203a43, #2c5364, #1a2a6c, #0f2027)",
-          backgroundSize: "400% 400%",
-          animation: "gradientMove 15s ease infinite",
-          zIndex: 0,
-        }}
-      />
+ <main
+  style={{
+    minHeight: "100vh",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontFamily: "'Poppins', system-ui, -apple-system, Segoe UI, Roboto, Arial",
+    color: "#fff",
+    position: "relative",
+    overflow: "hidden",
 
-      {/* halos */}
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          background:
-            "radial-gradient(circle at 20% 30%, rgba(0,255,255,0.10) 0%, transparent 70%), radial-gradient(circle at 80% 70%, rgba(0,100,255,0.15) 0%, transparent 70%)",
-          zIndex: 1,
-        }}
-      />
+    // ✅ Fond bleu dégradé (plus d’animation)
+    background:
+      "linear-gradient(180deg, #0E2A3A 0%, #0F3E5A 50%, #0B2740 100%)",
+  }}
+>
+  {/* ⛔️ Supprimé : toutes les DIVs d'arrière-plan animées */}
 
-      {/* Carte avec TITRE dedans */}
-      <div
-        style={{
-          position: "relative",
-          zIndex: 2,
-          background: "rgba(255, 255, 255, 0.08)",
-          padding: "36px 42px",
-          borderRadius: 16,
-          boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
-          maxWidth: 520,
-          width: "92%",
-          backdropFilter: "blur(10px)",
-        }}
-      >
-        {/* ✅ Titre visible (couleur pleine) */}
-        <h1
-          style={{
-            margin: 0,
-            marginBottom: 6,
-            fontWeight: 800,
-            fontSize: "clamp(20px, 3vw, 28px)",
-            letterSpacing: 0.5,
-            color: "#00e0ff", // <- couleur pleine, PAS de background-clip
-            textAlign: "center",
-            textShadow: "0 0 10px rgba(0,224,255,0.25)",
-          }}
-        >
-          LeGenerateurDigital
-        </h1>
+  {/* 🧩 Ta carte / formulaire reste identique */}
+  <div
+    style={{
+      position: "relative",
+      zIndex: 2,
+      background: "rgba(255, 255, 255, 0.08)",
+      padding: "40px 50px",
+      borderRadius: 16,
+      boxShadow: "0 8px 24px rgba(0,0,0,0.3)",
+      maxWidth: 520,
+      width: "90%",
+      textAlign: "center",
+      backdropFilter: "blur(10px)",
+    }}
+  >
+    {/* --- ton contenu existant (titre, inputs, bouton, messages d’erreur) --- */}
+    {/** Exemple minimal : 
+    <h1 style={{ color: "#00e0ff", marginBottom: 12, fontWeight: 700 }}>
+      Se connecter
+    </h1>
+    <form onSubmit={onSubmit} style={{ display: "grid", gap: 14 }}>
+      <input ... />
+      <input ... />
+      <button ...>Se connecter</button>
+    </form>
+    {error && <p style={{ color: "#ff8080", marginTop: 16 }}>{error}</p>}
+    **/}
+    {/** ↳ conserve ici ton code de formulaire actuel **/}
+  </div>
+</main>
 
-        <h2
-          style={{
-            margin: 0,
-            marginBottom: 18,
-            fontWeight: 700,
-            color: "#cfefff",
-            textAlign: "center",
-          }}
-        >
-          Se connecter
-        </h2>
-
-        <form
-          onSubmit={onSubmit}
-          style={{
-            display: "grid",
-            gap: 14,
-          }}
-        >
-          <input
-            type="email"
-            placeholder="Adresse email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            style={inputStyle}
-          />
-          <input
-            type="password"
-            placeholder="Mot de passe"
-            value={pwd}
-            onChange={(e) => setPwd(e.target.value)}
-            required
-            style={inputStyle}
-          />
-
-        <button type="submit" disabled={loading} style={buttonStyle}>
-            {loading ? "Connexion..." : "Se connecter"}
-          </button>
-        </form>
-
-        {err && (
-          <p style={{ color: "#ff9a9a", marginTop: 14, textAlign: "center" }}>
-            {err}
-          </p>
-        )}
-      </div>
-
-      <style>{`
-        @keyframes gradientMove {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
-      `}</style>
-    </main>
   );
 }
 
