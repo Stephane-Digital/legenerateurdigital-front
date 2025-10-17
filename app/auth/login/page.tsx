@@ -36,7 +36,6 @@ export default function LoginPage() {
         throw new Error(data?.detail || "Impossible de se connecter");
       }
 
-      // ✅ Stockage du token puis redirection
       if (data?.access_token) {
         localStorage.setItem("token", data.access_token);
       }
@@ -55,13 +54,14 @@ export default function LoginPage() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        fontFamily: "'Poppins', system-ui, -apple-system, Segoe UI, Roboto, Arial",
+        fontFamily:
+          "'Poppins', system-ui, -apple-system, Segoe UI, Roboto, Arial",
         color: "#fff",
-        position: "relative", // <-- important pour positionner le titre
+        position: "relative",
         overflow: "hidden",
       }}
     >
-      {/* 🌌 Dégradé animé de fond */}
+      {/* Fond animé */}
       <div
         style={{
           position: "absolute",
@@ -74,7 +74,7 @@ export default function LoginPage() {
         }}
       />
 
-      {/* ✨ Particules / halos */}
+      {/* halos */}
       <div
         style={{
           position: "absolute",
@@ -85,28 +85,7 @@ export default function LoginPage() {
         }}
       />
 
-      {/* 🧷 TITRE en haut de page */}
-      <h1
-        style={{
-          position: "absolute",
-          top: 32,
-          left: "50%",
-          transform: "translateX(-50%)",
-          margin: 0,
-          fontSize: "clamp(22px, 3vw, 32px)",
-          fontWeight: 800,
-          letterSpacing: 0.5,
-          background: "linear-gradient(90deg, #00e0ff, #00ffb3)",
-          WebkitBackgroundClip: "text",
-          color: "transparent",
-          textShadow: "0 0 18px rgba(0, 224, 255, 0.15)",
-          zIndex: 3,
-        }}
-      >
-        LeGenerateurDigital
-      </h1>
-
-      {/* 🧩 Carte / formulaire */}
+      {/* Carte + Titre à l'intérieur */}
       <div
         style={{
           position: "relative",
@@ -120,6 +99,24 @@ export default function LoginPage() {
           backdropFilter: "blur(10px)",
         }}
       >
+        {/* ✅ Titre MARQUE DANS LA CARTE */}
+        <h1
+          style={{
+            margin: 0,
+            marginBottom: 8,
+            fontWeight: 800,
+            fontSize: "clamp(20px, 3vw, 28px)",
+            letterSpacing: 0.5,
+            background: "linear-gradient(90deg, #00e0ff, #00ffb3)",
+            WebkitBackgroundClip: "text",
+            color: "transparent",
+            textAlign: "center",
+            textShadow: "0 0 14px rgba(0,224,255,0.16)",
+          }}
+        >
+          LeGenerateurDigital
+        </h1>
+
         <h2
           style={{
             margin: 0,
@@ -168,7 +165,6 @@ export default function LoginPage() {
         )}
       </div>
 
-      {/* 🌀 Animation CSS du dégradé */}
       <style>{`
         @keyframes gradientMove {
           0% { background-position: 0% 50%; }
@@ -180,8 +176,7 @@ export default function LoginPage() {
   );
 }
 
-/* ---- Styles réutilisables ---- */
-
+/* Styles réutilisables */
 const inputStyle: React.CSSProperties = {
   padding: "14px 16px",
   borderRadius: 12,
