@@ -1,4 +1,6 @@
 // app/layout.tsx
+import "./globals.css";
+
 export const metadata = {
   title: {
     default: "LeGenerateurDigital",
@@ -14,9 +16,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr">
-      <body>
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }
