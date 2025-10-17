@@ -1,37 +1,54 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { login } from "@/lib/api";
+import { login as loginApi, setToken } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
+
   const [email, setEmail] = useState("");
   const [pwd, setPwd] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
+
+  // Affiche un message de succès si on arrive depuis l'inscription
+  useEffect(() => {
+    const ok = localStorage.getItem("successMessage");
+    if (ok) {
+      setMsg(ok);
+      localStorage.removeItem("successMessage");
+    }
+  }, []);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setErr(null);
+    setMsg(null);
+    setError(null);
     setLoading(true);
+
     try {
-      await login(email, pwd); // stocke le token via lib/api.ts
+      const { access_token } = await loginApi(email, pwd);
+      setToken(access_token);
+      setMsg("Connecté !");
       router.push("/dashboard");
-    } catch (e: any) {
-      setErr(e?.message || "Impossible de se connecter");
+    } catch (err: any) {
+      setError(err?.message || "Erreur de connexion");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <main style={styles.wrap}>
+    <main style={styles.main}>
       <div style={styles.card}>
-        <h1 style={styles.brand}>LeGenerateurDigital</h1>
-        <h2 style={styles.title}>Se connecter</h2>
+        <h1 style={styles.title}>Se connecter</h1>
 
-        <form onSubmit={onSubmit} style={{ display: "grid", gap: 14 }}>
+        {msg && <p style={{ ...styles.text, color: "#35e1a1" }}>{msg}</p>}
+        {error && <p style={{ ...styles.text, color: "#ff6b6b" }}>{error}</p>}
+
+        <form onSubmit={onSubmit} style={styles.form}>
           <input
             type="email"
             placeholder="Adresse email"
@@ -53,73 +70,76 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {err && (
-          <p style={{ color: "#ff9aa2", marginTop: 12, fontWeight: 600 }}>
-            {err}
-          </p>
-        )}
+        <p style={{ ...styles.text, marginTop: 12 }}>
+          Pas encore de compte ?{" "}
+          <a href="/auth/register" style={styles.link}>
+            Créer un compte
+          </a>
+        </p>
       </div>
     </main>
   );
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  wrap: {
+  main: {
     minHeight: "100vh",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontFamily:
-      "'Poppins', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif",
-    color: "#fff",
     background:
-      "linear-gradient(180deg, #0E2A3A 0%, #0F3E5A 50%, #0B2740 100%)", // fond bleu dégradé statique
-    padding: 16,
+      "radial-gradient(1000px 600px at 20% 20%, rgba(0, 255, 255, 0.12), transparent 60%), radial-gradient(900px 600px at 80% 80%, rgba(0, 120, 255, 0.12), transparent 60%), linear-gradient(180deg, #0f2027, #203a43 40%, #2c5364)",
+    fontFamily:
+      "system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif",
+    color: "#e9f6ff",
   },
   card: {
-    width: "92%",
-    maxWidth: 520,
-    background: "rgba(255,255,255,0.08)",
-    border: "1px solid rgba(255,255,255,0.08)",
+    width: "100%",
+    maxWidth: 560,
+    padding: 28,
     borderRadius: 16,
-    boxShadow: "0 12px 36px rgba(0,0,0,0.35)",
-    backdropFilter: "blur(10px)",
-    padding: "32px 40px",
+    background: "rgba(12, 20, 28, 0.55)",
+    boxShadow: "0 18px 40px rgba(0,0,0,0.35)",
+    backdropFilter: "blur(8px)",
+    border: "1px solid rgba(255,255,255,0.06)",
     textAlign: "center",
   },
-  brand: {
-    margin: 0,
-    marginBottom: 6,
-    fontWeight: 800,
-    fontSize: 28,
-    color: "#00E0FF",
-    textShadow: "0 4px 14px rgba(0,224,255,.25)",
-  },
   title: {
-    margin: 0,
-    marginBottom: 18,
+    margin: "0 0 12px 0",
+    fontSize: 28,
     fontWeight: 700,
-    color: "#CFE8FF",
-    fontSize: 20,
+    color: "#6df2ff",
+  },
+  text: {
+    margin: 0,
+    opacity: 0.95,
+  },
+  form: {
+    display: "grid",
+    gap: 12,
+    marginTop: 12,
   },
   input: {
     padding: "14px 16px",
-    borderRadius: 10,
-    border: "none",
-    fontSize: 16,
-    background: "rgba(255,255,255,0.16)",
-    color: "#fff",
+    borderRadius: 12,
+    border: "1px solid rgba(255,255,255,.08)",
+    background: "rgba(255,255,255,0.12)",
+    color: "white",
     outline: "none",
   },
   button: {
-    background:
-      "linear-gradient(90deg, rgba(0,224,255,1) 0%, rgba(0,123,255,1) 100%)",
-    color: "white",
-    padding: "14px 0",
+    marginTop: 6,
+    padding: "14px 16px",
+    borderRadius: 12,
     border: "none",
-    borderRadius: 10,
-    fontSize: 17,
-    fontWeight: 700,
     cursor: "pointer",
+    fontSize: 16,
+    color: "#fff",
+    background: "linear-gradient(90deg, rgb(0, 224, 255), rgb(0, 123, 255))",
+    boxShadow: "0 10px 24px rgba(0,123,255,.22)",
+  },
+  link: {
+    color: "#6df2ff",
+    textDecoration: "underline",
   },
 };
