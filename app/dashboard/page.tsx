@@ -1,95 +1,30 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { me, clearToken } from "@/lib/api";
+import React from "react";
+import { ProfileTile } from "../components/dashboard/ProfileTile";
 
 export default function DashboardPage() {
-  const router = useRouter();
-  const [user, setUser] = useState<any>(null);
-  const [err, setErr] = useState<string | null>(null);
+  const user = {
+    name: "Jean Dupont",
+    email: "jean.dupont@example.com",
+    avatarUrl: "",
+  };
 
-  useEffect(() => {
-    let mounted = true;
-
-    (async () => {
-      try {
-        // IMPORTANT: no generic type argument here; just call me()
-        const u = await me();
-        if (!mounted) return;
-        setUser(u);
-      } catch (e: any) {
-        if (!mounted) return;
-        setErr(e?.message || "Non connecté");
-      }
-    })();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  const onLogout = () => {
-    clearToken();
-    router.push("/auth/login");
+  const handleLogout = () => {
+    console.log("Déconnexion...");
+    // plus tard : tu ajouteras ici la vraie déconnexion (clear token + redirect)
   };
 
   return (
-    <main style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
-      <div
-        style={{
-          width: 680,
-          maxWidth: "92vw",
-          padding: 24,
-          borderRadius: 16,
-          background: "rgba(0,0,0,0.35)",
-          boxShadow: "0 10px 25px rgba(0,0,0,0.25)",
-        }}
-      >
-        <h1 style={{ color: "#00e0ff", marginBottom: 12, textAlign: "center" }}>
-          Mon compte
-        </h1>
-
-        {err && (
-          <p style={{ color: "#ff7b7b", marginBottom: 16, textAlign: "center" }}>
-            {err}
-          </p>
-        )}
-
-        {user ? (
-          <>
-            <pre
-              style={{
-                whiteSpace: "pre-wrap",
-                background: "rgba(255,255,255,0.08)",
-                padding: 12,
-                borderRadius: 8,
-                color: "#e6f7ff",
-              }}
-            >
-              {JSON.stringify(user, null, 2)}
-            </pre>
-
-            <button onClick={onLogout} style={buttonStyle}>
-              Se déconnecter
-            </button>
-          </>
-        ) : (
-          !err && <p style={{ textAlign: "center" }}>Chargement…</p>
-        )}
+    <main className="min-h-screen bg-gray-50 p-8">
+      <div className="grid gap-6 md:grid-cols-3 lg:grid-cols-4">
+        <ProfileTile
+          name={user.name}
+          email={user.email}
+          avatarUrl={user.avatarUrl}
+          onLogout={handleLogout}
+        />
       </div>
     </main>
   );
 }
-
-const buttonStyle: React.CSSProperties = {
-  marginTop: 16,
-  width: "100%",
-  padding: "14px 16px",
-  borderRadius: 10,
-  border: "none",
-  cursor: "pointer",
-  color: "#fff",
-  background: "linear-gradient(90deg,#ff6b6b,#ef476f)",
-  fontWeight: 600,
-};
