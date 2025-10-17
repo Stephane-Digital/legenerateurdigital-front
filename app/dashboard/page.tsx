@@ -4,31 +4,23 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { me, clearToken } from "@/lib/api";
 
-type User = {
-  id?: number;
-  email?: string;
-  name?: string;
-};
-
 export default function DashboardPage() {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<any>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let mounted = true;
 
     (async () => {
       try {
-        const u = await me(); // <-- PAS de générique ici
+        // IMPORTANT: no generic type argument here; just call me()
+        const u = await me();
         if (!mounted) return;
         setUser(u);
       } catch (e: any) {
         if (!mounted) return;
         setErr(e?.message || "Non connecté");
-      } finally {
-        if (mounted) setLoading(false);
       }
     })();
 
@@ -42,74 +34,62 @@ export default function DashboardPage() {
     router.push("/auth/login");
   };
 
-  if (loading) {
-    return (
-      <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", color: "#fff" }}>
-        Chargement…
-      </main>
-    );
-  }
-
-  if (err) {
-    return (
-      <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", color: "#fff" }}>
-        <div>
-          <p style={{ marginBottom: 12 }}>{err}</p>
-          <button
-            onClick={() => router.push("/auth/login")}
-            style={{ padding: "12px 18px", borderRadius: 12, border: "none", cursor: "pointer" }}
-          >
-            Se connecter
-          </button>
-        </div>
-      </main>
-    );
-  }
-
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        display: "grid",
-        placeItems: "center",
-        color: "#fff",
-        fontFamily: "'Poppins', system-ui, -apple-system, Segoe UI, Roboto, Arial",
-      }}
-    >
+    <main style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
       <div
         style={{
-          background: "rgba(255,255,255,0.06)",
+          width: 680,
+          maxWidth: "92vw",
+          padding: 24,
           borderRadius: 16,
-          padding: 28,
-          width: "min(680px, 92%)",
-          boxShadow: "0 8px 24px rgba(0,0,0,0.3)",
-          backdropFilter: "blur(8px)",
+          background: "rgba(0,0,0,0.35)",
+          boxShadow: "0 10px 25px rgba(0,0,0,0.25)",
         }}
       >
-        <h1 style={{ marginTop: 0, color: "#00e0ff" }}>Mon compte</h1>
-        <p style={{ margin: "6px 0" }}>
-          <strong>Nom :</strong> {user?.name ?? "—"}
-        </p>
-        <p style={{ margin: "6px 0" }}>
-          <strong>Email :</strong> {user?.email ?? "—"}
-        </p>
+        <h1 style={{ color: "#00e0ff", marginBottom: 12, textAlign: "center" }}>
+          Mon compte
+        </h1>
 
-        <div style={{ marginTop: 20, display: "flex", gap: 12 }}>
-          <button
-            onClick={onLogout}
-            style={{
-              background: "linear-gradient(90deg, #00e0ff, #007bff)",
-              color: "white",
-              padding: "12px 18px",
-              border: "none",
-              borderRadius: 12,
-              cursor: "pointer",
-            }}
-          >
-            Se déconnecter
-          </button>
-        </div>
+        {err && (
+          <p style={{ color: "#ff7b7b", marginBottom: 16, textAlign: "center" }}>
+            {err}
+          </p>
+        )}
+
+        {user ? (
+          <>
+            <pre
+              style={{
+                whiteSpace: "pre-wrap",
+                background: "rgba(255,255,255,0.08)",
+                padding: 12,
+                borderRadius: 8,
+                color: "#e6f7ff",
+              }}
+            >
+              {JSON.stringify(user, null, 2)}
+            </pre>
+
+            <button onClick={onLogout} style={buttonStyle}>
+              Se déconnecter
+            </button>
+          </>
+        ) : (
+          !err && <p style={{ textAlign: "center" }}>Chargement…</p>
+        )}
       </div>
     </main>
   );
 }
+
+const buttonStyle: React.CSSProperties = {
+  marginTop: 16,
+  width: "100%",
+  padding: "14px 16px",
+  borderRadius: 10,
+  border: "none",
+  cursor: "pointer",
+  color: "#fff",
+  background: "linear-gradient(90deg,#ff6b6b,#ef476f)",
+  fontWeight: 600,
+};
