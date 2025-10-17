@@ -1,36 +1,50 @@
-// app/automatisations/page.tsx
-// Page propre, sans fond animé ni keyframes ni halos.
+"use client";
+import { useEffect, useState } from "react";
 
 export default function AutomatisationsPage() {
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    setMsg(null);
+  }, []);
+
   return (
     <main
       style={{
         minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
+        display: "grid",
+        placeItems: "center",
+        padding: "24px",
       }}
     >
-      <section
+      <div
         style={{
-          width: "min(1000px, 92vw)",
-          background: "rgba(255,255,255,0.08)",
-          border: "1px solid rgba(255,255,255,0.15)",
+          width: "100%",
+          maxWidth: 860,
+          background: "rgba(20, 30, 40, 0.6)",
+          border: "1px solid rgba(255,255,255,0.06)",
           borderRadius: 16,
-          padding: 28,
-          backdropFilter: "blur(6px)",
-          boxShadow: "0 12px 32px rgba(0,0,0,.25)",
+          boxShadow: "0 10px 30px rgba(0,0,0,0.3)",
+          backdropFilter: "blur(8px)",
+          WebkitBackdropFilter: "blur(8px)",
+          color: "#e9f0f6",
+          overflow: "hidden",
         }}
       >
-        <header style={{ marginBottom: 16, textAlign: "center" }}>
+        <div
+          style={{
+            padding: "28px 28px 16px",
+            borderBottom: "1px solid rgba(255,255,255,0.06)",
+          }}
+        >
           <h1
             style={{
               margin: 0,
+              fontSize: 24,
               fontWeight: 700,
-              lineHeight: 1.25,
-              fontSize: "clamp(22px, 3.2vw, 34px)",
-              color: "#00e0ff",
-              textShadow: "0 1px 8px rgba(0,224,255,.25)",
+              letterSpacing: 0.3,
+              color: "#a9d8ff",
             }}
           >
             Automatisations
@@ -39,50 +53,83 @@ export default function AutomatisationsPage() {
             style={{
               margin: "8px 0 0",
               opacity: 0.85,
-              fontSize: "clamp(14px, 2.2vw, 16px)",
+              fontSize: 14,
+              color: "#d5e6f3",
             }}
           >
-            Centralisez et gérez vos automatisations sans prise de tête.
+            Centralisez ici vos futures actions automatiques (envois, webhooks, intégrations…)
           </p>
-        </header>
+        </div>
 
-        {/* Contenu exemple — tu peux remplacer par ta logique réelle */}
-        <div
-          style={{
-            display: "grid",
-            gap: 12,
-            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          }}
-        >
-          {[
-            { title: "Bienvenue", desc: "Ajoutez vos scénarios d’automatisation." },
-            { title: "Exécution", desc: "Planifiez ou lancez vos tâches." },
-            { title: "Logs", desc: "Suivez l’historique et les statuts." },
-          ].map((item) => (
-            <article
-              key={item.title}
+        <div style={{ padding: 24 }}>
+          <div
+            style={{
+              background: "rgba(0, 0, 0, 0.2)",
+              border: "1px solid rgba(255,255,255,0.06)",
+              borderRadius: 12,
+              padding: 16,
+              marginBottom: 16,
+            }}
+          >
+            <div
               style={{
-                border: "1px solid rgba(255,255,255,.15)",
-                background: "rgba(255,255,255,.06)",
-                borderRadius: 12,
-                padding: 16,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
               }}
             >
-              <h3
+              <div>
+                <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                  Exemple – Notification Discord
+                </div>
+                <div style={{ fontSize: 13, opacity: 0.8 }}>
+                  Quand un utilisateur s’inscrit, envoie un message sur un canal.
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setLoading(true);
+                  setTimeout(() => {
+                    setLoading(false);
+                    setMsg("Exécution simulée : OK");
+                  }, 900);
+                }}
+                disabled={loading}
                 style={{
-                  margin: "0 0 6px",
-                  fontSize: 18,
+                  background:
+                    "linear-gradient(90deg, rgba(0,224,255,1) 0%, rgba(0,123,255,1) 100%)",
+                  border: "none",
+                  color: "#fff",
                   fontWeight: 600,
-                  color: "#bff6ff",
+                  padding: "10px 14px",
+                  borderRadius: 10,
+                  cursor: "pointer",
+                  opacity: loading ? 0.7 : 1,
                 }}
               >
-                {item.title}
-              </h3>
-              <p style={{ margin: 0, opacity: 0.9, fontSize: 14 }}>{item.desc}</p>
-            </article>
-          ))}
+                {loading ? "Exécution…" : "Tester"}
+              </button>
+            </div>
+          </div>
+
+          {msg && (
+            <div
+              style={{
+                marginTop: 8,
+                padding: 12,
+                borderRadius: 8,
+                background: "rgba(22,163,74,0.15)",
+                border: "1px solid rgba(74,222,128,0.35)",
+                color: "#9be7b0",
+                fontSize: 14,
+              }}
+            >
+              {msg}
+            </div>
+          )}
         </div>
-      </section>
+      </div>
     </main>
   );
 }
