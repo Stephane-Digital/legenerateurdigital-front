@@ -85,7 +85,7 @@ export default function LoginPage() {
         }}
       />
 
-      {/* Carte + Titre à l'intérieur */}
+      {/* Carte avec TITRE dedans */}
       <div
         style={{
           position: "relative",
@@ -99,19 +99,17 @@ export default function LoginPage() {
           backdropFilter: "blur(10px)",
         }}
       >
-        {/* ✅ Titre MARQUE DANS LA CARTE */}
+        {/* ✅ Titre visible (couleur pleine) */}
         <h1
           style={{
             margin: 0,
-            marginBottom: 8,
+            marginBottom: 6,
             fontWeight: 800,
             fontSize: "clamp(20px, 3vw, 28px)",
             letterSpacing: 0.5,
-            background: "linear-gradient(90deg, #00e0ff, #00ffb3)",
-            WebkitBackgroundClip: "text",
-            color: "transparent",
+            color: "#00e0ff", // <- couleur pleine, PAS de background-clip
             textAlign: "center",
-            textShadow: "0 0 14px rgba(0,224,255,0.16)",
+            textShadow: "0 0 10px rgba(0,224,255,0.25)",
           }}
         >
           LeGenerateurDigital
@@ -153,7 +151,7 @@ export default function LoginPage() {
             style={inputStyle}
           />
 
-          <button type="submit" disabled={loading} style={buttonStyle}>
+        <button type="submit" disabled={loading} style={buttonStyle}>
             {loading ? "Connexion..." : "Se connecter"}
           </button>
         </form>
