@@ -1,71 +1,43 @@
-// app/dashboard/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { CSSProperties } from "react";
+import { me, clearToken } from "@/lib/api";
 
-// Base API : accepte les 2 noms d'env
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL ||
-  process.env.NEXT_PUBLIC_API_BASE_URL ||
-  "https://legenerateurdigital-backend-m9b5.onrender.com";
-
-type Me = {
-  id?: number | string;
-  email?: string;
-  full_name?: string | null;
-  is_active?: boolean;
-  created_at?: string | null;
-};
-
-export default function Dashboard() {
+export default function DashboardPage() {
   const router = useRouter();
-  const [user, setUser] = useState<Me | null>(null);
+
+  const [user, setUser] = useState<any>(null);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  async function fetchMe() {
-    try {
-      const token =
-        typeof window !== "undefined" ? localStorage.getItem("token") : null;
-      if (!token) {
-        setErr("Non connecté");
-        setLoading(false);
-        return;
-      }
-
-      const res = await fetch(`${API_BASE}/users/me`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        cache: "no-store",
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data?.detail || "Impossible de récupérer le profil");
-      }
-
-      setUser(data);
-      setErr(null);
-    } catch (e: any) {
-      setErr(e.message || "Erreur");
-    } finally {
-      setLoading(false);
-    }
-  }
-
   useEffect(() => {
-    fetchMe();
-  }, []);
+    let mounted = true;
 
-  function logout() {
-    localStorage.removeItem("token");
-    router.push("/login");
-  }
+    (async () => {
+      try {
+        const u = await me(); // appelle GET /users/me avec le token
+        if (!mounted) return;
+        setUser(u);
+      } catch (e: any) {
+        if (!mounted) return;
+        // si pas connecté → on renvoie vers /auth/login
+        setErr(e?.message || "Non connecté");
+        router.replace("/auth/login");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [router]);
+
+  const onLogout = () => {
+    clearToken();
+    router.push("/auth/login");
+  };
 
   return (
     <main
@@ -80,7 +52,7 @@ export default function Dashboard() {
         overflow: "hidden",
       }}
     >
-      {/* 🌌 Dégradé animé */}
+      {/* Dégradé animé */}
       <div
         style={{
           position: "absolute",
@@ -93,13 +65,13 @@ export default function Dashboard() {
         }}
       />
 
-      {/* ✨ Effets lumineux */}
+      {/* Particules */}
       <div
         style={{
           position: "absolute",
           inset: 0,
           background:
-            "radial-gradient(circle at 20% 30%, rgba(0,255,255,0.10) 0%, transparent 70%), radial-gradient(circle at 80% 70%, rgba(0,100,255,0.15) 0%, transparent 70%)",
+            "radial-gradient(circle at 20% 30%, rgba(0,255,255,0.1) 0%, transparent 70%), radial-gradient(circle at 80% 70%, rgba(0,100,255,0.15) 0%, transparent 70%)",
           zIndex: 1,
         }}
       />
@@ -109,69 +81,67 @@ export default function Dashboard() {
         style={{
           position: "relative",
           zIndex: 2,
-          background: "rgba(30, 35, 50, 0.55)",
-          padding: "36px 44px",
+          background: "rgba(255, 255, 255, 0.1)",
+          padding: "32px 40px",
           borderRadius: 16,
-          boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
-          maxWidth: 720,
+          boxShadow: "0 8px 24px rgba(0,0,0,0.3)",
+          maxWidth: 560,
           width: "92%",
+          textAlign: "center",
           backdropFilter: "blur(10px)",
         }}
       >
-        <div
+        {/* Titre visuel marque */}
+        <h1
           style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: 12,
+            marginTop: 0,
+            marginBottom: 8,
+            fontSize: 26,
+            letterSpacing: 0.5,
+            color: "#00e0ff",
+            textShadow: "0 0 10px rgba(0, 224, 255, 0.4)",
           }}
         >
-          <h1 style={{ color: "#00e0ff", margin: 0, fontWeight: 700 }}>
-            Mon espace
-          </h1>
-          <button onClick={logout} style={buttonStyle}>
-            Se déconnecter
-          </button>
-        </div>
+          LeGenerateurDigital
+        </h1>
 
-        <div style={{ marginTop: 18 }}>
-          {loading ? (
-            <p>Chargement...</p>
-          ) : err ? (
+        <p style={{ marginTop: 0, opacity: 0.8 }}>Mon compte</p>
+
+        {loading ? (
+          <p style={{ marginTop: 20 }}>Chargement…</p>
+        ) : err ? (
+          <p style={{ color: "#ff8080", marginTop: 16, fontWeight: "bold" }}>
+            {err}
+          </p>
+        ) : (
+          <div style={{ marginTop: 16, lineHeight: 1.8 }}>
             <div>
-              <p style={{ color: "#ff8080", fontWeight: "bold" }}>{err}</p>
-              <button onClick={() => router.push("/login")} style={buttonStyle}>
-                Aller à la connexion
-              </button>
+              <strong>Nom :</strong> {user?.name ?? "—"}
             </div>
-          ) : user ? (
-            <div
+            <div>
+              <strong>Email :</strong> {user?.email ?? "—"}
+            </div>
+
+            <button
+              onClick={onLogout}
               style={{
-                display: "grid",
-                gap: 12,
-                background: "rgba(255,255,255,0.10)",
-                padding: 18,
-                borderRadius: 12,
-                marginTop: 8,
+                marginTop: 24,
+                background: "linear-gradient(90deg, #00e0ff, #007bff)",
+                color: "#fff",
+                padding: "12px 18px",
+                border: "none",
+                borderRadius: 10,
+                fontSize: 16,
+                cursor: "pointer",
               }}
             >
-              <Row label="Nom">{user.full_name || "—"}</Row>
-              <Row label="Email">{user.email || "—"}</Row>
-              <Row label="Actif">{user.is_active ? "Oui" : "Non"}</Row>
-              <Row label="ID">{String(user.id ?? "—")}</Row>
-              {user.created_at && (
-                <Row label="Créé le">
-                  {new Date(user.created_at).toLocaleString()}
-                </Row>
-              )}
-            </div>
-          ) : (
-            <p>Aucune donnée.</p>
-          )}
-        </div>
+              Se déconnecter
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Styles */}
+      {/* Animation CSS */}
       <style>{`
         @keyframes gradientMove {
           0% { background-position: 0% 50%; }
@@ -182,28 +152,3 @@ export default function Dashboard() {
     </main>
   );
 }
-
-function Row({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div style={{ display: "grid", gridTemplateColumns: "160px 1fr", gap: 12 }}>
-      <div style={{ opacity: 0.9, color: "#d0eaff" }}>{label}</div>
-      <div style={{ fontWeight: 600 }}>{children}</div>
-    </div>
-  );
-}
-
-const buttonStyle: CSSProperties = {
-  background: "linear-gradient(90deg, #00e0ff, #007bff)",
-  color: "white",
-  padding: "10px 14px",
-  border: "none",
-  borderRadius: 10,
-  fontSize: 15,
-  cursor: "pointer",
-};
