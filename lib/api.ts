@@ -1,11 +1,13 @@
-// lib/api.ts
+// app/lib/api.ts
 
+// Base URL de l’API (Render). Tu peux laisser l’env ou la valeur par défaut.
 const base =
-  process.env.NEXT_PUBLIC_API_URL ||
   process.env.NEXT_PUBLIC_API_BASE_URL ||
   "https://legenerateurdigital-backend-m9b5.onrender.com";
 
-// --- Token côté client ---
+/* =======================
+   Gestion du token
+======================= */
 export function setToken(token: string) {
   if (typeof window !== "undefined") {
     localStorage.setItem("token", token);
@@ -25,54 +27,83 @@ export function clearToken() {
   }
 }
 
-// --- Helper pour normaliser les headers ---
-function toHeaders(init?: HeadersInit): Headers {
-  if (!init) return new Headers();
-  if (init instanceof Headers) return new Headers(init);
-  if (Array.isArray(init)) return new Headers(init);
-  return new Headers(init as Record<string, string>);
-}
-
-// --- Appel API générique ---
-type ApiOptions = RequestInit & { headers?: HeadersInit };
-
-export async function api(path: string, options: ApiOptions = {}) {
+/* =======================
+   Helper fetch générique
+======================= */
+export async function api(
+  path: string,
+  options: RequestInit = {}
+): Promise<any> {
   const token = getToken();
 
-  // On part d’une instance `Headers` => plus de conflit de types
-  const headers = new Headers({ "Content-Type": "application/json" });
+  // headers typés en Record<string, string>
+  const mergedHeaders: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(options.headers as Record<string, string> | undefined),
+  };
 
-  if (token) headers.set("Authorization", `Bearer ${token}`);
-
-  // On fusionne proprement les headers passés en option
-  const extra = toHeaders(options.headers);
-  extra.forEach((value, key) => headers.set(key, value));
+  if (token) {
+    mergedHeaders["Authorization"] = `Bearer ${token}`;
+  }
 
   const res = await fetch(`${base}${path}`, {
     ...options,
-    headers, // <== on passe une instance `Headers`
+    headers: mergedHeaders,
   });
 
-  let data: any;
-  try {
-    data = await res.json();
-  } catch {
-    data = null;
+  // essaie de parser le JSON si présent
+  let data: any = null;
+  const ct = res.headers.get("content-type") || "";
+  if (ct.includes("application/json")) {
+    try {
+      data = await res.json();
+    } catch {
+      data = null;
+    }
   }
 
   if (!res.ok) {
-    throw new Error(data?.detail || data?.message || `Erreur API ${res.status}`);
+    const msg = (data && (data.detail || data.message)) || `Erreur API ${res.status}`;
+    throw new Error(msg);
   }
 
   return data;
 }
 
-// --- Healthcheck ---
-export async function checkHealth() {
+/* =======================
+   Endpoints pratiques
+======================= */
+export async function checkHealth(): Promise<boolean> {
   try {
-    const res = await fetch(`${base}/health`);
-    return res.ok;
+    const r = await api("/health");
+    return !!r;
   } catch {
     return false;
   }
+}
+
+export async function register(name: string, email: string, password: string) {
+  return api("/auth/register", {
+    method: "POST",
+    body: JSON.stringify({ name, email, password }),
+  });
+}
+
+export async function login(email: string, password: string) {
+  const data = await api("/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
+
+  // si l’API renvoie un access_token → on le stocke
+  const token =
+    data?.access_token || data?.token || data?.accessToken || null;
+  if (token) setToken(token);
+
+  return data;
+}
+
+export async function me() {
+  // nécessite un token -> renverra 401 si non connecté
+  return api("/users/me", { method: "GET" });
 }
