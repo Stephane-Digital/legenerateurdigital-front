@@ -39,6 +39,24 @@ export default function LoginPage() {
           zIndex: 0,
         }}
       />
+<h1
+  style={{
+    position: "absolute",
+    top: 32,
+    left: "50%",
+    transform: "translateX(-50%)",
+    margin: 0,
+    fontSize: "clamp(22px, 3vw, 32px)",
+    fontWeight: 800,
+    letterSpacing: 0.5,
+    background: "linear-gradient(90deg, #00e0ff, #00ffb3)",
+    WebkitBackgroundClip: "text",
+    color: "transparent",
+    textShadow: "0 0 18px rgba(0, 224, 255, 0.15)",
+  }}
+>
+  LeGenerateurDigital
+</h1>
 
       {/* Carte + titre à l’intérieur */}
       <div style={{ position: "relative", zIndex: 1, width: "100%", maxWidth: 720 }}>
