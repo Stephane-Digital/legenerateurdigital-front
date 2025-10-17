@@ -1,8 +1,5 @@
-// app/dashboard/metadata.ts
-import type { Metadata } from "next";
-
-export const metadata: Metadata = {
-  title: "Mon compte",
+export const metadata = {
+  title: "Mon compte | LeGenerateurDigital",
 };
 
 export default {};
