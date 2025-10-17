@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root {
   --bg: #0d2a3b;      /* bleu profond fixe */
   --fg: #e9f0f6;
