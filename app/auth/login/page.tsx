@@ -1,44 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [pwd, setPwd] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setErr(null);
-    setLoading(true);
-
-    try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/login`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password: pwd }),
-        }
-      );
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Identifiants invalides");
-
-      // stocker le token (localStorage côté client)
-      if (typeof window !== "undefined") {
-        localStorage.setItem("token", data.access_token);
-      }
-
-      router.push("/dashboard");
-    } catch (e: any) {
-      setErr(e.message || "Erreur inconnue");
-    } finally {
-      setLoading(false);
-    }
+    // TODO: branche ton appel /auth/login ici si besoin
+    // await login(email, pwd)
   }
 
   return (
@@ -46,155 +17,133 @@ export default function LoginPage() {
       style={{
         minHeight: "100vh",
         display: "flex",
+        flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        background:
-          "linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%)",
+        gap: 32,
+        fontFamily: "'Poppins', system-ui, -apple-system, Segoe UI, Roboto, Arial",
         color: "#fff",
-        fontFamily: "'Poppins', sans-serif",
         position: "relative",
         overflow: "hidden",
-        paddingTop: 80, // laisse de la place pour le header
+        padding: "24px 16px",
       }}
     >
-      {/* === HEADER / TITRE === */}
-      <header
-        style={{
-          position: "fixed",
-          top: 18,
-          left: 0,
-          right: 0,
-          display: "flex",
-          justifyContent: "center",
-          zIndex: 2,
-          pointerEvents: "none",
-        }}
-      >
-        <h1
-          style={{
-            margin: 0,
-            fontSize: 28,
-            fontWeight: 800,
-            letterSpacing: 0.3,
-            background:
-              "linear-gradient(90deg, #00e0ff 0%, #00ffb3 50%, #007bff 100%)",
-            WebkitBackgroundClip: "text",
-            backgroundClip: "text",
-            color: "transparent",
-            textShadow: "0 0 30px rgba(0, 224, 255, 0.15)",
-          }}
-        >
-          Le Générateur Digital
-        </h1>
-      </header>
-
-      {/* Carte / Formulaire */}
+      {/* Dégradé animé de fond */}
       <div
         style={{
-          width: "92%",
-          maxWidth: 640,
-          margin: "0 auto",
-          display: "grid",
-          gridTemplateColumns: "1fr",
-          gap: 0,
+          position: "absolute",
+          inset: 0,
+          background:
+            "linear-gradient(-45deg, #0f2027, #203a43, #2c5364, #1a2a6c, #0f2027)",
+          backgroundSize: "400% 400%",
+          animation: "gradientMove 15s ease infinite",
+          zIndex: 0,
+        }}
+      />
+
+      {/* ====== TITRE (le brand) ====== */}
+      <h1
+        style={{
+          zIndex: 2,
+          margin: 0,
+          fontSize: "clamp(28px, 4vw, 42px)",
+          fontWeight: 800,
+          letterSpacing: "0.5px",
+          textAlign: "center",
+          background:
+            "linear-gradient(90deg, #00e0ff 0%, #00ffb3 50%, #2ee59d 100%)",
+          WebkitBackgroundClip: "text",
+          backgroundClip: "text",
+          color: "transparent",
+          textShadow: "0 4px 24px rgba(0, 224, 255, .15)",
         }}
       >
-        <div
+        LeGenerateurDigital
+      </h1>
+
+      {/* ====== CARD DE CONNEXION ====== */}
+      <div
+        style={{
+          zIndex: 2,
+          width: "min(92vw, 680px)",
+          borderRadius: 20,
+          padding: "32px 28px",
+          background:
+            "radial-gradient(120% 120% at 0% 0%, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.06) 60%, rgba(255,255,255,0.04) 100%)",
+          boxShadow: "0 16px 44px rgba(0,0,0,.35)",
+          backdropFilter: "blur(10px)",
+        }}
+      >
+        <h2
           style={{
-            background:
-              "radial-gradient(1200px 600px at 0% 0%, rgba(0, 255, 255, 0.08), transparent 60%), radial-gradient(1200px 600px at 100% 100%, rgba(0, 100, 255, 0.08), transparent 60%)",
-            borderRadius: 18,
-            padding: 28,
-            boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
-            backdropFilter: "blur(8px)",
+            margin: "6px 0 22px",
+            textAlign: "center",
+            fontSize: "clamp(22px, 2.4vw, 30px)",
+            fontWeight: 700,
+            color: "#e8f7ff",
           }}
         >
-          <div
-            style={{
-              background: "rgba(255,255,255,0.06)",
-              borderRadius: 16,
-              padding: "38px 32px",
-            }}
-          >
-            <h2
-              style={{
-                textAlign: "center",
-                fontSize: 28,
-                margin: 0,
-                marginBottom: 22,
-                fontWeight: 700,
-                color: "#00e0ff",
-              }}
-            >
-              Se connecter
-            </h2>
+          Se connecter
+        </h2>
 
-            <form
-              onSubmit={onSubmit}
-              style={{
-                display: "grid",
-                gap: 14,
-                maxWidth: 520,
-                margin: "0 auto",
-              }}
-            >
-              <input
-                type="email"
-                placeholder="Adresse email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                style={inputStyle}
-              />
-              <input
-                type="password"
-                placeholder="Mot de passe"
-                value={pwd}
-                onChange={(e) => setPwd(e.target.value)}
-                required
-                style={inputStyle}
-              />
-              <button type="submit" disabled={loading} style={buttonStyle}>
-                {loading ? "Connexion..." : "Se connecter"}
-              </button>
-
-              {err && (
-                <p
-                  style={{
-                    color: "#ff9595",
-                    textAlign: "center",
-                    marginTop: 6,
-                    fontWeight: 600,
-                  }}
-                >
-                  {err}
-                </p>
-              )}
-            </form>
-          </div>
-        </div>
+        <form
+          onSubmit={onSubmit}
+          style={{ display: "grid", gap: 14, marginTop: 8 }}
+        >
+          <input
+            type="email"
+            placeholder="Adresse email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            style={inputStyle}
+          />
+          <input
+            type="password"
+            placeholder="Mot de passe"
+            value={pwd}
+            onChange={(e) => setPwd(e.target.value)}
+            required
+            style={inputStyle}
+          />
+          <button type="submit" style={buttonStyle}>
+            Se connecter
+          </button>
+        </form>
       </div>
+
+      {/* Animation CSS */}
+      <style>{`
+        @keyframes gradientMove {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+      `}</style>
     </main>
   );
 }
 
 const inputStyle: React.CSSProperties = {
-  padding: "16px 18px",
+  width: "100%",
+  padding: "15px 16px",
   borderRadius: 12,
   border: "none",
-  fontSize: 16,
   background: "rgba(255,255,255,0.15)",
-  color: "white",
+  color: "#fff",
   outline: "none",
+  fontSize: 16,
 };
 
 const buttonStyle: React.CSSProperties = {
-  background: "linear-gradient(90deg, #00e0ff, #007bff)",
-  color: "white",
-  padding: "16px 0",
-  border: "none",
+  width: "100%",
+  padding: "15px 16px",
   borderRadius: 12,
-  fontSize: 17,
+  border: "none",
+  fontSize: 16,
+  fontWeight: 600,
+  color: "#fff",
   cursor: "pointer",
-  fontWeight: 700,
+  background: "linear-gradient(90deg, #00e0ff, #007bff)",
+  boxShadow: "0 10px 26px rgba(0, 123, 255, .35)",
 };
