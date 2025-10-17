@@ -13,7 +13,7 @@ export default function LoginPage() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    // TODO: appel API login ici
+    // TODO: appeler votre API de login ici
   }
 
   return (
@@ -23,15 +23,14 @@ export default function LoginPage() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        fontFamily:
-          "'Poppins', system-ui, -apple-system, Segoe UI, Roboto, Arial",
+        fontFamily: "'Poppins', system-ui, -apple-system, Segoe UI, Roboto, Arial",
         color: "#fff",
         position: "relative",
         overflow: "hidden",
         padding: "40px 16px",
       }}
     >
-      {/* Fond animé */}
+      {/* Dégradé animé de fond */}
       <div
         style={{
           position: "absolute",
@@ -44,13 +43,41 @@ export default function LoginPage() {
         }}
       />
 
-      {/* Carte de connexion (avec le titre À L’INTÉRIEUR) */}
+      {/* --- TITRE GLOBAL --- */}
+      <h1
+        style={{
+          position: "absolute",
+          top: 24,
+          left: "50%",
+          transform: "translateX(-50%)",
+          margin: 0,
+          zIndex: 2,
+          fontSize: "clamp(24px, 3vw, 34px)",
+          fontWeight: 700,
+          letterSpacing: "0.4px",
+          background:
+            "linear-gradient(90deg, #00e0ff 0%, #00ffb3 50%, #00a3ff 100%)",
+          WebkitBackgroundClip: "text",
+          backgroundClip: "text",
+          color: "transparent",
+          textShadow: "0 2px 12px rgba(0, 224, 255, 0.25)",
+          whiteSpace: "nowrap",
+        }}
+        aria-label="LeGenerateurDigital"
+      >
+        LeGenerateurDigital
+      </h1>
+
+      {/* Carte de connexion */}
       <div
         style={{
           position: "relative",
           zIndex: 1,
           width: "100%",
           maxWidth: 720,
+          display: "grid",
+          gridTemplateColumns: "1fr",
+          gap: 20,
         }}
       >
         <div
@@ -65,40 +92,17 @@ export default function LoginPage() {
             padding: "28px 24px",
           }}
         >
-          {/* --- Titre marque + sous-titre --- */}
-          <div style={{ textAlign: "center", marginBottom: 10 }}>
-            <div
-              style={{
-                display: "inline-block",
-                fontSize: "clamp(22px, 3.2vw, 34px)",
-                fontWeight: 800,
-                letterSpacing: "0.4px",
-                lineHeight: 1.1,
-                background:
-                  "linear-gradient(90deg, #00e0ff 0%, #00ffb3 50%, #00a3ff 100%)",
-                WebkitBackgroundClip: "text",
-                backgroundClip: "text",
-                color: "transparent",
-                WebkitTextFillColor: "transparent", // compat Safari
-                textShadow: "0 2px 12px rgba(0, 224, 255, 0.25)",
-                whiteSpace: "nowrap",
-              }}
-              aria-label="LeGenerateurDigital"
-            >
-              LeGenerateurDigital
-            </div>
-
-            <div
-              style={{
-                marginTop: 6,
-                fontSize: 20,
-                fontWeight: 700,
-                color: "#cfefff",
-              }}
-            >
-              Se connecter
-            </div>
-          </div>
+          <h2
+            style={{
+              textAlign: "center",
+              margin: "0 0 18px",
+              fontSize: 28,
+              fontWeight: 700,
+              color: "#cfefff",
+            }}
+          >
+            Se connecter
+          </h2>
 
           <form
             onSubmit={onSubmit}
@@ -132,6 +136,7 @@ export default function LoginPage() {
         </div>
       </div>
 
+      {/* Animation CSS */}
       <style>{`
         @keyframes gradientMove {
           0% { background-position: 0% 50%; }
