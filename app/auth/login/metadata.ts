@@ -1,6 +1,2 @@
-import type { Metadata } from "next";
-
-export const metadata: Metadata = {
-  title: "Se connecter | LeGenerateurDigital",
-  description: "Connectez-vous à votre espace personnel.",
-};
+export const metadata = { title: "Se connecter | LeGenerateurDigital" };
+export default {};
