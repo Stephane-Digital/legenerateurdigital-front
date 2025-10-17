@@ -1,41 +1,84 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { register } from "@/lib/api";
+import { register as registerApi } from "@/lib/api";
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [name, setName] = useState(""); // si ton API attend `full_name`, vois NOTE ci-dessous
+
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [pwd, setPwd] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const [ok, setOk] = useState<string | null>(null);
+  const [activeUsers, setActiveUsers] = useState<number>(15);
+  const [displayedUsers, setDisplayedUsers] = useState<number>(15);
+
+  // compteur simulé
+  useEffect(() => {
+    const update = () => setActiveUsers(Math.floor(Math.random() * 5) + 15);
+    update();
+    const interval = setInterval(update, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // animation du compteur
+  useEffect(() => {
+    const duration = 1000;
+    const frameRate = 30;
+    const totalFrames = Math.round(duration / (1000 / frameRate));
+    let frame = 0;
+
+    const counter = setInterval(() => {
+      frame++;
+      const progress = frame / totalFrames;
+      const newValue = Math.round(
+        displayedUsers + (activeUsers - displayedUsers) * progress
+      );
+      setDisplayedUsers(newValue);
+      if (frame === totalFrames) clearInterval(counter);
+    }, 1000 / frameRate);
+
+    return () => clearInterval(counter);
+  }, [activeUsers]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setErr(null);
-    setOk(null);
+    setMsg(null);
+    setError(null);
     setLoading(true);
+
     try {
-      await register(name, email, pwd);
-      setOk("Compte créé avec succès !");
+      await registerApi(name, email, pwd);
+      localStorage.setItem(
+        "successMessage",
+        "✅ Compte créé avec succès 🎉"
+      );
       router.push("/auth/login");
-    } catch (e: any) {
-      setErr(e?.message || "Erreur lors de l'inscription");
+    } catch (err: any) {
+      setError(err?.message || "Erreur lors de l'inscription");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <main style={styles.wrap}>
+    <main style={styles.main}>
       <div style={styles.card}>
-        <h1 style={styles.brand}>LeGenerateurDigital</h1>
-        <h2 style={styles.title}>Créer un compte</h2>
+        <h1 style={styles.title}>Créer un compte</h1>
+        <p style={{ ...styles.text, marginBottom: 10 }}>
+          👥 Utilisateurs actifs :{" "}
+          <strong style={{ color: "#00ffb3", fontSize: 18 }}>
+            {displayedUsers}
+          </strong>
+        </p>
 
-        <form onSubmit={onSubmit} style={{ display: "grid", gap: 14 }}>
+        {msg && <p style={{ ...styles.text, color: "#35e1a1" }}>{msg}</p>}
+        {error && <p style={{ ...styles.text, color: "#ff6b6b" }}>{error}</p>}
+
+        <form onSubmit={onSubmit} style={styles.form}>
           <input
             type="text"
             placeholder="Nom complet"
@@ -65,78 +108,76 @@ export default function RegisterPage() {
           </button>
         </form>
 
-        {err && (
-          <p style={{ color: "#ff9aa2", marginTop: 12, fontWeight: 600 }}>
-            {err}
-          </p>
-        )}
-        {ok && (
-          <p style={{ color: "#6dffbf", marginTop: 12, fontWeight: 700 }}>
-            {ok}
-          </p>
-        )}
+        <p style={{ ...styles.text, marginTop: 12 }}>
+          Déjà inscrit ?{" "}
+          <a href="/auth/login" style={styles.link}>
+            Se connecter
+          </a>
+        </p>
       </div>
     </main>
   );
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  wrap: {
+  main: {
     minHeight: "100vh",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontFamily:
-      "'Poppins', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif",
-    color: "#fff",
     background:
-      "linear-gradient(180deg, #0E2A3A 0%, #0F3E5A 50%, #0B2740 100%)",
-    padding: 16,
+      "radial-gradient(1000px 600px at 20% 20%, rgba(0, 255, 255, 0.12), transparent 60%), radial-gradient(900px 600px at 80% 80%, rgba(0, 120, 255, 0.12), transparent 60%), linear-gradient(180deg, #0f2027, #203a43 40%, #2c5364)",
+    fontFamily:
+      "system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif",
+    color: "#e9f6ff",
   },
   card: {
-    width: "92%",
-    maxWidth: 520,
-    background: "rgba(255,255,255,0.08)",
-    border: "1px solid rgba(255,255,255,0.08)",
+    width: "100%",
+    maxWidth: 560,
+    padding: 28,
     borderRadius: 16,
-    boxShadow: "0 12px 36px rgba(0,0,0,0.35)",
-    backdropFilter: "blur(10px)",
-    padding: "32px 40px",
+    background: "rgba(12, 20, 28, 0.55)",
+    boxShadow: "0 18px 40px rgba(0,0,0,0.35)",
+    backdropFilter: "blur(8px)",
+    border: "1px solid rgba(255,255,255,0.06)",
     textAlign: "center",
   },
-  brand: {
-    margin: 0,
-    marginBottom: 6,
-    fontWeight: 800,
-    fontSize: 28,
-    color: "#00E0FF",
-    textShadow: "0 4px 14px rgba(0,224,255,.25)",
-  },
   title: {
-    margin: 0,
-    marginBottom: 18,
+    margin: "0 0 6px 0",
+    fontSize: 28,
     fontWeight: 700,
-    color: "#CFE8FF",
-    fontSize: 20,
+    color: "#6df2ff",
+  },
+  text: {
+    margin: 0,
+    opacity: 0.95,
+  },
+  form: {
+    display: "grid",
+    gap: 12,
+    marginTop: 12,
   },
   input: {
     padding: "14px 16px",
-    borderRadius: 10,
-    border: "none",
-    fontSize: 16,
-    background: "rgba(255,255,255,0.16)",
-    color: "#fff",
+    borderRadius: 12,
+    border: "1px solid rgba(255,255,255,.08)",
+    background: "rgba(255,255,255,0.12)",
+    color: "white",
     outline: "none",
   },
   button: {
-    background:
-      "linear-gradient(90deg, rgba(0,224,255,1) 0%, rgba(0,123,255,1) 100%)",
-    color: "white",
-    padding: "14px 0",
+    marginTop: 6,
+    padding: "14px 16px",
+    borderRadius: 12,
     border: "none",
-    borderRadius: 10,
-    fontSize: 17,
-    fontWeight: 700,
     cursor: "pointer",
+    fontSize: 16,
+    color: "#fff",
+    background: "linear-gradient(90deg, rgb(0, 224, 255), rgb(0, 123, 255))",
+    boxShadow: "0 10px 24px rgba(0,123,255,.22)",
+  },
+  link: {
+    color: "#6df2ff",
+    textDecoration: "underline",
   },
 };
