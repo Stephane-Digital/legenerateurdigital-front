@@ -1,5 +1,8 @@
-export const metadata = {
-  title: "Se connecter | LeGenerateurDigital",
+// app/auth/login/metadata.ts
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Se connecter",
 };
 
-export default {}; // nécessaire pour Next 15 (export par défaut vide)
+export default {};
