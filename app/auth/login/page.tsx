@@ -1,6 +1,11 @@
+// app/auth/login/page.tsx
 "use client";
 
 import { useState } from "react";
+
+export const metadata = {
+  title: "Se connecter | LeGenerateurDigital",
+};
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -8,8 +13,7 @@ export default function LoginPage() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    // TODO: branche ton appel /auth/login ici si besoin
-    // await login(email, pwd)
+    // TODO: appel API login ici
   }
 
   return (
@@ -17,18 +21,17 @@ export default function LoginPage() {
       style={{
         minHeight: "100vh",
         display: "flex",
-        flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        gap: 32,
-        fontFamily: "'Poppins', system-ui, -apple-system, Segoe UI, Roboto, Arial",
+        fontFamily:
+          "'Poppins', system-ui, -apple-system, Segoe UI, Roboto, Arial",
         color: "#fff",
         position: "relative",
         overflow: "hidden",
-        padding: "24px 16px",
+        padding: "40px 16px",
       }}
     >
-      {/* Dégradé animé de fond */}
+      {/* Fond animé */}
       <div
         style={{
           position: "absolute",
@@ -41,78 +44,94 @@ export default function LoginPage() {
         }}
       />
 
-      {/* ====== TITRE (le brand) ====== */}
-      <h1
-        style={{
-          zIndex: 2,
-          margin: 0,
-          fontSize: "clamp(28px, 4vw, 42px)",
-          fontWeight: 800,
-          letterSpacing: "0.5px",
-          textAlign: "center",
-          background:
-            "linear-gradient(90deg, #00e0ff 0%, #00ffb3 50%, #2ee59d 100%)",
-          WebkitBackgroundClip: "text",
-          backgroundClip: "text",
-          color: "transparent",
-          textShadow: "0 4px 24px rgba(0, 224, 255, .15)",
-        }}
-      >
-        LeGenerateurDigital
-      </h1>
-
-      {/* ====== CARD DE CONNEXION ====== */}
+      {/* Carte de connexion (avec le titre À L’INTÉRIEUR) */}
       <div
         style={{
-          zIndex: 2,
-          width: "min(92vw, 680px)",
-          borderRadius: 20,
-          padding: "32px 28px",
-          background:
-            "radial-gradient(120% 120% at 0% 0%, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.06) 60%, rgba(255,255,255,0.04) 100%)",
-          boxShadow: "0 16px 44px rgba(0,0,0,.35)",
-          backdropFilter: "blur(10px)",
+          position: "relative",
+          zIndex: 1,
+          width: "100%",
+          maxWidth: 720,
         }}
       >
-        <h2
+        <div
           style={{
-            margin: "6px 0 22px",
-            textAlign: "center",
-            fontSize: "clamp(22px, 2.4vw, 30px)",
-            fontWeight: 700,
-            color: "#e8f7ff",
+            margin: "0 auto",
+            width: "100%",
+            maxWidth: 640,
+            background: "rgba(21, 36, 50, 0.65)",
+            borderRadius: 18,
+            boxShadow: "0 12px 32px rgba(0,0,0,0.35)",
+            backdropFilter: "blur(10px)",
+            padding: "28px 24px",
           }}
         >
-          Se connecter
-        </h2>
+          {/* --- Titre marque + sous-titre --- */}
+          <div style={{ textAlign: "center", marginBottom: 10 }}>
+            <div
+              style={{
+                display: "inline-block",
+                fontSize: "clamp(22px, 3.2vw, 34px)",
+                fontWeight: 800,
+                letterSpacing: "0.4px",
+                lineHeight: 1.1,
+                background:
+                  "linear-gradient(90deg, #00e0ff 0%, #00ffb3 50%, #00a3ff 100%)",
+                WebkitBackgroundClip: "text",
+                backgroundClip: "text",
+                color: "transparent",
+                WebkitTextFillColor: "transparent", // compat Safari
+                textShadow: "0 2px 12px rgba(0, 224, 255, 0.25)",
+                whiteSpace: "nowrap",
+              }}
+              aria-label="LeGenerateurDigital"
+            >
+              LeGenerateurDigital
+            </div>
 
-        <form
-          onSubmit={onSubmit}
-          style={{ display: "grid", gap: 14, marginTop: 8 }}
-        >
-          <input
-            type="email"
-            placeholder="Adresse email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            style={inputStyle}
-          />
-          <input
-            type="password"
-            placeholder="Mot de passe"
-            value={pwd}
-            onChange={(e) => setPwd(e.target.value)}
-            required
-            style={inputStyle}
-          />
-          <button type="submit" style={buttonStyle}>
-            Se connecter
-          </button>
-        </form>
+            <div
+              style={{
+                marginTop: 6,
+                fontSize: 20,
+                fontWeight: 700,
+                color: "#cfefff",
+              }}
+            >
+              Se connecter
+            </div>
+          </div>
+
+          <form
+            onSubmit={onSubmit}
+            style={{
+              display: "grid",
+              gap: 14,
+              maxWidth: 560,
+              margin: "0 auto",
+            }}
+          >
+            <input
+              type="email"
+              placeholder="Adresse email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              style={inputStyle}
+            />
+            <input
+              type="password"
+              placeholder="Mot de passe"
+              value={pwd}
+              onChange={(e) => setPwd(e.target.value)}
+              required
+              style={inputStyle}
+            />
+            <button type="submit" style={buttonStyle}>
+              Se connecter
+            </button>
+          </form>
+        </div>
       </div>
 
-      {/* Animation CSS */}
       <style>{`
         @keyframes gradientMove {
           0% { background-position: 0% 50%; }
@@ -125,25 +144,21 @@ export default function LoginPage() {
 }
 
 const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "15px 16px",
+  padding: "14px 16px",
   borderRadius: 12,
   border: "none",
-  background: "rgba(255,255,255,0.15)",
-  color: "#fff",
-  outline: "none",
   fontSize: 16,
+  background: "rgba(255,255,255,0.14)",
+  color: "white",
+  outline: "none",
 };
 
 const buttonStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "15px 16px",
-  borderRadius: 12,
-  border: "none",
-  fontSize: 16,
-  fontWeight: 600,
-  color: "#fff",
-  cursor: "pointer",
   background: "linear-gradient(90deg, #00e0ff, #007bff)",
-  boxShadow: "0 10px 26px rgba(0, 123, 255, .35)",
+  color: "white",
+  padding: "14px 0",
+  border: "none",
+  borderRadius: 12,
+  fontSize: 17,
+  cursor: "pointer",
 };
