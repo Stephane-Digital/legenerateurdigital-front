@@ -1,5 +1,5 @@
 "use client";
-// app/layout.tsx
+
 import "./globals.css";
 
 export const metadata = {
@@ -17,6 +17,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr">
+      <head />
       <body>{children}</body>
     </html>
   );
