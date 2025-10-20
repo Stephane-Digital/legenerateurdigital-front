@@ -9,7 +9,6 @@ export default function RegisterPage() {
     password: "",
   });
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -18,7 +17,6 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setMessage("");
 
     try {
       const response = await fetch(
@@ -50,6 +48,7 @@ export default function RegisterPage() {
 
   return (
     <main className="flex flex-col items-center justify-center min-h-screen bg-[#0d2a3b] text-white">
+      {/* Header */}
       <div className="text-center mb-10">
         <h1 className="text-5xl font-extrabold text-cyan-400 drop-shadow-md mb-3">
           LeGenerateurDigital
@@ -59,70 +58,77 @@ export default function RegisterPage() {
         </p>
       </div>
 
-      <form
-        onSubmit={handleSubmit}
-        className="bg-slate-800/70 backdrop-blur-lg p-8 rounded-2xl shadow-2xl w-96 space-y-5 border border-slate-700"
-      >
-        <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1">
-            Nom complet
-          </label>
-          <input
-            type="text"
-            name="name"
-            value={formData.name}
-            onChange={handleChange}
-            required
-            className="w-full px-4 py-2 rounded-lg bg-slate-700 text-white placeholder-gray-400 focus:ring-2 focus:ring-cyan-400 outline-none"
-            placeholder="Ex: David Dupont"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1">
-            Adresse email
-          </label>
-          <input
-            type="email"
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
-            required
-            className="w-full px-4 py-2 rounded-lg bg-slate-700 text-white placeholder-gray-400 focus:ring-2 focus:ring-cyan-400 outline-none"
-            placeholder="exemple@email.com"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1">
-            Mot de passe
-          </label>
-          <input
-            type="password"
-            name="password"
-            value={formData.password}
-            onChange={handleChange}
-            required
-            className="w-full px-4 py-2 rounded-lg bg-slate-700 text-white placeholder-gray-400 focus:ring-2 focus:ring-cyan-400 outline-none"
-            placeholder="••••••••"
-          />
-        </div>
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-cyan-500 hover:bg-cyan-600 text-white font-semibold py-2 rounded-lg transition duration-200 shadow-md"
+      {/* Bloc principal */}
+      <div className="flex justify-center items-center w-full">
+        <form
+          onSubmit={handleSubmit}
+          className="bg-slate-800/70 backdrop-blur-lg p-8 rounded-2xl shadow-2xl w-96 space-y-5 border border-slate-700"
         >
-          {loading ? "⏳ Enregistrement..." : "S’inscrire"}
-        </button>
-      </form>
+          <h2 className="text-center text-2xl font-bold text-cyan-400 mb-4">
+            Créer un compte
+          </h2>
 
-      <p className="mt-6 text-sm text-gray-300">
-        Déjà un compte ?{" "}
-        <a href="/auth/login" className="text-cyan-400 hover:underline">
-          Se connecter
-        </a>
-      </p>
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">
+              Nom complet
+            </label>
+            <input
+              type="text"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              required
+              className="w-full px-4 py-2 rounded-lg bg-slate-700 text-white placeholder-gray-400 focus:ring-2 focus:ring-cyan-400 outline-none"
+              placeholder="Ex: David Dupont"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">
+              Adresse email
+            </label>
+            <input
+              type="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              required
+              className="w-full px-4 py-2 rounded-lg bg-slate-700 text-white placeholder-gray-400 focus:ring-2 focus:ring-cyan-400 outline-none"
+              placeholder="exemple@email.com"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">
+              Mot de passe
+            </label>
+            <input
+              type="password"
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
+              required
+              className="w-full px-4 py-2 rounded-lg bg-slate-700 text-white placeholder-gray-400 focus:ring-2 focus:ring-cyan-400 outline-none"
+              placeholder="••••••••"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-cyan-500 hover:bg-cyan-600 text-white font-semibold py-2 rounded-lg transition duration-200 shadow-md"
+          >
+            {loading ? "⏳ Enregistrement..." : "S’inscrire"}
+          </button>
+
+          <p className="text-center text-sm text-gray-300 mt-4">
+            Déjà un compte ?{" "}
+            <a href="/auth/login" className="text-cyan-400 hover:underline">
+              Se connecter
+            </a>
+          </p>
+        </form>
+      </div>
     </main>
   );
 }
