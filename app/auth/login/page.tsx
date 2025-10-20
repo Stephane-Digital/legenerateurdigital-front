@@ -1,104 +1,116 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { login, setToken } from "@/lib/api";
+import React, { useState } from "react";
 
 export default function LoginPage() {
-  const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [pwd, setPwd] = useState("");
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+  });
   const [loading, setLoading] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
 
-  const onSubmit = async (e: React.FormEvent) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setMsg(null);
     setLoading(true);
 
     try {
-      // IMPORTANT: pass a single object { email, password }
-      const data = await login({ email, password: pwd });
+      const response = await fetch(
+        "https://legenerateurdigital-backend.onrender.com/login",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formData),
+        }
+      );
 
-      if (!data?.access_token) {
-        throw new Error("Token manquant");
+      if (response.ok) {
+        const data = await response.json();
+        alert("✅ Connexion réussie !");
+        console.log("Token utilisateur :", data.token);
+
+        // 🚀 Si tu veux, tu peux stocker le token :
+        // localStorage.setItem("token", data.token);
+        // puis rediriger vers le dashboard :
+        // window.location.href = "/dashboard";
+      } else {
+        const errorData = await response.json().catch(() => null);
+        alert(
+          errorData?.message ||
+            "❌ Identifiants incorrects. Vérifie ton email ou ton mot de passe."
+        );
       }
-
-      setToken(data.access_token);
-      router.push("/dashboard");
-    } catch (err: any) {
-      setMsg(err?.message || "Échec de la connexion");
+    } catch (error) {
+      console.error("Erreur de connexion :", error);
+      alert("❌ Impossible de contacter le serveur. Vérifie ta connexion.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <main style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
-      <form
-        onSubmit={onSubmit}
-        style={{
-          width: 480,
-          maxWidth: "92vw",
-          padding: 24,
-          borderRadius: 16,
-          background: "rgba(0,0,0,0.35)",
-          boxShadow: "0 10px 25px rgba(0,0,0,0.25)",
-        }}
-      >
-        <h1 style={{ marginBottom: 16, color: "#00e0ff", textAlign: "center" }}>
-          Se connecter
+    <main className="flex flex-col items-center justify-center min-h-screen bg-[#0d2a3b] text-white">
+      <div className="text-center mb-10">
+        <h1 className="text-5xl font-extrabold text-cyan-400 drop-shadow-md mb-3">
+          LeGenerateurDigital
         </h1>
+        <p className="text-gray-300 text-sm">
+          Heureux de te revoir 👋 — Connecte-toi à ton espace.
+        </p>
+      </div>
 
-        <input
-          type="email"
-          placeholder="Adresse email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          style={inputStyle}
-        />
-        <input
-          type="password"
-          placeholder="Mot de passe"
-          value={pwd}
-          onChange={(e) => setPwd(e.target.value)}
-          required
-          style={inputStyle}
-        />
+      <form
+        onSubmit={handleSubmit}
+        className="bg-slate-800/70 backdrop-blur-lg p-8 rounded-2xl shadow-2xl w-96 space-y-5 border border-slate-700"
+      >
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-1">
+            Adresse email
+          </label>
+          <input
+            type="email"
+            name="email"
+            value={formData.email}
+            onChange={handleChange}
+            required
+            className="w-full px-4 py-2 rounded-lg bg-slate-700 text-white placeholder-gray-400 focus:ring-2 focus:ring-cyan-400 outline-none"
+            placeholder="exemple@email.com"
+          />
+        </div>
 
-        <button type="submit" disabled={loading} style={buttonStyle}>
-          {loading ? "Connexion..." : "Se connecter"}
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-1">
+            Mot de passe
+          </label>
+          <input
+            type="password"
+            name="password"
+            value={formData.password}
+            onChange={handleChange}
+            required
+            className="w-full px-4 py-2 rounded-lg bg-slate-700 text-white placeholder-gray-400 focus:ring-2 focus:ring-cyan-400 outline-none"
+            placeholder="••••••••"
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-cyan-500 hover:bg-cyan-600 text-white font-semibold py-2 rounded-lg transition duration-200 shadow-md"
+        >
+          {loading ? "⏳ Connexion..." : "Se connecter"}
         </button>
-
-        {msg && (
-          <p style={{ color: "#ff7b7b", marginTop: 12, textAlign: "center" }}>
-            {msg}
-          </p>
-        )}
       </form>
+
+      <p className="mt-6 text-sm text-gray-300">
+        Pas encore de compte ?{" "}
+        <a href="/auth/register" className="text-cyan-400 hover:underline">
+          Créer un compte
+        </a>
+      </p>
     </main>
   );
 }
-
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "14px 16px",
-  marginBottom: 12,
-  borderRadius: 10,
-  border: "none",
-  background: "rgba(255,255,255,0.12)",
-  color: "#fff",
-  outline: "none",
-};
-
-const buttonStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "14px 16px",
-  borderRadius: 10,
-  border: "none",
-  cursor: "pointer",
-  color: "#fff",
-  background: "linear-gradient(90deg,#00e0ff,#007bff)",
-  fontWeight: 600,
-};
