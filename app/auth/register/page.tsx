@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -35,43 +36,26 @@ export default function RegisterPage() {
         const errorData = await response.json().catch(() => null);
         alert(
           errorData?.message ||
-            "❌ Échec de l’inscription. Vérifie tes informations ou réessaie plus tard."
+            "❌ Erreur lors de l’inscription. Vérifie tes informations."
         );
       }
     } catch (error) {
-      console.error("Erreur d’inscription :", error);
-      alert("❌ Impossible de contacter le serveur. Vérifie ta connexion.");
+      alert("⚠️ Impossible de contacter le serveur.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <main className="flex flex-col items-center justify-center min-h-screen bg-[#0d2a3b] text-white">
-      {/* Header */}
-      <div className="text-center mb-10">
-        <h1 className="text-5xl font-extrabold text-cyan-400 drop-shadow-md mb-3">
-          LeGenerateurDigital
+    <main className="flex items-center justify-center min-h-screen bg-[#0d2a3b] text-white">
+      <div className="bg-slate-800/70 backdrop-blur-md p-8 rounded-2xl shadow-xl w-[400px]">
+        <h1 className="text-3xl font-bold text-cyan-400 text-center mb-6">
+          Créer un compte
         </h1>
-        <p className="text-gray-300 text-sm">
-          Bienvenue 👋 — Crée ton compte pour accéder à ton espace.
-        </p>
-      </div>
 
-      {/* Bloc principal */}
-      <div className="flex justify-center items-center w-full">
-        <form
-          onSubmit={handleSubmit}
-          className="bg-slate-800/70 backdrop-blur-lg p-8 rounded-2xl shadow-2xl w-96 space-y-5 border border-slate-700"
-        >
-          <h2 className="text-center text-2xl font-bold text-cyan-400 mb-4">
-            Créer un compte
-          </h2>
-
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">
-              Nom complet
-            </label>
+            <label className="block text-sm font-medium mb-1">Nom complet</label>
             <input
               type="text"
               name="name"
@@ -79,14 +63,12 @@ export default function RegisterPage() {
               onChange={handleChange}
               required
               className="w-full px-4 py-2 rounded-lg bg-slate-700 text-white placeholder-gray-400 focus:ring-2 focus:ring-cyan-400 outline-none"
-              placeholder="Ex: Stéphane Martin"
+              placeholder="Stéphane Martin"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">
-              Adresse email
-            </label>
+            <label className="block text-sm font-medium mb-1">Adresse email</label>
             <input
               type="email"
               name="email"
@@ -99,9 +81,7 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">
-              Mot de passe
-            </label>
+            <label className="block text-sm font-medium mb-1">Mot de passe</label>
             <input
               type="password"
               name="password"
@@ -120,14 +100,14 @@ export default function RegisterPage() {
           >
             {loading ? "⏳ Enregistrement..." : "S’inscrire"}
           </button>
-
-          <p className="text-center text-sm text-gray-300 mt-4">
-            Déjà un compte ?{" "}
-            <a href="/auth/login" className="text-cyan-400 hover:underline">
-              Se connecter
-            </a>
-          </p>
         </form>
+
+        <p className="text-center text-sm text-gray-300 mt-5">
+          Déjà un compte ?{" "}
+          <Link href="/auth/login" className="text-cyan-400 hover:underline">
+            Se connecter
+          </Link>
+        </p>
       </div>
     </main>
   );
