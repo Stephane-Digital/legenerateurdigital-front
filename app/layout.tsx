@@ -1,11 +1,11 @@
 import "./globals.css";
+import { Inter } from "next/font/google";
+
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata = {
-  title: {
-    default: "LeGenerateurDigital",
-    template: "%s | LeGenerateurDigital",
-  },
-  description: "Espace membres du Générateur Digital",
+  title: "Le Générateur Digital",
+  description: "Créez votre compte pour accéder à votre espace personnel",
 };
 
 export default function RootLayout({
@@ -15,8 +15,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr">
-      <head />
-      <body>{children}</body>
+      <body className={`${inter.className} bg-[#0d2a3b] text-white`}>
+        {children}
+      </body>
     </html>
   );
 }
