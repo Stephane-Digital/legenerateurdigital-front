@@ -1,3 +1,4 @@
+// test auto-sync
 export default function Home() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-500">
