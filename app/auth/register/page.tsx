@@ -1,116 +1,94 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { register as apiRegister } from "@/lib/api";
+import { useState } from "react";
 
 export default function RegisterPage() {
-  const router = useRouter();
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [pwd, setPwd] = useState("");
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    password: "",
+  });
   const [loading, setLoading] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
+  const [message, setMessage] = useState("");
 
-  const onSubmit = async (e: React.FormEvent) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setMsg(null);
     setLoading(true);
+    setMessage("");
 
     try {
-      // IMPORTANT: pass a single object { name, email, password }
-      await apiRegister({ name, email, password: pwd });
-      setMsg("Compte créé ! Redirection...");
-      // petite pause pour voir le message
-      setTimeout(() => router.push("/auth/login"), 800);
-    } catch (err: any) {
-      setMsg(err?.message || "Échec de l'inscription");
+      const response = await fetch(
+        "https://legenerateurdigital-backend.onrender.com/register",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(formData),
+        }
+      );
+
+      if (response.ok) {
+        setMessage("✅ Compte créé avec succès !");
+      } else {
+        const errorData = await response.json();
+        setMessage(`❌ Erreur : ${errorData.detail || "Inconnue"}`);
+      }
+    } catch (err) {
+      console.error(err);
+      setMessage("⚠️ Impossible de se connecter au serveur.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <main style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
-      <form
-        onSubmit={onSubmit}
-        style={{
-          width: 520,
-          maxWidth: "92vw",
-          padding: 24,
-          borderRadius: 16,
-          background: "rgba(0,0,0,0.35)",
-          boxShadow: "0 10px 25px rgba(0,0,0,0.25)",
-        }}
-      >
-        <h1 style={{ marginBottom: 16, color: "#00e0ff", textAlign: "center" }}>
-          Créer un compte
-        </h1>
+    <main className="flex flex-col items-center justify-center min-h-screen bg-slate-900 text-white">
+      <h1 className="text-3xl font-bold mb-6 text-blue-400">Créer un compte</h1>
 
+      <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4">
         <input
           type="text"
+          name="name"
           placeholder="Nom complet"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
+          value={formData.name}
+          onChange={handleChange}
+          className="w-full px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
           required
-          style={inputStyle}
         />
         <input
           type="email"
+          name="email"
           placeholder="Adresse email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          value={formData.email}
+          onChange={handleChange}
+          className="w-full px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
           required
-          style={inputStyle}
         />
         <input
           type="password"
+          name="password"
           placeholder="Mot de passe"
-          value={pwd}
-          onChange={(e) => setPwd(e.target.value)}
+          value={formData.password}
+          onChange={handleChange}
+          className="w-full px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
           required
-          style={inputStyle}
         />
 
-        <button type="submit" disabled={loading} style={buttonStyle}>
-          {loading ? "Création..." : "Créer un compte"}
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-semibold"
+        >
+          {loading ? "Création..." : "S’inscrire"}
         </button>
-
-        {msg && (
-          <p style={{ color: "#9bf89b", marginTop: 12, textAlign: "center" }}>
-            {msg}
-          </p>
-        )}
-
-        <p style={{ marginTop: 10, textAlign: "center" }}>
-          Déjà inscrit ?{" "}
-          <a href="/auth/login" style={{ color: "#00e0ff" }}>
-            Se connecter
-          </a>
-        </p>
       </form>
+
+      {message && <p className="mt-4 text-sm">{message}</p>}
     </main>
   );
 }
-
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "14px 16px",
-  marginBottom: 12,
-  borderRadius: 10,
-  border: "none",
-  background: "rgba(255,255,255,0.12)",
-  color: "#fff",
-  outline: "none",
-};
-
-const buttonStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "14px 16px",
-  borderRadius: 10,
-  border: "none",
-  cursor: "pointer",
-  color: "#fff",
-  background: "linear-gradient(90deg,#00e0ff,#007bff)",
-  fontWeight: 600,
-};
