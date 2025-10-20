@@ -79,7 +79,7 @@ export default function RegisterPage() {
               onChange={handleChange}
               required
               className="w-full px-4 py-2 rounded-lg bg-slate-700 text-white placeholder-gray-400 focus:ring-2 focus:ring-cyan-400 outline-none"
-              placeholder="Ex: David Dupont"
+              placeholder="Ex: Stéphane Martin"
             />
           </div>
 
