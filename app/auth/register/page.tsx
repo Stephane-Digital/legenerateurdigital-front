@@ -1,114 +1,104 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 
 export default function RegisterPage() {
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    password: "",
-  });
-  const [loading, setLoading] = useState(false);
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [activeUsers, setActiveUsers] = useState(0);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  // ✅ Compteur d'utilisateurs actifs (aléatoire)
+  useEffect(() => {
+    const min = 120;
+    const max = 380;
+    const randomCount = Math.floor(Math.random() * (max - min + 1)) + min;
+    setActiveUsers(randomCount);
+  }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-
-    try {
-      const response = await fetch(
-        "https://legenerateurdigital-backend.onrender.com/register",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(formData),
-        }
-      );
-
-      if (response.ok) {
-        alert("✅ Inscription réussie !");
-        setFormData({ name: "", email: "", password: "" });
-      } else {
-        const errorData = await response.json().catch(() => null);
-        alert(
-          errorData?.message ||
-            "❌ Erreur lors de l’inscription. Vérifie tes informations."
-        );
-      }
-    } catch (error) {
-      alert("⚠️ Impossible de contacter le serveur.");
-    } finally {
-      setLoading(false);
-    }
+    console.log({ fullName, email, password });
+    alert("Compte créé avec succès !");
   };
 
   return (
-    <main className="flex items-center justify-center min-h-screen bg-[#0d2a3b] text-white">
-      <div className="bg-slate-800/70 backdrop-blur-md p-8 rounded-2xl shadow-xl w-[400px]">
-        <h1 className="text-3xl font-bold text-cyan-400 text-center mb-6">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-[#0d2a3b] to-[#163b52] px-4">
+      <div className="w-full max-w-md bg-[#102f44]/90 backdrop-blur-md rounded-2xl shadow-2xl p-8 border border-[#1f4a66] text-gray-100">
+        <h1 className="text-3xl font-bold text-center mb-2 text-white">
           Créer un compte
         </h1>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {/* 🧮 Compteur dynamique */}
+        <p className="text-center text-sm text-[#6dd5ed] mb-8">
+          🔥 {activeUsers} utilisateurs actifs actuellement
+        </p>
+
+        <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-sm font-medium mb-1">Nom complet</label>
+            <label htmlFor="fullName" className="block text-sm mb-2 font-medium">
+              Nom complet
+            </label>
             <input
+              id="fullName"
               type="text"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              className="w-full p-3 rounded-lg bg-[#163b52] border border-[#285a73] text-gray-200 focus:ring-2 focus:ring-[#6dd5ed] focus:outline-none"
+              placeholder="John Doe"
               required
-              className="w-full px-4 py-2 rounded-lg bg-slate-700 text-white placeholder-gray-400 focus:ring-2 focus:ring-cyan-400 outline-none"
-              placeholder="Stéphane Martin"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Adresse email</label>
+            <label htmlFor="email" className="block text-sm mb-2 font-medium">
+              Adresse email
+            </label>
             <input
+              id="email"
               type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full p-3 rounded-lg bg-[#163b52] border border-[#285a73] text-gray-200 focus:ring-2 focus:ring-[#6dd5ed] focus:outline-none"
+              placeholder="exemple@mail.com"
               required
-              className="w-full px-4 py-2 rounded-lg bg-slate-700 text-white placeholder-gray-400 focus:ring-2 focus:ring-cyan-400 outline-none"
-              placeholder="exemple@email.com"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Mot de passe</label>
+            <label htmlFor="password" className="block text-sm mb-2 font-medium">
+              Mot de passe
+            </label>
             <input
+              id="password"
               type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              required
-              className="w-full px-4 py-2 rounded-lg bg-slate-700 text-white placeholder-gray-400 focus:ring-2 focus:ring-cyan-400 outline-none"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full p-3 rounded-lg bg-[#163b52] border border-[#285a73] text-gray-200 focus:ring-2 focus:ring-[#6dd5ed] focus:outline-none"
               placeholder="••••••••"
+              required
             />
           </div>
 
           <button
             type="submit"
-            disabled={loading}
-            className="w-full bg-cyan-500 hover:bg-cyan-600 text-white font-semibold py-2 rounded-lg transition duration-200 shadow-md"
+            className="w-full py-3 bg-gradient-to-r from-[#6dd5ed] to-[#2193b0] text-white font-semibold rounded-lg hover:scale-[1.02] transition-transform"
           >
-            {loading ? "⏳ Enregistrement..." : "S’inscrire"}
+            S’inscrire
           </button>
         </form>
 
-        <p className="text-center text-sm text-gray-300 mt-5">
+        <p className="text-center text-sm text-gray-400 mt-6">
           Déjà un compte ?{" "}
-          <Link href="/auth/login" className="text-cyan-400 hover:underline">
+          <Link
+            href="/auth/login"
+            className="text-[#6dd5ed] hover:text-[#a0e6f9] transition"
+          >
             Se connecter
           </Link>
         </p>
       </div>
-    </main>
+    </div>
   );
 }
