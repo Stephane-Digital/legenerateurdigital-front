@@ -1,7 +1,7 @@
 export default function Loading() {
   return (
-    <div style={{ color: "white", textAlign: "center", padding: "40px" }}>
-      Chargement de la page d’inscription...
+    <div className="flex items-center justify-center min-h-screen bg-[#0d2a3b] text-white">
+      <p className="text-lg animate-pulse">Chargement de la page d’inscription...</p>
     </div>
   );
 }
