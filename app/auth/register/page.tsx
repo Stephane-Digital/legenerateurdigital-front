@@ -4,101 +4,71 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 
 export default function RegisterPage() {
-  const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [activeUsers, setActiveUsers] = useState(0);
+  const [activeUsers, setActiveUsers] = useState(21);
 
-  // ✅ Compteur d'utilisateurs actifs (aléatoire)
+  // Animation du compteur : +/- 1 à 3 toutes les 2 secondes
   useEffect(() => {
-    const min = 120;
-    const max = 380;
-    const randomCount = Math.floor(Math.random() * (max - min + 1)) + min;
-    setActiveUsers(randomCount);
+    const interval = setInterval(() => {
+      setActiveUsers((prev) => {
+        const variation = Math.floor(Math.random() * 3) * (Math.random() > 0.5 ? 1 : -1);
+        const next = prev + variation;
+        return Math.max(18, Math.min(24, next));
+      });
+    }, 2000);
+    return () => clearInterval(interval);
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log({ fullName, email, password });
-    alert("Compte créé avec succès !");
-  };
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-[#0d2a3b] to-[#163b52] px-4">
-      <div className="w-full max-w-md bg-[#102f44]/90 backdrop-blur-md rounded-2xl shadow-2xl p-8 border border-[#1f4a66] text-gray-100">
-        <h1 className="text-3xl font-bold text-center mb-2 text-white">
-          Créer un compte
-        </h1>
-
-        {/* 🧮 Compteur dynamique */}
-        <p className="text-center text-sm text-[#6dd5ed] mb-8">
+    <main className="min-h-screen flex items-center justify-center bg-gradient-to-b from-[#0a2230] to-[#0f2f45] text-white px-4">
+      <div className="w-full max-w-md bg-[#0d2a3b]/90 backdrop-blur-md rounded-2xl shadow-2xl p-8 border border-cyan-600">
+        <h1 className="text-2xl font-bold text-center mb-2">Créer un compte</h1>
+        <p className="text-center text-sm text-cyan-400 mb-8">
           🔥 {activeUsers} utilisateurs actifs actuellement
         </p>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form className="space-y-5">
           <div>
-            <label htmlFor="fullName" className="block text-sm mb-2 font-medium">
-              Nom complet
-            </label>
+            <label className="block text-sm mb-1">Nom complet</label>
             <input
-              id="fullName"
               type="text"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              className="w-full p-3 rounded-lg bg-[#163b52] border border-[#285a73] text-gray-200 focus:ring-2 focus:ring-[#6dd5ed] focus:outline-none"
               placeholder="John Doe"
-              required
+              className="w-full px-3 py-2 rounded-md bg-[#102f45] border border-cyan-700 focus:ring-2 focus:ring-cyan-400 outline-none"
             />
           </div>
 
           <div>
-            <label htmlFor="email" className="block text-sm mb-2 font-medium">
-              Adresse email
-            </label>
+            <label className="block text-sm mb-1">Adresse email</label>
             <input
-              id="email"
               type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full p-3 rounded-lg bg-[#163b52] border border-[#285a73] text-gray-200 focus:ring-2 focus:ring-[#6dd5ed] focus:outline-none"
-              placeholder="exemple@mail.com"
-              required
+              placeholder="exemple@email.com"
+              className="w-full px-3 py-2 rounded-md bg-[#102f45] border border-cyan-700 focus:ring-2 focus:ring-cyan-400 outline-none"
             />
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm mb-2 font-medium">
-              Mot de passe
-            </label>
+            <label className="block text-sm mb-1">Mot de passe</label>
             <input
-              id="password"
               type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full p-3 rounded-lg bg-[#163b52] border border-[#285a73] text-gray-200 focus:ring-2 focus:ring-[#6dd5ed] focus:outline-none"
-              placeholder="••••••••"
-              required
+              placeholder="******"
+              className="w-full px-3 py-2 rounded-md bg-[#102f45] border border-cyan-700 focus:ring-2 focus:ring-cyan-400 outline-none"
             />
           </div>
 
           <button
             type="submit"
-            className="w-full py-3 bg-gradient-to-r from-[#6dd5ed] to-[#2193b0] text-white font-semibold rounded-lg hover:scale-[1.02] transition-transform"
+            className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 py-2 rounded-md font-semibold text-white hover:opacity-90 transition-all duration-200"
           >
             S’inscrire
           </button>
         </form>
 
-        <p className="text-center text-sm text-gray-400 mt-6">
+        <p className="text-center text-sm mt-6">
           Déjà un compte ?{" "}
-          <Link
-            href="/auth/login"
-            className="text-[#6dd5ed] hover:text-[#a0e6f9] transition"
-          >
+          <Link href="/auth/login" className="text-cyan-400 hover:text-cyan-300 font-semibold">
             Se connecter
           </Link>
         </p>
       </div>
-    </div>
+    </main>
   );
 }
