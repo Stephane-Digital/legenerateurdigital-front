@@ -1,0 +1,27 @@
+name: Auto Sync to GitHub
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+  watch:
+    types: [started]
+
+jobs:
+  autosync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure Git
+        run: |
+          git config user.name "Stephane-Digital"
+          git config user.email "tonemail@exemple.com"
+
+      - name: Auto Commit & Push
+        run: |
+          git add .
+          git commit -m "🧠 Auto-sync depuis VSCode" || echo "Aucun changement à commiter"
+          git push
