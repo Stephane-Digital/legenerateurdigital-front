@@ -1,88 +1,77 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
-export default function Home() {
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        display: "grid",
-        placeItems: "center",
-        padding: "40px 16px",
-      }}
-    >
-      <div
-        style={{
-          width: "100%",
-          maxWidth: 880,
-          margin: "0 auto",
-          textAlign: "center",
-        }}
-      >
-        <h1
-          style={{
-            fontSize: "clamp(28px, 4vw, 48px)",
-            marginBottom: 16,
-            color: "#00e0ff",
-            fontWeight: 700,
-            textShadow: "0 0 10px rgba(0,224,255,.25)",
-          }}
-        >
-          LeGenerateurDigital
-        </h1>
-
-        <p style={{ color: "#d0eaff", opacity: 0.9, marginBottom: 28 }}>
-          Bienvenue 👋 — Utilise les liens ci-dessous pour t’inscrire ou te connecter.
-        </p>
-
-        <div
-          style={{
-            display: "flex",
-            gap: 12,
-            justifyContent: "center",
-            flexWrap: "wrap",
-          }}
-        >
-          <Link
-            href="/auth/register"
-            style={{
-              background:
-                "linear-gradient(90deg, rgba(0,224,255,1) 0%, rgba(0,123,255,1) 100%)",
-              padding: "14px 18px",
-              borderRadius: 10,
-              color: "#fff",
-              fontWeight: 600,
-            }}
-          >
-            Créer un compte
-          </Link>
-          <Link
-            href="/auth/login"
-            style={{
-              background: "rgba(255,255,255,0.08)",
-              padding: "14px 18px",
-              borderRadius: 10,
-              color: "#e6f3ff",
-              fontWeight: 600,
-              border: "1px solid rgba(255,255,255,.1)",
-            }}
-          >
-            Se connecter
-          </Link>
+    <div className="dashboard-layout">
+      {/* SIDEBAR */}
+      <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
+        <div>
+          <div className="sidebar-logo">LGD</div>
+          <nav className="sidebar-nav">
+            <Link href="/dashboard/overview" className={pathname === "/dashboard/overview" ? "active" : ""}>
+              Vue d’ensemble
+            </Link>
+            <Link href="/dashboard/automatisations" className={pathname === "/dashboard/automatisations" ? "active" : ""}>
+              Automatisations
+            </Link>
+            <Link href="/dashboard/clients" className={pathname === "/dashboard/clients" ? "active" : ""}>
+              Clients
+            </Link>
+            <Link href="/dashboard/campagnes" className={pathname === "/dashboard/campagnes" ? "active" : ""}>
+              Campagnes
+            </Link>
+            <Link href="/dashboard/settings" className={pathname === "/dashboard/settings" ? "active" : ""}>
+              Paramètres
+            </Link>
+          </nav>
         </div>
-      </div>
-    </main>
-  );
-}
 
-// test auto-sync
-export default function Home() {
-  return (
-    <main className="flex min-h-screen items-center justify-center bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-500">
-      <h1 className="text-5xl font-bold text-white drop-shadow-lg">
-        Page d’accueil OK 🎉
-      </h1>
-    </main>
+        <button
+          onClick={() => alert("Déconnexion à venir...")}
+          style={{
+            marginTop: "2rem",
+            width: "100%",
+            background: "linear-gradient(90deg, #FFB800, #FF6B00)",
+            color: "#0a2540",
+            fontWeight: 700,
+            borderRadius: "8px",
+            padding: "0.75rem 1rem",
+          }}
+        >
+          Déconnexion
+        </button>
+      </aside>
+
+      {/* HEADER */}
+      <header className="dashboard-header">
+        <button
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="lg:hidden"
+          style={{
+            background: "transparent",
+            border: "none",
+            color: "white",
+            fontSize: "1.5rem",
+            cursor: "pointer",
+          }}
+        >
+          ☰
+        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.8rem" }}>
+          <span className="username">Stéphane</span>
+          <div className="avatar">S</div>
+        </div>
+      </header>
+
+      {/* CONTENU */}
+      <main className="dashboard-content">{children}</main>
+    </div>
   );
 }

@@ -2,65 +2,304 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --bg: #0d2a3b;
-  --fg: #e9f0f6;
-}
-
-/* Réinitialisation globale */
-* {
-  box-sizing: border-box;
-}
-
+/* -------------------------------
+   🌌 Thème global du site LGD
+--------------------------------*/
 html,
 body {
-  --bg: #0d2a3b;      /* bleu profond fixe */
-  --fg: #e9f0f6;
-}
-
-* { box-sizing: border-box; }
-
-html, body {
   margin: 0;
   padding: 0;
-  background: var(--bg);
-  color: var(--fg);
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, "Noto Sans", sans-serif;
-  min-height: 100%;
+  font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  background: linear-gradient(to bottom right, #0a2540, #102f4a, #1c3c56);
+  color: white;
+  min-height: 100vh;
+  scroll-behavior: smooth;
 }
 
-/* Liens sans soulignement */
+/* 🌈 Liens */
 a {
-  color: inherit;
+  color: #60a5fa;
   text-decoration: none;
+  transition: all 0.3s ease;
+}
+a:hover {
+  color: #93c5fd;
+  text-decoration: underline;
 }
 
-/* Amélioration Tailwind sur les formulaires */
-input,
+/* ✨ Boutons */
 button {
-  transition: all 0.2s ease-in-out;
+  background: linear-gradient(to right, #2563eb, #06b6d4);
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+button:hover {
+  transform: scale(1.05);
+  opacity: 0.9;
 }
 
-input:focus,
-button:focus {
-  outline: none;
-  box-shadow: 0 0 0 2px #06b6d4;
+/* 🧩 Champs de formulaire */
+input,
+textarea {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  width: 100%;
+  transition: all 0.3s ease;
 }
-@keyframes fade-in {
+input:focus,
+textarea:focus {
+  outline: none;
+  border-color: #60a5fa;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* 🪄 Animations douces */
+@keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(15px);
   }
   to {
     opacity: 1;
     transform: translateY(0);
   }
 }
-
-.animate-fade-in {
-  animation: fade-in 0.6s ease-in-out both;
-}
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Helvetica Neue", "Liberation Sans", sans-serif;
+.animate-fadeIn {
+  animation: fadeIn 0.6s ease-in-out;
 }
 
-a { color: inherit; text-decoration: none; }
+/* -------------------------------
+   📱 Responsive Login / Register
+--------------------------------*/
+main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  min-height: 100vh;
+  text-align: center;
+  padding: 1rem;
+}
+form {
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+}
+form input,
+form button {
+  width: 100% !important;
+  box-sizing: border-box;
+}
+@media (max-width: 640px) {
+  h1 {
+    font-size: 2.2rem !important;
+    letter-spacing: 1px;
+  }
+  h2 {
+    font-size: 1.3rem !important;
+  }
+  p {
+    font-size: 0.9rem !important;
+  }
+  form {
+    padding: 1.2rem !important;
+    border-radius: 0.8rem !important;
+  }
+  input,
+  button {
+    padding: 0.75rem 1rem !important;
+    font-size: 0.95rem !important;
+  }
+}
+@media (min-width: 641px) and (max-width: 1024px) {
+  h1 {
+    font-size: 2.5rem !important;
+  }
+  h2 {
+    font-size: 1.5rem !important;
+  }
+  p {
+    font-size: 1rem !important;
+  }
+  form {
+    max-width: 460px !important;
+    padding: 1.5rem !important;
+  }
+}
+h1 {
+  display: inline-block;
+  margin-bottom: 0.5rem !important;
+}
+h2,
+p {
+  margin: 0.2rem 0 !important;
+}
+form h3 {
+  font-size: 1.1rem !important;
+}
+input::placeholder {
+  color: rgba(255, 255, 255, 0.75);
+}
+input:focus {
+  border-color: #00e0ff !important;
+  background: rgba(255, 255, 255, 0.15) !important;
+}
+button {
+  font-size: 1rem !important;
+  font-weight: 600 !important;
+}
+button:disabled {
+  opacity: 0.6 !important;
+  cursor: not-allowed;
+}
+
+/* -------------------------------
+   🎨 Ajustement du titre principal
+--------------------------------*/
+h2 {
+  background: linear-gradient(90deg, #ffcc00, #ff8800);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 8px rgba(255, 136, 0, 0.4);
+  font-weight: 700;
+}
+@media (min-width: 1025px) {
+  h2 {
+    font-size: 1.9rem !important;
+  }
+}
+@media (max-width: 1024px) {
+  h2 {
+    font-size: 1.7rem !important;
+  }
+}
+@media (max-width: 640px) {
+  h2 {
+    font-size: 1.5rem !important;
+  }
+}
+
+/* -------------------------------
+   🧭 Phase 2 – Dashboard LGD
+--------------------------------*/
+.dashboard-layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  min-height: 100vh;
+  background: linear-gradient(to bottom right, #0a2540, #102f4a);
+}
+.sidebar {
+  background: linear-gradient(180deg, #1a1f2e 0%, #0c1222 100%);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 1.5rem 1rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: all 0.4s ease-in-out;
+}
+.sidebar-logo {
+  font-size: 1.8rem;
+  font-weight: 800;
+  background: linear-gradient(90deg, #FFB800, #FF6B00);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 10px rgba(255, 107, 0, 0.6);
+  text-align: center;
+  margin-bottom: 2rem;
+}
+.sidebar-nav a {
+  display: block;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  color: rgba(255, 255, 255, 0.85);
+  transition: all 0.3s ease;
+}
+.sidebar-nav a:hover,
+.sidebar-nav a.active {
+  background: linear-gradient(90deg, #FFB800, #FF6B00);
+  color: #0a2540;
+  font-weight: 600;
+}
+.dashboard-header {
+  background: rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 1rem 2rem;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 1rem;
+  transition: all 0.3s ease;
+}
+.dashboard-header .username {
+  font-weight: 600;
+}
+.dashboard-header .avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(90deg, #FFB800, #FF6B00);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0a2540;
+  font-weight: 700;
+}
+.dashboard-content {
+  padding: 2rem;
+  animation: fadeIn 0.6s ease-in-out;
+}
+.card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  transition: all 0.3s ease;
+}
+.card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 0 25px rgba(255, 140, 0, 0.25);
+}
+
+/* -------------------------------
+   📲 Responsive Dashboard
+--------------------------------*/
+@media (max-width: 1024px) {
+  .dashboard-layout {
+    grid-template-columns: 200px 1fr;
+  }
+}
+@media (max-width: 768px) {
+  .dashboard-layout {
+    grid-template-columns: 1fr;
+  }
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: -100%;
+    width: 220px;
+    height: 100%;
+    transition: left 0.3s ease;
+    z-index: 50;
+  }
+  .sidebar.open {
+    left: 0;
+  }
+  .dashboard-header {
+    justify-content: space-between;
+  }
+}
+@media (max-width: 480px) {
+  .dashboard-content {
+    padding: 1rem;
+  }
+  .card {
+    padding: 1rem;
+  }
+}
