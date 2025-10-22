@@ -1,51 +1,143 @@
 "use client";
 
-import Link from "next/link";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { login, setToken } from "@/lib/api";
 
 export default function LoginPage() {
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [pwd, setPwd] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMsg(null);
+    setLoading(true);
+
+    try {
+      const data = await login({ email, password: pwd });
+      if (!data?.access_token) throw new Error("Token manquant");
+      setToken(data.access_token);
+      router.push("/dashboard");
+    } catch (err: any) {
+      setMsg(err?.message || "Échec de la connexion");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gradient-to-b from-[#0a2230] to-[#0f2f45] text-white px-4">
-      <div className="w-full max-w-md bg-[#0d2a3b]/90 backdrop-blur-md rounded-2xl shadow-2xl p-8 border border-cyan-600">
-        <h1 className="text-2xl font-bold text-center mb-2">Connexion</h1>
-        <p className="text-center text-sm text-cyan-400 mb-8">
-          🔐 Accédez à votre espace personnel
-        </p>
-
-        <form className="space-y-5">
-          <div>
-            <label className="block text-sm mb-1">Adresse email</label>
-            <input
-              type="email"
-              placeholder="exemple@email.com"
-              className="w-full px-3 py-2 rounded-md bg-[#102f45] border border-cyan-700 focus:ring-2 focus:ring-cyan-400 outline-none"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm mb-1">Mot de passe</label>
-            <input
-              type="password"
-              placeholder="******"
-              className="w-full px-3 py-2 rounded-md bg-[#102f45] border border-cyan-700 focus:ring-2 focus:ring-cyan-400 outline-none"
-            />
-          </div>
-
-          <button
-            type="submit"
-            className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 py-2 rounded-md font-semibold text-white hover:opacity-90 transition-all duration-200"
-          >
-            Se connecter
-          </button>
-        </form>
-
-        <p className="text-center text-sm mt-6">
-          Pas encore de compte ?{" "}
-          <Link href="/auth/register" className="text-cyan-400 hover:text-cyan-300 font-semibold">
-            S’inscrire
-          </Link>
+    <main
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "linear-gradient(135deg, #020617, #0d253a)",
+        padding: "20px",
+        color: "#fff",
+      }}
+    >
+      {/* LOGO + TITRE + SLOGAN */}
+      <div style={{ textAlign: "center", marginBottom: "2rem" }}>
+        <h1
+          style={{
+            fontSize: "2.8rem",
+            background: "linear-gradient(90deg,#ffcc00,#ff8800)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            textShadow: "0 0 12px rgba(255,136,0,0.6)",
+            marginBottom: "0.4rem",
+            fontWeight: 800,
+            letterSpacing: "2px",
+          }}
+        >
+          LGD
+        </h1>
+        <h2 style={{ fontSize: "1.6rem", marginBottom: "0.3rem" }}>
+          Le Générateur Digital
+        </h2>
+        <p
+          style={{
+            fontSize: "1rem",
+            color: "#9fd0ff",
+            opacity: 0.85,
+            margin: 0,
+          }}
+        >
+          Propulse ton business numérique
         </p>
       </div>
+
+      {/* FORMULAIRE */}
+      <form
+        onSubmit={onSubmit}
+        style={{
+          width: "100%",
+          maxWidth: "420px",
+          background: "rgba(0, 0, 0, 0.35)",
+          padding: "24px",
+          borderRadius: "16px",
+          boxShadow: "0 10px 25px rgba(0,0,0,0.25)",
+          backdropFilter: "blur(10px)",
+        }}
+      >
+        <h3 style={{ color: "#00e0ff", textAlign: "center", marginBottom: 16 }}>
+          Se connecter
+        </h3>
+
+        <input
+          type="email"
+          placeholder="Adresse email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          style={inputStyle}
+        />
+        <input
+          type="password"
+          placeholder="Mot de passe"
+          value={pwd}
+          onChange={(e) => setPwd(e.target.value)}
+          required
+          style={inputStyle}
+        />
+
+        <button type="submit" disabled={loading} style={buttonStyle}>
+          {loading ? "Connexion..." : "Se connecter"}
+        </button>
+
+        {msg && (
+          <p style={{ color: "#ff7b7b", marginTop: 12, textAlign: "center" }}>
+            {msg}
+          </p>
+        )}
+      </form>
     </main>
   );
 }
 
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  padding: "14px 16px",
+  marginBottom: 12,
+  borderRadius: 10,
+  border: "none",
+  background: "rgba(255,255,255,0.12)",
+  color: "#fff",
+  outline: "none",
+};
+
+const buttonStyle: React.CSSProperties = {
+  width: "100%",
+  padding: "14px 16px",
+  borderRadius: 10,
+  border: "none",
+  cursor: "pointer",
+  color: "#fff",
+  background: "linear-gradient(90deg,#00e0ff,#007bff)",
+  fontWeight: 600,
+};

@@ -1,140 +1,158 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { register as apiRegister } from "@/lib/api";
 
 export default function RegisterPage() {
-  const [activeUsers, setActiveUsers] = useState(0);
+  const router = useRouter();
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [pwd, setPwd] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
 
-  // --- compteur animé ---
-  useEffect(() => {
-    let start = 0;
-    const end = 18; // nombre cible
-    const duration = 2000;
-    const step = Math.ceil(duration / end);
-    const interval = setInterval(() => {
-      start += 1;
-      setActiveUsers(start);
-      if (start >= end) clearInterval(interval);
-    }, step);
-import Link from "next/link";
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMsg(null);
+    setLoading(true);
 
-export default function RegisterPage() {
-  const [activeUsers, setActiveUsers] = useState(21);
-
-  // Animation du compteur : +/- 1 à 3 toutes les 2 secondes
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setActiveUsers((prev) => {
-        const variation = Math.floor(Math.random() * 3) * (Math.random() > 0.5 ? 1 : -1);
-        const next = prev + variation;
-        return Math.max(18, Math.min(24, next));
-      });
-    }, 2000);
-    return () => clearInterval(interval);
-  }, []);
+    try {
+      await apiRegister({ name, email, password: pwd });
+      setMsg("Compte créé ! Redirection...");
+      setTimeout(() => router.push("/auth/login"), 1000);
+    } catch (err: any) {
+      setMsg(err?.message || "Échec de l'inscription");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gradient-to-b from-[#0b1a2f] to-[#0e223d]">
-      <div className="card w-full max-w-md mx-4 text-center animate-fade-in">
-        <h1 className="text-2xl font-bold mb-4 text-white">Créer un compte</h1>
-        <p className="text-gray-300 mb-6">
-          <span className="text-orange-400 text-lg">🔥</span>{" "}
-          {activeUsers} utilisateurs actifs actuellement
-        </p>
-
-        <form className="space-y-4">
-          <div className="text-left">
-            <label className="block text-sm font-medium text-gray-200 mb-1">
-              Nom complet
-            </label>
-            <input
-              type="text"
-              placeholder="John Doe"
-              className="w-full p-2 rounded-md bg-gray-800 text-white border border-gray-600 focus:border-orange-400 focus:ring-0"
-            />
-          </div>
-
-          <div className="text-left">
-            <label className="block text-sm font-medium text-gray-200 mb-1">
-              Adresse email
-            </label>
-            <input
-              type="email"
-              placeholder="exemple@email.com"
-              className="w-full p-2 rounded-md bg-gray-800 text-white border border-gray-600 focus:border-orange-400 focus:ring-0"
-            />
-          </div>
-
-          <div className="text-left">
-            <label className="block text-sm font-medium text-gray-200 mb-1">
-              Mot de passe
-            </label>
-            <input
-              type="password"
-              placeholder="••••••••"
-              className="w-full p-2 rounded-md bg-gray-800 text-white border border-gray-600 focus:border-orange-400 focus:ring-0"
-    <main className="min-h-screen flex items-center justify-center bg-gradient-to-b from-[#0a2230] to-[#0f2f45] text-white px-4">
-      <div className="w-full max-w-md bg-[#0d2a3b]/90 backdrop-blur-md rounded-2xl shadow-2xl p-8 border border-cyan-600">
-        <h1 className="text-2xl font-bold text-center mb-2">Créer un compte</h1>
-        <p className="text-center text-sm text-cyan-400 mb-8">
-          🔥 {activeUsers} utilisateurs actifs actuellement
-        </p>
-
-        <form className="space-y-5">
-          <div>
-            <label className="block text-sm mb-1">Nom complet</label>
-            <input
-              type="text"
-              placeholder="John Doe"
-              className="w-full px-3 py-2 rounded-md bg-[#102f45] border border-cyan-700 focus:ring-2 focus:ring-cyan-400 outline-none"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm mb-1">Adresse email</label>
-            <input
-              type="email"
-              placeholder="exemple@email.com"
-              className="w-full px-3 py-2 rounded-md bg-[#102f45] border border-cyan-700 focus:ring-2 focus:ring-cyan-400 outline-none"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm mb-1">Mot de passe</label>
-            <input
-              type="password"
-              placeholder="******"
-              className="w-full px-3 py-2 rounded-md bg-[#102f45] border border-cyan-700 focus:ring-2 focus:ring-cyan-400 outline-none"
-            />
-          </div>
-
-          <button
-            type="submit"
-            className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 rounded-md transition-all duration-200"
-          >
-            S'inscrire
-          </button>
-        </form>
-
-        <p className="mt-6 text-gray-300 text-sm">
-          Déjà un compte ?{" "}
-          <a href="/auth/login" className="text-orange-400 hover:underline">
-            Se connecter
-          </a>
-            className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 py-2 rounded-md font-semibold text-white hover:opacity-90 transition-all duration-200"
-          >
-            S’inscrire
-          </button>
-        </form>
-
-        <p className="text-center text-sm mt-6">
-          Déjà un compte ?{" "}
-          <Link href="/auth/login" className="text-cyan-400 hover:text-cyan-300 font-semibold">
-            Se connecter
-          </Link>
+    <main
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "linear-gradient(135deg, #020617, #0d253a)",
+        padding: "20px",
+        color: "#fff",
+      }}
+    >
+      {/* LOGO + TITRE + SLOGAN */}
+      <div style={{ textAlign: "center", marginBottom: "2rem" }}>
+        <h1
+          style={{
+            fontSize: "2.8rem",
+            background: "linear-gradient(90deg,#ffcc00,#ff8800)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            textShadow: "0 0 12px rgba(255,136,0,0.6)",
+            marginBottom: "0.4rem",
+            fontWeight: 800,
+            letterSpacing: "2px",
+          }}
+        >
+          LGD
+        </h1>
+        <h2 style={{ fontSize: "1.6rem", marginBottom: "0.3rem" }}>
+          Le Générateur Digital
+        </h2>
+        <p
+          style={{
+            fontSize: "1rem",
+            color: "#9fd0ff",
+            opacity: 0.85,
+            margin: 0,
+          }}
+        >
+          Propulse ton business numérique
         </p>
       </div>
+
+      {/* FORMULAIRE */}
+      <form
+        onSubmit={onSubmit}
+        style={{
+          width: "100%",
+          maxWidth: "420px",
+          background: "rgba(0, 0, 0, 0.35)",
+          padding: "24px",
+          borderRadius: "16px",
+          boxShadow: "0 10px 25px rgba(0,0,0,0.25)",
+          backdropFilter: "blur(10px)",
+        }}
+      >
+        <h3 style={{ color: "#00e0ff", textAlign: "center", marginBottom: 16 }}>
+          Créer un compte
+        </h3>
+
+        <input
+          type="text"
+          placeholder="Nom complet"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+          style={inputStyle}
+        />
+        <input
+          type="email"
+          placeholder="Adresse email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          style={inputStyle}
+        />
+        <input
+          type="password"
+          placeholder="Mot de passe"
+          value={pwd}
+          onChange={(e) => setPwd(e.target.value)}
+          required
+          style={inputStyle}
+        />
+
+        <button type="submit" disabled={loading} style={buttonStyle}>
+          {loading ? "Création..." : "Créer un compte"}
+        </button>
+
+        {msg && (
+          <p style={{ color: "#9bf89b", marginTop: 12, textAlign: "center" }}>
+            {msg}
+          </p>
+        )}
+
+        <p style={{ marginTop: 10, textAlign: "center" }}>
+          Déjà inscrit ?{" "}
+          <a href="/auth/login" style={{ color: "#00e0ff" }}>
+            Se connecter
+          </a>
+        </p>
+      </form>
     </main>
   );
 }
 
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  padding: "14px 16px",
+  marginBottom: 12,
+  borderRadius: 10,
+  border: "none",
+  background: "rgba(255,255,255,0.12)",
+  color: "#fff",
+  outline: "none",
+};
+
+const buttonStyle: React.CSSProperties = {
+  width: "100%",
+  padding: "14px 16px",
+  borderRadius: 10,
+  border: "none",
+  cursor: "pointer",
+  color: "#fff",
+  background: "linear-gradient(90deg,#00e0ff,#007bff)",
+  fontWeight: 600,
+};
