@@ -9,13 +9,20 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@prisma/client": "^6.18.0",
     "@tailwindcss/postcss": "^4.1.15",
     "autoprefixer": "^10.4.21",
+    "bcrypt": "^6.0.0",
     "framer-motion": "^12.23.24",
+    "lucide-react": "^0.546.0",
     "next": "^15.5.6",
+    "next-auth": "^4.24.13",
     "postcss": "8.5.6",
+    "prisma": "^6.18.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "reset": "^0.1.0",
+    "run": "^1.5.0",
     "tailwindcss": "^4.1.15"
   },
   "devDependencies": {
@@ -24,6 +31,8 @@
     "@types/react-dom": "18.2.22",
     "eslint": "8.57.0",
     "eslint-config-next": "15.5.4",
+    "rimraf": "^6.0.1",
     "typescript": "5.6.2"
   }
 }
+

@@ -1,0 +1,90 @@
+// =============================================================
+// ⚙️ PRISMA SCHEMA — Le Générateur Digital
+// Base locale SQLite (facile à migrer plus tard vers PostgreSQL)
+// =============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================
+// ⚡ AUTOMATISATIONS INTELLIGENTES
+// =============================================================
+model Automatisation {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String
+  status      String   @default("Active") // Active | En pause | Terminée
+  color       String   @default("green") // Vert = active / Orange = pause / Gris = terminé
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt // ✅ pour les futures modifications
+
+  // ✅ Relation optionnelle vers un utilisateur (future extension)
+  userId Int?
+  user   User? @relation(fields: [userId], references: [id])
+}
+
+// =============================================================
+// 👤 UTILISATEUR
+// =============================================================
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  full_name String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // ✅ Relations
+  automatisations Automatisation[]
+  idees           IdeeEntreprise[]
+  businessPlans   BusinessPlan[]
+}
+
+// =============================================================
+// 💡 IDÉE D’ENTREPRISE — Étape 1
+// =============================================================
+model IdeeEntreprise {
+  id          Int      @id @default(autoincrement())
+  userId      Int?
+  titre       String
+  description String
+  marche      String
+  promesse    String
+  createdAt   DateTime @default(now())
+
+  // Relation
+  user User? @relation(fields: [userId], references: [id])
+}
+
+// =============================================================
+// 🧠 BUSINESS PLAN — Étape 2
+// =============================================================
+model BusinessPlan {
+  id          Int      @id @default(autoincrement())
+  userId      Int?
+  title       String
+  activity    String
+  description String
+  aiContent   String? // Contenu généré par l’IA
+  pdfUrl      String? // Lien vers le fichier PDF généré
+  createdAt   DateTime @default(now())
+
+  // Relation
+  user User? @relation(fields: [userId], references: [id])
+}
+model Bibliotheque {
+  id          Int      @id @default(autoincrement())
+  userId      Int?
+  titre       String
+  type        String   // texte | image | prompt
+  contenu     String
+  createdAt   DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+}

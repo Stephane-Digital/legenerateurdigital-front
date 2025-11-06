@@ -2,21 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
-/* -------------------------------
-   🌌 Thème global du site LGD
---------------------------------*/
+/* ==========================================================
+   🌌 THEME GLOBAL — LE GÉNÉRATEUR DIGITAL (LGD MODE LUXE)
+   ========================================================== */
+
+/* RESET GLOBAL */
 html,
 body {
   margin: 0;
   padding: 0;
   font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-  background: linear-gradient(to bottom right, #0a2540, #102f4a, #1c3c56);
-  color: white;
+  background-color: #0a0a0a !important;
+  color: #ffffff;
   min-height: 100vh;
   scroll-behavior: smooth;
+  transition: all 0.4s ease;
 }
 
-/* 🌈 Liens */
+/* Liens */
 a {
   color: #60a5fa;
   text-decoration: none;
@@ -27,279 +30,323 @@ a:hover {
   text-decoration: underline;
 }
 
-/* ✨ Boutons */
+/* Boutons */
 button {
-  background: linear-gradient(to right, #2563eb, #06b6d4);
-  color: white;
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 0.5rem;
   cursor: pointer;
+  border: none;
   transition: all 0.3s ease;
 }
-button:hover {
-  transform: scale(1.05);
-  opacity: 0.9;
-}
 
-/* 🧩 Champs de formulaire */
+/* Champs */
 input,
 textarea {
+  width: 100%;
   background: rgba(255, 255, 255, 0.1);
   color: white;
   border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 0.5rem;
   padding: 0.75rem;
-  width: 100%;
   transition: all 0.3s ease;
 }
 input:focus,
 textarea:focus {
   outline: none;
-  border-color: #60a5fa;
-  background: rgba(255, 255, 255, 0.2);
+  border-color: #ffb800;
+  background: rgba(255, 255, 255, 0.15);
 }
 
-/* 🪄 Animations douces */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(15px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-.animate-fadeIn {
-  animation: fadeIn 0.6s ease-in-out;
+/* ==========================================================
+   🎨 VARIABLES
+   ========================================================== */
+:root {
+  --lgd-gold: #ffb800;
+  --lgd-blue: #009dff;
+  --lgd-luxe-bg: linear-gradient(145deg, #0a0a0a 0%, #111827 100%);
 }
 
-/* -------------------------------
-   📱 Responsive Login / Register
---------------------------------*/
-main {
+/* ==========================================================
+   🧱 CARTES
+   ========================================================== */
+.card-luxe {
+  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0.6));
+  border: 1px solid rgba(255, 200, 100, 0.2);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 0 20px rgba(255, 184, 0, 0.15);
+  transition: all 0.3s ease;
+  max-width: 600px;
+  margin: 0 auto 20px;
   display: flex;
-  align-items: center;
-  justify-content: center;
   flex-direction: column;
-  min-height: 100vh;
-  text-align: center;
-  padding: 1rem;
+  align-items: center;
 }
-form {
-  width: 100%;
-  max-width: 420px;
-  margin: 0 auto;
+.card-luxe:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 0 25px rgba(255, 184, 0, 0.3);
 }
-form input,
-form button {
-  width: 100% !important;
-  box-sizing: border-box;
-}
-@media (max-width: 640px) {
-  h1 {
-    font-size: 2.2rem !important;
-    letter-spacing: 1px;
-  }
-  h2 {
-    font-size: 1.3rem !important;
-  }
-  p {
-    font-size: 0.9rem !important;
-  }
-  form {
-    padding: 1.2rem !important;
-    border-radius: 0.8rem !important;
-  }
-  input,
-  button {
-    padding: 0.75rem 1rem !important;
-    font-size: 0.95rem !important;
-  }
-}
-@media (min-width: 641px) and (max-width: 1024px) {
-  h1 {
-    font-size: 2.5rem !important;
-  }
-  h2 {
-    font-size: 1.5rem !important;
-  }
-  p {
-    font-size: 1rem !important;
-  }
-  form {
-    max-width: 460px !important;
-    padding: 1.5rem !important;
-  }
-}
-h1 {
+
+/* ==========================================================
+   🔘 BOUTONS
+   ========================================================== */
+.btn-luxe,
+.btn-luxe-blue {
   display: inline-block;
-  margin-bottom: 0.5rem !important;
-}
-h2,
-p {
-  margin: 0.2rem 0 !important;
-}
-form h3 {
-  font-size: 1.1rem !important;
-}
-input::placeholder {
-  color: rgba(255, 255, 255, 0.75);
-}
-input:focus {
-  border-color: #00e0ff !important;
-  background: rgba(255, 255, 255, 0.15) !important;
-}
-button {
-  font-size: 1rem !important;
-  font-weight: 600 !important;
-}
-button:disabled {
-  opacity: 0.6 !important;
-  cursor: not-allowed;
+  padding: 12px 80px;
+  border-radius: 12px;
+  font-weight: bold;
+  transition: all 0.3s ease;
 }
 
-/* -------------------------------
-   🎨 Ajustement du titre principal
---------------------------------*/
-h2 {
-  background: linear-gradient(90deg, #ffcc00, #ff8800);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  text-shadow: 0 0 8px rgba(255, 136, 0, 0.4);
-  font-weight: 700;
+.btn-luxe {
+  background: linear-gradient(90deg, #ffcc66, #ff9900);
+  color: #1a1a1a;
+  box-shadow: 0 0 12px rgba(255, 184, 0, 0.4);
 }
-@media (min-width: 1025px) {
-  h2 {
-    font-size: 1.9rem !important;
-  }
-}
-@media (max-width: 1024px) {
-  h2 {
-    font-size: 1.7rem !important;
-  }
-}
-@media (max-width: 640px) {
-  h2 {
-    font-size: 1.5rem !important;
-  }
+.btn-luxe:hover {
+  background: linear-gradient(90deg, #ffdd88, #ffb800);
+  box-shadow: 0 0 25px rgba(255, 184, 0, 0.6);
 }
 
-/* -------------------------------
-   🧭 Phase 2 – Dashboard LGD
---------------------------------*/
-.dashboard-layout {
-  display: grid;
-  grid-template-columns: 240px 1fr;
-  min-height: 100vh;
-  background: linear-gradient(to bottom right, #0a2540, #102f4a);
+.btn-luxe-blue {
+  background: linear-gradient(90deg, #00e0ff, #009dff);
+  color: #fff;
+  box-shadow: 0 0 12px rgba(0, 224, 255, 0.3);
 }
-.sidebar {
-  background: linear-gradient(180deg, #1a1f2e 0%, #0c1222 100%);
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 1.5rem 1rem;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  transition: all 0.4s ease-in-out;
+.btn-luxe-blue:hover {
+  background: linear-gradient(90deg, #33eeff, #00bfff);
+  box-shadow: 0 0 25px rgba(0, 224, 255, 0.6);
 }
-.sidebar-logo {
-  font-size: 1.8rem;
-  font-weight: 800;
-  background: linear-gradient(90deg, #FFB800, #FF6B00);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  text-shadow: 0 0 10px rgba(255, 107, 0, 0.6);
+
+/* ==========================================================
+   ⚡ BLOC "ESPACE RAPIDE"
+   ========================================================== */
+.dashboard-quick {
+  background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(0,0,0,0.6));
+  border: 1px solid rgba(255, 200, 100, 0.25);
+  border-radius: 16px;
+  box-shadow: 0 0 20px rgba(255, 184, 0, 0.2);
+  padding: 40px;
+  margin-top: 45px; /* ✅ 20px sous le bouton Déconnexion */
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.dashboard-quick h2 {
   text-align: center;
-  margin-bottom: 2rem;
-}
-.sidebar-nav a {
-  display: block;
-  padding: 0.75rem 1rem;
-  border-radius: 0.5rem;
-  color: rgba(255, 255, 255, 0.85);
-  transition: all 0.3s ease;
-}
-.sidebar-nav a:hover,
-.sidebar-nav a.active {
-  background: linear-gradient(90deg, #FFB800, #FF6B00);
-  color: #0a2540;
-  font-weight: 600;
-}
-.dashboard-header {
-  background: rgba(255, 255, 255, 0.05);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 1rem 2rem;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 1rem;
-  transition: all 0.3s ease;
-}
-.dashboard-header .username {
-  font-weight: 600;
-}
-.dashboard-header .avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: linear-gradient(90deg, #FFB800, #FF6B00);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #0a2540;
+  color: var(--lgd-gold);
+  font-size: 1.8rem;
   font-weight: 700;
-}
-.dashboard-content {
-  padding: 2rem;
-  animation: fadeIn 0.6s ease-in-out;
-}
-.card {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 1rem;
-  padding: 1.5rem;
-  transition: all 0.3s ease;
-}
-.card:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 0 25px rgba(255, 140, 0, 0.25);
+  margin-bottom: 30px;
 }
 
-/* -------------------------------
-   📲 Responsive Dashboard
---------------------------------*/
-@media (max-width: 1024px) {
-  .dashboard-layout {
-    grid-template-columns: 200px 1fr;
+.dashboard-quick .grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 25px;
+}
+
+.dashboard-quick .mini-card {
+  background: #141414;
+  border: 1px solid rgba(255, 200, 100, 0.15);
+  border-radius: 12px;
+  text-align: center;
+  padding: 20px;
+  transition: all 0.3s ease;
+}
+.dashboard-quick .mini-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 0 20px rgba(255, 184, 0, 0.3);
+}
+
+.dashboard-quick .mini-card svg {
+  color: var(--lgd-gold);
+  width: 28px;
+  height: 28px;
+  margin-bottom: 10px;
+}
+
+.dashboard-quick .mini-card h3 {
+  color: var(--lgd-gold);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.dashboard-quick .mini-card p {
+  color: #aaa;
+  font-size: 0.9rem;
+}
+
+@media (max-width: 1199px) {
+  .dashboard-quick .grid {
+    grid-template-columns: 1fr 1fr;
   }
 }
-@media (max-width: 768px) {
-  .dashboard-layout {
+@media (max-width: 600px) {
+  .dashboard-quick .grid {
     grid-template-columns: 1fr;
   }
-  .sidebar {
-    position: fixed;
-    top: 0;
-    left: -100%;
-    width: 220px;
-    height: 100%;
-    transition: left 0.3s ease;
-    z-index: 50;
+}
+
+/* ==========================================================
+   🌟 HEADER FIXE ET RESPONSIVE — LARGEUR PLEINE PAGE
+   ========================================================== */
+.header-fixed {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw; /* ✅ pleine largeur viewport */
+  height: 70px;
+  background: rgba(15, 15, 15, 0.95);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 184, 0, 0.25);
+  z-index: 100;
+  overflow-x: hidden;
+}
+
+/* ✅ Container pleine largeur, sans centrage */
+.nav-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 40px;
+  box-sizing: border-box;
+  position: relative;
+}
+
+/* ✅ Logo aligné à 40px du bord gauche */
+.logo-wrapper {
+  position: absolute;
+  left: 40px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* ✅ Logo fluide et centré sur mobile */
+.logo {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--lgd-gold);
+  text-shadow: 0 0 8px rgba(255, 184, 0, 0.4);
+  white-space: nowrap;
+  transition: all 0.3s ease;
+}
+.logo:hover {
+  opacity: 0.85;
+  filter: drop-shadow(0 0 8px rgba(255, 184, 0, 0.6));
+}
+
+/* NAVIGATION DESKTOP */
+.desktop-nav ul {
+  display: flex;
+  gap: 35px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.desktop-nav a {
+  font-size: 15px;
+  font-weight: 500;
+  color: #60a5fa; /* ✅ bleu avant survol */
+  transition: color 0.3s ease;
+}
+.desktop-nav a:hover {
+  color: var(--lgd-gold);
+}
+
+/* ✅ MENU BURGER — 3 TRAITS DORÉS, PAS DE FOND */
+.burger {
+  position: absolute;
+  right: 30px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--lgd-gold);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.3s ease;
+}
+.burger:hover {
+  opacity: 0.8;
+}
+
+/* MENU MOBILE */
+.mobile-menu {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 70%;
+  max-width: 280px;
+  height: 100%;
+  background: rgba(15, 15, 15, 0.95);
+  border-left: 1px solid rgba(255, 184, 0, 0.2);
+  padding: 32px 24px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* RESPONSIVE — LOGO CENTRÉ SUR MOBILE */
+@media (max-width: 899px) {
+  .desktop-nav {
+    display: none;
   }
-  .sidebar.open {
+  .logo-wrapper {
+    position: relative;
     left: 0;
+    transform: none;
+    margin: 0 auto;
+    text-align: center;
   }
-  .dashboard-header {
-    justify-content: space-between;
+  .burger {
+    right: 25px;
   }
 }
-@media (max-width: 480px) {
-  .dashboard-content {
-    padding: 1rem;
+
+/* RESPONSIVE — MENU COMPLET SUR DESKTOP */
+@media (min-width: 900px) {
+  .desktop-nav {
+    display: flex;
   }
-  .card {
-    padding: 1rem;
+  .burger {
+    display: none;
   }
+}
+
+/* ==========================================================
+   🧭 FIX — TITRE ET ESPACEMENT DÉCONNEXION / ESPACE RAPIDE
+   ========================================================== */
+
+/* Titre principal du tableau de bord */
+.dashboard-title {
+  color: #ffb800; /* ✅ jaune doré */
+  text-shadow: 0 0 12px rgba(255, 184, 0, 0.4);
+}
+
+/* Espace sous le bouton de déconnexion */
+.disconnect-btn {
+  margin-bottom: 20px !important; /* ✅ 20px d’espace sous le bouton */
+}
+
+/* ==========================================================
+   ✨ Animation Fade-In douce
+   ========================================================== */
+.fade-in {
+  animation: fadeIn 0.6s ease forwards;
+}
+/* ==========================================================
+   🧩 ESPACEMENT GLOBAL ENTRE HEADER ET CONTENU
+   ========================================================== */
+
+.page-content {
+  padding-top: 110px; /* Header = 70px + 40px d’espace */
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }

@@ -1,0 +1,29 @@
+/* === Boutons LGD universels === */
+
+.btn-luxe {
+  background: linear-gradient(90deg, #ffcc66, #ff9900);
+  color: #000;
+  font-weight: 600;
+  border-radius: 12px;
+  box-shadow: 0 0 15px rgba(255, 184, 0, 0.3);
+  transition: all 0.3s ease;
+}
+.btn-luxe:hover {
+  background: linear-gradient(90deg, #ffb800, #ff8000);
+  box-shadow: 0 0 25px rgba(255, 184, 0, 0.5);
+  transform: translateY(-2px);
+}
+
+.btn-luxe-blue {
+  background: linear-gradient(90deg, #00c6ff, #0072ff);
+  color: #fff;
+  font-weight: 600;
+  border-radius: 12px;
+  box-shadow: 0 0 15px rgba(0, 150, 255, 0.3);
+  transition: all 0.3s ease;
+}
+.btn-luxe-blue:hover {
+  background: linear-gradient(90deg, #009cff, #005eff);
+  box-shadow: 0 0 25px rgba(0, 150, 255, 0.5);
+  transform: translateY(-2px);
+}

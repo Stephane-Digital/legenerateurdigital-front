@@ -2,38 +2,33 @@
 
 export default function OverviewPage() {
   return (
-    <section className="mx-auto w-full max-w-3xl my-[10px]">
-      {/* Titre de section */}
-      <h2 className="text-center text-3xl font-extrabold text-white mb-[20px]">
-        Vue d’ensemble
-      </h2>
+    <div className="w-full min-h-screen flex flex-col justify-center items-center bg-gradient-to-b from-[#0a0a0a] to-[#1a1a1a] text-white px-6">
+      {/* --- TITRE PRINCIPAL --- */}
+      <h1 className="text-4xl font-extrabold mb-10 text-gradient text-center">
+        📊 Vue d’ensemble
+      </h1>
 
-      {/* Bloc des cartes – 15px d’espace entre elles */}
-      <div className="flex flex-col gap-[15px] scale-[1.3] origin-top transition-transform duration-300">
-        {/* Carte 1 */}
-        <div className="flex flex-col items-center justify-center text-center rounded-[10px] bg-[#0d2a3b]/90 backdrop-blur-md shadow-2xl py-8 px-[50px] border border-cyan-700 hover:scale-[1.02] transition-transform duration-200">
-          <h3 className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-[#ffb800] to-[#ff6b00]">
-            Automatisations actives
-          </h3>
-          <p className="text-sm text-cyan-200 mt-2">3 workflows en cours</p>
-        </div>
-
-        {/* Carte 2 */}
-        <div className="flex flex-col items-center justify-center text-center rounded-[10px] bg-[#0d2a3b]/90 backdrop-blur-md shadow-2xl py-8 px-[50px] border border-cyan-700 hover:scale-[1.02] transition-transform duration-200">
-          <h3 className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-[#ffb800] to-[#ff6b00]">
-            Nouveaux clients
-          </h3>
-          <p className="text-sm text-cyan-200 mt-2">+24 cette semaine 🚀</p>
-        </div>
-
-        {/* Carte 3 */}
-        <div className="flex flex-col items-center justify-center text-center rounded-[10px] bg-[#0d2a3b]/90 backdrop-blur-md shadow-2xl py-8 px-[50px] border border-cyan-700 hover:scale-[1.02] transition-transform duration-200">
-          <h3 className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-[#ffb800] to-[#ff6b00]">
-            Campagnes
-          </h3>
-          <p className="text-sm text-cyan-200 mt-2">2 actives – 1 en attente</p>
-        </div>
+      {/* --- BOUTON PRINCIPAL --- */}
+      <div className="w-full max-w-[400px] mb-[20px] flex justify-center">
+        <button className="btn-luxe w-full py-4 text-center">
+          + Nouvelle campagne
+        </button>
       </div>
-    </section>
+
+      {/* --- BLOC PRINCIPAL --- */}
+      <div className="w-full max-w-[900px] card-luxe text-center">
+        <h2 className="text-2xl font-semibold text-gradient mb-4">
+          Résumé des performances
+        </h2>
+
+        <p className="text-gray-300 mb-2">
+          Visualisez l’impact de vos actions marketing et des campagnes automatisées.
+        </p>
+
+        <p className="text-gray-400 text-sm">
+          Suivez vos statistiques clés et accédez à une vision claire de votre progression.
+        </p>
+      </div>
+    </div>
   );
 }

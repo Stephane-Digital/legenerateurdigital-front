@@ -1,0 +1,17 @@
+[
+  {
+    "id": 1,
+    "name": "Formation Marketing Digital",
+    "status": "Active"
+  },
+  {
+    "id": 2,
+    "name": "Formation Email Automation",
+    "status": "En pause"
+  },
+  {
+    "id": 1762378743763,
+    "name": "Nouvelle formation 3",
+    "status": "Active"
+  }
+]

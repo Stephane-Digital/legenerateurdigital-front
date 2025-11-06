@@ -1,0 +1,14 @@
+[
+  {
+    "id": 1,
+    "name": "Envoi email de bienvenue",
+    "status": "Active",
+    "description": "Envoie automatiquement un email aux nouveaux inscrits."
+  },
+  {
+    "id": 2,
+    "name": "Relance client inactif",
+    "status": "En pause",
+    "description": "Relance les clients n’ayant pas interagi depuis 30 jours."
+  }
+]

@@ -1,77 +1,61 @@
 "use client";
 
-import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-
+export default function HomePage() {
   return (
-    <div className="dashboard-layout">
-      {/* SIDEBAR */}
-      <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
-        <div>
-          <div className="sidebar-logo">LGD</div>
-          <nav className="sidebar-nav">
-            <Link href="/dashboard/overview" className={pathname === "/dashboard/overview" ? "active" : ""}>
-              Vue d’ensemble
-            </Link>
-            <Link href="/dashboard/automatisations" className={pathname === "/dashboard/automatisations" ? "active" : ""}>
-              Automatisations
-            </Link>
-            <Link href="/dashboard/clients" className={pathname === "/dashboard/clients" ? "active" : ""}>
-              Clients
-            </Link>
-            <Link href="/dashboard/campagnes" className={pathname === "/dashboard/campagnes" ? "active" : ""}>
-              Campagnes
-            </Link>
-            <Link href="/dashboard/settings" className={pathname === "/dashboard/settings" ? "active" : ""}>
-              Paramètres
-            </Link>
-          </nav>
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-[#0a0a0a] to-[#1a1a1a] text-white">
+      <div className="card-luxe w-full max-w-[600px] p-10 rounded-2xl shadow-xl bg-gradient-to-b from-[#111] to-[#1c1c1c] border border-[#2a2a2a] text-center">
+
+        {/* === LOGO === */}
+        <div className="flex justify-center mb-4">
+          <Image
+            src="/images/logo-lgd.png"
+            alt="Logo Le Générateur Digital"
+            width={140}
+            height={140}
+            className="mx-auto drop-shadow-[0_0_15px_rgba(255,184,0,0.6)]"
+          />
         </div>
 
-        <button
-          onClick={() => alert("Déconnexion à venir...")}
-          style={{
-            marginTop: "2rem",
-            width: "100%",
-            background: "linear-gradient(90deg, #FFB800, #FF6B00)",
-            color: "#0a2540",
-            fontWeight: 700,
-            borderRadius: "8px",
-            padding: "0.75rem 1rem",
-          }}
-        >
-          Déconnexion
-        </button>
-      </aside>
+        {/* === TITRE PRINCIPAL === */}
+        <h1 className="text-4xl font-extrabold mb-2 bg-gradient-to-r from-[#ffb800] to-[#ff8800] bg-clip-text text-transparent">
+          Le Générateur Digital
+        </h1>
 
-      {/* HEADER */}
-      <header className="dashboard-header">
-        <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="lg:hidden"
-          style={{
-            background: "transparent",
-            border: "none",
-            color: "white",
-            fontSize: "1.5rem",
-            cursor: "pointer",
-          }}
-        >
-          ☰
-        </button>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.8rem" }}>
-          <span className="username">Stéphane</span>
-          <div className="avatar">S</div>
+        <p className="text-gray-400 text-sm mb-8">
+          Un outil tout-en-un pour booster votre business dans le marketing digital.
+        </p>
+
+        {/* === SOUS-TITRE === */}
+        <h2 className="text-2xl font-bold mb-6 text-[#ffb800]">
+          Le pouvoir du marketing automatisé 🚀
+        </h2>
+
+        <p className="text-gray-300 mb-10 leading-relaxed">
+          Créez, planifiez et pilotez toutes vos campagnes digitales depuis un
+          tableau de bord unique. Gagnez du temps, améliorez votre visibilité et
+          maximisez vos ventes.
+        </p>
+
+        {/* === BOUTONS === */}
+        <div className="flex flex-col items-center gap-4">
+          <Link href="/auth/login" className="btn-luxe w-4/5 py-3 font-semibold rounded-lg transition duration-200">
+            Se connecter
+          </Link>
+          <Link
+            href="/auth/register"
+            className="btn-blue w-4/5 py-3 font-semibold rounded-lg transition duration-200"
+          >
+            Créer un compte
+          </Link>
         </div>
-      </header>
 
-      {/* CONTENU */}
-      <main className="dashboard-content">{children}</main>
+        <p className="text-gray-500 text-xs mt-10">
+          © 2025 Le Générateur Digital — Tous droits réservés.
+        </p>
+      </div>
     </div>
   );
 }

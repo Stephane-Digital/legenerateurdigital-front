@@ -1,11 +1,11 @@
+// app/layout.tsx
+
 import "./globals.css";
-import { Inter } from "next/font/google";
+import type { Metadata } from "next";
 
-const inter = Inter({ subsets: ["latin"] });
-
-export const metadata = {
+export const metadata: Metadata = {
   title: "Le Générateur Digital",
-  description: "Créez votre compte pour accéder à votre espace personnel",
+  description: "Automatise ton business facilement",
 };
 
 export default function RootLayout({
@@ -14,8 +14,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="fr">
-      <body className={`${inter.className} bg-[#0d2a3b] text-white`}>
+    <html lang="fr" suppressHydrationWarning>
+      <body className="bg-gradient-to-b from-[#0a0a0a] to-[#111827] text-white antialiased">
         {children}
       </body>
     </html>
