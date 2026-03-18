@@ -21,7 +21,10 @@ function setCookie(name: string, value: string, days = 7) {
   if (typeof document === "undefined") return;
 
   const maxAge = days * 24 * 60 * 60;
-  const secure = typeof window !== "undefined" && window.location.protocol === "https:" ? "; Secure" : "";
+  const secure =
+    typeof window !== "undefined" && window.location.protocol === "https:"
+      ? "; Secure"
+      : "";
 
   document.cookie = `${name}=${encodeURIComponent(
     value
@@ -137,7 +140,10 @@ export async function loginUser(email: string, password: string) {
 
   if (!res.ok) {
     const detail =
-      (data && typeof data === "object" && "detail" in data && String((data as any).detail)) ||
+      (data &&
+        typeof data === "object" &&
+        "detail" in data &&
+        String((data as any).detail)) ||
       "Identifiants invalides";
 
     throw new Error(detail);
@@ -153,6 +159,40 @@ export async function loginUser(email: string, password: string) {
 
   if (data && typeof data === "object" && "user" in data) {
     setStoredUser((data as any).user ?? null);
+  }
+
+  return data;
+}
+
+export async function registerUser(
+  fullName: string,
+  email: string,
+  password: string
+) {
+  const res = await fetch(`${API_BASE_URL}/auth/register`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    body: JSON.stringify({
+      full_name: fullName,
+      email: String(email || "").trim(),
+      password: String(password || ""),
+    }),
+  });
+
+  const data = await parseJsonSafe(res);
+
+  if (!res.ok) {
+    const detail =
+      (data &&
+        typeof data === "object" &&
+        "detail" in data &&
+        String((data as any).detail)) ||
+      "Erreur lors de l'inscription.";
+
+    throw new Error(detail);
   }
 
   return data;
@@ -188,6 +228,13 @@ export async function fetchMe() {
   return data;
 }
 
+/**
+ * Alias de compatibilité LGD.
+ * Certains fichiers existants importent encore `me` depuis "@/lib/auth".
+ * On le garde pour éviter toute régression.
+ */
+export const me = fetchMe;
+
 export async function logoutUser() {
   try {
     await fetch(`${API_BASE_URL}/auth/logout`, {
@@ -195,7 +242,7 @@ export async function logoutUser() {
       credentials: "include",
     });
   } catch {
-    // ignore network/logout endpoint issues
+    // ignore
   } finally {
     clearAuth();
   }
