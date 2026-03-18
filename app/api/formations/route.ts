@@ -1,30 +1,46 @@
 import { NextResponse } from "next/server";
 import { readJSON, writeJSON } from "@/lib/fileStore";
 
-const DATA_PATH = "data/formations.json";
+type Formation = {
+  id: string;
+  title?: string;
+  description?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  [key: string]: any;
+};
+
+const STORE_PATH = "data/formations.json";
+
+async function loadAll(): Promise<Formation[]> {
+  return readJSON<Formation[]>(STORE_PATH, []);
+}
+
+async function saveAll(items: Formation[]) {
+  await writeJSON(STORE_PATH, items);
+}
 
 export async function GET() {
-  const items = await readJSON(DATA_PATH);
+  const items = await loadAll();
   return NextResponse.json(items);
 }
 
 export async function POST(req: Request) {
-  try {
-    const body = await req.json();
-    const items: any[] = await readJSON(DATA_PATH);
+  const payload = await req.json().catch(() => ({}));
+  const items = await loadAll();
 
-    const newItem = {
-      id: Date.now(),
-      name: body.name || `Nouvelle formation ${items.length + 1}`,
-      status: body.status || "Active"
-    };
+  const now = new Date().toISOString();
+  const id = payload?.id ? String(payload.id) : String(Date.now());
 
-    const updated = [...items, newItem];
-    await writeJSON(DATA_PATH, updated);
+  const newItem: Formation = {
+    ...payload,
+    id,
+    createdAt: payload?.createdAt ?? now,
+    updatedAt: now,
+  };
 
-    return NextResponse.json(newItem);
-  } catch {
-    return NextResponse.json({ error: "Erreur d’ajout" }, { status: 500 });
-  }
+  items.unshift(newItem);
+  await saveAll(items);
+
+  return NextResponse.json(newItem, { status: 201 });
 }
-

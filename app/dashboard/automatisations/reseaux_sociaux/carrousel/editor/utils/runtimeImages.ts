@@ -1,0 +1,2 @@
+export { rehydrateRuntimeImages } from "./rehydrateRuntimeImages";
+

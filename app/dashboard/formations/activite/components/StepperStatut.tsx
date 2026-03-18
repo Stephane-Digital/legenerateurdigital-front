@@ -3,15 +3,10 @@
 import { motion } from "framer-motion";
 
 export default function StepperStatut({ step }: { step: number }) {
-  const steps = [
-    "Introduction",
-    "Choisir son statut",
-    "Guide URSSAF",
-    "Résumé",
-  ];
+  const steps = ["Introduction", "Choisir son statut", "Guide URSSAF", "Résumé"];
 
   return (
-    <div className="flex justify-center mb-10">
+    <div className="mb-10 flex justify-center">
       <div className="flex items-center gap-6 sm:gap-10">
         {steps.map((title, index) => {
           const active = step === index + 1;
@@ -25,21 +20,17 @@ export default function StepperStatut({ step }: { step: number }) {
                     ? "0 0 12px rgba(212, 175, 55, 0.8)"
                     : "0 0 6px rgba(212,175,55,0.3)",
                 }}
-                className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-black"
+                className="flex h-10 w-10 items-center justify-center rounded-full font-bold text-black"
               >
                 {index + 1}
               </motion.div>
 
-              <span
-                className={`ml-3 text-sm ${
-                  active ? "text-yellow-400" : "text-gray-400"
-                }`}
-              >
+              <span className={`ml-3 text-sm ${active ? "text-yellow-400" : "text-gray-400"}`}>
                 {title}
               </span>
 
               {index < steps.length - 1 && (
-                <div className="w-12 sm:w-20 h-[2px] mx-3 bg-gradient-to-r from-yellow-500/60 to-yellow-500/10"></div>
+                <div className="mx-3 h-[2px] w-12 bg-gradient-to-r from-yellow-500/60 to-yellow-500/10 sm:w-20"></div>
               )}
             </div>
           );

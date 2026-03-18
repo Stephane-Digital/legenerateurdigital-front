@@ -1,12 +1,12 @@
-'use client';
-import { useEffect, useState } from 'react';
+"use client";
+import { useEffect, useState } from "react";
 
 export default function TestApi() {
   const [data, setData] = useState<any>(null);
 
   useEffect(() => {
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/health`)
-      .then(res => res.json())
+      .then((res) => res.json())
       .then(setData)
       .catch(console.error);
   }, []);

@@ -2,18 +2,18 @@
 
 export default function BibliothequeCard({ item }: { item: any }) {
   return (
-    <div className="bg-[#0d2a3b]/90 border border-[#184b6e] rounded-[12px] shadow-lg p-6 flex flex-col justify-between hover:scale-[1.03] hover:shadow-lg transition-all duration-300">
+    <div className="flex flex-col justify-between rounded-[12px] border border-[#184b6e] bg-[#0d2a3b]/90 p-6 shadow-lg transition-all duration-300 hover:scale-[1.03] hover:shadow-lg">
       <div>
-        <h3 className="text-[#ffb800] font-semibold text-lg mb-2">{item.title}</h3>
-        <p className="text-gray-300 text-sm mb-1">
-          <span className="text-[#00e0ff] font-medium">Type :</span> {item.type}
+        <h3 className="mb-2 text-lg font-semibold text-[#ffb800]">{item.title}</h3>
+        <p className="mb-1 text-sm text-gray-300">
+          <span className="font-medium text-[#00e0ff]">Type :</span> {item.type}
         </p>
-        <p className="text-gray-400 text-xs">Ajouté le {item.date}</p>
+        <p className="text-xs text-gray-400">Ajouté le {item.date}</p>
       </div>
 
-      <div className="flex justify-center gap-3 mt-4">
-        <button className="btn-luxe-blue text-sm px-4 py-2">Voir</button>
-        <button className="btn-luxe text-sm px-4 py-2">Modifier</button>
+      <div className="mt-4 flex justify-center gap-3">
+        <button className="btn-luxe-blue px-4 py-2 text-sm">Voir</button>
+        <button className="btn-luxe px-4 py-2 text-sm">Modifier</button>
       </div>
     </div>
   );

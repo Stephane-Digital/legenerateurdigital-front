@@ -27,8 +27,7 @@ export default function CardLuxe({
         margin: "0 auto 20px",
         borderRadius: "16px",
         padding: "24px",
-        background:
-          "linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0.6))",
+        background: "linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0.6))",
         border: "1px solid rgba(255, 200, 100, 0.2)",
         boxShadow: "0 0 20px rgba(255, 184, 0, 0.15)",
         display: "flex",

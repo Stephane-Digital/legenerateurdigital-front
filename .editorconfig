@@ -1,0 +1,38 @@
+# ================================================================
+# 🧠 LE GÉNÉRATEUR DIGITAL — CONFIGURATION UNIVERSELLE DE STYLE
+# ================================================================
+
+# Indique à tous les éditeurs de respecter cette configuration
+root = true
+
+# Règles globales
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Spécifique pour Markdown / Documentation
+[*.md]
+trim_trailing_whitespace = false
+
+# Spécifique pour JSON / YAML (fichiers de config)
+[*.{json,yml,yaml}]
+indent_size = 2
+
+# Spécifique pour CSS, JS, TS, TSX
+[*.{js,jsx,ts,tsx,css,scss}]
+indent_size = 2
+max_line_length = 100
+
+# Spécifique pour HTML
+[*.html]
+indent_size = 2
+
+# Ignore certains fichiers générés automatiquement
+[*.min.js]
+insert_final_newline = false
+trim_trailing_whitespace = false
+

@@ -33,27 +33,23 @@ export default function LgdGridLayout({
   }, []);
 
   return (
-    <div className="w-full flex flex-col items-center mt-[-30px] px-4">
-      <div className="w-full max-w-[1400px] flex flex-col items-center text-center space-y-8 mt-[80px]">
+    <div className="mt-[-30px] flex w-full flex-col items-center px-4">
+      <div className="mt-[80px] flex w-full max-w-[1400px] flex-col items-center space-y-8 text-center">
         {/* === TITRES === */}
         {title && (
-          <h1 className="text-4xl font-bold text-[#ffb800] flex items-center justify-center gap-2">
+          <h1 className="flex items-center justify-center gap-2 text-4xl font-bold text-[#ffb800]">
             {title}
           </h1>
         )}
-        {subtitleGold && (
-          <p className="text-[#ffb800] text-lg mt-1">{subtitleGold}</p>
-        )}
-        {subtitleGray && (
-          <p className="text-gray-400 text-sm mt-1">{subtitleGray}</p>
-        )}
+        {subtitleGold && <p className="mt-1 text-lg text-[#ffb800]">{subtitleGold}</p>}
+        {subtitleGray && <p className="mt-1 text-sm text-gray-400">{subtitleGray}</p>}
 
         {/* === BOUTON PRINCIPAL === */}
         {actionButton && <div className="mt-6 mb-[30px]">{actionButton}</div>}
 
         {/* === GRILLE CENTRÉE ADAPTATIVE === */}
         <div
-          className="grid justify-center items-start w-full"
+          className="grid w-full items-start justify-center"
           style={{
             display: "grid",
             gridTemplateColumns: `repeat(${columns}, minmax(320px, 1fr))`,

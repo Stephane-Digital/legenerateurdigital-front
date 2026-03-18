@@ -1,11 +1,27 @@
-// app/layout.tsx
-
-import "./globals.css";
 import type { Metadata } from "next";
+import "../styles/globals.css";
+/* ✅ AJOUT — sans supprimer l’existant */
+import { Inter, Montserrat, Poppins } from "next/font/google";
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+});
+
+const poppins = Poppins({
+  subsets: ["latin"],
+  weight: ["400", "600", "700"],
+  variable: "--font-poppins",
+});
+
+const montserrat = Montserrat({
+  subsets: ["latin"],
+  variable: "--font-montserrat",
+});
 
 export const metadata: Metadata = {
   title: "Le Générateur Digital",
-  description: "Automatise ton business facilement",
+  description: "LGD – SaaS IA & Automatisations",
 };
 
 export default function RootLayout({
@@ -14,8 +30,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="fr" suppressHydrationWarning>
-      <body className="bg-gradient-to-b from-[#0a0a0a] to-[#111827] text-white antialiased">
+    <html
+      lang="fr"
+      suppressHydrationWarning
+      className={`${inter.variable} ${poppins.variable} ${montserrat.variable}`}
+    >
+      <body className="bg-[#0a0a0a] text-white min-h-screen">
         {children}
       </body>
     </html>

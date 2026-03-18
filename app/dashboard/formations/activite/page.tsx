@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Header from "@/app/components/dashboard/Header";
+import Header from "@/components/dashboard/Header";
 import { motion } from "framer-motion";
 import { FileText, Sparkles } from "lucide-react";
 
@@ -30,17 +30,14 @@ export default function ActivitePage() {
     setMessage("");
 
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/export_pdf`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title: "Business Plan IA",
-            content: texte,
-          }),
-        }
-      );
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/export_pdf`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: "Business Plan IA",
+          content: texte,
+        }),
+      });
 
       const data = await response.json();
       if (data.status === "success" && data.file_path) {
@@ -57,21 +54,20 @@ export default function ActivitePage() {
   };
 
   return (
-    <div className="w-full flex flex-col items-center">
+    <div className="flex w-full flex-col items-center">
       {/* === HEADER GLOBAL === */}
       <Header />
 
       {/* === CONTENU PAGE === */}
-      <div className="w-full max-w-[1200px] flex flex-col items-center text-center space-y-8 mt-[80px] mb-[100px] px-4">
+      <div className="mt-[80px] mb-[100px] flex w-full max-w-[1200px] flex-col items-center space-y-8 px-4 text-center">
         {/* TITRE PRINCIPAL */}
-        <h1 className="text-4xl font-bold text-[#ffb800] flex items-center justify-center gap-2">
-          <FileText className="text-[#ffb800] w-10 h-10" />
+        <h1 className="flex items-center justify-center gap-2 text-4xl font-bold text-[#ffb800]">
+          <FileText className="h-10 w-10 text-[#ffb800]" />
           Générer mon Business Plan IA
         </h1>
 
-        <p className="text-gray-300 text-sm mt-1 max-w-[700px]">
-          Rédige ton texte ou colle le contenu généré par l’IA, puis télécharge ton
-          PDF premium.
+        <p className="mt-1 max-w-[700px] text-sm text-gray-300">
+          Rédige ton texte ou colle le contenu généré par l’IA, puis télécharge ton PDF premium.
         </p>
 
         {/* TEXTAREA */}
@@ -79,7 +75,7 @@ export default function ActivitePage() {
           value={texte}
           onChange={(e) => setTexte(e.target.value)}
           placeholder="Exemple : Ce document présente la vision stratégique de mon entreprise numérique..."
-          className="w-full max-w-[800px] h-[250px] bg-[#111] border border-[#222] text-white p-4 rounded-xl shadow-lg focus:outline-none focus:ring-2 focus:ring-[#ffb800] placeholder-gray-500"
+          className="h-[250px] w-full max-w-[800px] rounded-xl border border-[#222] bg-[#111] p-4 text-white placeholder-gray-500 shadow-lg focus:ring-2 focus:ring-[#ffb800] focus:outline-none"
         />
 
         {/* BOUTON STYLE DASHBOARD */}
@@ -88,7 +84,7 @@ export default function ActivitePage() {
           whileTap={{ scale: 0.97 }}
           onClick={handleDownload}
           disabled={loading}
-          className="mt-[20px] btn-luxe-blue flex justify-center items-center text-center mx-auto px-6 py-3 font-semibold"
+          className="btn-luxe-blue mx-auto mt-[20px] flex items-center justify-center px-6 py-3 text-center font-semibold"
         >
           {loading ? (
             "Génération en cours..."
@@ -100,10 +96,10 @@ export default function ActivitePage() {
         </motion.button>
 
         {/* MESSAGE D’ÉTAT */}
-        {message && <p className="text-red-400 mt-4">{message}</p>}
+        {message && <p className="mt-4 text-red-400">{message}</p>}
 
         {/* DÉCO */}
-        <Sparkles className="text-[#ffb800] w-6 h-6 mt-6 animate-pulse" />
+        <Sparkles className="mt-6 h-6 w-6 animate-pulse text-[#ffb800]" />
       </div>
     </div>
   );

@@ -35,21 +35,18 @@ export default function StepContent({ step, setStep }: StepContentProps) {
   };
 
   return (
-    <div className="max-w-3xl mx-auto bg-[#111]/80 border border-yellow-500/20 rounded-2xl shadow-lg p-8 backdrop-blur-md">
+    <div className="mx-auto max-w-3xl rounded-2xl border border-yellow-500/20 bg-[#111]/80 p-8 shadow-lg backdrop-blur-md">
       {/* Étape 1 */}
       {step === 1 && (
         <>
-          <h2 className="text-xl text-yellow-400 font-semibold mb-4">
-            Introduction
-          </h2>
-          <p className="text-gray-300 leading-relaxed mb-6">
-            Ce guide IA t’aide à choisir le meilleur statut juridique pour ton
-            activité, comprendre les démarches URSSAF et obtenir des conseils
-            personnalisés selon ton profil.
+          <h2 className="mb-4 text-xl font-semibold text-yellow-400">Introduction</h2>
+          <p className="mb-6 leading-relaxed text-gray-300">
+            Ce guide IA t’aide à choisir le meilleur statut juridique pour ton activité, comprendre
+            les démarches URSSAF et obtenir des conseils personnalisés selon ton profil.
           </p>
           <button
             onClick={() => setStep(2)}
-            className="bg-yellow-400 text-black px-6 py-3 rounded-lg font-semibold hover:bg-yellow-300 transition-all"
+            className="rounded-lg bg-yellow-400 px-6 py-3 font-semibold text-black transition-all hover:bg-yellow-300"
           >
             Commencer le guide →
           </button>
@@ -59,18 +56,16 @@ export default function StepContent({ step, setStep }: StepContentProps) {
       {/* Étape 2 : Choix du statut */}
       {step === 2 && (
         <>
-          <h2 className="text-xl text-yellow-400 font-semibold mb-6">
-            Choisis ton statut :
-          </h2>
+          <h2 className="mb-6 text-xl font-semibold text-yellow-400">Choisis ton statut :</h2>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+          <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
             {["Micro-entreprise", "EURL", "SARL"].map((statut) => (
               <button
                 key={statut}
                 onClick={() => setSelectedStatut(statut)}
-                className={`p-4 rounded-xl border transition-all duration-300 ${
+                className={`rounded-xl border p-4 transition-all duration-300 ${
                   selectedStatut === statut
-                    ? "bg-yellow-400 text-black border-yellow-400 shadow-lg"
+                    ? "border-yellow-400 bg-yellow-400 text-black shadow-lg"
                     : "border-yellow-500/30 text-yellow-400 hover:bg-yellow-400/10"
                 }`}
               >
@@ -82,7 +77,7 @@ export default function StepContent({ step, setStep }: StepContentProps) {
           <button
             onClick={generateAdvice}
             disabled={loading}
-            className="bg-yellow-400 text-black px-6 py-3 rounded-lg font-semibold hover:bg-yellow-300 transition-all disabled:opacity-50"
+            className="rounded-lg bg-yellow-400 px-6 py-3 font-semibold text-black transition-all hover:bg-yellow-300 disabled:opacity-50"
           >
             {loading ? "Génération en cours..." : "🔮 Générer mes conseils IA"}
           </button>
@@ -92,14 +87,12 @@ export default function StepContent({ step, setStep }: StepContentProps) {
       {/* Étape 3 : Résultat IA */}
       {step === 3 && (
         <>
-          <h2 className="text-xl text-yellow-400 font-semibold mb-6">
+          <h2 className="mb-6 text-xl font-semibold text-yellow-400">
             Conseils IA — {selectedStatut}
           </h2>
 
           {aiAdvice ? (
-            <p className="whitespace-pre-wrap text-gray-200 leading-relaxed mb-6">
-              {aiAdvice}
-            </p>
+            <p className="mb-6 leading-relaxed whitespace-pre-wrap text-gray-200">{aiAdvice}</p>
           ) : (
             <p className="text-gray-400 italic">Aucun résultat IA trouvé.</p>
           )}
@@ -107,7 +100,7 @@ export default function StepContent({ step, setStep }: StepContentProps) {
           <div className="flex justify-center gap-4">
             <button
               onClick={() => setStep(4)}
-              className="bg-yellow-400 text-black px-6 py-3 rounded-lg font-semibold hover:bg-yellow-300 transition-all"
+              className="rounded-lg bg-yellow-400 px-6 py-3 font-semibold text-black transition-all hover:bg-yellow-300"
             >
               Étape suivante →
             </button>
@@ -118,12 +111,10 @@ export default function StepContent({ step, setStep }: StepContentProps) {
       {/* Étape 4 : Guide URSSAF */}
       {step === 4 && (
         <>
-          <h2 className="text-xl text-yellow-400 font-semibold mb-4">
-            Guide URSSAF
-          </h2>
-          <p className="text-gray-300 leading-relaxed mb-6">
-            Pour déclarer ton activité et payer tes cotisations sociales, rends-toi
-            sur le site officiel de l’URSSAF :
+          <h2 className="mb-4 text-xl font-semibold text-yellow-400">Guide URSSAF</h2>
+          <p className="mb-6 leading-relaxed text-gray-300">
+            Pour déclarer ton activité et payer tes cotisations sociales, rends-toi sur le site
+            officiel de l’URSSAF :
           </p>
           <a
             href="https://www.autoentrepreneur.urssaf.fr"
@@ -135,7 +126,7 @@ export default function StepContent({ step, setStep }: StepContentProps) {
           <div className="mt-8 flex justify-center">
             <button
               onClick={() => setStep(5)}
-              className="bg-yellow-400 text-black px-6 py-3 rounded-lg font-semibold hover:bg-yellow-300 transition-all"
+              className="rounded-lg bg-yellow-400 px-6 py-3 font-semibold text-black transition-all hover:bg-yellow-300"
             >
               Étape suivante →
             </button>
@@ -146,14 +137,12 @@ export default function StepContent({ step, setStep }: StepContentProps) {
       {/* Étape 5 : Résumé */}
       {step === 5 && (
         <>
-          <h2 className="text-xl text-yellow-400 font-semibold mb-4">
-            Résumé
-          </h2>
-          <p className="text-gray-300 leading-relaxed mb-6">
+          <h2 className="mb-4 text-xl font-semibold text-yellow-400">Résumé</h2>
+          <p className="mb-6 leading-relaxed text-gray-300">
             ✅ Tu as sélectionné le statut : <strong>{selectedStatut}</strong>.
             <br />
-            🧠 L’IA t’a fourni des conseils personnalisés.  
-            🏛️ Tu sais maintenant comment t’enregistrer à l’URSSAF.
+            🧠 L’IA t’a fourni des conseils personnalisés. 🏛️ Tu sais maintenant comment
+            t’enregistrer à l’URSSAF.
             <br />
             Félicitations 🎉, tu es prêt à lancer ton activité !
           </p>

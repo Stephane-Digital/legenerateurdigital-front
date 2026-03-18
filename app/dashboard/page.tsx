@@ -1,246 +1,799 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { me, logout } from "@/lib/api";
-import { useAuthGuard } from "@/lib/authGuard";
-import CardLuxe from "@/app/components/ui/CardLuxe";
-import Header from "@/app/components/dashboard/Header";
-import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+
+import CardLuxe from "@/components/ui/CardLuxe";
+
+// Icons (react-icons/fa)
 import {
-  LogOut,
-  Zap,
-  Layers,
-  Users,
-  Wrench,
-  Rocket,
-} from "lucide-react";
+  FaBolt,
+  FaBook,
+  FaCalendarAlt,
+  FaCrown,
+  FaEnvelope,
+  FaFilter,
+  FaGem,
+  FaLock,
+  FaRobot,
+  FaSyncAlt,
+  FaTimes,
+  FaUserAstronaut,
+} from "react-icons/fa";
 
-export default function DashboardPage() {
-  useAuthGuard();
+type Plan = "none" | "essentiel" | "pro" | "ultime";
 
-  const router = useRouter();
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+type ModalKey =
+  | "editor"
+  | "planner"
+  | "coach"
+  | "affiliation"
+  | "emailing"
+  | "ebook"
+  | "multiplier"
+  | "offer"
+  | "funnel";
 
-  // ✅ Largeur pour affichage responsive
-  const [isWide, setIsWide] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    return window.innerWidth >= 1200;
+const SYSTEMEIO_PLANS_URL =
+  process.env.NEXT_PUBLIC_SYSTEMEIO_PLANS_URL || "https://legenerateurdigital.systeme.io/planslgd";
+
+function planLabel(plan: Plan) {
+  if (plan === "ultime") return "ULTIME";
+  if (plan === "pro") return "PRO";
+  if (plan === "essentiel") return "ESSENTIEL";
+  return "AUCUN";
+}
+
+async function fetchPlanFromBackend(): Promise<Plan> {
+  const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
+  const url = `${base}/ai-quota/global`;
+
+  const token = typeof window !== "undefined" ? window.localStorage.getItem("lgd_token") : null;
+
+  const res = await fetch(url, {
+    method: "GET",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    cache: "no-store",
   });
 
-  useEffect(() => {
-    const onResize = () => setIsWide(window.innerWidth >= 1200);
-    window.addEventListener("resize", onResize);
-    onResize();
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
+  if (!res.ok) throw new Error(`ai-quota/global ${res.status}`);
+
+  const data = (await res.json()) as any;
+  const p = String(data?.plan || "").toLowerCase();
+
+  if (p.includes("ultime")) return "ultime";
+  if (p.includes("pro")) return "pro";
+  if (p.includes("essentiel")) return "essentiel";
+  return "none";
+}
+
+function getPlanFromLocalStorage(): Plan {
+  if (typeof window === "undefined") return "none";
+  const essentiel = localStorage.getItem("lgd_plan_essentiel");
+  const pro = localStorage.getItem("lgd_plan_pro");
+  const ultime = localStorage.getItem("lgd_plan_ultime");
+
+  if (ultime === "active") return "ultime";
+  if (pro === "active") return "pro";
+  if (essentiel === "active") return "essentiel";
+  return "none";
+}
+
+function openSystemeioPlans() {
+  window.open(SYSTEMEIO_PLANS_URL, "_blank", "noopener,noreferrer");
+}
+
+function Pill({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-4 py-1 text-[12px] text-white/75">
+      {children}
+    </span>
+  );
+}
+
+function PrimaryButton({
+  children,
+  onClick,
+  disabled,
+}: {
+  children: React.ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      disabled={disabled}
+      onClick={onClick}
+      className={[
+        "w-full rounded-2xl px-5 py-3 font-semibold transition-all",
+        "bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] text-black",
+        "hover:-translate-y-0.5 hover:shadow-lg hover:shadow-yellow-500/20",
+        disabled ? "opacity-60 cursor-not-allowed hover:translate-y-0" : "",
+      ].join(" ")}
+    >
+      {children}
+    </button>
+  );
+}
+
+function SecondaryButton({
+  children,
+  onClick,
+}: {
+  children: React.ReactNode;
+  onClick?: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full rounded-2xl px-5 py-3 font-semibold border border-yellow-600/25 bg-[#0b0b0b] text-white/85 hover:bg-yellow-500/10 transition-all"
+    >
+      {children}
+    </button>
+  );
+}
+
+function LockBadge() {
+  return (
+    <span className="inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-3 py-1 text-[12px] text-white/60">
+      <FaLock className="text-yellow-300" />
+      Accès selon plan
+    </span>
+  );
+}
+
+function SoonBadge() {
+  return (
+    <span className="inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-3 py-1 text-[12px] text-white/60">
+      <FaBolt className="text-yellow-300" />
+      Bientôt disponible
+    </span>
+  );
+}
+
+function ModalShell({
+  open,
+  title,
+  subtitle,
+  icon,
+  onClose,
+  children,
+}: {
+  open: boolean;
+  title: string;
+  subtitle?: string;
+  icon?: React.ReactNode;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          className="fixed inset-0 z-[100] flex items-center justify-center px-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <div className="absolute inset-0 bg-black/70" onClick={onClose} />
+          <motion.div
+            initial={{ opacity: 0, y: 10, scale: 0.99 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.99 }}
+            transition={{ duration: 0.18 }}
+            className="relative w-full max-w-2xl"
+          >
+            <div className="card-luxe rounded-2xl border border-yellow-600/20 bg-gradient-to-b from-[#111] to-[#0b0b0b] p-6 sm:p-8 shadow-xl">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  {icon ? (
+                    <div className="mt-1 text-2xl text-yellow-400 drop-shadow-[0_0_12px_rgba(255,184,0,0.35)]">
+                      {icon}
+                    </div>
+                  ) : null}
+                  <div>
+                    <h3 className="text-xl sm:text-2xl font-extrabold text-yellow-400">
+                      {title}
+                    </h3>
+                    {subtitle ? (
+                      <p className="mt-1 text-sm text-white/65">{subtitle}</p>
+                    ) : null}
+                  </div>
+                </div>
+
+                <button
+                  onClick={onClose}
+                  className="rounded-xl border border-yellow-600/25 px-3 py-2 text-yellow-200 hover:bg-yellow-500/10 transition-all"
+                  aria-label="Fermer"
+                >
+                  <FaTimes />
+                </button>
+              </div>
+
+              <div className="mt-6">{children}</div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+export default function DashboardPage() {
+  const router = useRouter();
+
+  const [plan, setPlan] = useState<Plan>("none");
+  const [loadingPlan, setLoadingPlan] = useState(true);
+
+  const [activeModal, setActiveModal] = useState<ModalKey | null>(null);
 
   useEffect(() => {
-    async function fetchUser() {
+    let cancelled = false;
+
+    async function load() {
       try {
-        const data = await me();
-        setUser(data);
-      } catch (err) {
-        console.error("Erreur récupération utilisateur :", err);
-        logout();
+        const p = await fetchPlanFromBackend();
+        if (!cancelled) setPlan(p);
+      } catch {
+        const fallback = getPlanFromLocalStorage();
+        if (!cancelled) setPlan(fallback);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoadingPlan(false);
       }
     }
-    fetchUser();
+
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen text-white">
-        Chargement…
-      </div>
-    );
+  const hasPaidAccess = useMemo(() => plan !== "none", [plan]);
+
+  const heroTitle =
+    "Centre de contrôle LGD — IA • Performance • Conversion • Activation";
+
+  const iconGlow =
+    "text-4xl text-[#ffb800] drop-shadow-[0_0_12px_rgba(255,184,0,0.35)]";
+
+  function openModal(key: ModalKey) {
+    setActiveModal(key);
   }
 
-  const firstName = user?.full_name?.split(" ")[0] || "utilisateur";
+  function closeModal() {
+    setActiveModal(null);
+  }
+
+  function go(path: string) {
+    router.push(path);
+  }
+
+  function accessOrExplain(key: "editor" | "planner" | "coach" | "emailing") {
+    openModal(key);
+  }
 
   return (
-    <div className="w-full flex flex-col items-center mt-[80px] px-4">
-      {/* === HEADER GLOBAL === */}
-      <Header />
-
-      {/* === CONTENU DASHBOARD === */}
-      <div className="w-full max-w-[1200px] flex flex-col items-center text-center space-y-8 mt-[80px]">
-
-        {/* === TITRE PRINCIPAL === */}
-        <h1 className="text-4xl font-bold text-[#ffb800]">
-          ⚡ Tableau de bord LGD
-        </h1>
-        <p className="text-[#ffb800] text-lg mt-1">
-          Heureux de te revoir, <span className="font-bold">{firstName}</span> 👋
-        </p>
-        <p className="text-gray-400 text-sm mt-1">
-          Bienvenue dans ton espace automatisé ✨
-        </p>
-
-        {/* === BOUTON DECONNEXION === */}
-        <button
-          onClick={logout}
-          className="btn-luxe-blue flex justify-center items-center text-center mx-auto mt-6 mb-[30px] px-6 py-3 font-semibold"
+    <div className="min-h-screen bg-[#0a0a0a] text-white">
+      <div className="px-6 pt-[120px] pb-16">
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35 }}
+          className="max-w-6xl mx-auto text-center"
         >
-          <LogOut className="w-4 h-4 mr-2" />
-          <span className="mx-auto">Déconnexion</span>
-        </button>
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-yellow-400">
+            Centre de contrôle LGD
+          </h1>
+          <p className="mt-2 text-white/70">{heroTitle}</p>
 
-        {/* === GRILLE DE CARTES PRINCIPALES === */}
-        <div
-          className="w-full"
-          style={
-            isWide
-              ? {
-                  display: "grid",
-                  gridTemplateColumns: "50px 550px 550px 50px",
-                  columnGap: "32px",
-                  rowGap: "32px",
-                  justifyContent: "center",
-                  alignItems: "start",
-                }
-              : {
-                  display: "grid",
-                  gridTemplateColumns: "1fr",
-                  rowGap: "32px",
-                  justifyItems: "center",
-                }
-          }
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <Pill>
+              <FaBolt className="text-yellow-300" />
+              Affiliation accessible à vie
+            </Pill>
+            <Pill>
+              <FaCrown className="text-yellow-300" />
+              Modules activés selon ton plan
+            </Pill>
+            <Pill>
+              <FaRobot className="text-yellow-300" />
+              Objectif : 1ère vente → scaler
+            </Pill>
+          </div>
+
+          <div className="mt-6 text-[14px] text-white/80">
+            {loadingPlan ? (
+              <span className="inline-flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-yellow-400 animate-pulse" />
+                Vérification du plan…
+              </span>
+            ) : (
+              <span>
+                Plan actuel :{" "}
+                <span className="text-yellow-200 font-semibold">
+                  {planLabel(plan)}
+                </span>
+              </span>
+            )}
+          </div>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.08, duration: 0.3 }}
+          className="max-w-6xl mx-auto mt-12"
         >
-          {/* Gouttière gauche */}
-          {isWide && <div />}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <CardLuxe className="min-h-[230px] flex flex-col items-center justify-between px-6 py-6 text-center">
+              <div className="flex flex-col items-center">
+                <FaEnvelope className={iconGlow} />
+                <h3 className="mt-3 text-xl font-bold text-[#ffb800]">
+                  Campagnes E-mailing IA
+                </h3>
+                <p className="mt-2 text-white/70 max-w-[420px]">
+                  Séquences 7/14/30 jours, relances, objections, CTA. Optimisé
+                  conversion.
+                </p>
+                {!hasPaidAccess ? (
+                  <div className="mt-3">
+                    <LockBadge />
+                  </div>
+                ) : null}
+              </div>
 
-          {/* Colonne gauche */}
-          <div className="flex flex-col items-center space-y-8">
-            <CardItem
-              icon={<Zap className="text-[#ffb800] w-8 h-8 mb-3 mx-auto" />}
-              title="Automatisations"
-              description="Gère et crée des automatisations intelligentes."
-              href="/dashboard/automatisations"
-              button="Gérer"
-            />
+              <div className="w-full mt-6">
+                <SecondaryButton onClick={() => accessOrExplain("emailing")}>
+                  {hasPaidAccess ? "Accéder" : "Découvrir"}
+                </SecondaryButton>
+              </div>
+            </CardLuxe>
 
-            <CardItem
-              icon={<Users className="text-[#ffb800] w-8 h-8 mb-3 mx-auto" />}
-              title="Clients"
-              description="Analyse et fidélise ta clientèle."
-              href="/dashboard/clients"
-              button="Voir"
-            />
+            <CardLuxe className="min-h-[230px] flex flex-col items-center justify-between px-6 py-6 text-center">
+              <div className="flex flex-col items-center">
+                <FaRobot className={iconGlow} />
+                <h3 className="mt-3 text-xl font-bold text-[#ffb800]">
+                  Éditeur Intelligent
+                </h3>
+                <p className="mt-2 text-white/70 max-w-[420px]">
+                  Crée <b>Post + Carrousel V5</b> avec Copilote IA. Format
+                  pro, ultra rapide, prêt à publier.
+                </p>
+                {!hasPaidAccess ? <div className="mt-3"><LockBadge /></div> : null}
+              </div>
+
+              <div className="w-full mt-6">
+                <SecondaryButton onClick={() => accessOrExplain("editor")}>
+                  {hasPaidAccess ? "Accéder" : "Découvrir"}
+                </SecondaryButton>
+              </div>
+            </CardLuxe>
+
+            <CardLuxe className="min-h-[230px] flex flex-col items-center justify-between px-6 py-6 text-center">
+              <div className="flex flex-col items-center">
+                <FaCalendarAlt className={iconGlow} />
+                <h3 className="mt-3 text-xl font-bold text-[#ffb800]">
+                  Planner 24/24
+                </h3>
+                <p className="mt-2 text-white/70 max-w-[420px]">
+                  Planifie quand tu veux. Vue mensuelle / semaine / jour.
+                  Objectif : régularité + ventes.
+                </p>
+                {!hasPaidAccess ? <div className="mt-3"><LockBadge /></div> : null}
+              </div>
+
+              <div className="w-full mt-6">
+                <SecondaryButton onClick={() => accessOrExplain("planner")}>
+                  {hasPaidAccess ? "Accéder" : "Découvrir"}
+                </SecondaryButton>
+              </div>
+            </CardLuxe>
+
+            <CardLuxe className="min-h-[230px] flex flex-col items-center justify-between px-6 py-6 text-center">
+              <div className="flex flex-col items-center">
+                <FaUserAstronaut className={iconGlow} />
+                <h3 className="mt-3 text-xl font-bold text-[#ffb800]">
+                  Coach Alex V2
+                </h3>
+                <p className="mt-2 text-white/70 max-w-[420px]">
+                  Mission du jour : <b>1ère vente</b> puis <b>scaler</b>. Plan clair,
+                  pas de blabla.
+                </p>
+                {!hasPaidAccess ? <div className="mt-3"><LockBadge /></div> : null}
+              </div>
+
+              <div className="w-full mt-6">
+                <SecondaryButton onClick={() => accessOrExplain("coach")}>
+                  {hasPaidAccess ? "Accéder" : "Découvrir"}
+                </SecondaryButton>
+              </div>
+            </CardLuxe>
+          </div>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.12, duration: 0.3 }}
+          className="max-w-6xl mx-auto mt-14"
+        >
+          <div className="text-center">
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-yellow-400">
+              Modules IA avancés très prochainement
+            </h2>
+            <p className="mt-2 text-white/70">
+              Visible dès maintenant / Bientôt disponible.
+            </p>
           </div>
 
-          {/* Colonne droite */}
-          <div className="flex flex-col items-center space-y-8">
-            <CardItem
-              icon={<Layers className="text-[#ffb800] w-8 h-8 mb-3 mx-auto" />}
-              title="Campagnes"
-              description="Lance et suis tes campagnes marketing."
-              href="/dashboard/campagnes"
-              button="Ouvrir"
-            />
+          <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-7">
+            <CardLuxe className="min-h-[210px] flex flex-col items-center justify-between px-6 py-6 text-center">
+              <div className="flex flex-col items-center">
+                <FaBook className={iconGlow} />
+                <h3 className="mt-3 text-lg font-bold text-[#ffb800]">
+                  Ebook Viral 4.0 IA
+                </h3>
+                <p className="mt-2 text-white/70">
+                  Structure + chapitres + angle viral. Export prêt à vendre / lead magnet premium.
+                </p>
+                <div className="mt-3"><SoonBadge /></div>
+              </div>
+              <div className="w-full mt-6">
+                <SecondaryButton onClick={() => openModal("ebook")}>
+                  Découvrir
+                </SecondaryButton>
+              </div>
+            </CardLuxe>
 
-            <CardItem
-              icon={<Wrench className="text-[#ffb800] w-8 h-8 mb-3 mx-auto" />}
-              title="Outils LGD"
-              description="Accède à l’ensemble de tes outils connectés."
-              href="/dashboard/automatisations/tools"
-              button="Explorer"
-            />
+            <CardLuxe className="min-h-[210px] flex flex-col items-center justify-between px-6 py-6 text-center">
+              <div className="flex flex-col items-center">
+                <FaSyncAlt className={iconGlow} />
+                <h3 className="mt-3 text-lg font-bold text-[#ffb800]">
+                  Content Multiplier IA
+                </h3>
+                <p className="mt-2 text-white/70">
+                  1 idée → 20 contenus (Reel, carrousel, email, X, LinkedIn). Distribution automatisée.
+                </p>
+                <div className="mt-3"><SoonBadge /></div>
+              </div>
+              <div className="w-full mt-6">
+                <SecondaryButton onClick={() => openModal("multiplier")}>
+                  Découvrir
+                </SecondaryButton>
+              </div>
+            </CardLuxe>
+
+            <CardLuxe className="min-h-[210px] flex flex-col items-center justify-between px-6 py-6 text-center">
+              <div className="flex flex-col items-center">
+                <FaGem className={iconGlow} />
+                <h3 className="mt-3 text-lg font-bold text-[#ffb800]">
+                  Créateur d’Offre Magnétique
+                </h3>
+                <p className="mt-2 text-white/70">
+                  Positionnement, promesse, stack de bonus, preuve. Offre claire qui se vend vite.
+                </p>
+                <div className="mt-3"><SoonBadge /></div>
+              </div>
+              <div className="w-full mt-6">
+                <SecondaryButton onClick={() => openModal("offer")}>
+                  Découvrir
+                </SecondaryButton>
+              </div>
+            </CardLuxe>
+
+            <CardLuxe className="min-h-[210px] flex flex-col items-center justify-between px-6 py-6 text-center">
+              <div className="flex flex-col items-center">
+                <FaFilter className={iconGlow} />
+                <h3 className="mt-3 text-lg font-bold text-[#ffb800]">
+                  Funnel Express IA
+                </h3>
+                <p className="mt-2 text-white/70">
+                  Mini tunnel : capture → vente → relance. Léger, rapide, orienté MRR/MLR.
+                </p>
+                <div className="mt-3"><SoonBadge /></div>
+              </div>
+              <div className="w-full mt-6">
+                <SecondaryButton onClick={() => openModal("funnel")}>
+                  Découvrir
+                </SecondaryButton>
+              </div>
+            </CardLuxe>
           </div>
-
-          {/* Gouttière droite */}
-          {isWide && <div />}
-        </div>
-
-        {/* === BLOC ESPACE RAPIDE === */}
-        <div className="dashboard-quick mt-[50px]">
-          <h2>Espace rapide</h2>
-          <div className="grid">
-            <QuickCard
-  icon={<Rocket className="text-[#ffb800]" />}
-  title="Déclarer son activité"
-  text="Un guide complet pas à pas pour choisir ton statut et t’enregistrer à l’URSSAF."
-  href="/dashboard/formations/activite"
-/>
-            <QuickCard
-              icon={<Zap className="text-[#ffb800]" />}
-              title="Automatisations rapides"
-              text="Crée une automatisation en un clic."
-              href="/dashboard/automatisations"
-            />
-
-            <QuickCard
-              icon={<Layers className="text-[#ffb800]" />}
-              title="Campagne express"
-              text="Lance une campagne marketing instantanément."
-              href="/dashboard/campagnes"
-            />
-
-            <QuickCard
-              icon={<Users className="text-[#ffb800]" />}
-              title="Nouveau client"
-              text="Ajoute rapidement un client à ta base."
-              href="/dashboard/clients"
-            />
-          </div>
-        </div>
+        </motion.div>
       </div>
+
+      <ModalShell
+        open={activeModal === "editor"}
+        title="Éditeur Intelligent — Post + Carrousel V5"
+        subtitle="Crée vite, propre, et vend. IA + design premium LGD."
+        icon={<FaRobot />}
+        onClose={closeModal}
+      >
+        <div className="grid gap-4">
+          <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4 text-white/80">
+            <div className="text-yellow-200 font-semibold">Ce que tu obtiens</div>
+            <ul className="mt-2 space-y-2 text-sm">
+              <li>• Templates + mise en page premium (sans perdre du temps)</li>
+              <li>• Copilote IA pour accélérer la création et améliorer la conversion</li>
+              <li>• Carrousel + Post, prêt à publier (workflow ultra rapide)</li>
+            </ul>
+          </div>
+
+          <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4 text-white/80">
+            <div className="text-yellow-200 font-semibold">Pourquoi c’est rentable</div>
+            <p className="mt-2 text-sm text-white/70">
+              Tu produis plus, plus vite, avec une meilleure qualité → plus de constance → plus
+              de prospects → plus de ventes.
+            </p>
+          </div>
+
+          {hasPaidAccess ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <PrimaryButton
+                onClick={() => {
+                  closeModal();
+                  go("/dashboard/automatisations/reseaux_sociaux/editor-intelligent");
+                }}
+              >
+                Accéder maintenant
+              </PrimaryButton>
+              {plan !== "ultime" ? (
+                <SecondaryButton onClick={openSystemeioPlans}>Upgrade</SecondaryButton>
+              ) : (
+                <SecondaryButton onClick={closeModal}>Fermer</SecondaryButton>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <PrimaryButton onClick={openSystemeioPlans}>Voir les plans</PrimaryButton>
+              <SecondaryButton onClick={closeModal}>Fermer</SecondaryButton>
+            </div>
+          )}
+        </div>
+      </ModalShell>
+
+      <ModalShell
+        open={activeModal === "planner"}
+        title="Planner 24/24"
+        subtitle="Planifie quand tu veux. Régularité = ventes."
+        icon={<FaCalendarAlt />}
+        onClose={closeModal}
+      >
+        <div className="grid gap-4">
+          <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4 text-white/80">
+            <div className="text-yellow-200 font-semibold">Ce que tu obtiens</div>
+            <ul className="mt-2 space-y-2 text-sm">
+              <li>• Planification 24/24 (pas de plage horaire bloquante)</li>
+              <li>• Vue jour / semaine / mois</li>
+              <li>• Organisation “contenu → action → ventes”</li>
+            </ul>
+          </div>
+
+          <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4 text-white/80">
+            <div className="text-yellow-200 font-semibold">Pourquoi c’est rentable</div>
+            <p className="mt-2 text-sm text-white/70">
+              La plupart abandonnent faute de système. Le Planner te garde constant → tu
+              augmentes la probabilité de vente.
+            </p>
+          </div>
+
+          {hasPaidAccess ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <PrimaryButton
+                onClick={() => {
+                  closeModal();
+                  go("/dashboard/automatisations/reseaux_sociaux/planner");
+                }}
+              >
+                Accéder maintenant
+              </PrimaryButton>
+              {plan !== "ultime" ? (
+                <SecondaryButton onClick={openSystemeioPlans}>Upgrade</SecondaryButton>
+              ) : (
+                <SecondaryButton onClick={closeModal}>Fermer</SecondaryButton>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <PrimaryButton onClick={openSystemeioPlans}>Voir les plans</PrimaryButton>
+              <SecondaryButton onClick={closeModal}>Fermer</SecondaryButton>
+            </div>
+          )}
+        </div>
+      </ModalShell>
+
+      <ModalShell
+        open={activeModal === "coach"}
+        title="Coach Alex V2"
+        subtitle="1ère vente → scaler. Mission claire, exécution rapide."
+        icon={<FaUserAstronaut />}
+        onClose={closeModal}
+      >
+        <div className="grid gap-4">
+          <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4 text-white/80">
+            <div className="text-yellow-200 font-semibold">Ce que tu obtiens</div>
+            <ul className="mt-2 space-y-2 text-sm">
+              <li>• Mission du jour orientée vente (pas de blabla)</li>
+              <li>• Parcours guidé : setup → action → feedback → optimisation</li>
+              <li>• IA + quotas synchronisés (pilotage propre)</li>
+            </ul>
+          </div>
+
+          <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4 text-white/80">
+            <div className="text-yellow-200 font-semibold">Pourquoi c’est rentable</div>
+            <p className="mt-2 text-sm text-white/70">
+              Tu exécutes chaque jour l’action qui augmente ta probabilité de vente.
+              Résultat : momentum → cash → scale.
+            </p>
+          </div>
+
+          {hasPaidAccess ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <PrimaryButton
+                onClick={() => {
+                  closeModal();
+                  go("/dashboard/coach-ia");
+                }}
+              >
+                Accéder maintenant
+              </PrimaryButton>
+              {plan !== "ultime" ? (
+                <SecondaryButton onClick={openSystemeioPlans}>Upgrade</SecondaryButton>
+              ) : (
+                <SecondaryButton onClick={closeModal}>Fermer</SecondaryButton>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <PrimaryButton onClick={openSystemeioPlans}>Voir les plans</PrimaryButton>
+              <SecondaryButton onClick={closeModal}>Fermer</SecondaryButton>
+            </div>
+          )}
+        </div>
+      </ModalShell>
+
+      <ModalShell
+        open={activeModal === "emailing"}
+        title="Campagnes E-mailing IA"
+        subtitle="Séquences prêtes à vendre — bientôt dans LGD."
+        icon={<FaEnvelope />}
+        onClose={closeModal}
+      >
+        <div className="grid gap-4">
+          <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4 text-white/80">
+            <div className="text-yellow-200 font-semibold">Ce que tu obtiens</div>
+            <ul className="mt-2 space-y-2 text-sm">
+              <li>• Séquences 7 / 14 / 30 jours générées avec angle business</li>
+              <li>• Relances, objections, CTA et structure orientée conversion</li>
+              <li>• Campagnes prêtes à envoyer pour vendre, relancer et fidéliser</li>
+            </ul>
+          </div>
+
+          <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4 text-white/80">
+            <div className="text-yellow-200 font-semibold">Pourquoi c’est rentable</div>
+            <p className="mt-2 text-sm text-white/70">
+              L’email reste l’un des canaux les plus rentables : plus de suivi, plus de relances,
+              plus de ventes avec moins de friction.
+            </p>
+          </div>
+
+          {hasPaidAccess ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <PrimaryButton
+                onClick={() => {
+                  closeModal();
+                  go("/dashboard/email-campaigns");
+                }}
+              >
+                Accéder maintenant
+              </PrimaryButton>
+              {plan !== "ultime" ? (
+                <SecondaryButton onClick={openSystemeioPlans}>Upgrade</SecondaryButton>
+              ) : (
+                <SecondaryButton onClick={closeModal}>Fermer</SecondaryButton>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <PrimaryButton onClick={openSystemeioPlans}>Voir les plans</PrimaryButton>
+              <SecondaryButton onClick={closeModal}>Fermer</SecondaryButton>
+            </div>
+          )}
+        </div>
+      </ModalShell>
+
+      <ModalShell
+        open={activeModal === "ebook"}
+        title="Ebook Viral 4.0 IA"
+        subtitle="Lead magnet premium + low ticket — bientôt."
+        icon={<FaBook />}
+        onClose={closeModal}
+      >
+        <div className="grid gap-4">
+          <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4 text-sm text-white/75">
+            <div className="text-yellow-200 font-semibold">Ce que ça va débloquer</div>
+            <p className="mt-2">
+              Créer un ebook qui attire, convertit et peut être vendu (7–27€) ou offert
+              comme aimant à prospects.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <PrimaryButton onClick={closeModal}>OK</PrimaryButton>
+            <SecondaryButton onClick={closeModal}>Fermer</SecondaryButton>
+          </div>
+        </div>
+      </ModalShell>
+
+      <ModalShell
+        open={activeModal === "multiplier"}
+        title="Content Multiplier IA"
+        subtitle="1 contenu → 20 formats — bientôt."
+        icon={<FaSyncAlt />}
+        onClose={closeModal}
+      >
+        <div className="grid gap-4">
+          <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4 text-sm text-white/75">
+            <div className="text-yellow-200 font-semibold">Pourquoi ça cartonne</div>
+            <p className="mt-2">
+              Les US utilisent le repurposing massif : un angle devient carrousel + email +
+              post + reel + thread. Visibilité x10.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <PrimaryButton onClick={closeModal}>OK</PrimaryButton>
+            <SecondaryButton onClick={closeModal}>Fermer</SecondaryButton>
+          </div>
+        </div>
+      </ModalShell>
+
+      <ModalShell
+        open={activeModal === "offer"}
+        title="Créateur d’Offre Magnétique"
+        subtitle="Offre claire = ventes rapides — bientôt."
+        icon={<FaGem />}
+        onClose={closeModal}
+      >
+        <div className="grid gap-4">
+          <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4 text-sm text-white/75">
+            <div className="text-yellow-200 font-semibold">Objectif</div>
+            <p className="mt-2">
+              Transformer “je sais faire X” en offre vendable : promesse, preuve, bonus,
+              prix, angle de vente.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <PrimaryButton onClick={closeModal}>OK</PrimaryButton>
+            <SecondaryButton onClick={closeModal}>Fermer</SecondaryButton>
+          </div>
+        </div>
+      </ModalShell>
+
+      <ModalShell
+        open={activeModal === "funnel"}
+        title="Funnel Express IA"
+        subtitle="Capture → vente → relance — bientôt."
+        icon={<FaFilter />}
+        onClose={closeModal}
+      >
+        <div className="grid gap-4">
+          <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4 text-sm text-white/75">
+            <div className="text-yellow-200 font-semibold">Ce que ça apporte</div>
+            <p className="mt-2">
+              Un mini tunnel simple (pas un clone de systeme.io) : structure, copy, emails
+              de relance, checklist d’exécution.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <PrimaryButton onClick={closeModal}>OK</PrimaryButton>
+            <SecondaryButton onClick={closeModal}>Fermer</SecondaryButton>
+          </div>
+        </div>
+      </ModalShell>
     </div>
   );
-}
-
-/* === COMPOSANT DE CARTE PRINCIPALE === */
-function CardItem({
-  icon,
-  title,
-  description,
-  href,
-  button,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  href: string;
-  button: string;
-}) {
-  return (
-    <CardLuxe>
-      <div className="w-full max-w-[400px] text-center flex flex-col items-center justify-between mx-auto">
-        {icon}
-        <h3 className="font-semibold text-lg text-[#ffb800] mb-2">{title}</h3>
-        <p className="text-sm text-gray-400 mb-4">{description}</p>
-        <Link href={href} className="btn-luxe">
-          {button}
-        </Link>
-      </div>
-    </CardLuxe>
-  );
-}
-
-/* === COMPOSANT MINI-CARTE (ESPACE RAPIDE) === */
-function QuickCard({
-  icon,
-  title,
-  text,
-  href,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  text: string;
-  href?: string;
-}) {
-  const content = (
-    <div className="mini-card hover:scale-[1.02] transition-transform duration-300">
-      <div className="flex flex-col items-center">
-        {icon}
-        <h3>{title}</h3>
-        <p>{text}</p>
-      </div>
-    </div>
-  );
-
-  return href ? <Link href={href}>{content}</Link> : content;
 }

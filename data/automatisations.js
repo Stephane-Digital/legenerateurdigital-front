@@ -1,7 +1,14 @@
-export default [
+const automatisations = [
   {
-    "id": 1761673487939,
-    "name": "Nouvelle automatisation 1",
-    "status": "Active"
-  }
+    id: 1,
+    titre: "Email de bienvenue automatique",
+    statut: "En attente",
+  },
+  {
+    id: 2,
+    titre: "Publication hebdomadaire Instagram",
+    statut: "Active",
+  },
 ];
+
+export default automatisations;

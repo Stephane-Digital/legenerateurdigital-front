@@ -67,37 +67,33 @@ export default function GuidesPage() {
   };
 
   return (
-    <div className="min-h-screen p-6 text-white bg-[#0a0a0a]">
+    <div className="min-h-screen bg-[#0a0a0a] p-6 text-white">
       {/* ---- HEADER ---- */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-10">
-        <h1 className="text-3xl font-bold text-yellow-400 mb-4 md:mb-0">
+      <div className="mb-10 flex flex-col md:flex-row md:items-center md:justify-between">
+        <h1 className="mb-4 text-3xl font-bold text-yellow-400 md:mb-0">
           📚 Guides & Documents Officiels
         </h1>
-        <p className="text-gray-400 text-sm">
-          Génère et télécharge les guides pratiques en PDF
-        </p>
+        <p className="text-sm text-gray-400">Génère et télécharge les guides pratiques en PDF</p>
       </div>
 
       {/* ---- ZONE DE CONTENU ---- */}
       {loading ? (
-        <div className="flex justify-center mt-10">
+        <div className="mt-10 flex justify-center">
           <Loader2 className="animate-spin text-yellow-400" size={32} />
         </div>
       ) : (
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid gap-6 md:grid-cols-2">
           {guides.map((g) => (
             <div
               key={g.key}
               onClick={() => setSelectedGuide(g.key)}
-              className={`p-5 rounded-2xl border cursor-pointer transition-all duration-200 ${
+              className={`cursor-pointer rounded-2xl border p-5 transition-all duration-200 ${
                 selectedGuide === g.key
                   ? "border-yellow-400 bg-yellow-500/10"
                   : "border-gray-700 hover:border-yellow-400"
               }`}
             >
-              <h2 className="text-xl font-semibold mb-2 text-yellow-300">
-                {g.title}
-              </h2>
+              <h2 className="mb-2 text-xl font-semibold text-yellow-300">{g.title}</h2>
               <p className="text-sm text-gray-400">
                 {g.key === "urssaf"
                   ? "Procédure complète pour te déclarer en micro-entreprise."
@@ -114,7 +110,7 @@ export default function GuidesPage() {
           <button
             onClick={handleDownload}
             disabled={downloading}
-            className="px-6 py-3 bg-yellow-500 hover:bg-yellow-600 rounded-xl text-black font-semibold flex items-center gap-2 transition-all disabled:opacity-50"
+            className="flex items-center gap-2 rounded-xl bg-yellow-500 px-6 py-3 font-semibold text-black transition-all hover:bg-yellow-600 disabled:opacity-50"
           >
             {downloading ? (
               <>
@@ -130,12 +126,12 @@ export default function GuidesPage() {
           </button>
 
           {success && (
-            <div className="flex items-center gap-2 text-green-400 mt-4 text-sm">
+            <div className="mt-4 flex items-center gap-2 text-sm text-green-400">
               <CheckCircle2 size={18} />
               {success}
             </div>
           )}
-          {error && <p className="text-red-400 mt-4 text-sm">{error}</p>}
+          {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
         </div>
       )}
     </div>

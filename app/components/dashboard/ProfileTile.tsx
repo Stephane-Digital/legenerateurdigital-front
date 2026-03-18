@@ -13,12 +13,7 @@ interface ProfileTileProps {
   onLogout: () => void;
 }
 
-export const ProfileTile: React.FC<ProfileTileProps> = ({
-  name,
-  email,
-  avatarUrl,
-  onLogout,
-}) => {
+export const ProfileTile: React.FC<ProfileTileProps> = ({ name, email, avatarUrl, onLogout }) => {
   const initials = name
     .split(" ")
     .map((n) => n[0])
@@ -26,11 +21,11 @@ export const ProfileTile: React.FC<ProfileTileProps> = ({
     .toUpperCase();
 
   return (
-    <Card className="flex flex-col items-center justify-between w-full max-w-sm p-6 rounded-2xl shadow-sm border border-gray-200 bg-white">
+    <Card className="flex w-full max-w-sm flex-col items-center justify-between rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
       <CardHeader className="flex flex-col items-center space-y-3">
-        <Avatar className="w-16 h-16">
+        <Avatar className="h-16 w-16">
           <AvatarImage src={avatarUrl} alt={name} />
-          <AvatarFallback className="text-lg font-semibold bg-gray-100 text-gray-700">
+          <AvatarFallback className="bg-gray-100 text-lg font-semibold text-gray-700">
             {initials}
           </AvatarFallback>
         </Avatar>
@@ -44,9 +39,9 @@ export const ProfileTile: React.FC<ProfileTileProps> = ({
         <Button
           onClick={onLogout}
           variant="outline"
-          className="w-full flex items-center justify-center gap-2 text-red-600 border-red-300 hover:bg-red-50"
+          className="flex w-full items-center justify-center gap-2 border-red-300 text-red-600 hover:bg-red-50"
         >
-          <LogOut className="w-4 h-4" />
+          <LogOut className="h-4 w-4" />
           Déconnexion
         </Button>
       </CardContent>

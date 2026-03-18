@@ -1,6 +1,5 @@
 {
   "compilerOptions": {
-    /* Langage et compatibilité */
     "target": "es5",
     "lib": [
       "dom",
@@ -11,35 +10,39 @@
     "skipLibCheck": true,
     "strict": false,
     "forceConsistentCasingInFileNames": true,
-    /* Compilation et modules */
     "noEmit": true,
     "esModuleInterop": true,
     "module": "esnext",
-    "moduleResolution": "bundler",
+    "moduleResolution": "node",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
-    /* Aliases et chemins personnalisés */
+
     "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "./*"
-      ]
-    },
+  "@/*": ["app/*"],
+  "@/components/*": ["app/components/*"],
+  "@/lib/*": ["app/lib/*"],        // 🔥 Correction ici !
+  "@/hooks/*": ["app/hooks/*"],
+  "@/utils/*": ["app/utils/*"]
+},
+
+
     "plugins": [
       {
         "name": "next"
       }
     ]
   },
-  /* Inclus les bons fichiers pour Next.js */
+
   "include": [
+    "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
-    "next-env.d.ts",
     ".next/types/**/*.ts"
   ],
+
   "exclude": [
     "node_modules"
   ]

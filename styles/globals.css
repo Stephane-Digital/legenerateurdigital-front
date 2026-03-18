@@ -1,0 +1,179 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@import "./fonts.css";
+
+
+/* ==========================================================
+   🌌 LGD GLOBAL THEME — VERSION STABLE & OPTIMISÉE
+   ========================================================== */
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  background-color: #0a0a0a !important;
+  color: #ffffff;
+  min-height: 100vh;
+  scroll-behavior: smooth;
+  overflow-x: hidden;
+}
+
+:root {
+  --lgd-gold: #ffb800;
+  --lgd-gold-soft: rgba(255, 184, 0, 0.35);
+  --lgd-logo-size: 55px;
+}
+
+/* ==========================================================
+   🧹 RÉINITIALISATION FOND & SUPPRESSION DES OVERLAYS
+   ========================================================== */
+
+html, body, main, #__next, section, header, footer, article {
+  background-color: #0a0a0a !important;
+  background: #0a0a0a !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Couche de fond solide */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: #0a0a0a !important;
+  z-index: -9999;
+  pointer-events: none;
+}
+
+/* Suppression pseudo-éléments parasites */
+html::before,
+html::after,
+body::after,
+#__next::before,
+#__next::after {
+  content: none !important;
+}
+
+/* ==========================================================
+   🎨 LIENS, TEXTES, TITRES
+   ========================================================== */
+
+a {
+  color: #60a5fa;
+  text-decoration: none;
+  transition: color 0.3s ease, text-shadow 0.3s ease;
+}
+
+a:hover {
+  color: var(--lgd-gold);
+  text-shadow: 0 0 6px var(--lgd-gold-soft);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: #fefefe;
+  font-weight: 600;
+}
+
+.page-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--lgd-gold);
+  margin-top: 40px;
+  text-align: center;
+}
+
+/* ==========================================================
+   🟡 BOUTONS & CARTES — via @layer Tailwind
+   ========================================================== */
+
+@layer components {
+
+  .btn-gold {
+    @apply bg-gradient-to-r from-yellow-600 to-amber-400 text-black font-semibold
+           rounded-lg px-5 py-2.5 transition-all duration-200
+           hover:scale-[1.03] hover:shadow-[0_0_15px_rgba(255,215,0,0.4)];
+  }
+
+  .btn-luxe {
+    @apply bg-gradient-to-r from-yellow-500 to-amber-400 text-black font-semibold
+           rounded-xl shadow-[0_0_15px_rgba(255,184,0,0.3)]
+           transition-all duration-300 hover:shadow-[0_0_25px_rgba(255,184,0,0.6)]
+           hover:scale-[1.03] active:scale-[0.98];
+  }
+
+  .card-luxe {
+    @apply bg-gradient-to-b from-[#111111] to-[#0a0a0a] border border-yellow-900/40
+           rounded-2xl shadow-lg p-6
+           hover:shadow-[0_0_25px_rgba(255,184,0,0.2)]
+           transition-all duration-500;
+  }
+}
+
+/* ==========================================================
+   ✏️ FORMULAIRES
+   ========================================================== */
+
+input, select, textarea {
+  background-color: #1a1a1a;
+  border: 1px solid #333;
+  color: #fff;
+  border-radius: 6px;
+  padding: 10px;
+  width: 100%;
+  transition: 0.3s ease;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: var(--lgd-gold);
+  background-color: #111;
+  outline: none;
+}
+
+/* ==========================================================
+   🌀 ANIMATIONS
+   ========================================================== */
+
+.fade-in {
+  animation: fadeIn 0.5s ease forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ==========================================================
+   🎛️ HEADER LGD
+   ========================================================== */
+
+.lgd-header {
+  background: #0a0a0a;
+  border-bottom: 1px solid #2d2d2d;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+  width: 100%;
+  z-index: 20;
+}
+
+/* ==========================================================
+   ✨ CANVAS WOW ENGINE (Konva)
+   ========================================================== */
+
+/* Conteneur Konva */
+.konvajs-content {
+  outline: none !important;
+  border-radius: 14px;
+  box-shadow: 0 0 45px rgba(255, 184, 0, 0.15);
+}
+
+:root {
+  --font-inter: 'Inter', sans-serif;
+  --font-poppins: 'Poppins', sans-serif;
+  --font-montserrat: 'Montserrat', sans-serif;
+  --font-roboto: 'Roboto', sans-serif;
+  --font-oswald: 'Oswald', sans-serif;
+  --font-lato: 'Lato', sans-serif;
+  --font-merriweather: 'Merriweather', serif;
+  --font-playfair: 'Playfair Display', serif;
+}

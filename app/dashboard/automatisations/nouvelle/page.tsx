@@ -5,14 +5,14 @@ import Link from "next/link";
 
 export default function NouvelleAutomatisationPage() {
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center text-center px-6">
-      <h1 className="text-4xl font-bold text-[var(--lgd-gold)] mb-4">
+    <main className="flex min-h-screen flex-col items-center justify-center px-6 text-center">
+      <h1 className="mb-4 text-4xl font-bold text-[var(--lgd-gold)]">
         🧠 Créer une nouvelle automatisation
       </h1>
 
-      <p className="text-gray-400 max-w-xl mb-10">
-        Cette section te permettra bientôt de créer des automatisations intelligentes
-        en reliant tes outils LGD entre eux. Reste connecté, ça arrive vite !
+      <p className="mb-10 max-w-xl text-gray-400">
+        Cette section te permettra bientôt de créer des automatisations intelligentes en reliant tes
+        outils LGD entre eux. Reste connecté, ça arrive vite !
       </p>
 
       <Link href="/dashboard/automatisations" className="btn-luxe-blue flex items-center gap-2">

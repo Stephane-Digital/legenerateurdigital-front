@@ -1,6 +1,6 @@
 "use client";
 
-import LgdCenteredLayout from "@/app/components/dashboard/LgdCenteredLayout";
+import LgdCenteredLayout from "@/dashboard/LgdCenteredLayout";
 
 export default function PricingPage() {
   const tiers = [
@@ -31,25 +31,19 @@ export default function PricingPage() {
       {tiers.map((t) => (
         <div
           key={t.name}
-          className="flex flex-col items-center justify-center min-w-[300px] max-w-[600px] w-full
-                    bg-[#0d2a3b]/90 border border-[#184b6e] rounded-[12px] shadow-lg
-                    py-[10px] px-[20px] gap-[15px] text-center
-                    hover:shadow-[0_0_15px_rgba(255,184,0,0.25)] transition-all"
+          className="flex w-full max-w-[600px] min-w-[300px] flex-col items-center justify-center gap-[15px] rounded-[12px] border border-[#184b6e] bg-[#0d2a3b]/90 px-[20px] py-[10px] text-center shadow-lg transition-all hover:shadow-[0_0_15px_rgba(255,184,0,0.25)]"
         >
-          <h3 className="font-semibold text-lg text-[#ffb800]">{t.name}</h3>
+          <h3 className="text-lg font-semibold text-[#ffb800]">{t.name}</h3>
           <p className="text-sm text-gray-300">{t.status}</p>
           <p className="text-xl font-bold text-white">{t.price}</p>
 
-          <ul className="text-gray-400 text-sm mb-[10px]">
+          <ul className="mb-[10px] text-sm text-gray-400">
             {t.features.map((f) => (
               <li key={f}>• {f}</li>
             ))}
           </ul>
 
-          <a
-            href={t.href}
-            className="btn-luxe-blue w-[130px] py-2 text-sm text-center rounded-md"
-          >
+          <a href={t.href} className="btn-luxe-blue w-[130px] rounded-md py-2 text-center text-sm">
             {t.cta}
           </a>
         </div>
