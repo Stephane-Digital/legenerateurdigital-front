@@ -1,298 +1,330 @@
 "use client";
 
-import api from "@/lib/api";
-import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
-import { formatDateKey } from "../utils/date";
-import { Trash2 } from "lucide-react";
+import { Check, Copy, Download, ExternalLink, Image as ImageIcon, Send, Undo2 } from "lucide-react";
+import { useMemo, useState } from "react";
 
-const icons: Record<string, JSX.Element> = {
-  instagram: <div className="w-2 h-2 rounded bg-pink-400" />,
-  facebook: <div className="w-2 h-2 rounded bg-blue-500" />,
-  linkedin: <div className="w-2 h-2 rounded bg-blue-400" />,
-  tiktok: <div className="w-2 h-2 rounded bg-white" />,
-  youtube: <div className="w-2 h-2 rounded bg-red-500" />,
-  pinterest: <div className="w-2 h-2 rounded bg-red-600" />,
+type ManualStatus = "published" | "scheduled";
+
+type Props = {
+  open: boolean;
+  post: any | null;
+  onClose: () => void;
+  onMarkStatus: (postId: number | string, status: ManualStatus) => Promise<void>;
 };
 
-interface Props {
-  currentDate: Date;
-}
-
-async function fetchPlannerPosts() {
+function safeParseJSON(value: any) {
+  if (!value) return null;
+  if (typeof value === "object") return value;
+  if (typeof value !== "string") return null;
   try {
-    const res = await (api as any).get("/planner/posts");
-    const data = res?.data ?? res ?? [];
-    if (Array.isArray(data)) return data;
-  } catch {
-    // ignore
-  }
-  const res2 = await (api as any).get("/social-posts");
-  const data2 = res2?.data ?? res2 ?? [];
-  return Array.isArray(data2) ? data2 : [];
-}
-
-function safeParseJSON(x: any) {
-  if (!x) return null;
-  if (typeof x === "object") return x;
-  if (typeof x !== "string") return null;
-  try {
-    return JSON.parse(x);
+    return JSON.parse(value);
   } catch {
     return null;
   }
 }
 
-function guessKind(post: any, parsed: any) {
-  const k =
-    post?.kind ??
-    post?.type ??
-    post?.format ??
-    parsed?.kind ??
-    parsed?.type ??
-    parsed?.format ??
-    "";
-
-  const s = String(k).toLowerCase();
-  if (s.includes("carrousel") || s.includes("carousel")) return "carrousel";
-  return "post";
+function firstNonEmptyString(...values: any[]) {
+  for (const value of values) {
+    if (typeof value === "string") {
+      const v = value.trim();
+      if (v) return v;
+    }
+  }
+  return "";
 }
 
-function isSent(post: any, parsed: any) {
-  const s =
-    post?.statut ??
-    post?.status ??
-    parsed?.statut ??
-    parsed?.status ??
-    parsed?.meta?.statut ??
-    parsed?.meta?.status ??
-    "";
+function extractSlides(value: any): any[] {
+  if (Array.isArray(value)) return value;
+  return [];
+}
 
-  const v = String(s).toLowerCase();
-  return (
-    v.includes("sent") ||
-    v.includes("envoy") ||
-    v.includes("success") ||
-    v.includes("published") ||
-    v.includes("publié")
+function extractCaption(post: any, parsed: any) {
+  return firstNonEmptyString(
+    post?.caption,
+    post?.text,
+    post?.message,
+    parsed?.caption,
+    parsed?.text,
+    parsed?.texte,
+    parsed?.message,
+    parsed?.description,
+    parsed?.content,
+    parsed?.generated_caption,
+    typeof post?.contenu === "string" ? post.contenu : "",
+    typeof post?.content === "string" ? post.content : ""
   );
 }
 
-function getPostTitleAndPreview(post: any) {
-  const parsed = safeParseJSON(post?.contenu ?? post?.content ?? null);
+function extractMediaUrl(post: any, parsed: any) {
+  const direct = firstNonEmptyString(
+    post?.media_url,
+    post?.image_url,
+    parsed?.media_url,
+    parsed?.image_url,
+    parsed?.mediaUrl,
+    parsed?.imageUrl,
+    parsed?.preview_url,
+    parsed?.previewUrl,
+    parsed?.thumbnail_url,
+    parsed?.thumbnailUrl
+  );
 
-  const titre =
-    post?.titre ??
-    post?.title ??
-    parsed?.title ??
-    parsed?.titre ??
-    parsed?.contenu?.title ??
-    parsed?.contenu?.titre ??
-    (guessKind(post, parsed) === "carrousel" ? "Carrousel" : "Post");
+  if (direct) return direct;
 
-  const previewCandidate =
-    (typeof parsed === "object" && parsed
-      ? parsed?.content ?? parsed?.texte ?? parsed?.text ?? parsed?.description ?? null
-      : null) ??
-    (typeof post?.contenu === "string" ? post.contenu : null) ??
-    (typeof post?.content === "string" ? post.content : null) ??
-    "—";
+  const slides = extractSlides(parsed?.slides);
+  for (const slide of slides) {
+    const candidate = firstNonEmptyString(
+      slide?.image_url,
+      slide?.media_url,
+      slide?.imageUrl,
+      slide?.mediaUrl,
+      slide?.preview_url,
+      slide?.previewUrl,
+      slide?.thumbnail_url,
+      slide?.thumbnailUrl
+    );
+    if (candidate) return candidate;
+  }
 
-  const preview =
-    typeof previewCandidate === "string"
-      ? previewCandidate
-      : (() => {
-          try {
-            return JSON.stringify(previewCandidate);
-          } catch {
-            return "—";
-          }
-        })();
-
-  return { titre: String(titre), preview, parsed };
+  return "";
 }
 
-export default function DayView({ currentDate }: Props) {
-  const router = useRouter();
-  const [posts, setPosts] = useState<any[]>([]);
+function extractTitle(post: any, parsed: any) {
+  return firstNonEmptyString(
+    post?.titre,
+    post?.title,
+    parsed?.title,
+    parsed?.titre,
+    parsed?.name,
+    parsed?.text_title,
+    "Publication LGD"
+  );
+}
 
-  const dayKey = formatDateKey(currentDate);
+function buildNetworkUrl(network: string) {
+  const n = String(network || "").toLowerCase().trim();
+  if (n === "instagram") return "https://www.instagram.com/";
+  if (n === "facebook") return "https://www.facebook.com/";
+  if (n === "pinterest") return "https://www.pinterest.com/";
+  if (n === "linkedin") return "https://www.linkedin.com/feed/";
+  if (n === "snapchat") return "https://web.snapchat.com/";
+  return "";
+}
 
-  useEffect(() => {
-    async function load() {
-      const data = await fetchPlannerPosts();
-      setPosts(data);
-    }
-    load();
-  }, []);
+function getStatus(post: any, parsed: any) {
+  return String(
+    post?.statut ?? post?.status ?? parsed?.statut ?? parsed?.status ?? "scheduled"
+  )
+    .toLowerCase()
+    .trim();
+}
 
-  const deletePlannerPost = async (id: number | string) => {
-    const pid = String(id);
+export default function AssistedPublishModal({ open, post, onClose, onMarkStatus }: Props) {
+  const [copied, setCopied] = useState<"" | "caption" | "media">("");
+  const [saving, setSaving] = useState<"" | ManualStatus>("");
 
-    // Optimistic UI
-    setPosts((prev) => prev.filter((p) => String(p?.id) !== pid));
+  const parsed = useMemo(
+    () => safeParseJSON(post?.contenu ?? post?.content ?? null),
+    [post]
+  );
 
-    const tryDelete = async (path: string) => {
-      const fn = (api as any)?.delete;
-      if (typeof fn === "function") return await fn(path);
+  const title = useMemo(() => extractTitle(post, parsed), [post, parsed]);
+  const caption = useMemo(() => extractCaption(post, parsed), [post, parsed]);
+  const mediaUrl = useMemo(() => extractMediaUrl(post, parsed), [post, parsed]);
+  const slides = useMemo(() => extractSlides(parsed?.slides), [parsed]);
+  const network = useMemo(
+    () => String(post?.reseau ?? post?.network ?? parsed?.reseau ?? parsed?.network ?? "").toLowerCase(),
+    [post, parsed]
+  );
+  const networkUrl = useMemo(() => buildNetworkUrl(network), [network]);
+  const status = useMemo(() => getStatus(post, parsed), [post, parsed]);
+  const isPublished = status.includes("published") || status.includes("envoy") || status.includes("success");
 
-      const base = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
-      const url = base ? `${base}${path}` : path;
-      const r = await fetch(url, { method: "DELETE", credentials: "include" });
-      if (!r.ok) throw new Error(`DELETE ${path} failed (${r.status})`);
-      return await r.json().catch(() => ({}));
-    };
+  if (!open || !post) return null;
 
+  const copyValue = async (value: string, type: "caption" | "media") => {
+    if (!value) return;
     try {
-      try {
-        await tryDelete(`/planner/posts/${pid}`);
-      } catch {
-        await tryDelete(`/planner/${pid}`);
-      }
-    } catch (e) {
-      console.error("deletePlannerPost error", e);
-      // rollback
-      const data = await fetchPlannerPosts();
-      setPosts(data);
+      await navigator.clipboard.writeText(value);
+      setCopied(type);
+      window.setTimeout(() => setCopied(""), 1600);
+    } catch {
+      alert("Copie impossible sur cet appareil.");
     }
   };
 
-  const dayPosts = useMemo(() => {
-    return posts.filter((p) => {
-      const dt = p?.date_programmee ?? p?.scheduled_at ?? p?.scheduled_for ?? null;
-      if (!dt) return false;
-      return String(dt).split("T")[0] === dayKey;
-    });
-  }, [posts, dayKey]);
-
-  const openPost = (post: any) => {
-    // On garde TON flow : carrousel -> open editor carrousel si carrousel_id, sinon post details
-    const parsed = safeParseJSON(post?.contenu ?? post?.content ?? null);
-
-    const kind = guessKind(post, parsed);
-    if (kind === "carrousel") {
-      try {
-        const content = typeof post?.contenu === "string" ? JSON.parse(post.contenu) : parsed;
-        const carrouselId = content?.carrousel_id ?? content?.carrouselId ?? content?.meta?.carrousel_id ?? null;
-        if (!carrouselId) return;
-        router.push(
-          `/dashboard/automatisations/reseaux_sociaux/carrousel/editor/${carrouselId}?from=planner`
-        );
-      } catch {
-        return;
-      }
-    } else {
-      router.push(`/dashboard/automatisations/reseaux_sociaux/posts/${post.id}?from=planner`);
+  const handleMark = async (nextStatus: ManualStatus) => {
+    if (!post?.id) return;
+    setSaving(nextStatus);
+    try {
+      await onMarkStatus(post.id, nextStatus);
+      onClose();
+    } finally {
+      setSaving("");
     }
   };
-
-  // ✅ 24/24 : l'utilisateur peut publier à n'importe quelle heure (00h → 23h)
-  const hours = Array.from({ length: 24 }, (_, i) => i);
-
-  const label = currentDate.toLocaleDateString("fr-FR", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
 
   return (
-    <div className="mt-10 max-w-5xl mx-auto">
-      <h2 className="text-lg md:text-xl font-semibold text-white mb-4">
-        Publications du jour — <span className="text-yellow-400 capitalize">{label}</span>
-      </h2>
+    <div className="fixed inset-0 z-[90] bg-black/80 backdrop-blur-sm px-4 py-6 overflow-y-auto">
+      <div className="mx-auto mt-10 w-full max-w-4xl rounded-[28px] border border-[#2a2a2a] bg-[#0b0b0b] shadow-[0_24px_80px_rgba(0,0,0,0.55)]">
+        <div className="flex items-center justify-between border-b border-white/10 px-6 py-5 md:px-8">
+          <div>
+            <p className="text-xs uppercase tracking-[0.25em] text-yellow-500/80">Publication assistée</p>
+            <h3 className="mt-2 text-xl md:text-2xl font-semibold text-white">{title}</h3>
+            <p className="mt-2 text-sm text-white/55">
+              Ouvre le réseau, colle la légende, ajoute le visuel et garde le suivi directement dans le Planner.
+            </p>
+          </div>
 
-      {dayPosts.length === 0 && (
-        <p className="text-sm text-gray-400 mb-6">Aucune publication programmée pour ce jour.</p>
-      )}
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/75 hover:border-yellow-500/40 hover:text-white"
+          >
+            Fermer
+          </button>
+        </div>
 
-      <div className="bg-[#0b0b0b] border border-[#252525] rounded-2xl p-4 md:p-6 shadow-xl shadow-black/60">
-        <div className="space-y-4">
-          {hours.map((h) => {
-            const hourPrefix = String(h).padStart(2, "0");
+        <div className="grid gap-6 px-6 py-6 md:grid-cols-[1.2fr_0.8fr] md:px-8 md:py-8">
+          <div className="space-y-6">
+            <div className="rounded-2xl border border-white/10 bg-[#121212] p-5">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.22em] text-white/40">Légende prête</p>
+                  <p className="mt-2 text-sm text-white/70">
+                    Utilise ce texte tel quel ou adapte-le avant de publier.
+                  </p>
+                </div>
 
-            const postsAtHour = dayPosts.filter((p) => {
-              const dt = p?.date_programmee ?? p?.scheduled_at ?? p?.scheduled_for ?? null;
-              if (!dt) return false;
-              return String(dt).includes(`T${hourPrefix}:`);
-            });
-
-            return (
-              <div key={h} className="border-b border-[#1c1c1c] pb-4 last:border-none">
-                <div className="text-gray-500 text-sm mb-2">{hourPrefix}h</div>
-
-                {postsAtHour.length === 0 && (
-                  <div className="bg-[#111111] border border-[#252525] rounded-xl px-3 py-2 text-gray-500 text-xs">
-                    Aucun post à cette heure.
-                  </div>
-                )}
-
-                {postsAtHour.map((post) => {
-                  const meta = getPostTitleAndPreview(post);
-                  const kind = guessKind(post, meta.parsed);
-                  const sent = isSent(post, meta.parsed);
-
-                  const networkKey = String(
-                    post?.reseau ?? post?.network ?? meta.parsed?.reseau ?? meta.parsed?.network ?? ""
-                  )
-                    .toLowerCase()
-                    .trim();
-
-                  return (
-                    <div key={post.id} className="relative mb-2">
-                      <button
-                        onClick={() => openPost(post)}
-                        className="w-full text-left bg-[#111111] border border-[#252525] rounded-xl px-4 py-3 pr-14 shadow-md hover:border-yellow-400/60 transition"
-                      >
-                        <div className="flex items-center gap-2 mb-2">
-                        {icons[networkKey] ?? <div className="w-2 h-2 rounded bg-white/30" />}
-
-                        <span className="font-medium text-white text-sm">{meta.titre}</span>
-
-                        {/* ✅ Intégration #1 : Badge Post/Carrousel */}
-                        <span className="ml-2 rounded-full border border-white/10 bg-white/5 px-2 py-[2px] text-[10px] text-white/70">
-                          {kind === "carrousel" ? "Carrousel" : "Post"}
-                        </span>
-
-                        {/* ✅ Intégration #2 : “Envoyé avec succès” */}
-                        {sent && (
-                          <span className="rounded-full border border-emerald-400/20 bg-emerald-500/10 px-2 py-[2px] text-[10px] text-emerald-200">
-                            Envoyé avec succès
-                          </span>
-                        )}
-                      </div>
-
-                        <p className="text-xs text-gray-400 mb-2 truncate">{meta.preview}</p>
-
-                        <div className="text-xs text-gray-500">
-                          {String(post.date_programmee ?? post.scheduled_at ?? post.scheduled_for ?? "")
-                            .split("T")[1]
-                            ?.slice(0, 5) ?? "—"}
-                        </div>
-                      </button>
-
-                      <button
-                        type="button"
-                        title="Supprimer"
-                        className="absolute right-3 top-1/2 -translate-y-1/2 h-10 w-10 rounded-xl border border-white/10 bg-white/5 hover:border-yellow-400/60 hover:bg-white/10 flex items-center justify-center"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          const ok = window.confirm(
-                            "Supprimer cette publication planifiée ?\n\nCette action est définitive."
-                          );
-                          if (!ok) return;
-                          deletePlannerPost(post.id);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4 text-white/70" />
-                      </button>
-                    </div>
-                  );
-                })}
+                <button
+                  type="button"
+                  onClick={() => copyValue(caption, "caption")}
+                  disabled={!caption}
+                  className="inline-flex items-center gap-2 rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-2 text-sm font-semibold text-yellow-300 disabled:opacity-40"
+                >
+                  {copied === "caption" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  Copier
+                </button>
               </div>
-            );
-          })}
+
+              <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm leading-6 text-white/85 whitespace-pre-wrap max-h-[280px] overflow-auto">
+                {caption || "Aucune légende détectée. Ouvre l’éditeur pour enrichir le contenu avant publication."}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-[#121212] p-5">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.22em] text-white/40">Visuel / média</p>
+                  <p className="mt-2 text-sm text-white/70">
+                    Télécharge le média ou ouvre-le directement avant publication.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => copyValue(mediaUrl, "media")}
+                    disabled={!mediaUrl}
+                    className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 disabled:opacity-40"
+                  >
+                    {copied === "media" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                    Copier le lien
+                  </button>
+
+                  {mediaUrl && (
+                    <a
+                      href={mediaUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-2 rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-2 text-sm font-semibold text-yellow-300"
+                    >
+                      <Download className="h-4 w-4" />
+                      Ouvrir le média
+                    </a>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-4 rounded-2xl border border-dashed border-white/10 bg-black/20 p-4 text-sm text-white/70">
+                {mediaUrl ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-white/85">
+                      <ImageIcon className="h-4 w-4 text-yellow-400" />
+                      Média détecté pour cette publication.
+                    </div>
+                    <div className="break-all rounded-xl bg-black/30 px-3 py-2 text-xs text-white/55">{mediaUrl}</div>
+                    {slides.length > 1 && (
+                      <p className="text-xs text-yellow-300/90">
+                        Ce carrousel contient {slides.length} slides. Prépare-les depuis l’éditeur avant publication.
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p>Aucun média détecté automatiquement. Utilise l’éditeur intelligent ou la bibliothèque pour récupérer le visuel.</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            <div className="rounded-2xl border border-yellow-500/20 bg-gradient-to-br from-yellow-500/10 to-transparent p-5">
+              <p className="text-xs uppercase tracking-[0.22em] text-yellow-300/85">Flux recommandé</p>
+              <ol className="mt-4 space-y-3 text-sm text-white/80">
+                <li>1. Copie la légende LGD.</li>
+                <li>2. Ouvre {network || "le réseau"} dans un nouvel onglet.</li>
+                <li>3. Ajoute le média préparé puis colle la légende.</li>
+                <li>4. Publie manuellement et reviens marquer la publication comme envoyée.</li>
+              </ol>
+
+              {networkUrl && (
+                <a
+                  href={networkUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-yellow-500 to-yellow-400 px-4 py-3 text-sm font-extrabold text-black hover:opacity-95"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  Ouvrir {network || "le réseau"}
+                </a>
+              )}
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-[#121212] p-5">
+              <p className="text-xs uppercase tracking-[0.22em] text-white/40">Suivi Planner</p>
+              <p className="mt-3 text-sm text-white/70">
+                Garde ton calendrier propre même sans auto-publication Meta.
+              </p>
+
+              <div className="mt-5 grid gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleMark("published")}
+                  disabled={saving !== ""}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-yellow-500 to-yellow-400 px-4 py-3 text-sm font-extrabold text-black hover:opacity-95 disabled:opacity-60"
+                >
+                  <Send className="h-4 w-4" />
+                  {saving === "published" ? "Mise à jour..." : isPublished ? "Confirmer publication" : "Marquer comme publié"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleMark("scheduled")}
+                  disabled={saving !== ""}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white/80 hover:border-yellow-500/30 disabled:opacity-60"
+                >
+                  <Undo2 className="h-4 w-4" />
+                  {saving === "scheduled" ? "Mise à jour..." : "Remettre en planifié"}
+                </button>
+              </div>
+
+              <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4 text-xs leading-6 text-white/55">
+                Statut actuel : <span className="text-white/80">{isPublished ? "Publié" : "Planifié"}</span>
+                <br />
+                Publication assistée = LGD prépare le contenu, l’horaire et le suivi. L’utilisateur garde le contrôle final sur le clic publier.
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
