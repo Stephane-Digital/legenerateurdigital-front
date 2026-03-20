@@ -34,6 +34,39 @@ function addMonths(base: Date, months: number) {
   return d;
 }
 
+function sameDay(a: Date, b: Date) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+function sameMonth(a: Date, b: Date) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
+}
+
+function startOfWeek(base: Date) {
+  const d = new Date(base.getFullYear(), base.getMonth(), base.getDate(), 12);
+  const jsDay = d.getDay(); // 0=dimanche
+  const diff = jsDay === 0 ? -6 : 1 - jsDay; // semaine FR lundi -> dimanche
+  d.setDate(d.getDate() + diff);
+  return d;
+}
+
+function endOfWeek(base: Date) {
+  const d = startOfWeek(base);
+  d.setDate(d.getDate() + 6);
+  return d;
+}
+
+function isWithinWeek(target: Date, weekBase: Date) {
+  const t = new Date(target.getFullYear(), target.getMonth(), target.getDate(), 12);
+  const start = startOfWeek(weekBase);
+  const end = endOfWeek(weekBase);
+  return t >= start && t <= end;
+}
+
 export default function PlannerPage() {
   return (
     <Suspense fallback={<div className="min-h-screen" />}>
@@ -67,14 +100,31 @@ function PlannerPageInner() {
   );
 
   const handleSelectDate = (date: Date) => {
-    const safeDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12);
-    setCurrentDate(safeDate);
+    setCurrentDate(date);
     setView("day");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleBackToWeek = () => {
     setView("week");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleSwitchToDay = () => {
+    const today = new Date();
+    const safeToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12);
+
+    setCurrentDate((prev) => {
+      const safePrev = new Date(prev.getFullYear(), prev.getMonth(), prev.getDate(), 12);
+
+      if (sameDay(safePrev, safeToday)) return safePrev;
+      if (view === "week" && isWithinWeek(safeToday, safePrev)) return safeToday;
+      if (view === "month" && sameMonth(safePrev, safeToday)) return safeToday;
+
+      return safePrev;
+    });
+
+    setView("day");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -166,7 +216,7 @@ function PlannerPageInner() {
                   Semaine
                 </button>
                 <button
-                  onClick={() => setView("day")}
+                  onClick={handleSwitchToDay}
                   className={`px-6 py-1.5 text-sm rounded-full transition-all ${
                     view === "day"
                       ? "bg-gradient-to-r from-yellow-500 to-yellow-400 text-black font-semibold"
