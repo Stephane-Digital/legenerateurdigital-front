@@ -69,7 +69,7 @@ export default function PlannerShell() {
           <WeekView currentDate={currentDate} onSelectDate={onSelectDate} />
         )}
 
-      {view === "day" && <DayView currentDate={date_actuelle} />}
+        {view === "day" && <DayView currentDate={currentDate} />}
       </div>
     </div>
   );
