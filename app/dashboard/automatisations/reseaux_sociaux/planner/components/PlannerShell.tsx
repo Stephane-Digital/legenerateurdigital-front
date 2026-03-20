@@ -48,12 +48,10 @@ export default function PlannerShell() {
     });
   }, [view]);
 
-  // label peut être géré par PlannerHeader (prop "month")
   const monthForHeader = useMemo(() => currentDate, [currentDate]);
 
   return (
     <div className="max-w-6xl mx-auto">
-      {/* ✅ appel conforme au type attendu par PlannerHeader */}
       <PlannerHeader
         month={monthForHeader}
         viewMode={view}
