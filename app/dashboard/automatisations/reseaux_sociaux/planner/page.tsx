@@ -67,7 +67,8 @@ function PlannerPageInner() {
   );
 
   const handleSelectDate = (date: Date) => {
-    setCurrentDate(date);
+    const safeDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12);
+    setCurrentDate(safeDate);
     setView("day");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
