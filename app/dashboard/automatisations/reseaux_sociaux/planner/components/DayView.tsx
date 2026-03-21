@@ -3,8 +3,9 @@
 import api from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { CalendarCheck2, Trash2 } from "lucide-react";
+import AssistedPublishModal from "./AssistedPublishModal";
 import { formatDateKey } from "../utils/date";
-import { Trash2 } from "lucide-react";
 
 const icons: Record<string, JSX.Element> = {
   instagram: <div className="w-2 h-2 rounded bg-pink-400" />,
@@ -13,6 +14,7 @@ const icons: Record<string, JSX.Element> = {
   tiktok: <div className="w-2 h-2 rounded bg-white" />,
   youtube: <div className="w-2 h-2 rounded bg-red-500" />,
   pinterest: <div className="w-2 h-2 rounded bg-red-600" />,
+  snapchat: <div className="w-2 h-2 rounded bg-yellow-300" />,
 };
 
 interface Props {
@@ -115,6 +117,7 @@ function getPostTitleAndPreview(post: any) {
 export default function DayView({ currentDate }: Props) {
   const router = useRouter();
   const [posts, setPosts] = useState<any[]>([]);
+  const [assistPost, setAssistPost] = useState<any | null>(null);
 
   const dayKey = formatDateKey(currentDate);
 
@@ -126,10 +129,40 @@ export default function DayView({ currentDate }: Props) {
     load();
   }, []);
 
+  const refreshPosts = async () => {
+    const data = await fetchPlannerPosts();
+    setPosts(data);
+  };
+
+  const updateManualStatus = async (id: number | string, status: "published" | "scheduled") => {
+    const pid = String(id);
+    const previous = posts;
+
+    setPosts((prev) =>
+      prev.map((p) =>
+        String(p?.id) === pid
+          ? {
+              ...p,
+              statut: status,
+              status,
+              published_at: status === "published" ? new Date().toISOString() : null,
+            }
+          : p
+      )
+    );
+
+    try {
+      await (api as any).patch(`/planner/posts/${pid}/manual-status`, { status });
+    } catch (e) {
+      console.error("updateManualStatus error", e);
+      setPosts(previous);
+      throw e;
+    }
+  };
+
   const deletePlannerPost = async (id: number | string) => {
     const pid = String(id);
 
-    // Optimistic UI
     setPosts((prev) => prev.filter((p) => String(p?.id) !== pid));
 
     const tryDelete = async (path: string) => {
@@ -151,7 +184,6 @@ export default function DayView({ currentDate }: Props) {
       }
     } catch (e) {
       console.error("deletePlannerPost error", e);
-      // rollback
       const data = await fetchPlannerPosts();
       setPosts(data);
     }
@@ -166,7 +198,6 @@ export default function DayView({ currentDate }: Props) {
   }, [posts, dayKey]);
 
   const openPost = (post: any) => {
-    // On garde TON flow : carrousel -> open editor carrousel si carrousel_id, sinon post details
     const parsed = safeParseJSON(post?.contenu ?? post?.content ?? null);
 
     const kind = guessKind(post, parsed);
@@ -186,7 +217,6 @@ export default function DayView({ currentDate }: Props) {
     }
   };
 
-  // ✅ 24/24 : l'utilisateur peut publier à n'importe quelle heure (00h → 23h)
   const hours = Array.from({ length: 24 }, (_, i) => i);
 
   const label = currentDate.toLocaleDateString("fr-FR", {
@@ -197,104 +227,130 @@ export default function DayView({ currentDate }: Props) {
   });
 
   return (
-    <div className="mt-10 max-w-5xl mx-auto">
-      <h2 className="text-lg md:text-xl font-semibold text-white mb-4">
-        Publications du jour — <span className="text-yellow-400 capitalize">{label}</span>
-      </h2>
+    <>
+      <div className="mt-10 max-w-5xl mx-auto">
+        <div className="mb-4 rounded-2xl border border-yellow-500/20 bg-gradient-to-r from-yellow-500/10 to-transparent px-4 py-3 text-sm text-white/80">
+          <span className="font-semibold text-yellow-300">Publication assistée active.</span> LGD prépare le contenu,
+          le visuel et le suivi du Planner. L’utilisateur final garde le clic “publier” sur le réseau.
+        </div>
 
-      {dayPosts.length === 0 && (
-        <p className="text-sm text-gray-400 mb-6">Aucune publication programmée pour ce jour.</p>
-      )}
+        <h2 className="text-lg md:text-xl font-semibold text-white mb-4">
+          Publications du jour — <span className="text-yellow-400 capitalize">{label}</span>
+        </h2>
 
-      <div className="bg-[#0b0b0b] border border-[#252525] rounded-2xl p-4 md:p-6 shadow-xl shadow-black/60">
-        <div className="space-y-4">
-          {hours.map((h) => {
-            const hourPrefix = String(h).padStart(2, "0");
+        {dayPosts.length === 0 && (
+          <p className="text-sm text-gray-400 mb-6">Aucune publication programmée pour ce jour.</p>
+        )}
 
-            const postsAtHour = dayPosts.filter((p) => {
-              const dt = p?.date_programmee ?? p?.scheduled_at ?? p?.scheduled_for ?? null;
-              if (!dt) return false;
-              return String(dt).includes(`T${hourPrefix}:`);
-            });
+        <div className="bg-[#0b0b0b] border border-[#252525] rounded-2xl p-4 md:p-6 shadow-xl shadow-black/60">
+          <div className="space-y-4">
+            {hours.map((h) => {
+              const hourPrefix = String(h).padStart(2, "0");
 
-            return (
-              <div key={h} className="border-b border-[#1c1c1c] pb-4 last:border-none">
-                <div className="text-gray-500 text-sm mb-2">{hourPrefix}h</div>
+              const postsAtHour = dayPosts.filter((p) => {
+                const dt = p?.date_programmee ?? p?.scheduled_at ?? p?.scheduled_for ?? null;
+                if (!dt) return false;
+                return String(dt).includes(`T${hourPrefix}:`);
+              });
 
-                {postsAtHour.length === 0 && (
-                  <div className="bg-[#111111] border border-[#252525] rounded-xl px-3 py-2 text-gray-500 text-xs">
-                    Aucun post à cette heure.
-                  </div>
-                )}
+              return (
+                <div key={h} className="border-b border-[#1c1c1c] pb-4 last:border-none">
+                  <div className="text-gray-500 text-sm mb-2">{hourPrefix}h</div>
 
-                {postsAtHour.map((post) => {
-                  const meta = getPostTitleAndPreview(post);
-                  const kind = guessKind(post, meta.parsed);
-                  const sent = isSent(post, meta.parsed);
-
-                  const networkKey = String(
-                    post?.reseau ?? post?.network ?? meta.parsed?.reseau ?? meta.parsed?.network ?? ""
-                  )
-                    .toLowerCase()
-                    .trim();
-
-                  return (
-                    <div key={post.id} className="relative mb-2">
-                      <button
-                        onClick={() => openPost(post)}
-                        className="w-full text-left bg-[#111111] border border-[#252525] rounded-xl px-4 py-3 pr-14 shadow-md hover:border-yellow-400/60 transition"
-                      >
-                        <div className="flex items-center gap-2 mb-2">
-                        {icons[networkKey] ?? <div className="w-2 h-2 rounded bg-white/30" />}
-
-                        <span className="font-medium text-white text-sm">{meta.titre}</span>
-
-                        {/* ✅ Intégration #1 : Badge Post/Carrousel */}
-                        <span className="ml-2 rounded-full border border-white/10 bg-white/5 px-2 py-[2px] text-[10px] text-white/70">
-                          {kind === "carrousel" ? "Carrousel" : "Post"}
-                        </span>
-
-                        {/* ✅ Intégration #2 : “Envoyé avec succès” */}
-                        {sent && (
-                          <span className="rounded-full border border-emerald-400/20 bg-emerald-500/10 px-2 py-[2px] text-[10px] text-emerald-200">
-                            Envoyé avec succès
-                          </span>
-                        )}
-                      </div>
-
-                        <p className="text-xs text-gray-400 mb-2 truncate">{meta.preview}</p>
-
-                        <div className="text-xs text-gray-500">
-                          {String(post.date_programmee ?? post.scheduled_at ?? post.scheduled_for ?? "")
-                            .split("T")[1]
-                            ?.slice(0, 5) ?? "—"}
-                        </div>
-                      </button>
-
-                      <button
-                        type="button"
-                        title="Supprimer"
-                        className="absolute right-3 top-1/2 -translate-y-1/2 h-10 w-10 rounded-xl border border-white/10 bg-white/5 hover:border-yellow-400/60 hover:bg-white/10 flex items-center justify-center"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          const ok = window.confirm(
-                            "Supprimer cette publication planifiée ?\n\nCette action est définitive."
-                          );
-                          if (!ok) return;
-                          deletePlannerPost(post.id);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4 text-white/70" />
-                      </button>
+                  {postsAtHour.length === 0 && (
+                    <div className="bg-[#111111] border border-[#252525] rounded-xl px-3 py-2 text-gray-500 text-xs">
+                      Aucun post à cette heure.
                     </div>
-                  );
-                })}
-              </div>
-            );
-          })}
+                  )}
+
+                  {postsAtHour.map((post) => {
+                    const meta = getPostTitleAndPreview(post);
+                    const kind = guessKind(post, meta.parsed);
+                    const sent = isSent(post, meta.parsed);
+
+                    const networkKey = String(
+                      post?.reseau ?? post?.network ?? meta.parsed?.reseau ?? meta.parsed?.network ?? ""
+                    )
+                      .toLowerCase()
+                      .trim();
+
+                    return (
+                      <div key={post.id} className="relative mb-2 rounded-xl border border-transparent">
+                        <button
+                          onClick={() => openPost(post)}
+                          className="w-full text-left bg-[#111111] border border-[#252525] rounded-xl px-4 py-3 pr-14 shadow-md hover:border-yellow-400/60 transition"
+                        >
+                          <div className="flex items-center gap-2 mb-2 flex-wrap">
+                            {icons[networkKey] ?? <div className="w-2 h-2 rounded bg-white/30" />}
+
+                            <span className="font-medium text-white text-sm">{meta.titre}</span>
+
+                            <span className="ml-2 rounded-full border border-white/10 bg-white/5 px-2 py-[2px] text-[10px] text-white/70">
+                              {kind === "carrousel" ? "Carrousel" : "Post"}
+                            </span>
+
+                            {sent && (
+                              <span className="rounded-full border border-emerald-400/20 bg-emerald-500/10 px-2 py-[2px] text-[10px] text-emerald-200">
+                                Envoyé avec succès
+                              </span>
+                            )}
+                          </div>
+
+                          <p className="text-xs text-gray-400 mb-2 truncate">{meta.preview}</p>
+
+                          <div className="text-xs text-gray-500">
+                            {String(post.date_programmee ?? post.scheduled_at ?? post.scheduled_for ?? "")
+                              .split("T")[1]
+                              ?.slice(0, 5) ?? "—"}
+                          </div>
+                        </button>
+
+                        <div className="mt-2 flex flex-wrap items-center gap-2 px-1">
+                          <button
+                            type="button"
+                            onClick={() => setAssistPost(post)}
+                            className="inline-flex items-center gap-2 rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-3 py-2 text-xs font-semibold text-yellow-300 hover:bg-yellow-500/15"
+                          >
+                            <CalendarCheck2 className="h-4 w-4" />
+                            Publication assistée
+                          </button>
+                        </div>
+
+                        <button
+                          type="button"
+                          title="Supprimer"
+                          className="absolute right-3 top-[38px] -translate-y-1/2 h-10 w-10 rounded-xl border border-white/10 bg-white/5 hover:border-yellow-400/60 hover:bg-white/10 flex items-center justify-center"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const ok = window.confirm(
+                              "Supprimer cette publication planifiée ?\n\nCette action est définitive."
+                            );
+                            if (!ok) return;
+                            deletePlannerPost(post.id);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 text-white/70" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
-    </div>
+
+      <AssistedPublishModal
+        open={!!assistPost}
+        post={assistPost}
+        onClose={() => setAssistPost(null)}
+        onMarkStatus={async (postId, status) => {
+          await updateManualStatus(postId, status);
+          await refreshPosts();
+        }}
+      />
+    </>
   );
 }
