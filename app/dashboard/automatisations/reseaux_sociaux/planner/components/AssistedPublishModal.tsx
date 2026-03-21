@@ -1,6 +1,14 @@
 "use client";
 
-import { Check, Copy, Download, ExternalLink, Image as ImageIcon, Send, Undo2 } from "lucide-react";
+import {
+  Check,
+  Copy,
+  Download,
+  ExternalLink,
+  Image as ImageIcon,
+  Send,
+  Undo2,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 
 type ManualStatus = "published" | "scheduled";
@@ -59,13 +67,28 @@ function extractLayers(value: any): any[] {
 }
 
 function looksLikeImageUrl(value: string) {
-  const v = String(value || "").toLowerCase();
+  const v = String(value || "").toLowerCase().trim();
   return (
     v.startsWith("http://") ||
     v.startsWith("https://") ||
     v.startsWith("blob:") ||
     v.startsWith("data:image/")
   );
+}
+
+function looksLikeJsonString(value: string) {
+  const v = String(value || "").trim();
+  return (
+    (v.startsWith("{") && v.endsWith("}")) ||
+    (v.startsWith("[") && v.endsWith("]"))
+  );
+}
+
+function isProbablyRenderableMedia(value: string) {
+  const v = String(value || "").trim();
+  if (!v) return false;
+  if (looksLikeJsonString(v)) return false;
+  return looksLikeImageUrl(v);
 }
 
 function getTextFromLayer(layer: any) {
@@ -94,7 +117,10 @@ function getImageFromLayer(layer: any) {
     layer?.thumbnailUrl,
     layer?.background,
     layer?.background_url,
-    layer?.backgroundUrl
+    layer?.backgroundUrl,
+    layer?.fillPatternImage,
+    layer?.assetUrl,
+    layer?.asset_url
   );
 }
 
@@ -116,12 +142,11 @@ function flattenPossibleTextSources(post: any, parsed: any) {
     ...extractLayers(parsed?.layers),
     ...extractLayers(parsed?.elements),
     ...extractLayers(parsed?.objects),
-  ]
-    .map((layer: any) => {
-      const type = String(layer?.type || layer?.kind || "").toLowerCase();
-      if (type.includes("text") || !type) return getTextFromLayer(layer);
-      return "";
-    });
+  ].map((layer: any) => {
+    const type = String(layer?.type || layer?.kind || "").toLowerCase();
+    if (type.includes("text") || !type) return getTextFromLayer(layer);
+    return "";
+  });
 
   const nestedCaption = firstNonEmptyString(
     parsed?.post?.caption,
@@ -143,9 +168,7 @@ function flattenPossibleTextSources(post: any, parsed: any) {
       post?.description,
       post?.generated_caption,
       post?.generated_text,
-      post?.generatedText,
-      post?.contenu,
-      post?.content
+      post?.generatedText
     ),
     firstNonEmptyString(
       parsed?.caption,
@@ -153,7 +176,6 @@ function flattenPossibleTextSources(post: any, parsed: any) {
       parsed?.texte,
       parsed?.message,
       parsed?.description,
-      parsed?.content,
       parsed?.generated_caption,
       parsed?.generated_text,
       parsed?.generatedText,
@@ -180,9 +202,11 @@ function extractCaption(post: any, parsed: any) {
   return candidates[0] || "";
 }
 
-function flattenPossibleMediaSources(post: any, parsed: any) {
-  const slideMedia = extractSlides(parsed?.slides).flatMap((slide: any) => [
-    firstNonEmptyString(
+function collectSlideLayerMedia(slides: any[]) {
+  const urls: string[] = [];
+
+  for (const slide of slides) {
+    const slideDirect = firstNonEmptyString(
       slide?.image_url,
       slide?.media_url,
       slide?.imageUrl,
@@ -195,17 +219,50 @@ function flattenPossibleMediaSources(post: any, parsed: any) {
       slide?.url,
       slide?.background,
       slide?.backgroundUrl,
-      slide?.background_url
-    ),
-  ]);
+      slide?.background_url,
+      slide?.cover,
+      slide?.cover_url,
+      slide?.coverUrl
+    );
+    if (slideDirect) urls.push(slideDirect);
 
-  const layerMedia = [
+    const slideLayers = [
+      ...extractLayers(slide?.layers),
+      ...extractLayers(slide?.elements),
+      ...extractLayers(slide?.objects),
+    ];
+
+    for (const layer of slideLayers) {
+      const type = String(layer?.type || layer?.kind || "").toLowerCase();
+      const candidate = getImageFromLayer(layer);
+      if (!candidate) continue;
+      if (type.includes("image") || type.includes("background") || looksLikeImageUrl(candidate)) {
+        urls.push(candidate);
+      }
+    }
+  }
+
+  return urls;
+}
+
+function flattenPossibleMediaSources(post: any, parsed: any) {
+  const slides = extractSlides(parsed?.slides);
+  const slideMedia = collectSlideLayerMedia(slides);
+
+  const rootLayers = [
     ...extractLayers(parsed?.layers),
     ...extractLayers(parsed?.elements),
     ...extractLayers(parsed?.objects),
-  ].flatMap((layer: any) => {
+  ];
+
+  const layerMedia = rootLayers.flatMap((layer: any) => {
+    const type = String(layer?.type || layer?.kind || "").toLowerCase();
     const candidate = getImageFromLayer(layer);
-    return candidate ? [candidate] : [];
+    if (!candidate) return [];
+    if (type.includes("image") || type.includes("background") || looksLikeImageUrl(candidate)) {
+      return [candidate];
+    }
+    return [];
   });
 
   const nestedMedia = firstNonEmptyString(
@@ -231,6 +288,8 @@ function flattenPossibleMediaSources(post: any, parsed: any) {
   );
 
   return uniqueStrings([
+    ...slideMedia,
+    ...layerMedia,
     firstNonEmptyString(
       post?.media_url,
       post?.image_url,
@@ -254,9 +313,7 @@ function flattenPossibleMediaSources(post: any, parsed: any) {
       parsed?.thumbnailUrl
     ),
     nestedMedia,
-    ...slideMedia,
-    ...layerMedia,
-  ]).filter(looksLikeImageUrl);
+  ]).filter(isProbablyRenderableMedia);
 }
 
 function extractMediaUrl(post: any, parsed: any) {
@@ -292,9 +349,7 @@ function buildNetworkUrl(network: string) {
 }
 
 function getStatus(post: any, parsed: any) {
-  return String(
-    post?.statut ?? post?.status ?? parsed?.statut ?? parsed?.status ?? "scheduled"
-  )
+  return String(post?.statut ?? post?.status ?? parsed?.statut ?? parsed?.status ?? "scheduled")
     .toLowerCase()
     .trim();
 }
@@ -303,10 +358,7 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
   const [copied, setCopied] = useState<"" | "caption" | "media">("");
   const [saving, setSaving] = useState<"" | ManualStatus>("");
 
-  const parsed = useMemo(
-    () => safeParseJSON(post?.contenu ?? post?.content ?? null),
-    [post]
-  );
+  const parsed = useMemo(() => safeParseJSON(post?.contenu ?? post?.content ?? null), [post]);
 
   const title = useMemo(() => extractTitle(post, parsed), [post, parsed]);
   const caption = useMemo(() => extractCaption(post, parsed), [post, parsed]);
@@ -315,18 +367,13 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
   const slides = useMemo(() => extractSlides(parsed?.slides), [parsed]);
   const network = useMemo(
     () =>
-      String(
-        post?.reseau ??
-          post?.network ??
-          parsed?.reseau ??
-          parsed?.network ??
-          ""
-      ).toLowerCase(),
+      String(post?.reseau ?? post?.network ?? parsed?.reseau ?? parsed?.network ?? "").toLowerCase(),
     [post, parsed]
   );
   const networkUrl = useMemo(() => buildNetworkUrl(network), [network]);
   const status = useMemo(() => getStatus(post, parsed), [post, parsed]);
-  const isPublished = status.includes("published") || status.includes("envoy") || status.includes("success");
+  const isPublished =
+    status.includes("published") || status.includes("envoy") || status.includes("success");
 
   if (!open || !post) return null;
 
@@ -442,6 +489,16 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
                       Média détecté pour cette publication.
                     </div>
 
+                    {looksLikeImageUrl(mediaUrl) && (
+                      <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/30">
+                        <img
+                          src={mediaUrl}
+                          alt="Prévisualisation média"
+                          className="max-h-[260px] w-full object-contain bg-black"
+                        />
+                      </div>
+                    )}
+
                     <div className="break-all rounded-xl bg-black/30 px-3 py-2 text-xs text-white/55">
                       {mediaUrl}
                     </div>
@@ -516,7 +573,11 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
                   className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-yellow-500 to-yellow-400 px-4 py-3 text-sm font-extrabold text-black hover:opacity-95 disabled:opacity-60"
                 >
                   <Send className="h-4 w-4" />
-                  {saving === "published" ? "Mise à jour..." : isPublished ? "Confirmer publication" : "Marquer comme publié"}
+                  {saving === "published"
+                    ? "Mise à jour..."
+                    : isPublished
+                    ? "Confirmer publication"
+                    : "Marquer comme publié"}
                 </button>
 
                 <button
@@ -533,7 +594,7 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
               <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4 text-xs leading-6 text-white/55">
                 Statut actuel : <span className="text-white/80">{isPublished ? "Publié" : "Planifié"}</span>
                 <br />
-                Publication assistée = LGD prépare le contenu, l’horaire et le suivi. L’utilisateur garde le contrôle final sur le clic publier.
+                Publication assistée = LGD prépare le contenu, le visuel et le suivi. L’utilisateur garde le contrôle final sur le clic publier.
               </div>
             </div>
           </div>
