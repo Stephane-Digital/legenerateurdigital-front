@@ -8,6 +8,7 @@ import CarrouselEditor from "./CarrouselEditor";
 import PostEditor from "./PostEditor";
 
 import { useSchedulePlanner } from "../../hooks/useSchedulePlanner";
+import { downloadEditorCreation } from "../utils/downloadEditorCreation";
 
 type Mode = "post" | "carrousel";
 
@@ -205,6 +206,8 @@ export default function EditorModeRouter() {
 
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [scheduleMsg, setScheduleMsg] = useState<string>("");
+  const [downloading, setDownloading] = useState(false);
+  const [downloadMsg, setDownloadMsg] = useState<string>("");
 
   const { schedule, loading: scheduleLoading } = useSchedulePlanner();
 
@@ -381,6 +384,38 @@ export default function EditorModeRouter() {
     }
   }
 
+  async function downloadToPc() {
+    if (typeof window === "undefined") return;
+
+    setDownloadMsg("");
+    const draft = getDraft();
+
+    if (!draft) {
+      setDownloadMsg("❌ Aucun contenu à télécharger (draft vide).");
+      return;
+    }
+
+    setDownloading(true);
+    try {
+      await downloadEditorCreation({
+        mode,
+        draft,
+        title: `${mode === "post" ? "Post" : "Carrousel"}-${formatNowForTitle()}`,
+      });
+
+      setDownloadMsg(
+        mode === "post"
+          ? "✅ Post téléchargé sur votre PC."
+          : "✅ Carrousel téléchargé sur votre PC (une image par slide)."
+      );
+    } catch (e: any) {
+      setDownloadMsg(`❌ ${e?.message || "Erreur téléchargement"}`);
+    } finally {
+      setDownloading(false);
+      window.setTimeout(() => setDownloadMsg(""), 4000);
+    }
+  }
+
   const modeLabel = useMemo(() => (mode === "post" ? "POSTS" : "CARROUSEL"), [mode]);
 
   return (
@@ -421,6 +456,16 @@ export default function EditorModeRouter() {
 
               <button
                 type="button"
+                onClick={downloadToPc}
+                disabled={downloading}
+                className="rounded-xl border border-yellow-500/25 bg-black/30 px-4 py-2 text-sm font-semibold text-yellow-200 hover:bg-black/40 disabled:opacity-60"
+                title="Télécharger la création sur le PC"
+              >
+                {downloading ? "Téléchargement…" : "⬇️ Télécharger sur PC"}
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setScheduleOpen(true)}
                 className="rounded-xl border border-yellow-500/25 bg-black/30 px-4 py-2 text-sm font-semibold text-yellow-200 hover:bg-black/40"
                 title="Planifier ce contenu"
@@ -430,6 +475,7 @@ export default function EditorModeRouter() {
             </div>
 
             {archiveMsg ? <div className="text-xs text-white/70">{archiveMsg}</div> : null}
+            {downloadMsg ? <div className="text-xs text-white/70">{downloadMsg}</div> : null}
             {scheduleMsg ? <div className="text-xs text-white/70">{scheduleMsg}</div> : null}
           </div>
         </div>
