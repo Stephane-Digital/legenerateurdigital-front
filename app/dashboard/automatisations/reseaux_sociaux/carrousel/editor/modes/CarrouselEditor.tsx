@@ -294,6 +294,11 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
     return ensureSlide(null);
   });
 
+  const [draftUI, setDraftUI] = useState<any>(() => {
+    const parsed = safeJsonParse(typeof window !== "undefined" ? window.localStorage.getItem(LS_CARROUSEL) : null);
+    return parsed?.ui || undefined;
+  });
+
   const [activeSlideId, setActiveSlideId] = useState<string>(() => {
     const saved = typeof window !== "undefined" ? window.localStorage.getItem(LS_CARROUSEL_ACTIVE_SLIDE) : null;
     return saved || "";
@@ -327,13 +332,14 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
         LS_CARROUSEL,
         JSON.stringify({
           ...existing,
+          ui: draftUI,
           slides,
         })
       );
     } catch {
       // no-op
     }
-  }, [slides]);
+  }, [slides, draftUI]);
 
   const activeSlide = useMemo(() => slides.find((s) => s.id === activeSlideId) || slides[0], [slides, activeSlideId]);
   const activeSlideLayersSig = useMemo(() => layersSignature(activeSlide?.layers ?? []), [activeSlide?.layers]);
@@ -1000,6 +1006,8 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
             <EditorLayout
               initialLayers={stableActiveLayersRef.current}
               initialLayersKey={activeSlideId}
+              initialUI={draftUI}
+              onUIChange={setDraftUI}
               onChange={updateLayers}
               mobileToolsOpen={mobileToolsOpen}
               onCloseMobileTools={onCloseMobileTools}
