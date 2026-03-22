@@ -86,6 +86,103 @@ function stripNonSerializable(input: any): any {
   return out;
 }
 
+
+function estimateWrappedTextHeight({
+  text,
+  width,
+  fontSize,
+  fontFamily,
+  lineHeight,
+}: {
+  text: string;
+  width: number;
+  fontSize: number;
+  fontFamily: string;
+  lineHeight: number;
+}) {
+  const safeText = String(text ?? "");
+  const safeWidth = Math.max(120, Math.round(width || 0));
+  const safeFontSize = Math.max(10, Number(fontSize || 48));
+  const safeLineHeight = Math.max(0.8, Number(lineHeight || 1.2));
+  const horizontalPadding = 24;
+  const innerWidth = Math.max(40, safeWidth - horizontalPadding);
+
+  const measureWithCanvas = () => {
+    if (typeof document === "undefined") return null;
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+
+    ctx.font = `${safeFontSize}px ${fontFamily || "Inter"}`;
+
+    const paragraphs = safeText.split("\n");
+    let lines = 0;
+
+    for (const paragraph of paragraphs) {
+      const words = String(paragraph || "").split(/\s+/).filter(Boolean);
+      if (!words.length) {
+        lines += 1;
+        continue;
+      }
+
+      let current = "";
+      for (const word of words) {
+        const candidate = current ? `${current} ${word}` : word;
+        const candidateWidth = ctx.measureText(candidate).width;
+
+        if (candidateWidth <= innerWidth || !current) {
+          current = candidate;
+          continue;
+        }
+
+        lines += 1;
+        current = word;
+      }
+
+      if (current) lines += 1;
+    }
+
+    return Math.max(1, lines);
+  };
+
+  const measuredLines = measureWithCanvas();
+  const approxLines = measuredLines ?? Math.max(1, Math.ceil((safeText.length * safeFontSize * 0.58) / innerWidth));
+  const verticalPadding = 24;
+  return Math.max(56, Math.ceil(approxLines * safeFontSize * safeLineHeight + verticalPadding));
+}
+
+function autoFitTextLayerSize(layer: LayerData, patch: Partial<LayerData>) {
+  if (layer.type !== "text") return patch;
+  if (typeof patch.height === "number") return patch;
+
+  const nextText = String((patch as any).text ?? (layer as any).text ?? "");
+  const nextStyle = {
+    ...(((layer as any).style ?? {}) as any),
+    ...(((patch as any).style ?? {}) as any),
+  } as any;
+
+  const nextWidth =
+    typeof patch.width === "number"
+      ? patch.width
+      : typeof (layer as any).width === "number"
+      ? (layer as any).width
+      : Math.min(820, Math.max(260, nextText.includes("\n") || nextText.length > 22 ? 420 : 320));
+
+  const nextHeight = estimateWrappedTextHeight({
+    text: nextText,
+    width: nextWidth,
+    fontSize: typeof nextStyle.fontSize === "number" ? nextStyle.fontSize : 48,
+    fontFamily: typeof nextStyle.fontFamily === "string" ? nextStyle.fontFamily : "Inter",
+    lineHeight: typeof nextStyle.lineHeight === "number" ? nextStyle.lineHeight : 1.2,
+  });
+
+  return {
+    ...patch,
+    width: nextWidth,
+    height: nextHeight,
+  } as Partial<LayerData>;
+}
+
 function coerceIncomingLayers(incoming: LayerData[]): LayerData[] {
   return incoming.map((l: any) => {
     if (l?.id === "background") return { ...l, id: BACKGROUND_LAYER_ID } as any;
@@ -564,18 +661,20 @@ export default function EditorLayout({
 
   const updateLayer = useCallback((id: string, patch: Partial<LayerData>) => {
     setLayers((prev: any[]) =>
-      prev.map((l) =>
-        l.id === id
-          ? {
-              ...l,
-              ...patch,
-              style: {
-                ...(l.style ?? {}),
-                ...(patch.style ?? {}),
-              },
-            }
-          : l
-      )
+      prev.map((l) => {
+        if (l.id !== id) return l;
+
+        const normalizedPatch = autoFitTextLayerSize(l as LayerData, patch);
+
+        return {
+          ...l,
+          ...normalizedPatch,
+          style: {
+            ...(l.style ?? {}),
+            ...((normalizedPatch as any).style ?? {}),
+          },
+        };
+      })
     );
   }, []);
 
