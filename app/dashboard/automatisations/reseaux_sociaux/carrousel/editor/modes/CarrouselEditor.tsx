@@ -7,31 +7,18 @@ import EditorLayout from "../v5/ui/EditorLayout";
 interface Props {
   mobileToolsOpen?: boolean;
   onCloseMobileTools?: () => void;
-
-  // ✅ Coach brief (Alex V2) — optional
   brief?: string;
 }
 
 const LS_CARROUSEL = "lgd_editor_carrousel_draft_v5";
 const LS_CARROUSEL_ACTIVE_SLIDE = "lgd_editor_carrousel_active_slide_v5";
-
-// Copilot toggle (persisted)
 const LS_CARROUSEL_COPILOT_OPEN = "lgd_editor_carrousel_copilot_open_v5";
-
-// Brief banner dismissed (per user)
 const LS_BRIEF_DISMISSED = "lgd_editor_brief_dismissed";
 
 type SlideDraft = {
   id: string;
   layers: LayerData[];
 };
-
-/** =========================
- *  IA Copilot (SAFE / texte-only)
- *  - utilise /ai/text/rewrite existant
- *  - ne touche PAS au moteur canvas
- *  - CARROUSEL : slide active uniquement
- *  ========================= */
 
 type Network = "Instagram" | "TikTok" | "LinkedIn" | "Facebook";
 type Objective = "Attirer" | "Éduquer" | "Convertir" | "Story";
@@ -161,45 +148,6 @@ function safeJsonParse(raw: string | null) {
   }
 }
 
-
-
-function stableSig(value: any) {
-  try {
-    return JSON.stringify(value ?? null);
-  } catch {
-    return "";
-  }
-}
-
-function stripNonSerializableUI(input: any): any {
-  if (input == null) return input;
-  const t = typeof input;
-  if (t === "function") return undefined;
-  if (t !== "object") return input;
-
-  const anyObj: any = input as any;
-  if (anyObj?.nodeType === 1 || anyObj?.tagName || anyObj?.nodeName) return undefined;
-
-  if (Array.isArray(input)) {
-    return input
-      .map((x) => stripNonSerializableUI(x))
-      .filter((x) => x !== undefined);
-  }
-
-  const out: any = {};
-  for (const [k, v] of Object.entries(anyObj)) {
-    if (v === undefined) continue;
-    if (k === "runtime" || k === "_runtime" || k === "__runtime") continue;
-    if (k === "konva" || k === "_konva" || k === "__konva") continue;
-    if (k === "stage" || k === "layer" || k === "node" || k === "ref") continue;
-    if (k === "imageElement" || k === "imgEl" || k === "htmlImage") continue;
-
-    const cleaned = stripNonSerializableUI(v);
-    if (cleaned !== undefined) out[k] = cleaned;
-  }
-  return out;
-}
-
 function stableSerialize(value: any): string {
   const seen = new WeakSet();
 
@@ -241,6 +189,42 @@ function layersSignature(layers: LayerData[] | null | undefined) {
       style: l?.style,
     }))
   );
+}
+
+function stripNonSerializableUI(input: any): any {
+  if (input == null) return input;
+  const t = typeof input;
+  if (t === "function") return undefined;
+  if (t !== "object") return input;
+
+  const anyObj: any = input as any;
+  if (anyObj?.nodeType === 1 || anyObj?.tagName || anyObj?.nodeName) return undefined;
+
+  if (Array.isArray(input)) {
+    return input
+      .map((x) => stripNonSerializableUI(x))
+      .filter((x) => x !== undefined);
+  }
+
+  const out: any = {};
+  for (const [k, v] of Object.entries(anyObj)) {
+    if (v === undefined) continue;
+    if (k === "runtime" || k === "_runtime" || k === "__runtime") continue;
+    if (k === "konva" || k === "_konva" || k === "__konva") continue;
+    if (k === "stage" || k === "layer" || k === "node" || k === "ref") continue;
+    if (k === "imageElement" || k === "imgEl" || k === "htmlImage") continue;
+    const cleaned = stripNonSerializableUI(v);
+    if (cleaned !== undefined) out[k] = cleaned;
+  }
+  return out;
+}
+
+function cloneLayersSafe(layers: LayerData[] | null | undefined): LayerData[] {
+  try {
+    return JSON.parse(JSON.stringify(layers || []));
+  } catch {
+    return (layers || []).map((layer: any) => ({ ...layer }));
+  }
 }
 
 function clip(s: string, n = 46) {
@@ -343,9 +327,12 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
     return saved || "";
   });
 
+  const [editorRefreshKey, setEditorRefreshKey] = useState(0);
+
   const activeSlideIdRef = useRef<string>("");
   const uiRef = useRef<any>(draftUI);
-  const lastUiSigRef = useRef<string>(stableSig(stripNonSerializableUI(draftUI ?? {})));
+  const lastUiSigRef = useRef<string>(stableSerialize(stripNonSerializableUI(draftUI ?? {})));
+  const lastLayersSigRef = useRef<string>("");
 
   useEffect(() => {
     activeSlideIdRef.current = activeSlideId;
@@ -378,7 +365,7 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
         LS_CARROUSEL,
         JSON.stringify({
           ...existing,
-          ui: uiRef.current ?? draftUI,
+          ui: stripNonSerializableUI(draftUI),
           slides,
         })
       );
@@ -393,30 +380,53 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
 
   useEffect(() => {
     if (layersSignature(stableActiveLayersRef.current) !== activeSlideLayersSig) {
-      stableActiveLayersRef.current = activeSlide?.layers ?? [];
+      stableActiveLayersRef.current = cloneLayersSafe(activeSlide?.layers ?? []);
     }
   }, [activeSlide?.layers, activeSlideLayersSig]);
 
-  const updateLayers = useCallback((layers: LayerData[]) => {
-    const targetId = activeSlideIdRef.current;
+  useEffect(() => {
+    lastLayersSigRef.current = activeSlideLayersSig;
+  }, [activeSlideLayersSig]);
+
+  const updateLayersForSlide = useCallback((slideId: string, layers: LayerData[]) => {
     const nextSig = layersSignature(layers ?? []);
 
     setSlides((prev) => {
       let changed = false;
       const next = prev.map((s) => {
-        if (s.id !== targetId) return s;
+        if (s.id !== slideId) return s;
         if (layersSignature(s.layers) === nextSig) return s;
         changed = true;
-        return { ...s, layers: layers ?? [] };
+        return { ...s, layers: cloneLayersSafe(layers ?? []) };
       });
       return changed ? next : prev;
     });
+  }, []);
+
+  const handleEditorChange = useCallback((layers: LayerData[]) => {
+    const targetId = activeSlideIdRef.current;
+    const nextSig = layersSignature(layers ?? []);
+    if (nextSig === lastLayersSigRef.current) return;
+
+    lastLayersSigRef.current = nextSig;
+    updateLayersForSlide(targetId, layers ?? []);
+  }, [updateLayersForSlide]);
+
+  const handleUIChange = useCallback((ui: any) => {
+    const cleaned = stripNonSerializableUI(ui ?? {});
+    const sig = stableSerialize(cleaned ?? {});
+    if (sig === lastUiSigRef.current) return;
+
+    lastUiSigRef.current = sig;
+    uiRef.current = cleaned;
+    setDraftUI(cleaned);
   }, []);
 
   const addSlide = useCallback(() => {
     const id = cryptoId("slide");
     setSlides((prev) => [...prev, { id, layers: [] }]);
     setActiveSlideId(id);
+    setEditorRefreshKey((k) => k + 1);
   }, []);
 
   const duplicateActiveSlide = useCallback(() => {
@@ -425,13 +435,14 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
       const idx = prev.findIndex((s) => s.id === activeSlide.id);
       const clone: SlideDraft = {
         id,
-        layers: JSON.parse(JSON.stringify(activeSlide.layers || [])),
+        layers: cloneLayersSafe(activeSlide.layers || []),
       };
       const next = [...prev];
       next.splice(idx + 1, 0, clone);
       return next;
     });
     setActiveSlideId(id);
+    setEditorRefreshKey((k) => k + 1);
   }, [activeSlide.id, activeSlide.layers]);
 
   const deleteActiveSlide = useCallback(() => {
@@ -443,6 +454,7 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
       setActiveSlideId(fallback);
       return next;
     });
+    setEditorRefreshKey((k) => k + 1);
   }, [activeSlide.id]);
 
   const textLayers = useMemo(() => {
@@ -456,18 +468,10 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
   }, [textLayers]);
 
   const [targetLayerId, setTargetLayerId] = useState<string>("");
-  useEffect(() => {
-    const nextId = defaultTargetId || "";
-    if (!nextId) {
-      if (targetLayerId) setTargetLayerId("");
-      return;
-    }
 
-    const exists = textLayers.some((l: any) => String(l?.id) === String(targetLayerId));
-    if (!targetLayerId || !exists) {
-      setTargetLayerId(nextId);
-    }
-  }, [activeSlideId, defaultTargetId, textLayers, targetLayerId]);
+  useEffect(() => {
+    setTargetLayerId(defaultTargetId || "");
+  }, [activeSlideId, defaultTargetId]);
 
   const [idea, setIdea] = useState<string>("");
   const [network, setNetwork] = useState<Network>("Instagram");
@@ -505,16 +509,6 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
     return (activeSlide?.layers ?? []).find((l: any) => String(l?.id) === String(targetLayerId)) as any;
   }, [activeSlide?.layers, targetLayerId]);
 
-  const handleUIChange = useCallback((ui: any) => {
-    const cleaned = stripNonSerializableUI(ui ?? {});
-    const sig = stableSig(cleaned ?? {});
-    if (sig === lastUiSigRef.current) return;
-
-    lastUiSigRef.current = sig;
-    uiRef.current = cleaned;
-    setDraftUI((prev: any) => (stableSig(stripNonSerializableUI(prev ?? {})) === sig ? prev : cleaned));
-  }, []);
-
   const syncEditorSelection = useCallback(
     (id: string) => {
       if (!id) return;
@@ -541,7 +535,7 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
 
       if (alreadySelected) return;
 
-      handleUIChange({
+      const nextUI = {
         ...currentUI,
         selectedLayerId: id,
         selectedId: id,
@@ -552,7 +546,8 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
           id,
           ids: [id],
         },
-      });
+      };
+      handleUIChange(nextUI);
     },
     [handleUIChange]
   );
@@ -565,10 +560,9 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
     (text: string) => {
       if (!text) return;
       const id = targetLayerId || defaultTargetId;
-      const slideId = activeSlide?.id;
-      if (!id || !slideId) return;
+      if (!id) return;
 
-      const layers = activeSlide?.layers ?? [];
+      const layers = cloneLayersSafe(activeSlide?.layers ?? []);
       if (!layers.length) return;
 
       const next = layers.map((l: any) => {
@@ -577,20 +571,13 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
         return { ...l, text };
       });
 
-      const nextSig = layersSignature(next as any);
-      setSlides((prev) =>
-        prev.map((s) => {
-          if (s.id !== slideId) return s;
-          if (layersSignature(s.layers) === nextSig) return s;
-          return { ...s, layers: next as any };
-        })
-      );
-
-      requestAnimationFrame(() => {
-        syncEditorSelection(id);
-      });
+      updateLayersForSlide(activeSlideIdRef.current, next as any);
+      stableActiveLayersRef.current = cloneLayersSafe(next as any);
+      lastLayersSigRef.current = layersSignature(next as any);
+      setEditorRefreshKey((k) => k + 1);
+      syncEditorSelection(id);
     },
-    [activeSlide?.id, activeSlide?.layers, targetLayerId, defaultTargetId, syncEditorSelection]
+    [activeSlide?.layers, targetLayerId, defaultTargetId, updateLayersForSlide, syncEditorSelection]
   );
 
   function buildContext() {
@@ -733,7 +720,7 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
     setTimeout(() => {
       runCopilot("slideText").catch(() => {});
     }, 0);
-  }, [brief]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [brief]);
 
   const [auditLoading, setAuditLoading] = useState(false);
   const [auditError, setAuditError] = useState<string | null>(null);
@@ -1043,18 +1030,6 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
                             </option>
                           ))}
                         </select>
-
-                        <div className="mt-2 flex flex-wrap items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => syncEditorSelection(targetLayerId || defaultTargetId)}
-                            disabled={!targetLayerId && !defaultTargetId}
-                            className="rounded-xl px-3 py-2 text-xs text-yellow-100 border border-yellow-500/20 bg-black/40 hover:bg-black/60 disabled:opacity-60"
-                          >
-                            Sélectionner ce layer dans l’éditeur
-                          </button>
-                          <div className="text-[11px] text-white/45">La cible texte reste synchronisée avec la slide active.</div>
-                        </div>
                       </div>
                     </div>
 
@@ -1139,9 +1114,12 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
             </div>
 
             <EditorLayout
+              key={`${activeSlideId}-${editorRefreshKey}`}
               initialLayers={stableActiveLayersRef.current}
-              initialLayersKey={activeSlideId}
-              onChange={updateLayers}
+              initialLayersKey={`${activeSlideId}-${editorRefreshKey}`}
+              initialUI={draftUI}
+              onUIChange={handleUIChange}
+              onChange={handleEditorChange}
               mobileToolsOpen={mobileToolsOpen}
               onCloseMobileTools={onCloseMobileTools}
             />
@@ -1152,7 +1130,10 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
                 return (
                   <button
                     key={s.id}
-                    onClick={() => setActiveSlideId(s.id)}
+                    onClick={() => {
+                      setActiveSlideId(s.id);
+                      setEditorRefreshKey((k) => k + 1);
+                    }}
                     className={[
                       "px-4 py-2 rounded-xl border text-sm",
                       active
