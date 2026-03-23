@@ -25,6 +25,60 @@ function clamp(n: number, a: number, b: number) {
   return Math.max(a, Math.min(b, n));
 }
 
+function clampFloat(n: number, a: number, b: number) {
+  const v = Number.isFinite(n) ? n : a;
+  return Math.max(a, Math.min(b, v));
+}
+
+function apiBase() {
+  return (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
+}
+
+function getAuthHeaders() {
+  if (typeof window === "undefined") return {};
+  const token =
+    window.localStorage.getItem("access_token") ||
+    window.localStorage.getItem("token") ||
+    window.localStorage.getItem("jwt") ||
+    "";
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+async function aiRewriteText(args: { text: string; tone?: string; max_length?: number }) {
+  const base = apiBase();
+  if (!base) throw new Error("NEXT_PUBLIC_API_URL manquant");
+
+  const res = await fetch(`${base}/ai/text/rewrite`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
+    credentials: "include",
+    body: JSON.stringify({
+      text: args.text,
+      tone: args.tone || undefined,
+      max_length: args.max_length && args.max_length > 0 ? args.max_length : undefined,
+    }),
+  });
+
+  if (!res.ok) {
+    let detail = "";
+    try {
+      const j = await res.json();
+      detail = j?.detail || j?.message || "";
+    } catch {
+      // ignore
+    }
+    throw new Error(detail || `IA indisponible (HTTP ${res.status})`);
+  }
+
+  const data = await res.json().catch(() => ({} as any));
+  const out = data?.result ?? data?.text ?? data?.output ?? "";
+  if (!out || typeof out !== "string") throw new Error("Réponse IA invalide");
+  return out;
+}
+
 function normalizeHex(input: string) {
   let v = (input || "").trim();
   if (!v) return "#ffffff";
@@ -40,59 +94,21 @@ function normalizeHex(input: string) {
   return "#ffffff";
 }
 
-
-function estimateTextHeight(text: string, options: { width: number; fontSize: number; lineHeight: number; fontFamily: string; fontWeight: string; fontStyle: string; }) {
-  if (typeof document === "undefined") return Math.max(120, Math.ceil((options.fontSize || 48) * (options.lineHeight || 1.2) * 3));
-
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return Math.max(120, Math.ceil((options.fontSize || 48) * (options.lineHeight || 1.2) * 3));
-
-  ctx.font = `${options.fontStyle} ${options.fontWeight} ${options.fontSize}px ${options.fontFamily}`.trim();
-  const usableWidth = Math.max(40, options.width - 24);
-  const paragraphs = String(text || "")
-  .replace(/\r/g, "")
-  .split(/\n/);
-  let lineCount = 0;
-
-  for (const paragraph of paragraphs) {
-    if (!paragraph) {
-      lineCount += 1;
-      continue;
-    }
-
-    const words = paragraph.split(/\s+/).filter(Boolean);
-    let current = "";
-
-    for (const word of words) {
-      const test = current ? `${current} ${word}` : word;
-      const width = ctx.measureText(test).width;
-      if (width <= usableWidth || !current) {
-        current = test;
-      } else {
-        lineCount += 1;
-        current = word;
-      }
-    }
-
-    lineCount += current ? 1 : 1;
-  }
-
-  const height = Math.ceil(lineCount * options.fontSize * options.lineHeight + 24);
-  return clamp(height, 40, 4000);
-}
-
 export default function PropertiesDrawer({ open, layer, onClose, onChange }: Props) {
   const isText = layer?.type === "text";
   const isImage = layer?.type === "image";
 
   const style = ((layer as any)?.style ?? {}) as any;
-  const [textDraft, setTextDraft] = useState<string>(String((layer as any)?.text ?? ""));
+
+  const [aiTone, setAiTone] = useState<string>("coach direct, clair, concret, orienté résultats");
+  const [aiMaxLen, setAiMaxLen] = useState<number>(0);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!layer || !isText) return;
-    setTextDraft(String((layer as any)?.text ?? ""));
-  }, [layer?.id, (layer as any)?.text, isText]);
+    setAiError(null);
+    setAiLoading(false);
+  }, [layer?.id]);
 
   const metrics = useMemo(() => {
     if (!layer) return null;
@@ -105,21 +121,7 @@ export default function PropertiesDrawer({ open, layer, onClose, onChange }: Pro
   if (!open || !layer) return null;
 
   const setStyle = (patch: any) => {
-    const nextStyle = { ...(style ?? {}), ...(patch ?? {}) };
-    if (isText) {
-      const width = typeof (layer as any)?.width === "number" ? (layer as any).width : 420;
-      const nextHeight = estimateTextHeight(String(textDraft || ""), {
-        width,
-        fontSize: typeof nextStyle.fontSize === "number" ? nextStyle.fontSize : 48,
-        lineHeight: typeof nextStyle.lineHeight === "number" ? nextStyle.lineHeight : 1.2,
-        fontFamily: String(nextStyle.fontFamily || "Inter"),
-        fontWeight: String(nextStyle.fontWeight || "normal"),
-        fontStyle: String(nextStyle.fontStyle || "normal"),
-      });
-      onChange({ style: nextStyle, height: nextHeight } as any);
-      return;
-    }
-    onChange({ style: nextStyle } as any);
+    onChange({ style: { ...(style ?? {}), ...(patch ?? {}) } } as any);
   };
 
   const toggleStyleFlag = (key: string, onValue: any, offValue: any) => {
@@ -149,6 +151,10 @@ export default function PropertiesDrawer({ open, layer, onClose, onChange }: Pro
 
   const lineHeight =
     typeof style.lineHeight === "number" && Number.isFinite(style.lineHeight) ? style.lineHeight : 1.2;
+
+  const setLineHeight = (v: number) => {
+    setStyle({ lineHeight: clampFloat(v, 0.8, 3) });
+  };
 
   return (
     <div className="mt-4 rounded-2xl border border-yellow-500/15 bg-black/40 p-4">
@@ -203,9 +209,7 @@ export default function PropertiesDrawer({ open, layer, onClose, onChange }: Pro
             >
               ↓
             </button>
-            <div className="col-span-2 text-[11px] text-white/45 flex items-center">
-              Déplacer au pixel près
-            </div>
+            <div className="col-span-2 text-[11px] text-white/45 flex items-center">Déplacer au pixel près</div>
           </div>
         </div>
       )}
@@ -215,46 +219,80 @@ export default function PropertiesDrawer({ open, layer, onClose, onChange }: Pro
           <div>
             <label className="block text-yellow-400 text-xs mb-2">Texte</label>
             <textarea
-              value={textDraft}
-              onChange={(e) => {
-                const value = e.target.value;
-                setTextDraft(value);
-                const width = typeof (layer as any)?.width === "number" ? (layer as any).width : 420;
-                const nextHeight = estimateTextHeight(value, {
-                  width,
-                  fontSize: typeof style.fontSize === "number" ? style.fontSize : 48,
-                  lineHeight: lineHeight,
-                  fontFamily: String(style.fontFamily || "Inter"),
-                  fontWeight: String(style.fontWeight || "normal"),
-                  fontStyle: String(style.fontStyle || "normal"),
-                });
-                onChange({ text: value, height: nextHeight } as any);
-              }}
-              onKeyDown={(e) => {
-                if (e.key !== "Tab") return;
-                e.preventDefault();
-                const target = e.currentTarget;
-                const start = target.selectionStart ?? 0;
-                const end = target.selectionEnd ?? 0;
-                const value = `${textDraft.slice(0, start)}  ${textDraft.slice(end)}`;
-                setTextDraft(value);
-                const width = typeof (layer as any)?.width === "number" ? (layer as any).width : 420;
-                const nextHeight = estimateTextHeight(value, {
-                  width,
-                  fontSize: typeof style.fontSize === "number" ? style.fontSize : 48,
-                  lineHeight: lineHeight,
-                  fontFamily: String(style.fontFamily || "Inter"),
-                  fontWeight: String(style.fontWeight || "normal"),
-                  fontStyle: String(style.fontStyle || "normal"),
-                });
-                onChange({ text: value, height: nextHeight } as any);
-                requestAnimationFrame(() => {
-                  target.selectionStart = target.selectionEnd = start + 2;
-                });
-              }}
+              value={String((layer as any).text ?? "")}
+              onChange={(e) => onChange({ text: e.target.value } as any)}
               rows={4}
               className="w-full rounded-xl bg-black/40 border border-yellow-500/20 px-3 py-2 text-yellow-100 outline-none"
             />
+          </div>
+
+          <div className="mt-2 rounded-2xl border border-yellow-500/20 bg-black/30 p-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-xs font-semibold text-yellow-200">Assistant IA</div>
+              <div className="text-[11px] text-white/45">Spécial marketing digital • MRR</div>
+            </div>
+
+            <div className="mt-3 grid grid-cols-1 gap-3">
+              <div>
+                <label className="block text-yellow-400 text-xs mb-2">Ton / Style</label>
+                <input
+                  value={aiTone}
+                  onChange={(e) => setAiTone(e.target.value)}
+                  placeholder="ex: coach direct, storytelling, expert..."
+                  className="w-full rounded-xl bg-black/40 border border-yellow-500/20 px-3 py-2 text-yellow-100 outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-yellow-400 text-xs mb-2">Longueur max (caractères)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={aiMaxLen}
+                    onChange={(e) => setAiMaxLen(Number(e.target.value || 0))}
+                    className="w-full rounded-xl bg-black/40 border border-yellow-500/20 px-3 py-2 text-yellow-100 outline-none"
+                  />
+                </div>
+
+                <div className="flex items-end">
+                  <button
+                    onClick={async () => {
+                      if (layer.type !== "text") return;
+                      const current = String((layer as any).text ?? "").trim();
+                      if (!current) {
+                        setAiError("Ajoute du texte avant de demander une réécriture.");
+                        return;
+                      }
+                      setAiError(null);
+                      setAiLoading(true);
+                      try {
+                        const out = await aiRewriteText({
+                          text: current,
+                          tone: aiTone?.trim() ? aiTone.trim() : undefined,
+                          max_length: aiMaxLen > 0 ? aiMaxLen : undefined,
+                        });
+                        onChange({ text: out } as any);
+                      } catch (err: any) {
+                        setAiError(err?.message || "Erreur IA");
+                      } finally {
+                        setAiLoading(false);
+                      }
+                    }}
+                    disabled={aiLoading || !String((layer as any).text ?? "").trim()}
+                    className="w-full rounded-xl bg-[#ffb800] px-3 py-2 text-sm font-semibold text-black hover:brightness-110 disabled:opacity-60"
+                  >
+                    {aiLoading ? "Réécriture..." : "Réécrire avec IA"}
+                  </button>
+                </div>
+              </div>
+
+              {aiError ? (
+                <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-[12px] text-red-200">
+                  {aiError}
+                </div>
+              ) : null}
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -293,7 +331,7 @@ export default function PropertiesDrawer({ open, layer, onClose, onChange }: Pro
                 max={3}
                 step={0.05}
                 value={lineHeight}
-                onChange={(e) => setStyle({ lineHeight: Number(e.target.value) })}
+                onChange={(e) => setLineHeight(Number(e.target.value))}
                 className="flex-1 accent-[#ffb800]"
               />
               <input
@@ -301,11 +339,12 @@ export default function PropertiesDrawer({ open, layer, onClose, onChange }: Pro
                 min={0.8}
                 max={3}
                 step={0.05}
-                value={lineHeight}
-                onChange={(e) => setStyle({ lineHeight: Number(e.target.value) })}
-                className="w-20 rounded-xl bg-black/40 border border-yellow-500/20 px-2 py-2 text-yellow-100 text-sm"
+                value={Number(lineHeight.toFixed(2))}
+                onChange={(e) => setLineHeight(Number(e.target.value))}
+                className="w-24 rounded-xl bg-black/40 border border-yellow-500/20 px-3 py-2 text-yellow-100"
               />
             </div>
+            <div className="mt-1 text-[11px] text-white/45">1.2 = standard • 0.8 serré • 1.6 aéré</div>
           </div>
 
           <div className="space-y-3">
@@ -407,22 +446,7 @@ export default function PropertiesDrawer({ open, layer, onClose, onChange }: Pro
               <input
                 type="number"
                 value={typeof (layer as any).width === "number" ? (layer as any).width : 420}
-                onChange={(e) => {
-                  const width = clamp(Number(e.target.value || 0), 40, 4000);
-                  if (isText) {
-                    const nextHeight = estimateTextHeight(textDraft, {
-                      width,
-                      fontSize: typeof style.fontSize === "number" ? style.fontSize : 48,
-                      lineHeight: lineHeight,
-                      fontFamily: String(style.fontFamily || "Inter"),
-                      fontWeight: String(style.fontWeight || "normal"),
-                      fontStyle: String(style.fontStyle || "normal"),
-                    });
-                    onChange({ width, height: nextHeight } as any);
-                  } else {
-                    onChange({ width } as any);
-                  }
-                }}
+                onChange={(e) => onChange({ width: clamp(Number(e.target.value || 0), 40, 4000) } as any)}
                 className="w-full rounded-xl bg-black/40 border border-yellow-500/20 px-3 py-2 text-yellow-100"
               />
             </div>
