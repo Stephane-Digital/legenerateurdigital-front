@@ -7,18 +7,31 @@ import EditorLayout from "../v5/ui/EditorLayout";
 interface Props {
   mobileToolsOpen?: boolean;
   onCloseMobileTools?: () => void;
+
+  // ✅ Coach brief (Alex V2) — optional
   brief?: string;
 }
 
 const LS_CARROUSEL = "lgd_editor_carrousel_draft_v5";
 const LS_CARROUSEL_ACTIVE_SLIDE = "lgd_editor_carrousel_active_slide_v5";
+
+// Copilot toggle (persisted)
 const LS_CARROUSEL_COPILOT_OPEN = "lgd_editor_carrousel_copilot_open_v5";
+
+// Brief banner dismissed (per user)
 const LS_BRIEF_DISMISSED = "lgd_editor_brief_dismissed";
 
 type SlideDraft = {
   id: string;
   layers: LayerData[];
 };
+
+/** =========================
+ *  IA Copilot (SAFE / texte-only)
+ *  - utilise /ai/text/rewrite existant
+ *  - ne touche PAS au moteur canvas
+ *  - CARROUSEL : slide active uniquement
+ *  ========================= */
 
 type Network = "Instagram" | "TikTok" | "LinkedIn" | "Facebook";
 type Objective = "Attirer" | "Éduquer" | "Convertir" | "Story";
@@ -147,6 +160,8 @@ function safeJsonParse(raw: string | null) {
     return null;
   }
 }
+
+
 
 function stableSig(value: any) {
   try {
@@ -303,61 +318,6 @@ function inferAngleFromBrief(brief: string): Angle {
   return "Produit digital";
 }
 
-function cloneLayersSafe<T>(layers: T[]): T[] {
-  try {
-    return JSON.parse(JSON.stringify(layers || []));
-  } catch {
-    return [...(layers || [])];
-  }
-}
-
-function autoSizeTextLayer(layer: any) {
-  if (!layer || layer.type !== "text") return layer;
-
-  const text = String(layer.text ?? "");
-  const style = layer.style || {};
-  const fontSize = Math.max(12, Number(style.fontSize ?? style.font_size ?? 36) || 36);
-  const lineHeight = Math.max(1, Number(style.lineHeight ?? style.line_height ?? 1.2) || 1.2);
-  const width = Math.max(120, Number(layer.width ?? 320) || 320);
-  const paddingX = 16;
-  const usableWidth = Math.max(60, width - paddingX * 2);
-  const avgCharWidth = Math.max(6, fontSize * 0.58);
-  const charsPerLine = Math.max(1, Math.floor(usableWidth / avgCharWidth));
-
-  const lines = text
-    .split(/\r?\n/)
-    .flatMap((paragraph: string) => {
-      if (!paragraph) return [""];
-      const words = paragraph.split(/\s+/).filter(Boolean);
-      if (!words.length) return [""];
-
-      const out: string[] = [];
-      let current = "";
-      for (const word of words) {
-        const candidate = current ? `${current} ${word}` : word;
-        if (candidate.length <= charsPerLine) {
-          current = candidate;
-        } else {
-          if (current) out.push(current);
-          if (word.length > charsPerLine) {
-            for (let i = 0; i < word.length; i += charsPerLine) {
-              out.push(word.slice(i, i + charsPerLine));
-            }
-            current = "";
-          } else {
-            current = word;
-          }
-        }
-      }
-      if (current) out.push(current);
-      return out.length ? out : [""];
-    });
-
-  const totalLines = Math.max(1, lines.length);
-  const height = Math.max(56, Math.ceil(totalLines * fontSize * lineHeight + 24));
-  return { ...layer, height };
-}
-
 export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, brief }: Props) {
   const [slides, setSlides] = useState<SlideDraft[]>(() => {
     const parsed = safeJsonParse(typeof window !== "undefined" ? window.localStorage.getItem(LS_CARROUSEL) : null);
@@ -378,23 +338,22 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
     return parsed?.ui || undefined;
   });
 
-  useEffect(() => {
-    uiRef.current = draftUI;
-    lastUiSigRef.current = stableSig(draftUI ?? {});
-  }, [draftUI]);
-
   const [activeSlideId, setActiveSlideId] = useState<string>(() => {
     const saved = typeof window !== "undefined" ? window.localStorage.getItem(LS_CARROUSEL_ACTIVE_SLIDE) : null;
     return saved || "";
   });
 
   const activeSlideIdRef = useRef<string>("");
-  const uiRef = useRef<any>(undefined);
-  const lastUiSigRef = useRef<string>("");
+  const uiRef = useRef<any>(draftUI);
+  const lastUiSigRef = useRef<string>(stableSig(stripNonSerializableUI(draftUI ?? {})));
 
   useEffect(() => {
     activeSlideIdRef.current = activeSlideId;
   }, [activeSlideId]);
+
+  useEffect(() => {
+    uiRef.current = draftUI;
+  }, [draftUI]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -419,7 +378,7 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
         LS_CARROUSEL,
         JSON.stringify({
           ...existing,
-          ui: draftUI,
+          ui: uiRef.current ?? draftUI,
           slides,
         })
       );
@@ -427,15 +386,6 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
       // no-op
     }
   }, [slides, draftUI]);
-
-  const handleUIChange = useCallback((ui: any) => {
-    const cleaned = stripNonSerializableUI(ui ?? {});
-    const sig = stableSig(cleaned ?? {});
-    if (sig === lastUiSigRef.current) return;
-    lastUiSigRef.current = sig;
-    uiRef.current = cleaned;
-    setDraftUI((prev: any) => (stableSig(prev ?? {}) === sig ? prev : cleaned));
-  }, []);
 
   const activeSlide = useMemo(() => slides.find((s) => s.id === activeSlideId) || slides[0], [slides, activeSlideId]);
   const activeSlideLayersSig = useMemo(() => layersSignature(activeSlide?.layers ?? []), [activeSlide?.layers]);
@@ -447,25 +397,21 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
     }
   }, [activeSlide?.layers, activeSlideLayersSig]);
 
-  const updateLayersForSlide = useCallback((slideId: string, layers: LayerData[]) => {
+  const updateLayers = useCallback((layers: LayerData[]) => {
+    const targetId = activeSlideIdRef.current;
     const nextSig = layersSignature(layers ?? []);
 
     setSlides((prev) => {
       let changed = false;
       const next = prev.map((s) => {
-        if (s.id !== slideId) return s;
+        if (s.id !== targetId) return s;
         if (layersSignature(s.layers) === nextSig) return s;
         changed = true;
-        return { ...s, layers: cloneLayersSafe(layers ?? []) };
+        return { ...s, layers: layers ?? [] };
       });
       return changed ? next : prev;
     });
   }, []);
-
-  const updateLayers = useCallback((layers: LayerData[]) => {
-    const targetId = activeSlideIdRef.current;
-    updateLayersForSlide(targetId, layers ?? []);
-  }, [updateLayersForSlide]);
 
   const addSlide = useCallback(() => {
     const id = cryptoId("slide");
@@ -479,7 +425,7 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
       const idx = prev.findIndex((s) => s.id === activeSlide.id);
       const clone: SlideDraft = {
         id,
-        layers: cloneLayersSafe(activeSlide.layers || []),
+        layers: JSON.parse(JSON.stringify(activeSlide.layers || [])),
       };
       const next = [...prev];
       next.splice(idx + 1, 0, clone);
@@ -511,8 +457,17 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
 
   const [targetLayerId, setTargetLayerId] = useState<string>("");
   useEffect(() => {
-    setTargetLayerId(defaultTargetId || "");
-  }, [activeSlideId, defaultTargetId]);
+    const nextId = defaultTargetId || "";
+    if (!nextId) {
+      if (targetLayerId) setTargetLayerId("");
+      return;
+    }
+
+    const exists = textLayers.some((l: any) => String(l?.id) === String(targetLayerId));
+    if (!targetLayerId || !exists) {
+      setTargetLayerId(nextId);
+    }
+  }, [activeSlideId, defaultTargetId, textLayers, targetLayerId]);
 
   const [idea, setIdea] = useState<string>("");
   const [network, setNetwork] = useState<Network>("Instagram");
@@ -550,6 +505,16 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
     return (activeSlide?.layers ?? []).find((l: any) => String(l?.id) === String(targetLayerId)) as any;
   }, [activeSlide?.layers, targetLayerId]);
 
+  const handleUIChange = useCallback((ui: any) => {
+    const cleaned = stripNonSerializableUI(ui ?? {});
+    const sig = stableSig(cleaned ?? {});
+    if (sig === lastUiSigRef.current) return;
+
+    lastUiSigRef.current = sig;
+    uiRef.current = cleaned;
+    setDraftUI((prev: any) => (stableSig(stripNonSerializableUI(prev ?? {})) === sig ? prev : cleaned));
+  }, []);
+
   const syncEditorSelection = useCallback(
     (id: string) => {
       if (!id) return;
@@ -576,7 +541,7 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
 
       if (alreadySelected) return;
 
-      const nextUI = {
+      handleUIChange({
         ...currentUI,
         selectedLayerId: id,
         selectedId: id,
@@ -587,8 +552,7 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
           id,
           ids: [id],
         },
-      };
-      handleUIChange(nextUI);
+      });
     },
     [handleUIChange]
   );
@@ -601,23 +565,32 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
     (text: string) => {
       if (!text) return;
       const id = targetLayerId || defaultTargetId;
-      if (!id) return;
+      const slideId = activeSlide?.id;
+      if (!id || !slideId) return;
 
-      const currentSlideId = activeSlideIdRef.current || activeSlide?.id;
-      const currentSlide = slides.find((s) => s.id === currentSlideId) || activeSlide;
-      const layers = currentSlide?.layers ?? [];
-      if (!layers.length || !currentSlideId) return;
+      const layers = activeSlide?.layers ?? [];
+      if (!layers.length) return;
 
       const next = layers.map((l: any) => {
         if (String(l?.id) !== String(id)) return l;
         if (l?.type !== "text") return l;
-        return autoSizeTextLayer({ ...l, text });
+        return { ...l, text };
       });
 
-      updateLayersForSlide(currentSlideId, next as any);
-      syncEditorSelection(id);
+      const nextSig = layersSignature(next as any);
+      setSlides((prev) =>
+        prev.map((s) => {
+          if (s.id !== slideId) return s;
+          if (layersSignature(s.layers) === nextSig) return s;
+          return { ...s, layers: next as any };
+        })
+      );
+
+      requestAnimationFrame(() => {
+        syncEditorSelection(id);
+      });
     },
-    [slides, activeSlide, targetLayerId, defaultTargetId, updateLayersForSlide, syncEditorSelection]
+    [activeSlide?.id, activeSlide?.layers, targetLayerId, defaultTargetId, syncEditorSelection]
   );
 
   function buildContext() {
@@ -747,13 +720,16 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
 
     if (copilotDisabled) return;
     if (aiLoading) return;
+
     if (lastInjectedBriefSigRef.current === sig) return;
+
     if (aiOutput && aiOutput.trim().length > 0) {
       lastInjectedBriefSigRef.current = sig;
       return;
     }
 
     lastInjectedBriefSigRef.current = sig;
+
     setTimeout(() => {
       runCopilot("slideText").catch(() => {});
     }, 0);
@@ -927,11 +903,41 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
               {copilotOpen ? (
                 <div className="px-5 pb-5">
                   <div className="flex flex-wrap gap-2">
-                    <button onClick={() => runCopilot("hooks")} disabled={aiLoading || copilotDisabled} className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60">Hooks x10</button>
-                    <button onClick={() => runCopilot("slideText")} disabled={aiLoading || copilotDisabled} className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60">Texte slide</button>
-                    <button onClick={() => runCopilot("steps")} disabled={aiLoading || copilotDisabled} className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60">3 étapes</button>
-                    <button onClick={() => runCopilot("cta")} disabled={aiLoading || copilotDisabled} className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60">CTA</button>
-                    <button onClick={() => runCopilot("rewrite")} disabled={aiLoading || copilotDisabled || !targetLayerId} className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60">Réécrire</button>
+                    <button
+                      onClick={() => runCopilot("hooks")}
+                      disabled={aiLoading || copilotDisabled}
+                      className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
+                    >
+                      Hooks x10
+                    </button>
+                    <button
+                      onClick={() => runCopilot("slideText")}
+                      disabled={aiLoading || copilotDisabled}
+                      className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
+                    >
+                      Texte slide
+                    </button>
+                    <button
+                      onClick={() => runCopilot("steps")}
+                      disabled={aiLoading || copilotDisabled}
+                      className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
+                    >
+                      3 étapes
+                    </button>
+                    <button
+                      onClick={() => runCopilot("cta")}
+                      disabled={aiLoading || copilotDisabled}
+                      className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
+                    >
+                      CTA
+                    </button>
+                    <button
+                      onClick={() => runCopilot("rewrite")}
+                      disabled={aiLoading || copilotDisabled || !targetLayerId}
+                      className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
+                    >
+                      Réécrire
+                    </button>
                   </div>
 
                   <div className="mt-4 grid grid-cols-1 lg:grid-cols-12 gap-4">
@@ -950,7 +956,11 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
                       <div className="mt-3 grid grid-cols-2 gap-3">
                         <div>
                           <label className="block text-yellow-300 text-xs mb-2">Réseau</label>
-                          <select value={network} onChange={(e) => setNetwork(e.target.value as Network)} className="w-full rounded-2xl bg-black/40 border border-yellow-500/20 px-4 py-3 text-yellow-100 outline-none">
+                          <select
+                            value={network}
+                            onChange={(e) => setNetwork(e.target.value as Network)}
+                            className="w-full rounded-2xl bg-black/40 border border-yellow-500/20 px-4 py-3 text-yellow-100 outline-none"
+                          >
                             <option>Instagram</option>
                             <option>TikTok</option>
                             <option>LinkedIn</option>
@@ -999,19 +1009,33 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
 
                         <div>
                           <label className="block text-yellow-300 text-xs mb-2">Longueur max (caractères)</label>
-                          <input type="number" min={0} value={maxChars} onChange={(e) => setMaxChars(Number(e.target.value || 0))} className="w-full rounded-2xl bg-black/40 border border-yellow-500/20 px-4 py-3 text-yellow-100 outline-none" />
+                          <input
+                            type="number"
+                            min={0}
+                            value={maxChars}
+                            onChange={(e) => setMaxChars(Number(e.target.value || 0))}
+                            className="w-full rounded-2xl bg-black/40 border border-yellow-500/20 px-4 py-3 text-yellow-100 outline-none"
+                          />
                           <div className="mt-1 text-[11px] text-white/45">0 = auto • approx. caractères</div>
                         </div>
                       </div>
 
                       <div className="mt-3">
                         <label className="block text-yellow-300 text-xs mb-2">Ton / Style (LGD)</label>
-                        <input value={tone} onChange={(e) => setTone(e.target.value)} className="w-full rounded-2xl bg-black/40 border border-yellow-500/20 px-4 py-3 text-yellow-100 outline-none" />
+                        <input
+                          value={tone}
+                          onChange={(e) => setTone(e.target.value)}
+                          className="w-full rounded-2xl bg-black/40 border border-yellow-500/20 px-4 py-3 text-yellow-100 outline-none"
+                        />
                       </div>
 
                       <div className="mt-3">
                         <label className="block text-yellow-300 text-xs mb-2">Appliquer sur le layer texte (slide active)</label>
-                        <select value={targetLayerId} onChange={(e) => setTargetLayerId(e.target.value)} className="w-full rounded-2xl bg-black/40 border border-yellow-500/20 px-4 py-3 text-yellow-100 outline-none">
+                        <select
+                          value={targetLayerId}
+                          onChange={(e) => setTargetLayerId(e.target.value)}
+                          className="w-full rounded-2xl bg-black/40 border border-yellow-500/20 px-4 py-3 text-yellow-100 outline-none"
+                        >
                           {textLayers.length === 0 ? <option value="">Aucun layer texte</option> : null}
                           {textLayers.map((l: any) => (
                             <option key={String(l.id)} value={String(l.id)}>
@@ -1029,9 +1053,7 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
                           >
                             Sélectionner ce layer dans l’éditeur
                           </button>
-                          <div className="text-[11px] text-white/45">
-                            La cible texte reste synchronisée avec la slide active.
-                          </div>
+                          <div className="text-[11px] text-white/45">La cible texte reste synchronisée avec la slide active.</div>
                         </div>
                       </div>
                     </div>
@@ -1041,8 +1063,23 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
                         <div className="flex items-center justify-between gap-3">
                           <div className="text-yellow-200 font-semibold">Résultat IA</div>
                           <div className="flex items-center gap-2">
-                            <button onClick={() => applyToLayer(aiOutput)} disabled={aiLoading || !aiOutput || textLayers.length === 0} className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60">Appliquer au layer</button>
-                            <button onClick={() => { setAiOutput(""); setAiHooks([]); setAiError(null); }} className="rounded-xl px-3 py-2 text-sm text-yellow-100 border border-yellow-500/20 bg-black/40 hover:bg-black/60">Effacer</button>
+                            <button
+                              onClick={() => applyToLayer(aiOutput)}
+                              disabled={aiLoading || !aiOutput || textLayers.length === 0}
+                              className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
+                            >
+                              Appliquer au layer
+                            </button>
+                            <button
+                              onClick={() => {
+                                setAiOutput("");
+                                setAiHooks([]);
+                                setAiError(null);
+                              }}
+                              className="rounded-xl px-3 py-2 text-sm text-yellow-100 border border-yellow-500/20 bg-black/40 hover:bg-black/60"
+                            >
+                              Effacer
+                            </button>
                           </div>
                         </div>
 
@@ -1051,7 +1088,13 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
                             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                               <div>{aiError}</div>
                               {isQuotaError(aiError) ? (
-                                <button type="button" onClick={openPlans} className="shrink-0 rounded-xl border border-yellow-500/25 bg-black/35 px-3 py-2 text-xs font-semibold text-yellow-200 hover:bg-black/50">Voir les plans</button>
+                                <button
+                                  type="button"
+                                  onClick={openPlans}
+                                  className="shrink-0 rounded-xl border border-yellow-500/25 bg-black/35 px-3 py-2 text-xs font-semibold text-yellow-200 hover:bg-black/50"
+                                >
+                                  Voir les plans
+                                </button>
                               ) : null}
                             </div>
                           </div>
@@ -1060,14 +1103,27 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
                         {aiHooks.length > 0 ? (
                           <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
                             {aiHooks.map((h, idx) => (
-                              <button key={`${idx}-${h}`} onClick={() => { setAiOutput(h); applyToLayer(h); }} className="text-left rounded-2xl border border-yellow-500/15 bg-black/40 hover:bg-black/55 px-4 py-3 text-yellow-100">
+                              <button
+                                key={`${idx}-${h}`}
+                                onClick={() => {
+                                  setAiOutput(h);
+                                  applyToLayer(h);
+                                }}
+                                className="text-left rounded-2xl border border-yellow-500/15 bg-black/40 hover:bg-black/55 px-4 py-3 text-yellow-100"
+                              >
                                 <div className="text-[11px] text-white/45 mb-1">Suggestion {idx + 1}</div>
                                 <div className="text-sm font-semibold">{h}</div>
                               </button>
                             ))}
                           </div>
                         ) : (
-                          <textarea value={aiOutput} onChange={(e) => setAiOutput(e.target.value)} placeholder="Les résultats IA apparaîtront ici…" rows={8} className="mt-3 w-full rounded-2xl bg-black/40 border border-yellow-500/15 px-4 py-3 text-yellow-100 outline-none" />
+                          <textarea
+                            value={aiOutput}
+                            onChange={(e) => setAiOutput(e.target.value)}
+                            placeholder="Les résultats IA apparaîtront ici…"
+                            rows={8}
+                            className="mt-3 w-full rounded-2xl bg-black/40 border border-yellow-500/15 px-4 py-3 text-yellow-100 outline-none"
+                          />
                         )}
 
                         {targetLayer ? (
@@ -1083,11 +1139,8 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
             </div>
 
             <EditorLayout
-              key={activeSlideId}
               initialLayers={stableActiveLayersRef.current}
               initialLayersKey={activeSlideId}
-              initialUI={draftUI}
-              onUIChange={handleUIChange}
               onChange={updateLayers}
               mobileToolsOpen={mobileToolsOpen}
               onCloseMobileTools={onCloseMobileTools}
@@ -1112,9 +1165,26 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
                 );
               })}
 
-              <button onClick={addSlide} className="px-4 py-2 rounded-xl border border-yellow-500/25 bg-yellow-500/10 text-yellow-200 hover:bg-yellow-500/15">+ Ajouter</button>
-              <button onClick={duplicateActiveSlide} className="px-4 py-2 rounded-xl border border-yellow-500/25 bg-yellow-500/10 text-yellow-200 hover:bg-yellow-500/15">Dupliquer</button>
-              <button onClick={deleteActiveSlide} className="px-4 py-2 rounded-xl border border-red-500/25 bg-red-500/10 text-red-200 hover:bg-red-500/15">Supprimer</button>
+              <button
+                onClick={addSlide}
+                className="px-4 py-2 rounded-xl border border-yellow-500/25 bg-yellow-500/10 text-yellow-200 hover:bg-yellow-500/15"
+              >
+                + Ajouter
+              </button>
+
+              <button
+                onClick={duplicateActiveSlide}
+                className="px-4 py-2 rounded-xl border border-yellow-500/25 bg-yellow-500/10 text-yellow-200 hover:bg-yellow-500/15"
+              >
+                Dupliquer
+              </button>
+
+              <button
+                onClick={deleteActiveSlide}
+                className="px-4 py-2 rounded-xl border border-red-500/25 bg-red-500/10 text-red-200 hover:bg-red-500/15"
+              >
+                Supprimer
+              </button>
             </div>
           </div>
         </div>
