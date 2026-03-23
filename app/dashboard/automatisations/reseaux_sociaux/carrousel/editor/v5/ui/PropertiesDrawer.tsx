@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { LayerData } from "../types/layers";
 
 interface Props {
@@ -40,137 +40,86 @@ function normalizeHex(input: string) {
   return "#ffffff";
 }
 
-function measureTextHeight(args: {
-  text: string;
-  width: number;
-  fontSize: number;
-  fontFamily: string;
-  fontWeight: string;
-  fontStyle: string;
-  lineHeight: number;
-  paddingX?: number;
-  paddingY?: number;
-}) {
-  const {
-    text,
-    width,
-    fontSize,
-    fontFamily,
-    fontWeight,
-    fontStyle,
-    lineHeight,
-    paddingX = 24,
-    paddingY = 20,
-  } = args;
-
-  const innerWidth = Math.max(20, width - paddingX * 2);
-  const fallbackLineHeightPx = Math.max(fontSize * lineHeight, fontSize + 6);
-
+function measureTextHeight(text: string, options: { width: number; fontSize: number; fontFamily: string; lineHeight: number; fontWeight?: string | number; fontStyle?: string; }) {
   if (typeof document === "undefined") {
-    const approxCharsPerLine = Math.max(8, Math.floor(innerWidth / Math.max(6, fontSize * 0.55)));
-    const paragraphs = String(text || "").replace(/\r/g, "").split("\n");
-    let lines = 0;
-    for (const p of paragraphs) {
-      const raw = p || " ";
-      lines += Math.max(1, Math.ceil(raw.length / approxCharsPerLine));
-    }
-    return Math.ceil(lines * fallbackLineHeightPx + paddingY * 2);
+    const approx = Math.max(1, Math.ceil(String(text || "").length / 28));
+    return Math.max(120, Math.ceil(approx * options.fontSize * options.lineHeight) + 28);
   }
 
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
   if (!ctx) {
-    const approxCharsPerLine = Math.max(8, Math.floor(innerWidth / Math.max(6, fontSize * 0.55)));
-    const paragraphs = String(text || "").replace(/\r/g, "").split("\n");
-    let lines = 0;
-    for (const p of paragraphs) {
-      const raw = p || " ";
-      lines += Math.max(1, Math.ceil(raw.length / approxCharsPerLine));
-    }
-    return Math.ceil(lines * fallbackLineHeightPx + paddingY * 2);
+    const approx = Math.max(1, Math.ceil(String(text || "").length / 28));
+    return Math.max(120, Math.ceil(approx * options.fontSize * options.lineHeight) + 28);
   }
 
-  ctx.font = `${fontStyle} ${fontWeight} ${fontSize}px ${fontFamily}`.trim();
+  const fontStyle = options.fontStyle || "normal";
+  const fontWeight = options.fontWeight || "normal";
+  ctx.font = `${fontStyle} ${fontWeight} ${options.fontSize}px ${options.fontFamily}`.trim();
 
-  const paragraphs = String(text || "").replace(/\r/g, "").split("\n");
-  let lines = 0;
+  const usableWidth = Math.max(40, options.width - 24);
+  const paragraphs = String(text || "")
+  .replace(/\r/g, "")
+  .split(/\n/);
+  let lineCount = 0;
 
   for (const paragraph of paragraphs) {
-    const value = paragraph || " ";
-    const words = value.split(/\s+/).filter(Boolean);
-
-    if (!words.length) {
-      lines += 1;
+    if (!paragraph) {
+      lineCount += 1;
       continue;
     }
 
+    const words = paragraph.split(/\s+/).filter(Boolean);
     let current = "";
 
     for (const word of words) {
-      const testLine = current ? `${current} ${word}` : word;
-      const widthPx = ctx.measureText(testLine).width;
-
-      if (widthPx <= innerWidth) {
-        current = testLine;
-        continue;
-      }
-
-      if (current) {
-        lines += 1;
-        current = word;
+      const test = current ? `${current} ${word}` : word;
+      const w = ctx.measureText(test).width;
+      if (w <= usableWidth) {
+        current = test;
       } else {
-        let chunk = "";
-        for (const char of word) {
-          const testChunk = chunk + char;
-          if (ctx.measureText(testChunk).width > innerWidth && chunk) {
-            lines += 1;
-            chunk = char;
-          } else {
-            chunk = testChunk;
-          }
-        }
-        current = chunk;
+        if (current) lineCount += 1;
+        current = word;
       }
     }
 
-    if (current) lines += 1;
+    lineCount += current ? 1 : 1;
   }
 
-  return Math.ceil(lines * fallbackLineHeightPx + paddingY * 2);
+  const height = Math.ceil(lineCount * options.fontSize * options.lineHeight + 28);
+  return Math.max(120, height);
 }
 
-function autoSizeTextLayer(layer: any, patch?: Partial<LayerData>) {
-  const next: any = { ...(layer || {}), ...(patch || {}) };
-  const style = { ...((layer as any)?.style ?? {}), ...((patch as any)?.style ?? {}) };
+function withAutoTextHeight(layer: LayerData, patch: Partial<LayerData>) {
+  const merged: any = {
+    ...layer,
+    ...patch,
+    style: {
+      ...((layer as any)?.style || {}),
+      ...(((patch as any)?.style) || {}),
+    },
+  };
 
-  const text = String(next?.text ?? "");
-  const width = clamp(typeof next?.width === "number" ? next.width : 420, 40, 4000);
-  const fontSize = clamp(typeof style?.fontSize === "number" ? style.fontSize : 48, 10, 400);
-  const lineHeight =
-    typeof style?.lineHeight === "number" && Number.isFinite(style.lineHeight) ? style.lineHeight : 1.2;
-  const fontFamily = typeof style?.fontFamily === "string" && style.fontFamily ? style.fontFamily : "Inter";
-  const fontWeight = typeof style?.fontWeight === "string" && style.fontWeight ? style.fontWeight : "normal";
-  const fontStyle = typeof style?.fontStyle === "string" && style.fontStyle ? style.fontStyle : "normal";
+  if (merged?.type !== "text") return patch;
 
-  const height = clamp(
-    measureTextHeight({
-      text,
-      width,
-      fontSize,
-      fontFamily,
-      fontWeight,
-      fontStyle,
-      lineHeight,
-    }),
-    40,
-    4000
-  );
+  const width = typeof merged?.width === "number" ? merged.width : 420;
+  const fontSize = typeof merged?.style?.fontSize === "number" ? merged.style.fontSize : 48;
+  const fontFamily = String(merged?.style?.fontFamily || "Inter");
+  const lineHeight = typeof merged?.style?.lineHeight === "number" ? merged.style.lineHeight : 1.2;
+  const fontWeight = merged?.style?.fontWeight;
+  const fontStyle = merged?.style?.fontStyle;
+  const text = String(merged?.text ?? "");
 
   return {
     ...patch,
-    width,
-    height,
-    style,
+    height: measureTextHeight(text, {
+      width,
+      fontSize,
+      fontFamily,
+      lineHeight,
+      fontWeight,
+      fontStyle,
+    }),
   } as Partial<LayerData>;
 }
 
@@ -178,7 +127,12 @@ export default function PropertiesDrawer({ open, layer, onClose, onChange }: Pro
   const isText = layer?.type === "text";
   const isImage = layer?.type === "image";
 
-  const style = ((layer as any)?.style ?? {}) as any;
+  const style = (((layer as any)?.style ?? {}) as any) || {};
+  const [textDraft, setTextDraft] = useState<string>(String((layer as any)?.text ?? ""));
+
+  useEffect(() => {
+    setTextDraft(String((layer as any)?.text ?? ""));
+  }, [layer?.id, (layer as any)?.text]);
 
   const metrics = useMemo(() => {
     if (!layer) return null;
@@ -190,17 +144,14 @@ export default function PropertiesDrawer({ open, layer, onClose, onChange }: Pro
 
   if (!open || !layer) return null;
 
-  const setStyle = (patch: any) => {
-    if (isText) {
-      onChange(autoSizeTextLayer(layer as any, { style: { ...(style ?? {}), ...(patch ?? {}) } } as any));
-      return;
-    }
-    onChange({ style: { ...(style ?? {}), ...(patch ?? {}) } } as any);
+  const setStyle = (patch: any, autoSize = false) => {
+    const nextPatch: any = { style: { ...(style ?? {}), ...(patch ?? {}) } };
+    onChange(autoSize ? withAutoTextHeight(layer, nextPatch) : nextPatch);
   };
 
   const toggleStyleFlag = (key: string, onValue: any, offValue: any) => {
     const cur = (style as any)?.[key];
-    setStyle({ [key]: cur === onValue ? offValue : onValue });
+    setStyle({ [key]: cur === onValue ? offValue : onValue }, true);
   };
 
   const nudge = (dx: number, dy: number) => {
@@ -220,11 +171,16 @@ export default function PropertiesDrawer({ open, layer, onClose, onChange }: Pro
 
   const applyTextColor = (hex: string) => {
     const c = normalizeHex(hex);
-    setStyle({ fill: c, color: c, textColor: c });
+    setStyle({ fill: c, color: c, textColor: c }, false);
   };
 
   const lineHeight =
     typeof style.lineHeight === "number" && Number.isFinite(style.lineHeight) ? style.lineHeight : 1.2;
+
+  const handleTextChange = (nextText: string) => {
+    setTextDraft(nextText);
+    onChange(withAutoTextHeight(layer, { text: nextText } as any));
+  };
 
   return (
     <div className="mt-4 rounded-2xl border border-yellow-500/15 bg-black/40 p-4">
@@ -232,9 +188,9 @@ export default function PropertiesDrawer({ open, layer, onClose, onChange }: Pro
         @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@300;400;500;600;700&family=Oswald:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&family=Roboto:wght@300;400;500;700&family=Lora:wght@400;500;600;700&family=Merriweather:wght@300;400;700&display=swap");
       `}</style>
 
-      <div className="mb-3 flex items-center justify-between">
-        <div className="text-sm font-semibold text-yellow-300">Propriétés</div>
-        <button onClick={onClose} className="text-sm text-yellow-200/80 hover:text-yellow-200">
+      <div className="flex items-center justify-between mb-3">
+        <div className="text-yellow-300 font-semibold text-sm">Propriétés</div>
+        <button onClick={onClose} className="text-yellow-200/80 hover:text-yellow-200 text-sm">
           ✖
         </button>
       </div>
@@ -243,39 +199,15 @@ export default function PropertiesDrawer({ open, layer, onClose, onChange }: Pro
         <div className="mb-4 rounded-xl border border-yellow-500/15 bg-black/30 p-3">
           <div className="text-[12px] text-yellow-200/80">
             Taille réelle : <span className="text-yellow-100">{Math.round(metrics.w)}×{Math.round(metrics.h)}px</span>
-            {isText ? (
-              <>
-                {" "}• Police : <span className="text-yellow-100">{Math.round(metrics.fontSize)}px</span>
-              </>
-            ) : null}
+            {isText ? <> • Police : <span className="text-yellow-100">{Math.round(metrics.fontSize)}px</span></> : null}
           </div>
 
           <div className="mt-2 grid grid-cols-3 gap-2">
-            <button
-              onClick={() => nudge(-1, 0)}
-              className="rounded-lg border border-yellow-500/15 bg-black/30 px-2 py-2 text-xs text-yellow-200 hover:bg-yellow-500/10"
-            >
-              ←
-            </button>
-            <button
-              onClick={() => nudge(0, -1)}
-              className="rounded-lg border border-yellow-500/15 bg-black/30 px-2 py-2 text-xs text-yellow-200 hover:bg-yellow-500/10"
-            >
-              ↑
-            </button>
-            <button
-              onClick={() => nudge(1, 0)}
-              className="rounded-lg border border-yellow-500/15 bg-black/30 px-2 py-2 text-xs text-yellow-200 hover:bg-yellow-500/10"
-            >
-              →
-            </button>
-            <button
-              onClick={() => nudge(0, 1)}
-              className="rounded-lg border border-yellow-500/15 bg-black/30 px-2 py-2 text-xs text-yellow-200 hover:bg-yellow-500/10"
-            >
-              ↓
-            </button>
-            <div className="col-span-2 flex items-center text-[11px] text-white/45">Déplacer au pixel près</div>
+            <button onClick={() => nudge(-1, 0)} className="rounded-lg border border-yellow-500/15 bg-black/30 px-2 py-2 text-xs text-yellow-200 hover:bg-yellow-500/10">←</button>
+            <button onClick={() => nudge(0, -1)} className="rounded-lg border border-yellow-500/15 bg-black/30 px-2 py-2 text-xs text-yellow-200 hover:bg-yellow-500/10">↑</button>
+            <button onClick={() => nudge(1, 0)} className="rounded-lg border border-yellow-500/15 bg-black/30 px-2 py-2 text-xs text-yellow-200 hover:bg-yellow-500/10">→</button>
+            <button onClick={() => nudge(0, 1)} className="rounded-lg border border-yellow-500/15 bg-black/30 px-2 py-2 text-xs text-yellow-200 hover:bg-yellow-500/10">↓</button>
+            <div className="col-span-2 text-[11px] text-white/45 flex items-center">Déplacer au pixel près</div>
           </div>
         </div>
       )}
@@ -283,192 +215,86 @@ export default function PropertiesDrawer({ open, layer, onClose, onChange }: Pro
       {isText && (
         <div className="space-y-4">
           <div>
-            <label className="mb-2 block text-xs text-yellow-400">Texte</label>
+            <label className="block text-yellow-400 text-xs mb-2">Texte</label>
             <textarea
-              value={String((layer as any).text ?? "")}
-              onChange={(e) => onChange(autoSizeTextLayer(layer as any, { text: e.target.value } as any))}
+              value={textDraft}
+              onChange={(e) => handleTextChange(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key !== "Tab") return;
-                e.preventDefault();
-                const target = e.currentTarget;
-                const start = target.selectionStart ?? 0;
-                const end = target.selectionEnd ?? 0;
-                const value = target.value ?? "";
-                const nextValue = `${value.slice(0, start)}  ${value.slice(end)}`;
-                onChange(autoSizeTextLayer(layer as any, { text: nextValue } as any));
-                requestAnimationFrame(() => {
-                  try {
-                    target.selectionStart = target.selectionEnd = start + 2;
-                  } catch {}
-                });
+                if (e.key === "Tab") {
+                  e.preventDefault();
+                  const target = e.currentTarget;
+                  const start = target.selectionStart ?? 0;
+                  const end = target.selectionEnd ?? 0;
+                  const next = `${textDraft.slice(0, start)}    ${textDraft.slice(end)}`;
+                  handleTextChange(next);
+                  requestAnimationFrame(() => {
+                    target.selectionStart = target.selectionEnd = start + 4;
+                  });
+                }
               }}
               rows={4}
-              className="w-full rounded-xl border border-yellow-500/20 bg-black/40 px-3 py-2 text-yellow-100 outline-none"
+              className="w-full rounded-xl bg-black/40 border border-yellow-500/20 px-3 py-2 text-yellow-100 outline-none"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-2 block text-xs text-yellow-400">Police</label>
-              <select
-                value={style.fontFamily ?? "Inter"}
-                onChange={(e) => setStyle({ fontFamily: e.target.value })}
-                className="w-full rounded-xl border border-yellow-500/20 bg-black/40 px-3 py-2 text-yellow-100"
-              >
-                {FONT_FAMILIES.map((f) => (
-                  <option key={f} value={f}>
-                    {f}
-                  </option>
-                ))}
+              <label className="block text-yellow-400 text-xs mb-2">Police</label>
+              <select value={style.fontFamily ?? "Inter"} onChange={(e) => setStyle({ fontFamily: e.target.value }, true)} className="w-full rounded-xl bg-black/40 border border-yellow-500/20 px-3 py-2 text-yellow-100">
+                {FONT_FAMILIES.map((f) => <option key={f} value={f}>{f}</option>)}
               </select>
             </div>
 
             <div>
-              <label className="mb-2 block text-xs text-yellow-400">Taille (px)</label>
-              <input
-                type="number"
-                value={typeof style.fontSize === "number" ? style.fontSize : 48}
-                onChange={(e) => setStyle({ fontSize: clamp(Number(e.target.value || 0), 10, 400) })}
-                className="w-full rounded-xl border border-yellow-500/20 bg-black/40 px-3 py-2 text-yellow-100"
-              />
+              <label className="block text-yellow-400 text-xs mb-2">Taille (px)</label>
+              <input type="number" value={typeof style.fontSize === "number" ? style.fontSize : 48} onChange={(e) => setStyle({ fontSize: clamp(Number(e.target.value || 0), 10, 400) }, true)} className="w-full rounded-xl bg-black/40 border border-yellow-500/20 px-3 py-2 text-yellow-100" />
             </div>
           </div>
 
           <div>
-            <label className="mb-2 block text-xs text-yellow-400">Interligne</label>
+            <label className="block text-yellow-400 text-xs mb-2">Interligne</label>
             <div className="flex items-center gap-3">
-              <input
-                type="range"
-                min={0.8}
-                max={3}
-                step={0.05}
-                value={lineHeight}
-                onChange={(e) => setStyle({ lineHeight: Number(e.target.value) })}
-                className="flex-1 accent-[#ffb800]"
-              />
-              <input
-                type="number"
-                min={0.8}
-                max={3}
-                step={0.05}
-                value={lineHeight}
-                onChange={(e) => setStyle({ lineHeight: Number(e.target.value) })}
-                className="w-20 rounded-xl border border-yellow-500/20 bg-black/40 px-2 py-2 text-sm text-yellow-100"
-              />
+              <input type="range" min={0.8} max={3} step={0.05} value={lineHeight} onChange={(e) => setStyle({ lineHeight: Number(e.target.value) }, true)} className="flex-1 accent-[#ffb800]" />
+              <input type="number" min={0.8} max={3} step={0.05} value={lineHeight} onChange={(e) => setStyle({ lineHeight: Number(e.target.value) }, true)} className="w-20 rounded-xl bg-black/40 border border-yellow-500/20 px-2 py-2 text-yellow-100 text-sm" />
             </div>
           </div>
 
           <div className="space-y-3">
             <div>
-              <label className="mb-2 block text-xs text-yellow-400">Couleur du texte</label>
+              <label className="block text-yellow-400 text-xs mb-2">Couleur du texte</label>
               <div className="flex items-center gap-2">
-                <input
-                  type="color"
-                  value={normalizeHex(currentColor)}
-                  onChange={(e) => applyTextColor(e.target.value)}
-                  className="h-11 w-12 rounded-xl border border-yellow-500/20 bg-black/40"
-                />
-                <input
-                  value={normalizeHex(currentColor)}
-                  onChange={(e) => applyTextColor(e.target.value)}
-                  className="flex-1 rounded-xl border border-yellow-500/20 bg-black/40 px-3 py-2 text-yellow-100"
-                />
+                <input type="color" value={normalizeHex(currentColor)} onChange={(e) => applyTextColor(e.target.value)} className="h-11 w-12 rounded-xl bg-black/40 border border-yellow-500/20" />
+                <input value={normalizeHex(currentColor)} onChange={(e) => applyTextColor(e.target.value)} className="flex-1 rounded-xl bg-black/40 border border-yellow-500/20 px-3 py-2 text-yellow-100" />
               </div>
             </div>
 
             <div>
-              <label className="mb-2 block text-xs text-yellow-400">Alignement</label>
+              <label className="block text-yellow-400 text-xs mb-2">Alignement</label>
               <div className="grid grid-cols-3 gap-2">
-                <button
-                  onClick={() => setStyle({ textAlign: "left" })}
-                  className={`rounded-lg border px-3 py-2 text-xs ${
-                    textAlign === "left"
-                      ? "border-[#ffb800] bg-[#ffb800] text-black"
-                      : "border-yellow-500/20 bg-black/30 text-yellow-200 hover:bg-yellow-500/10"
-                  }`}
-                >
-                  Gauche
-                </button>
-                <button
-                  onClick={() => setStyle({ textAlign: "center" })}
-                  className={`rounded-lg border px-3 py-2 text-xs ${
-                    textAlign === "center"
-                      ? "border-[#ffb800] bg-[#ffb800] text-black"
-                      : "border-yellow-500/20 bg-black/30 text-yellow-200 hover:bg-yellow-500/10"
-                  }`}
-                >
-                  Centre
-                </button>
-                <button
-                  onClick={() => setStyle({ textAlign: "right" })}
-                  className={`rounded-lg border px-3 py-2 text-xs ${
-                    textAlign === "right"
-                      ? "border-[#ffb800] bg-[#ffb800] text-black"
-                      : "border-yellow-500/20 bg-black/30 text-yellow-200 hover:bg-yellow-500/10"
-                  }`}
-                >
-                  Droite
-                </button>
+                <button onClick={() => setStyle({ textAlign: "left" }, false)} className={`rounded-lg border px-3 py-2 text-xs ${textAlign === "left" ? "bg-[#ffb800] text-black border-[#ffb800]" : "border-yellow-500/20 text-yellow-200 bg-black/30 hover:bg-yellow-500/10"}`}>Gauche</button>
+                <button onClick={() => setStyle({ textAlign: "center" }, false)} className={`rounded-lg border px-3 py-2 text-xs ${textAlign === "center" ? "bg-[#ffb800] text-black border-[#ffb800]" : "border-yellow-500/20 text-yellow-200 bg-black/30 hover:bg-yellow-500/10"}`}>Centre</button>
+                <button onClick={() => setStyle({ textAlign: "right" }, false)} className={`rounded-lg border px-3 py-2 text-xs ${textAlign === "right" ? "bg-[#ffb800] text-black border-[#ffb800]" : "border-yellow-500/20 text-yellow-200 bg-black/30 hover:bg-yellow-500/10"}`}>Droite</button>
               </div>
             </div>
           </div>
 
           <div>
-            <label className="mb-2 block text-xs text-yellow-400">Style</label>
+            <label className="block text-yellow-400 text-xs mb-2">Style</label>
             <div className="grid grid-cols-3 gap-2">
-              <button
-                onClick={() => toggleStyleFlag("fontWeight", "bold", "normal")}
-                className={`rounded-lg border px-3 py-2 text-xs ${
-                  style.fontWeight === "bold"
-                    ? "border-[#ffb800] bg-[#ffb800] text-black"
-                    : "border-yellow-500/20 bg-black/30 text-yellow-200 hover:bg-yellow-500/10"
-                }`}
-              >
-                Gras
-              </button>
-
-              <button
-                onClick={() => toggleStyleFlag("fontStyle", "italic", "normal")}
-                className={`rounded-lg border px-3 py-2 text-xs ${
-                  style.fontStyle === "italic"
-                    ? "border-[#ffb800] bg-[#ffb800] text-black"
-                    : "border-yellow-500/20 bg-black/30 text-yellow-200 hover:bg-yellow-500/10"
-                }`}
-              >
-                Italic
-              </button>
-
-              <button
-                onClick={() => toggleStyleFlag("textDecoration", "underline", "none")}
-                className={`rounded-lg border px-3 py-2 text-xs ${
-                  style.textDecoration === "underline"
-                    ? "border-[#ffb800] bg-[#ffb800] text-black"
-                    : "border-yellow-500/20 bg-black/30 text-yellow-200 hover:bg-yellow-500/10"
-                }`}
-              >
-                Souligné
-              </button>
+              <button onClick={() => toggleStyleFlag("fontWeight", "bold", "normal")} className={`rounded-lg border px-3 py-2 text-xs ${style.fontWeight === "bold" ? "bg-[#ffb800] text-black border-[#ffb800]" : "border-yellow-500/20 text-yellow-200 bg-black/30 hover:bg-yellow-500/10"}`}>Gras</button>
+              <button onClick={() => toggleStyleFlag("fontStyle", "italic", "normal")} className={`rounded-lg border px-3 py-2 text-xs ${style.fontStyle === "italic" ? "bg-[#ffb800] text-black border-[#ffb800]" : "border-yellow-500/20 text-yellow-200 bg-black/30 hover:bg-yellow-500/10"}`}>Italic</button>
+              <button onClick={() => toggleStyleFlag("textDecoration", "underline", "none")} className={`rounded-lg border px-3 py-2 text-xs ${style.textDecoration === "underline" ? "bg-[#ffb800] text-black border-[#ffb800]" : "border-yellow-500/20 text-yellow-200 bg-black/30 hover:bg-yellow-500/10"}`}>Souligné</button>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-2 block text-xs text-yellow-400">Largeur (px)</label>
-              <input
-                type="number"
-                value={typeof (layer as any).width === "number" ? (layer as any).width : 420}
-                onChange={(e) => onChange(autoSizeTextLayer(layer as any, { width: clamp(Number(e.target.value || 0), 40, 4000) } as any))}
-                className="w-full rounded-xl border border-yellow-500/20 bg-black/40 px-3 py-2 text-yellow-100"
-              />
+              <label className="block text-yellow-400 text-xs mb-2">Largeur (px)</label>
+              <input type="number" value={typeof (layer as any).width === "number" ? (layer as any).width : 420} onChange={(e) => onChange(withAutoTextHeight(layer, { width: clamp(Number(e.target.value || 0), 40, 4000) } as any))} className="w-full rounded-xl bg-black/40 border border-yellow-500/20 px-3 py-2 text-yellow-100" />
             </div>
             <div>
-              <label className="mb-2 block text-xs text-yellow-400">Hauteur (px)</label>
-              <input
-                type="number"
-                value={typeof (layer as any).height === "number" ? (layer as any).height : 120}
-                onChange={(e) => onChange({ height: clamp(Number(e.target.value || 0), 40, 4000) } as any)}
-                className="w-full rounded-xl border border-yellow-500/20 bg-black/40 px-3 py-2 text-yellow-100"
-              />
+              <label className="block text-yellow-400 text-xs mb-2">Hauteur (px)</label>
+              <input type="number" value={typeof (layer as any).height === "number" ? (layer as any).height : 120} onChange={(e) => onChange({ height: clamp(Number(e.target.value || 0), 40, 4000) } as any)} className="w-full rounded-xl bg-black/40 border border-yellow-500/20 px-3 py-2 text-yellow-100" />
             </div>
           </div>
         </div>
@@ -477,29 +303,16 @@ export default function PropertiesDrawer({ open, layer, onClose, onChange }: Pro
       {isImage && (
         <div className="space-y-4">
           <div className="rounded-2xl border border-yellow-500/15 bg-black/30 p-4">
-            <div className="mb-2 font-semibold text-yellow-200">Image</div>
-            <div className="mb-3 break-all text-[11px] text-white/55">
-              URL : <span className="text-yellow-100/70">{String((layer as any).url ?? "")}</span>
-            </div>
-
+            <div className="text-yellow-200 font-semibold mb-2">Image</div>
+            <div className="text-[11px] text-white/55 mb-3 break-all">URL : <span className="text-yellow-100/70">{String((layer as any).url ?? "")}</span></div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="mb-2 block text-xs text-yellow-400">Largeur (px)</label>
-                <input
-                  type="number"
-                  value={typeof (layer as any).width === "number" ? (layer as any).width : 300}
-                  onChange={(e) => onChange({ width: clamp(Number(e.target.value || 0), 40, 4000) } as any)}
-                  className="w-full rounded-xl border border-yellow-500/20 bg-black/40 px-3 py-2 text-yellow-100"
-                />
+                <label className="block text-yellow-400 text-xs mb-2">Largeur (px)</label>
+                <input type="number" value={typeof (layer as any).width === "number" ? (layer as any).width : 300} onChange={(e) => onChange({ width: clamp(Number(e.target.value || 0), 40, 4000) } as any)} className="w-full rounded-xl bg-black/40 border border-yellow-500/20 px-3 py-2 text-yellow-100" />
               </div>
               <div>
-                <label className="mb-2 block text-xs text-yellow-400">Hauteur (px)</label>
-                <input
-                  type="number"
-                  value={typeof (layer as any).height === "number" ? (layer as any).height : 300}
-                  onChange={(e) => onChange({ height: clamp(Number(e.target.value || 0), 40, 4000) } as any)}
-                  className="w-full rounded-xl border border-yellow-500/20 bg-black/40 px-3 py-2 text-yellow-100"
-                />
+                <label className="block text-yellow-400 text-xs mb-2">Hauteur (px)</label>
+                <input type="number" value={typeof (layer as any).height === "number" ? (layer as any).height : 300} onChange={(e) => onChange({ height: clamp(Number(e.target.value || 0), 40, 4000) } as any)} className="w-full rounded-xl bg-black/40 border border-yellow-500/20 px-3 py-2 text-yellow-100" />
               </div>
             </div>
           </div>
