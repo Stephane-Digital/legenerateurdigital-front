@@ -94,6 +94,62 @@ function normalizeHex(input: string) {
   return "#ffffff";
 }
 
+function estimateTextHeight(
+  text: string,
+  options: {
+    width: number;
+    fontSize: number;
+    lineHeight: number;
+    fontFamily: string;
+    fontWeight: string;
+    fontStyle: string;
+  }
+) {
+  const fontSize = clamp(options.fontSize || 48, 8, 400);
+  const lineHeight = clampFloat(options.lineHeight || 1.2, 0.8, 3);
+  const width = clamp(options.width || 420, 40, 4000);
+
+  if (typeof document === "undefined") {
+    return Math.max(120, Math.ceil(fontSize * lineHeight * 3));
+  }
+
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return Math.max(120, Math.ceil(fontSize * lineHeight * 3));
+
+  ctx.font = `${options.fontStyle} ${options.fontWeight} ${fontSize}px ${options.fontFamily}`.trim();
+
+  const usableWidth = Math.max(40, width - 24);
+  const paragraphs = String(text || "").replace(/\r/g, "").split(/\n/);
+  let lineCount = 0;
+
+  for (const paragraph of paragraphs) {
+    if (!paragraph) {
+      lineCount += 1;
+      continue;
+    }
+
+    const words = paragraph.split(/\s+/).filter(Boolean);
+    let current = "";
+
+    for (const word of words) {
+      const test = current ? `${current} ${word}` : word;
+      const measured = ctx.measureText(test).width;
+      if (measured <= usableWidth || !current) {
+        current = test;
+      } else {
+        lineCount += 1;
+        current = word;
+      }
+    }
+
+    lineCount += 1;
+  }
+
+  const height = Math.ceil(lineCount * fontSize * lineHeight + 24);
+  return clamp(height, 40, 4000);
+}
+
 export default function PropertiesDrawer({ open, layer, onClose, onChange }: Props) {
   const isText = layer?.type === "text";
   const isImage = layer?.type === "image";
@@ -104,11 +160,17 @@ export default function PropertiesDrawer({ open, layer, onClose, onChange }: Pro
   const [aiMaxLen, setAiMaxLen] = useState<number>(0);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [textDraft, setTextDraft] = useState<string>(String((layer as any)?.text ?? ""));
 
   useEffect(() => {
     setAiError(null);
     setAiLoading(false);
   }, [layer?.id]);
+
+  useEffect(() => {
+    if (!layer || !isText) return;
+    setTextDraft(String((layer as any)?.text ?? ""));
+  }, [layer?.id, (layer as any)?.text, isText]);
 
   const metrics = useMemo(() => {
     if (!layer) return null;
@@ -120,8 +182,54 @@ export default function PropertiesDrawer({ open, layer, onClose, onChange }: Pro
 
   if (!open || !layer) return null;
 
+  const lineHeight =
+    typeof style.lineHeight === "number" && Number.isFinite(style.lineHeight) ? style.lineHeight : 1.2;
+
+  const updateTextPatch = (value: string, widthOverride?: number, styleOverride?: any) => {
+    const nextStyle = { ...(style ?? {}), ...(styleOverride ?? {}) };
+    const width =
+      typeof widthOverride === "number"
+        ? widthOverride
+        : typeof (layer as any)?.width === "number"
+        ? (layer as any).width
+        : 420;
+
+    const nextHeight = estimateTextHeight(value, {
+      width,
+      fontSize: typeof nextStyle.fontSize === "number" ? nextStyle.fontSize : 48,
+      lineHeight:
+        typeof nextStyle.lineHeight === "number" && Number.isFinite(nextStyle.lineHeight)
+          ? nextStyle.lineHeight
+          : 1.2,
+      fontFamily: String(nextStyle.fontFamily || "Inter"),
+      fontWeight: String(nextStyle.fontWeight || "normal"),
+      fontStyle: String(nextStyle.fontStyle || "normal"),
+    });
+
+    onChange({ text: value, height: nextHeight } as any);
+  };
+
   const setStyle = (patch: any) => {
-    onChange({ style: { ...(style ?? {}), ...(patch ?? {}) } } as any);
+    const nextStyle = { ...(style ?? {}), ...(patch ?? {}) };
+
+    if (isText) {
+      const width = typeof (layer as any)?.width === "number" ? (layer as any).width : 420;
+      const nextHeight = estimateTextHeight(String(textDraft || ""), {
+        width,
+        fontSize: typeof nextStyle.fontSize === "number" ? nextStyle.fontSize : 48,
+        lineHeight:
+          typeof nextStyle.lineHeight === "number" && Number.isFinite(nextStyle.lineHeight)
+            ? nextStyle.lineHeight
+            : 1.2,
+        fontFamily: String(nextStyle.fontFamily || "Inter"),
+        fontWeight: String(nextStyle.fontWeight || "normal"),
+        fontStyle: String(nextStyle.fontStyle || "normal"),
+      });
+      onChange({ style: nextStyle, height: nextHeight } as any);
+      return;
+    }
+
+    onChange({ style: nextStyle } as any);
   };
 
   const toggleStyleFlag = (key: string, onValue: any, offValue: any) => {
@@ -149,9 +257,6 @@ export default function PropertiesDrawer({ open, layer, onClose, onChange }: Pro
     setStyle({ fill: c, color: c, textColor: c });
   };
 
-  const lineHeight =
-    typeof style.lineHeight === "number" && Number.isFinite(style.lineHeight) ? style.lineHeight : 1.2;
-
   const setLineHeight = (v: number) => {
     setStyle({ lineHeight: clampFloat(v, 0.8, 3) });
   };
@@ -178,8 +283,7 @@ export default function PropertiesDrawer({ open, layer, onClose, onChange }: Pro
             </span>
             {isText ? (
               <>
-                {" "}
-                • Police : <span className="text-yellow-100">{Math.round(metrics.fontSize)}px</span>
+                {" "}• Police : <span className="text-yellow-100">{Math.round(metrics.fontSize)}px</span>
               </>
             ) : null}
           </div>
@@ -219,8 +323,25 @@ export default function PropertiesDrawer({ open, layer, onClose, onChange }: Pro
           <div>
             <label className="block text-yellow-400 text-xs mb-2">Texte</label>
             <textarea
-              value={String((layer as any).text ?? "")}
-              onChange={(e) => onChange({ text: e.target.value } as any)}
+              value={textDraft}
+              onChange={(e) => {
+                const value = e.target.value;
+                setTextDraft(value);
+                updateTextPatch(value);
+              }}
+              onKeyDown={(e) => {
+                if (e.key !== "Tab") return;
+                e.preventDefault();
+                const target = e.currentTarget;
+                const start = target.selectionStart ?? 0;
+                const end = target.selectionEnd ?? 0;
+                const value = `${textDraft.slice(0, start)}  ${textDraft.slice(end)}`;
+                setTextDraft(value);
+                updateTextPatch(value);
+                requestAnimationFrame(() => {
+                  target.selectionStart = target.selectionEnd = start + 2;
+                });
+              }}
               rows={4}
               className="w-full rounded-xl bg-black/40 border border-yellow-500/20 px-3 py-2 text-yellow-100 outline-none"
             />
@@ -259,7 +380,7 @@ export default function PropertiesDrawer({ open, layer, onClose, onChange }: Pro
                   <button
                     onClick={async () => {
                       if (layer.type !== "text") return;
-                      const current = String((layer as any).text ?? "").trim();
+                      const current = String(textDraft || "").trim();
                       if (!current) {
                         setAiError("Ajoute du texte avant de demander une réécriture.");
                         return;
@@ -272,14 +393,15 @@ export default function PropertiesDrawer({ open, layer, onClose, onChange }: Pro
                           tone: aiTone?.trim() ? aiTone.trim() : undefined,
                           max_length: aiMaxLen > 0 ? aiMaxLen : undefined,
                         });
-                        onChange({ text: out } as any);
+                        setTextDraft(out);
+                        updateTextPatch(out);
                       } catch (err: any) {
                         setAiError(err?.message || "Erreur IA");
                       } finally {
                         setAiLoading(false);
                       }
                     }}
-                    disabled={aiLoading || !String((layer as any).text ?? "").trim()}
+                    disabled={aiLoading || !String(textDraft || "").trim()}
                     className="w-full rounded-xl bg-[#ffb800] px-3 py-2 text-sm font-semibold text-black hover:brightness-110 disabled:opacity-60"
                   >
                     {aiLoading ? "Réécriture..." : "Réécrire avec IA"}
@@ -446,7 +568,18 @@ export default function PropertiesDrawer({ open, layer, onClose, onChange }: Pro
               <input
                 type="number"
                 value={typeof (layer as any).width === "number" ? (layer as any).width : 420}
-                onChange={(e) => onChange({ width: clamp(Number(e.target.value || 0), 40, 4000) } as any)}
+                onChange={(e) => {
+                  const width = clamp(Number(e.target.value || 0), 40, 4000);
+                  const nextHeight = estimateTextHeight(textDraft, {
+                    width,
+                    fontSize: typeof style.fontSize === "number" ? style.fontSize : 48,
+                    lineHeight,
+                    fontFamily: String(style.fontFamily || "Inter"),
+                    fontWeight: String(style.fontWeight || "normal"),
+                    fontStyle: String(style.fontStyle || "normal"),
+                  });
+                  onChange({ width, height: nextHeight } as any);
+                }}
                 className="w-full rounded-xl bg-black/40 border border-yellow-500/20 px-3 py-2 text-yellow-100"
               />
             </div>
@@ -459,6 +592,11 @@ export default function PropertiesDrawer({ open, layer, onClose, onChange }: Pro
                 className="w-full rounded-xl bg-black/40 border border-yellow-500/20 px-3 py-2 text-yellow-100"
               />
             </div>
+          </div>
+
+          <div className="rounded-2xl border border-yellow-500/15 bg-black/30 p-3 text-[11px] text-white/55">
+            La capsule peut maintenant être élargie horizontalement et verticalement sans grossir le texte.
+            La taille de la police reste pilotée uniquement par le bloc <span className="text-yellow-200">Layer</span>.
           </div>
         </div>
       )}
