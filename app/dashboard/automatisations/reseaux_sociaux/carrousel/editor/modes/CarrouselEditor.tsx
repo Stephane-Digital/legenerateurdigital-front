@@ -26,6 +26,14 @@ type SlideDraft = {
   layers: LayerData[];
 };
 
+function cloneLayers(layers: LayerData[] | null | undefined): LayerData[] {
+  try {
+    return JSON.parse(JSON.stringify(layers || []));
+  } catch {
+    return Array.isArray(layers) ? [...layers] : [];
+  }
+}
+
 /** =========================
  *  IA Copilot (SAFE / texte-only)
  *  - utilise /ai/text/rewrite existant
@@ -284,19 +292,14 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
     const parsed = safeJsonParse(typeof window !== "undefined" ? window.localStorage.getItem(LS_CARROUSEL) : null);
 
     if (parsed?.slides && Array.isArray(parsed.slides)) {
-      return ensureSlide(parsed.slides);
+      return ensureSlide(cloneLayers(parsed.slides) as any);
     }
 
     if (parsed?.layers && Array.isArray(parsed.layers)) {
-      return ensureSlide([{ id: cryptoId("slide"), layers: parsed.layers }]);
+      return ensureSlide([{ id: cryptoId("slide"), layers: cloneLayers(parsed.layers) }]);
     }
 
     return ensureSlide(null);
-  });
-
-  const [draftUI, setDraftUI] = useState<any>(() => {
-    const parsed = safeJsonParse(typeof window !== "undefined" ? window.localStorage.getItem(LS_CARROUSEL) : null);
-    return parsed?.ui || undefined;
   });
 
   const [activeSlideId, setActiveSlideId] = useState<string>(() => {
@@ -309,6 +312,11 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
     activeSlideIdRef.current = activeSlideId;
   }, [activeSlideId]);
 
+  const setActiveSlideIdSafe = useCallback((id: string) => {
+    activeSlideIdRef.current = id;
+    setActiveSlideId(id);
+  }, []);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (activeSlideId) window.localStorage.setItem(LS_CARROUSEL_ACTIVE_SLIDE, activeSlideId);
@@ -317,12 +325,12 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
   useEffect(() => {
     if (!slides.length) return;
     if (!activeSlideId) {
-      setActiveSlideId(slides[0].id);
+      setActiveSlideIdSafe(slides[0].id)
       return;
     }
     const exists = slides.some((s) => s.id === activeSlideId);
-    if (!exists) setActiveSlideId(slides[0].id);
-  }, [slides, activeSlideId]);
+    if (!exists) setActiveSlideIdSafe(slides[0].id)
+  }, [slides, activeSlideId, setActiveSlideIdSafe]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -332,14 +340,13 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
         LS_CARROUSEL,
         JSON.stringify({
           ...existing,
-          ui: draftUI,
           slides,
         })
       );
     } catch {
       // no-op
     }
-  }, [slides, draftUI]);
+  }, [slides]);
 
   const activeSlide = useMemo(() => slides.find((s) => s.id === activeSlideId) || slides[0], [slides, activeSlideId]);
   const activeSlideLayersSig = useMemo(() => layersSignature(activeSlide?.layers ?? []), [activeSlide?.layers]);
@@ -347,7 +354,7 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
 
   useEffect(() => {
     if (layersSignature(stableActiveLayersRef.current) !== activeSlideLayersSig) {
-      stableActiveLayersRef.current = activeSlide?.layers ?? [];
+      stableActiveLayersRef.current = cloneLayers(activeSlide?.layers ?? []);
     }
   }, [activeSlide?.layers, activeSlideLayersSig]);
 
@@ -361,7 +368,7 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
         if (s.id !== targetId) return s;
         if (layersSignature(s.layers) === nextSig) return s;
         changed = true;
-        return { ...s, layers: layers ?? [] };
+        return { ...s, layers: cloneLayers(layers ?? []) };
       });
       return changed ? next : prev;
     });
@@ -370,8 +377,8 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
   const addSlide = useCallback(() => {
     const id = cryptoId("slide");
     setSlides((prev) => [...prev, { id, layers: [] }]);
-    setActiveSlideId(id);
-  }, []);
+    setActiveSlideIdSafe(id);
+  }, [setActiveSlideIdSafe]);
 
   const duplicateActiveSlide = useCallback(() => {
     const id = cryptoId("slide");
@@ -379,14 +386,14 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
       const idx = prev.findIndex((s) => s.id === activeSlide.id);
       const clone: SlideDraft = {
         id,
-        layers: JSON.parse(JSON.stringify(activeSlide.layers || [])),
+        layers: cloneLayers(activeSlide.layers || []),
       };
       const next = [...prev];
       next.splice(idx + 1, 0, clone);
       return next;
     });
-    setActiveSlideId(id);
-  }, [activeSlide.id, activeSlide.layers]);
+    setActiveSlideIdSafe(id);
+  }, [activeSlide.id, activeSlide.layers, setActiveSlideIdSafe]);
 
   const deleteActiveSlide = useCallback(() => {
     setSlides((prev) => {
@@ -394,10 +401,10 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
       const idx = prev.findIndex((s) => s.id === activeSlide.id);
       const next = prev.filter((s) => s.id !== activeSlide.id);
       const fallback = next[Math.max(0, idx - 1)]?.id || next[0]?.id;
-      setActiveSlideId(fallback);
+      if (fallback) setActiveSlideIdSafe(fallback);
       return next;
     });
-  }, [activeSlide.id]);
+  }, [activeSlide.id, setActiveSlideIdSafe]);
 
   const textLayers = useMemo(() => {
     return (activeSlide?.layers ?? []).filter((l: any) => l?.type === "text");
@@ -413,6 +420,15 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
   useEffect(() => {
     if (!targetLayerId && defaultTargetId) setTargetLayerId(defaultTargetId);
   }, [defaultTargetId, targetLayerId]);
+
+  useEffect(() => {
+    setTargetLayerId(defaultTargetId || "");
+    setAiOutput("");
+    setAiHooks([]);
+    setAiError(null);
+    setAuditError(null);
+    setAuditResult("");
+  }, [activeSlideId, defaultTargetId]);
 
   const [idea, setIdea] = useState<string>("");
   const [network, setNetwork] = useState<Network>("Instagram");
@@ -1004,10 +1020,9 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
             </div>
 
             <EditorLayout
-              initialLayers={stableActiveLayersRef.current}
+              key={`carrousel-slide-${activeSlideId}`}
+              initialLayers={cloneLayers(stableActiveLayersRef.current)}
               initialLayersKey={activeSlideId}
-              initialUI={draftUI}
-              onUIChange={setDraftUI}
               onChange={updateLayers}
               mobileToolsOpen={mobileToolsOpen}
               onCloseMobileTools={onCloseMobileTools}
@@ -1019,7 +1034,7 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
                 return (
                   <button
                     key={s.id}
-                    onClick={() => setActiveSlideId(s.id)}
+                    onClick={() => setActiveSlideIdSafe(s.id)}
                     className={[
                       "px-4 py-2 rounded-xl border text-sm",
                       active
