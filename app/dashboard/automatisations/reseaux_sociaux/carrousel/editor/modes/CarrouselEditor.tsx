@@ -148,6 +148,43 @@ function safeJsonParse(raw: string | null) {
   }
 }
 
+function stableSig(value: any) {
+  try {
+    return JSON.stringify(value ?? null);
+  } catch {
+    return "";
+  }
+}
+
+function stripNonSerializableUI(input: any): any {
+  if (input == null) return input;
+  const t = typeof input;
+  if (t === "function") return undefined;
+  if (t !== "object") return input;
+
+  const anyObj: any = input as any;
+  if (anyObj?.nodeType === 1 || anyObj?.tagName || anyObj?.nodeName) return undefined;
+
+  if (Array.isArray(input)) {
+    return input
+      .map((x) => stripNonSerializableUI(x))
+      .filter((x) => x !== undefined);
+  }
+
+  const out: any = {};
+  for (const [k, v] of Object.entries(anyObj)) {
+    if (v === undefined) continue;
+    if (k === "runtime" || k === "_runtime" || k === "__runtime") continue;
+    if (k === "konva" || k === "_konva" || k === "__konva") continue;
+    if (k === "stage" || k === "layer" || k === "node" || k === "ref") continue;
+    if (k === "imageElement" || k === "imgEl" || k === "htmlImage") continue;
+
+    const cleaned = stripNonSerializableUI(v);
+    if (cleaned !== undefined) out[k] = cleaned;
+  }
+  return out;
+}
+
 function stableSerialize(value: any): string {
   const seen = new WeakSet();
 
@@ -341,12 +378,20 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
     return parsed?.ui || undefined;
   });
 
+  useEffect(() => {
+    uiRef.current = draftUI;
+    lastUiSigRef.current = stableSig(draftUI ?? {});
+  }, [draftUI]);
+
   const [activeSlideId, setActiveSlideId] = useState<string>(() => {
     const saved = typeof window !== "undefined" ? window.localStorage.getItem(LS_CARROUSEL_ACTIVE_SLIDE) : null;
     return saved || "";
   });
 
   const activeSlideIdRef = useRef<string>("");
+  const uiRef = useRef<any>(undefined);
+  const lastUiSigRef = useRef<string>("");
+
   useEffect(() => {
     activeSlideIdRef.current = activeSlideId;
   }, [activeSlideId]);
@@ -382,6 +427,15 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
       // no-op
     }
   }, [slides, draftUI]);
+
+  const handleUIChange = useCallback((ui: any) => {
+    const cleaned = stripNonSerializableUI(ui ?? {});
+    const sig = stableSig(cleaned ?? {});
+    if (sig === lastUiSigRef.current) return;
+    lastUiSigRef.current = sig;
+    uiRef.current = cleaned;
+    setDraftUI((prev: any) => (stableSig(prev ?? {}) === sig ? prev : cleaned));
+  }, []);
 
   const activeSlide = useMemo(() => slides.find((s) => s.id === activeSlideId) || slides[0], [slides, activeSlideId]);
   const activeSlideLayersSig = useMemo(() => layersSignature(activeSlide?.layers ?? []), [activeSlide?.layers]);
@@ -496,14 +550,63 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
     return (activeSlide?.layers ?? []).find((l: any) => String(l?.id) === String(targetLayerId)) as any;
   }, [activeSlide?.layers, targetLayerId]);
 
+  const syncEditorSelection = useCallback(
+    (id: string) => {
+      if (!id) return;
+      const currentUI = uiRef.current ?? {};
+
+      const currentSelectedLayerId = String(currentUI?.selectedLayerId ?? "");
+      const currentSelectedId = String(currentUI?.selectedId ?? "");
+      const currentSelectionId = String(currentUI?.selection?.id ?? "");
+      const currentSelectedLayerIds = Array.isArray(currentUI?.selectedLayerIds)
+        ? currentUI.selectedLayerIds.map((x: any) => String(x))
+        : [];
+      const currentSelectedIds = Array.isArray(currentUI?.selectedIds)
+        ? currentUI.selectedIds.map((x: any) => String(x))
+        : [];
+
+      const alreadySelected =
+        currentSelectedLayerId === String(id) &&
+        currentSelectedId === String(id) &&
+        currentSelectionId === String(id) &&
+        currentSelectedLayerIds.length === 1 &&
+        currentSelectedLayerIds[0] === String(id) &&
+        currentSelectedIds.length === 1 &&
+        currentSelectedIds[0] === String(id);
+
+      if (alreadySelected) return;
+
+      const nextUI = {
+        ...currentUI,
+        selectedLayerId: id,
+        selectedId: id,
+        selectedLayerIds: [id],
+        selectedIds: [id],
+        selection: {
+          ...(currentUI?.selection || {}),
+          id,
+          ids: [id],
+        },
+      };
+      handleUIChange(nextUI);
+    },
+    [handleUIChange]
+  );
+
+  useEffect(() => {
+    if (targetLayerId) syncEditorSelection(targetLayerId);
+  }, [targetLayerId, syncEditorSelection]);
+
   const applyToLayer = useCallback(
     (text: string) => {
       if (!text) return;
       const id = targetLayerId || defaultTargetId;
       if (!id) return;
 
-      const layers = activeSlide?.layers ?? [];
-      if (!layers.length) return;
+      const currentSlideId = activeSlideIdRef.current || activeSlide?.id;
+      const currentSlide = slides.find((s) => s.id === currentSlideId) || activeSlide;
+      const layers = currentSlide?.layers ?? [];
+      if (!layers.length || !currentSlideId) return;
 
       const next = layers.map((l: any) => {
         if (String(l?.id) !== String(id)) return l;
@@ -511,9 +614,10 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
         return autoSizeTextLayer({ ...l, text });
       });
 
-      updateLayersForSlide(activeSlide.id, next as any);
+      updateLayersForSlide(currentSlideId, next as any);
+      syncEditorSelection(id);
     },
-    [activeSlide?.layers, activeSlide?.id, targetLayerId, defaultTargetId, updateLayersForSlide]
+    [slides, activeSlide, targetLayerId, defaultTargetId, updateLayersForSlide, syncEditorSelection]
   );
 
   function buildContext() {
@@ -915,6 +1019,20 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
                             </option>
                           ))}
                         </select>
+
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => syncEditorSelection(targetLayerId || defaultTargetId)}
+                            disabled={!targetLayerId && !defaultTargetId}
+                            className="rounded-xl px-3 py-2 text-xs text-yellow-100 border border-yellow-500/20 bg-black/40 hover:bg-black/60 disabled:opacity-60"
+                          >
+                            Sélectionner ce layer dans l’éditeur
+                          </button>
+                          <div className="text-[11px] text-white/45">
+                            La cible texte reste synchronisée avec la slide active.
+                          </div>
+                        </div>
                       </div>
                     </div>
 
@@ -969,7 +1087,7 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
               initialLayers={stableActiveLayersRef.current}
               initialLayersKey={activeSlideId}
               initialUI={draftUI}
-              onUIChange={setDraftUI}
+              onUIChange={handleUIChange}
               onChange={updateLayers}
               mobileToolsOpen={mobileToolsOpen}
               onCloseMobileTools={onCloseMobileTools}
