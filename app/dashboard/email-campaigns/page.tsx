@@ -2,9 +2,7 @@
 
 import { ArrowLeft, MailCheck, Sparkles } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
-
-
+import { useEffect, useState } from "react";
 
 import EmailAnalyticsButton from "./components/EmailAnalyticsButton";
 import EmailCampaignDeliveryCard from "./components/EmailCampaignDeliveryCard";
@@ -17,6 +15,11 @@ import {
   EmailSequenceResponse,
 } from "./components/types";
 
+export default function EmailCampaignsPage() {
+  const [values, setValues] = useState<EmailCampaignFormValues>(defaultEmailCampaignValues);
+  const [sequence, setSequence] = useState<EmailSequenceResponse | null>(null);
+  const [savedCampaignId, setSavedCampaignId] = useState<number | null>(null);
+  const [resetVersion, setResetVersion] = useState(0);
 
   useEffect(() => {
     try {
@@ -30,14 +33,11 @@ import {
         offer: Boolean(parsed?.offer),
       };
       window.localStorage.setItem(key, JSON.stringify(updated));
-    } catch {}
+    } catch {
+      // ignore
+    }
   }, []);
 
-export default function EmailCampaignsPage() {
-  const [values, setValues] = useState<EmailCampaignFormValues>(defaultEmailCampaignValues);
-  const [sequence, setSequence] = useState<EmailSequenceResponse | null>(null);
-  const [savedCampaignId, setSavedCampaignId] = useState<number | null>(null);
-  const [resetVersion, setResetVersion] = useState(0);
 
   const handleResetGenerator = () => {
     setValues(defaultEmailCampaignValues);
