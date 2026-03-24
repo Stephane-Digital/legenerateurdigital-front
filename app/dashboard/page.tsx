@@ -254,7 +254,7 @@ export default function DashboardPage() {
   const hasPaidAccess = useMemo(() => plan !== "none", [plan]);
 
   const heroTitle =
-    "Centre de contrôle LGD — IA • Performance • Conversion • Activation";
+    "Crée du contenu • Attire des prospects • Génère tes premières ventes avec l’IA";
 
   const iconGlow =
     "text-4xl text-[#ffb800] drop-shadow-[0_0_12px_rgba(255,184,0,0.35)]";
@@ -330,23 +330,18 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <CardLuxe className="min-h-[230px] flex flex-col items-center justify-between px-6 py-6 text-center">
               <div className="flex flex-col items-center">
-                <FaEnvelope className={iconGlow} />
+                <FaUserAstronaut className={iconGlow} />
                 <h3 className="mt-3 text-xl font-bold text-[#ffb800]">
-                  Campagnes E-mailing IA
+                  Coach Alex V2
                 </h3>
                 <p className="mt-2 text-white/70 max-w-[420px]">
-                  Séquences 7/14/30 jours, relances, objections, CTA. Optimisé
-                  conversion.
+                  Ton plan d’action quotidien pour générer ta première vente puis scaler. L’IA te guide, tu exécutes.
                 </p>
-                {!hasPaidAccess ? (
-                  <div className="mt-3">
-                    <LockBadge />
-                  </div>
-                ) : null}
+                {!hasPaidAccess ? <div className="mt-3"><LockBadge /></div> : null}
               </div>
 
               <div className="w-full mt-6">
-                <SecondaryButton onClick={() => accessOrExplain("emailing")}>
+                <SecondaryButton onClick={() => accessOrExplain("coach")}>
                   {hasPaidAccess ? "Accéder" : "Découvrir"}
                 </SecondaryButton>
               </div>
@@ -359,8 +354,7 @@ export default function DashboardPage() {
                   Éditeur Intelligent
                 </h3>
                 <p className="mt-2 text-white/70 max-w-[420px]">
-                  Crée <b>Post + Carrousel V5</b> avec Copilote IA. Format
-                  pro, ultra rapide, prêt à publier.
+                  Transforme une idée en contenu qui attire, engage et vend. Post + Carrousel optimisés conversion.
                 </p>
                 {!hasPaidAccess ? <div className="mt-3"><LockBadge /></div> : null}
               </div>
@@ -374,19 +368,22 @@ export default function DashboardPage() {
 
             <CardLuxe className="min-h-[230px] flex flex-col items-center justify-between px-6 py-6 text-center">
               <div className="flex flex-col items-center">
-                <FaUserAstronaut className={iconGlow} />
+                <FaEnvelope className={iconGlow} />
                 <h3 className="mt-3 text-xl font-bold text-[#ffb800]">
-                  Coach Alex V2
+                  Campagnes E-mailing IA
                 </h3>
                 <p className="mt-2 text-white/70 max-w-[420px]">
-                  Mission du jour : <b>1ère vente</b> puis <b>scaler</b>. Plan clair,
-                  pas de blabla.
+                  Transforme ton audience en prospects puis en clients avec des séquences email prêtes à vendre.
                 </p>
-                {!hasPaidAccess ? <div className="mt-3"><LockBadge /></div> : null}
+                {!hasPaidAccess ? (
+                  <div className="mt-3">
+                    <LockBadge />
+                  </div>
+                ) : null}
               </div>
 
               <div className="w-full mt-6">
-                <SecondaryButton onClick={() => accessOrExplain("coach")}>
+                <SecondaryButton onClick={() => accessOrExplain("emailing")}>
                   {hasPaidAccess ? "Accéder" : "Découvrir"}
                 </SecondaryButton>
               </div>
