@@ -4,6 +4,8 @@ import { ArrowLeft, MailCheck, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
+
+
 import EmailAnalyticsButton from "./components/EmailAnalyticsButton";
 import EmailCampaignDeliveryCard from "./components/EmailCampaignDeliveryCard";
 import EmailCampaignGenerator from "./components/EmailCampaignGenerator";
@@ -14,6 +16,22 @@ import {
   EmailCampaignFormValues,
   EmailSequenceResponse,
 } from "./components/types";
+
+
+  useEffect(() => {
+    try {
+      const key = "lgd_dashboard_daily_progress";
+      const raw = window.localStorage.getItem(key);
+      const parsed = raw ? JSON.parse(raw) : {};
+      const updated = {
+        idea: Boolean(parsed?.idea),
+        content: Boolean(parsed?.content),
+        email: true,
+        offer: Boolean(parsed?.offer),
+      };
+      window.localStorage.setItem(key, JSON.stringify(updated));
+    } catch {}
+  }, []);
 
 export default function EmailCampaignsPage() {
   const [values, setValues] = useState<EmailCampaignFormValues>(defaultEmailCampaignValues);
