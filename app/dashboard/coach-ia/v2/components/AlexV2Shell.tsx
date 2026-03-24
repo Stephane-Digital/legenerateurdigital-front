@@ -269,7 +269,22 @@ export default function AlexV2Shell() {
   }, [remaining]);
 
   // ===== init from localStorage (BOOT)
+  
   useEffect(() => {
+    try {
+      const key = "lgd_dashboard_daily_progress";
+      const raw = window.localStorage.getItem(key);
+      const current = raw ? JSON.parse(raw) : {};
+      const updated = {
+        idea: true,
+        content: current.content || false,
+        email: current.email || false,
+        offer: current.offer || false,
+      };
+      window.localStorage.setItem(key, JSON.stringify(updated));
+    } catch {}
+  }, []);
+useEffect(() => {
     const ctx = getV2Context();
     const rm = getV2Roadmap();
     const td = getV2Today();
