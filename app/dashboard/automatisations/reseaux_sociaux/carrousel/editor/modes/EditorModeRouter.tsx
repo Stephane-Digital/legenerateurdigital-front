@@ -3,11 +3,9 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
-import SchedulePlannerModal from "../ui/SchedulePlannerModal";
 import CarrouselEditor from "./CarrouselEditor";
 import PostEditor from "./PostEditor";
 
-import { useSchedulePlanner } from "../../hooks/useSchedulePlanner";
 import { downloadEditorCreation } from "../utils/downloadEditorCreation";
 
 type Mode = "post" | "carrousel";
@@ -43,11 +41,9 @@ function extractTextAndIdFromAny(raw: string | null): { text: string; id: string
   if (raw === "[object Object]") return null;
 
   const trimmed = raw.trim();
-  // string simple
   if (!trimmed.startsWith("{")) {
     const text = normalizeText(trimmed);
     if (!text) return null;
-    // id stable (évite re-pop à chaque retour)
     return { text, id: "s:" + text.slice(0, 60) };
   }
 
@@ -61,7 +57,6 @@ function extractTextAndIdFromAny(raw: string | null): { text: string; id: string
 
     const id =
       String(obj?.briefId || obj?.id || obj?.createdAtISO || "") ||
-      // fallback stable-ish
       "o:" + text.slice(0, 60);
 
     return { text, id };
@@ -141,10 +136,8 @@ function collectBlobUrls(node: any, out: Set<string>) {
   }
 
   if (typeof node === "object") {
-    // évite d'itérer des instances non-plain
     if (node instanceof Date) return;
 
-    // runtimeImages peut être Record<string,string> ou array
     for (const k of Object.keys(node)) {
       collectBlobUrls((node as any)[k], out);
     }
@@ -200,32 +193,17 @@ export default function EditorModeRouter() {
   const [mode, setMode] = useState<Mode>("post");
   const [brief, setBrief] = useState<string>("");
 
-  // ✅ header actions
   const [archiving, setArchiving] = useState(false);
   const [archiveMsg, setArchiveMsg] = useState<string>("");
 
-  const [scheduleOpen, setScheduleOpen] = useState(false);
-  const [scheduleMsg, setScheduleMsg] = useState<string>("");
   const [downloading, setDownloading] = useState(false);
   const [downloadMsg, setDownloadMsg] = useState<string>("");
-
-  const { schedule, loading: scheduleLoading } = useSchedulePlanner();
 
   useEffect(() => {
     const saved = typeof window !== "undefined" ? window.localStorage.getItem("lgd_editor_mode") : null;
     if (saved === "post" || saved === "carrousel") setMode(saved);
   }, []);
 
-  /**
-   * Brief: NE DOIT PAS rester collé quand on revient dans l'éditeur "sans nouveau brief".
-   *
-   * Priorité:
-   * 1) ?brief=... dans l'URL (toujours considéré comme "nouveau")
-   * 2) LS_EDITOR_INTELLIGENT_BRIEF (OptimizeCard -> applyToEditor)
-   * 3) LS_ALEX_BRIEF / LS_COACH_BRIEF (mission)
-   *
-   * Puis anti-régression: si id == lastConsumed => on n'affiche rien + on purge LS_COACH_BRIEF.
-   */
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -236,17 +214,14 @@ export default function EditorModeRouter() {
 
       const lastConsumed = window.localStorage.getItem(LS_BRIEF_LAST_CONSUMED) || "";
 
-      // 1) URL
       if (decoded) {
         setBrief(decoded);
         window.localStorage.setItem(LS_COACH_BRIEF, decoded);
         window.localStorage.setItem(LS_BRIEF_LAST_CONSUMED, "url:" + decoded.slice(0, 80));
-        // si on arrive via URL, on purge les payloads LS pour éviter les conflits
         window.localStorage.removeItem(LS_EDITOR_INTELLIGENT_BRIEF);
         return;
       }
 
-      // 2) Optimisation (blocage)
       const optim = extractTextAndIdFromAny(window.localStorage.getItem(LS_EDITOR_INTELLIGENT_BRIEF));
       if (optim) {
         if (optim.id && optim.id === lastConsumed) {
@@ -257,12 +232,10 @@ export default function EditorModeRouter() {
           window.localStorage.setItem(LS_COACH_BRIEF, optim.text);
           window.localStorage.setItem(LS_BRIEF_LAST_CONSUMED, optim.id);
         }
-        // IMPORTANT: brief optimisation = one-shot
         window.localStorage.removeItem(LS_EDITOR_INTELLIGENT_BRIEF);
         return;
       }
 
-      // 3) Mission (Alex)
       const missionRaw = window.localStorage.getItem(LS_ALEX_BRIEF) || window.localStorage.getItem(LS_COACH_BRIEF) || "";
       const mission = extractTextAndIdFromAny(missionRaw);
 
@@ -276,7 +249,6 @@ export default function EditorModeRouter() {
           window.localStorage.setItem(LS_BRIEF_LAST_CONSUMED, mission.id);
         }
       } else {
-        // rien de nouveau -> on évite le "brief fantôme"
         setBrief("");
         window.localStorage.removeItem(LS_COACH_BRIEF);
       }
@@ -317,7 +289,6 @@ export default function EditorModeRouter() {
 
     setArchiving(true);
     try {
-      // ✅ convertit les blob: en dataURL pour garantir les previews Library
       const preparedDraft = await prepareDraftForLibrary(draft);
 
       const res = await fetch(`${base}/library/save-draft`, {
@@ -330,7 +301,6 @@ export default function EditorModeRouter() {
         body: JSON.stringify({
           kind,
           title,
-          // ✅ IMPORTANT: wrap payload (LibraryCanvaGrid lit content.payload)
           data: { payload: preparedDraft },
         }),
       });
@@ -352,35 +322,6 @@ export default function EditorModeRouter() {
     } finally {
       setArchiving(false);
       window.setTimeout(() => setArchiveMsg(""), 3000);
-    }
-  }
-
-  async function onConfirmSchedule(args: { reseau: string; date_programmee: string; titre?: string }) {
-    setScheduleMsg("");
-
-    const draft = getDraft();
-    if (!draft) {
-      setScheduleMsg("❌ Aucun contenu à planifier (draft vide).");
-      return;
-    }
-
-    try {
-      // ✅ REBRANCHEMENT SOURCE DE VÉRITÉ
-      // On envoie le contenu actuel (draft) + réseau + date/heure.
-      await schedule({
-        reseau: args.reseau,
-        date_programmee: args.date_programmee,
-        titre: args.titre || (mode === "post" ? "Post" : "Carrousel"),
-        format: mode,
-        contenu: draft,
-      });
-
-      setScheduleMsg("✅ Planifié dans le Planner.");
-      setScheduleOpen(false);
-      window.setTimeout(() => setScheduleMsg(""), 3000);
-    } catch (e: any) {
-      const msg = String(e?.message || e || "");
-      setScheduleMsg(msg.includes("date_programm") ? "❌ Date/heure invalide (date_programmee)." : `❌ ${msg || "Erreur planification"}`);
     }
   }
 
@@ -422,9 +363,7 @@ export default function EditorModeRouter() {
     <div className="min-h-screen bg-black text-white">
       <div className="mx-auto w-full max-w-[1680px] px-4 md:px-6 pt-20">
         <div className="flex items-start justify-between gap-4">
-          {/* LEFT LINKS */}
           <div className="flex flex-col gap-3">
-
             <Link
               href="/dashboard/coach-ia/v2"
               className="w-fit rounded-xl border border-yellow-500/25 bg-black/30 px-4 py-2 text-sm font-semibold text-yellow-200 hover:bg-black/40"
@@ -433,7 +372,6 @@ export default function EditorModeRouter() {
             </Link>
           </div>
 
-          {/* ✅ RIGHT ACTIONS (LES 3 BOUTONS) */}
           <div className="flex flex-col items-end gap-2">
             <div className="flex flex-wrap items-center justify-end gap-2">
               <button
@@ -463,20 +401,10 @@ export default function EditorModeRouter() {
               >
                 {downloading ? "Téléchargement…" : "⬇️ Télécharger sur PC"}
               </button>
-            
-             <button
-                type="button"
-                onClick={() => setScheduleOpen(true)}
-                className="rounded-xl border border-yellow-500/25 bg-black/30 px-4 py-2 text-sm font-semibold text-yellow-200 hover:bg-black/40"
-                title="Planifier ce contenu"
-              >
-                🗓️ Planifier
-              </button>
-            </div> 
+            </div>
 
             {archiveMsg ? <div className="text-xs text-white/70">{archiveMsg}</div> : null}
             {downloadMsg ? <div className="text-xs text-white/70">{downloadMsg}</div> : null}
-            {scheduleMsg ? <div className="text-xs text-white/70">{scheduleMsg}</div> : null}
           </div>
         </div>
 
@@ -505,16 +433,7 @@ export default function EditorModeRouter() {
 
       <div className="mx-auto mt-1 w-full max-w-[1800px] px-6 pb-16">
         {mode === "post" ? <PostEditor brief={brief} /> : <CarrouselEditor brief={brief} />}
-
-        <SchedulePlannerModal
-          open={scheduleOpen}
-          defaultTitle={mode === "post" ? "Post" : "Carrousel"}
-          loading={scheduleLoading}
-          onClose={() => setScheduleOpen(false)}
-          onConfirm={onConfirmSchedule}
-        />
       </div>
     </div>
   );
 }
-
