@@ -322,6 +322,45 @@ export default function DashboardPage() {
         </motion.div>
 
         <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.06, duration: 0.32 }}
+          className="max-w-6xl mx-auto mt-10"
+        >
+          <CardLuxe className="px-6 py-7 sm:px-8 sm:py-8">
+            <div className="flex flex-col items-center text-center">
+              <div className="inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-4 py-1 text-[12px] text-white/75">
+                <FaBolt className="text-yellow-300" />
+                Action prioritaire du jour
+              </div>
+
+              <h2 className="mt-4 text-2xl sm:text-3xl font-extrabold text-[#ffb800]">
+                Ton plan du jour est prêt
+              </h2>
+
+              <p className="mt-3 max-w-3xl text-white/75 text-sm sm:text-base">
+                Lance Coach Alex et exécute ton action la plus rentable aujourd’hui.
+                LGD te guide pour passer plus vite de l’idée à l’action, puis de l’action à la vente.
+              </p>
+
+              <div className="mt-6 w-full max-w-md">
+                <PrimaryButton
+                  onClick={() => {
+                    if (hasPaidAccess) {
+                      go("/dashboard/coach-ia");
+                      return;
+                    }
+                    openSystemeioPlans();
+                  }}
+                >
+                  {hasPaidAccess ? "Démarrer maintenant" : "Voir les plans"}
+                </PrimaryButton>
+              </div>
+            </div>
+          </CardLuxe>
+        </motion.div>
+
+        <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.08, duration: 0.3 }}
