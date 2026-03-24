@@ -4,6 +4,18 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+function getAuthHeaders() {
+  if (typeof window === "undefined") return {};
+
+  const token =
+    window.localStorage.getItem("access_token") ||
+    window.localStorage.getItem("token") ||
+    window.localStorage.getItem("jwt") ||
+    "";
+
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 type LibraryItem = {
   id: number;
   title: string;
@@ -50,7 +62,7 @@ async function fetchFirstOk(urls: string[]) {
   let lastErr: any = null;
   for (const u of urls) {
     try {
-      const r = await fetch(u, { credentials: "include" });
+      const r = await fetch(u, { credentials: "include", headers: { ...getAuthHeaders() } });
       if (r.ok) return r;
       lastErr = new Error(String(r.status));
     } catch (e) {
@@ -497,7 +509,7 @@ export default function LibraryPage() {
     loadAbort.current = new AbortController();
 
     try {
-      const res = await fetchFirstOk([`${apiUrl}/library/list`, `${apiUrl}/library/items`, `${apiUrl}/library`]);
+      const res = await fetchFirstOk([`${apiUrl}/library/list`, `${apiUrl}/library/items`]);
       const data = (await res.json().catch(() => [])) as any;
       const list: LibraryItem[] = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
       setItems(list);
@@ -517,7 +529,7 @@ export default function LibraryPage() {
         while (idx < need.length) {
           const current = need[idx++];
           try {
-            const r = await fetch(normalizeUrl(current.raw_url!), { credentials: "include" });
+            const r = await fetch(normalizeUrl(current.raw_url!), { credentials: "include", headers: { ...getAuthHeaders() } });
             if (!r.ok) {
               next[current.id] = null;
               continue;
@@ -574,8 +586,8 @@ export default function LibraryPage() {
     try {
       await Promise.all(
         selectedIds.map(async (id) => {
-          await fetch(`${apiUrl}/library/${id}`, { method: "DELETE", credentials: "include" }).catch(() => null);
-          await fetch(`${apiUrl}/library/items/${id}`, { method: "DELETE", credentials: "include" }).catch(() => null);
+          await fetch(`${apiUrl}/library/${id}`, { method: "DELETE", credentials: "include", headers: { ...getAuthHeaders() } }).catch(() => null);
+          await fetch(`${apiUrl}/library/items/${id}`, { method: "DELETE", credentials: "include", headers: { ...getAuthHeaders() } }).catch(() => null);
         })
       );
       setSelected({});
