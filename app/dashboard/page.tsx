@@ -124,6 +124,36 @@ function writeDailyProgress(progress: DailyProgress) {
   window.localStorage.setItem(LGD_DAILY_PROGRESS_KEY, JSON.stringify(progress));
 }
 
+
+function markDashboardProgress(partial: Partial<DailyProgress>) {
+  if (typeof window === "undefined") return;
+  try {
+    const raw = window.localStorage.getItem(LGD_DAILY_PROGRESS_KEY);
+    const current: DailyProgress = raw
+      ? {
+          idea: Boolean(JSON.parse(raw).idea),
+          content: Boolean(JSON.parse(raw).content),
+          email: Boolean(JSON.parse(raw).email),
+          offer: Boolean(JSON.parse(raw).offer),
+        }
+      : DEFAULT_PROGRESS;
+
+    const updated: DailyProgress = {
+      ...current,
+      ...partial,
+    };
+
+    window.localStorage.setItem(LGD_DAILY_PROGRESS_KEY, JSON.stringify(updated));
+  } catch {
+    const fallback: DailyProgress = {
+      ...DEFAULT_PROGRESS,
+      ...partial,
+    };
+    window.localStorage.setItem(LGD_DAILY_PROGRESS_KEY, JSON.stringify(fallback));
+  }
+}
+
+
 function openSystemeioPlans() {
   window.open(SYSTEMEIO_PLANS_URL, "_blank", "noopener,noreferrer");
 }
@@ -526,7 +556,10 @@ export default function DashboardPage() {
               </div>
 
               <div className="w-full mt-6">
-                <SecondaryButton onClick={() => accessOrExplain("editor")}>
+                <SecondaryButton onClick={() => {
+                  markDashboardProgress({ content: true });
+                  accessOrExplain("editor");
+                }}>
                   {hasPaidAccess ? "Accéder" : "Découvrir"}
                 </SecondaryButton>
               </div>
@@ -678,6 +711,7 @@ export default function DashboardPage() {
               <PrimaryButton
                 onClick={() => {
                   closeModal();
+                  markDashboardProgress({ content: true });
                   go("/dashboard/automatisations/reseaux_sociaux/editor-intelligent");
                 }}
               >
