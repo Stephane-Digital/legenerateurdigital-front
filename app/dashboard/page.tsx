@@ -35,8 +35,24 @@ type ModalKey =
   | "offer"
   | "funnel";
 
+type DailyProgress = {
+  idea: boolean;
+  content: boolean;
+  email: boolean;
+  offer: boolean;
+};
+
 const SYSTEMEIO_PLANS_URL =
   process.env.NEXT_PUBLIC_SYSTEMEIO_PLANS_URL || "https://legenerateurdigital.systeme.io/planslgd";
+
+const LGD_DAILY_PROGRESS_KEY = "lgd_dashboard_daily_progress";
+
+const DEFAULT_PROGRESS: DailyProgress = {
+  idea: true,
+  content: false,
+  email: false,
+  offer: false,
+};
 
 function planLabel(plan: Plan) {
   if (plan === "ultime") return "ULTIME";
@@ -82,6 +98,30 @@ function getPlanFromLocalStorage(): Plan {
   if (pro === "active") return "pro";
   if (essentiel === "active") return "essentiel";
   return "none";
+}
+
+function readDailyProgress(): DailyProgress {
+  if (typeof window === "undefined") return DEFAULT_PROGRESS;
+
+  try {
+    const raw = window.localStorage.getItem(LGD_DAILY_PROGRESS_KEY);
+    if (!raw) return DEFAULT_PROGRESS;
+
+    const parsed = JSON.parse(raw) as Partial<DailyProgress>;
+    return {
+      idea: Boolean(parsed.idea),
+      content: Boolean(parsed.content),
+      email: Boolean(parsed.email),
+      offer: Boolean(parsed.offer),
+    };
+  } catch {
+    return DEFAULT_PROGRESS;
+  }
+}
+
+function writeDailyProgress(progress: DailyProgress) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(LGD_DAILY_PROGRESS_KEY, JSON.stringify(progress));
 }
 
 function openSystemeioPlans() {
@@ -159,12 +199,24 @@ function SoonBadge() {
 function ProgressItem({
   done,
   label,
+  onClick,
 }: {
   done?: boolean;
   label: string;
+  onClick?: () => void;
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-yellow-600/15 bg-[#0b0b0b] px-4 py-3 text-left">
+    <button
+      type="button"
+      onClick={onClick}
+      className={[
+        "flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-all",
+        "hover:-translate-y-0.5",
+        done
+          ? "border-yellow-500/30 bg-yellow-500/10 text-white"
+          : "border-yellow-600/15 bg-[#0b0b0b] text-white/75 hover:bg-yellow-500/5",
+      ].join(" ")}
+    >
       <div className="shrink-0">
         {done ? (
           <FaCheckCircle className="text-yellow-400 text-lg" />
@@ -172,8 +224,8 @@ function ProgressItem({
           <FaCircle className="text-white/30 text-[12px]" />
         )}
       </div>
-      <span className={done ? "text-white/90" : "text-white/70"}>{label}</span>
-    </div>
+      <span className={done ? "text-white/95" : "text-white/70"}>{label}</span>
+    </button>
   );
 }
 
@@ -250,8 +302,8 @@ export default function DashboardPage() {
 
   const [plan, setPlan] = useState<Plan>("none");
   const [loadingPlan, setLoadingPlan] = useState(true);
-
   const [activeModal, setActiveModal] = useState<ModalKey | null>(null);
+  const [dailyProgress, setDailyProgress] = useState<DailyProgress>(DEFAULT_PROGRESS);
 
   useEffect(() => {
     let cancelled = false;
@@ -273,6 +325,14 @@ export default function DashboardPage() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    setDailyProgress(readDailyProgress());
+  }, []);
+
+  useEffect(() => {
+    writeDailyProgress(dailyProgress);
+  }, [dailyProgress]);
 
   const hasPaidAccess = useMemo(() => plan !== "none", [plan]);
 
@@ -296,6 +356,13 @@ export default function DashboardPage() {
 
   function accessOrExplain(key: "editor" | "coach" | "emailing") {
     openModal(key);
+  }
+
+  function toggleProgressItem(key: keyof DailyProgress) {
+    setDailyProgress((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
   }
 
   return (
@@ -388,15 +455,31 @@ export default function DashboardPage() {
                   </div>
 
                   <p className="mt-3 max-w-3xl text-white/70 text-sm">
-                    Garde le cap sur l’essentiel : une idée claire, un contenu créé, un email prêt,
-                    puis une offre envoyée.
+                    Clique sur une étape pour la cocher ou la décocher. Ta progression reste enregistrée
+                    même si tu recharges la page.
                   </p>
 
                   <div className="mt-5 grid w-full grid-cols-1 md:grid-cols-2 gap-4">
-                    <ProgressItem done label="Idée trouvée" />
-                    <ProgressItem label="Contenu créé" />
-                    <ProgressItem label="Email généré" />
-                    <ProgressItem label="Offre envoyée" />
+                    <ProgressItem
+                      done={dailyProgress.idea}
+                      label="Idée trouvée"
+                      onClick={() => toggleProgressItem("idea")}
+                    />
+                    <ProgressItem
+                      done={dailyProgress.content}
+                      label="Contenu créé"
+                      onClick={() => toggleProgressItem("content")}
+                    />
+                    <ProgressItem
+                      done={dailyProgress.email}
+                      label="Email généré"
+                      onClick={() => toggleProgressItem("email")}
+                    />
+                    <ProgressItem
+                      done={dailyProgress.offer}
+                      label="Offre envoyée"
+                      onClick={() => toggleProgressItem("offer")}
+                    />
                   </div>
                 </div>
               </div>
