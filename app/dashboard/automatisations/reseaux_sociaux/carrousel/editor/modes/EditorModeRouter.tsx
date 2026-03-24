@@ -464,15 +464,7 @@ export default function EditorModeRouter() {
                 {downloading ? "Téléchargement…" : "⬇️ Télécharger sur PC"}
               </button>
 
-              <button
-                type="button"
-                onClick={() => setScheduleOpen(true)}
-                className="rounded-xl border border-yellow-500/25 bg-black/30 px-4 py-2 text-sm font-semibold text-yellow-200 hover:bg-black/40"
-                title="Planifier ce contenu"
-              >
-                🗓️ Planifier
-              </button>
-            </div>
+             
 
             {archiveMsg ? <div className="text-xs text-white/70">{archiveMsg}</div> : null}
             {downloadMsg ? <div className="text-xs text-white/70">{downloadMsg}</div> : null}
