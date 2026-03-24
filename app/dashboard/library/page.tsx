@@ -524,7 +524,6 @@ export default function LibraryPage() {
       const concurrency = 6;
       let idx = 0;
 
-      // ✅ FIX ES5 strict mode: pas de function declaration dans un bloc
       const worker = async () => {
         while (idx < need.length) {
           const current = need[idx++];
@@ -572,7 +571,6 @@ export default function LibraryPage() {
       return;
     }
 
-    // fallback fichier
     if (it.file_url) window.open(normalizeUrl(it.file_url), "_blank");
   }
 
