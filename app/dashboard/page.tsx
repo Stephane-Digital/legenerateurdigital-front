@@ -334,6 +334,7 @@ export default function DashboardPage() {
   const [loadingPlan, setLoadingPlan] = useState(true);
   const [activeModal, setActiveModal] = useState<ModalKey | null>(null);
   const [dailyProgress, setDailyProgress] = useState<DailyProgress>(DEFAULT_PROGRESS);
+  const [progressHydrated, setProgressHydrated] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -357,12 +358,15 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    setDailyProgress(readDailyProgress());
+    const saved = readDailyProgress();
+    setDailyProgress(saved);
+    setProgressHydrated(true);
   }, []);
 
   useEffect(() => {
+    if (!progressHydrated) return;
     writeDailyProgress(dailyProgress);
-  }, [dailyProgress]);
+  }, [dailyProgress, progressHydrated]);
 
   const hasPaidAccess = useMemo(() => plan !== "none", [plan]);
 
