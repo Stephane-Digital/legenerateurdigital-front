@@ -395,6 +395,15 @@ export default function DashboardPage() {
     }));
   }
 
+  function markContentCreated() {
+    const updated: DailyProgress = {
+      ...dailyProgress,
+      content: true,
+    };
+    setDailyProgress(updated);
+    writeDailyProgress(updated);
+  }
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
       <div className="px-6 pt-[120px] pb-16">
@@ -557,7 +566,7 @@ export default function DashboardPage() {
 
               <div className="w-full mt-6">
                 <SecondaryButton onClick={() => {
-                  markDashboardProgress({ content: true });
+                  markContentCreated();
                   accessOrExplain("editor");
                 }}>
                   {hasPaidAccess ? "Accéder" : "Découvrir"}
@@ -711,7 +720,7 @@ export default function DashboardPage() {
               <PrimaryButton
                 onClick={() => {
                   closeModal();
-                  markDashboardProgress({ content: true });
+                  markContentCreated();
                   go("/dashboard/automatisations/reseaux_sociaux/editor-intelligent");
                 }}
               >
