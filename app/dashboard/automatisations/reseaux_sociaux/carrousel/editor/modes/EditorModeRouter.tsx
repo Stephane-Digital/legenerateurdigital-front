@@ -23,6 +23,9 @@ const LS_BRIEF_LAST_CONSUMED = "lgd_editor_brief_last_consumed";
 const LS_POST = "lgd_editor_post_draft_v5";
 const LS_CARROUSEL = "lgd_editor_carrousel_draft_v5";
 
+// Dashboard progression bridge
+const LS_DASHBOARD_DAILY_PROGRESS = "lgd_dashboard_daily_progress";
+
 function safeJsonParse(raw: string | null) {
   if (!raw) return null;
   try {
@@ -202,6 +205,34 @@ export default function EditorModeRouter() {
   useEffect(() => {
     const saved = typeof window !== "undefined" ? window.localStorage.getItem("lgd_editor_mode") : null;
     if (saved === "post" || saved === "carrousel") setMode(saved);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const raw = window.localStorage.getItem(LS_DASHBOARD_DAILY_PROGRESS);
+      const parsed = raw ? JSON.parse(raw) : {};
+
+      const updated = {
+        idea: Boolean(parsed?.idea),
+        content: true,
+        email: Boolean(parsed?.email),
+        offer: Boolean(parsed?.offer),
+      };
+
+      window.localStorage.setItem(LS_DASHBOARD_DAILY_PROGRESS, JSON.stringify(updated));
+    } catch {
+      window.localStorage.setItem(
+        LS_DASHBOARD_DAILY_PROGRESS,
+        JSON.stringify({
+          idea: false,
+          content: true,
+          email: false,
+          offer: false,
+        })
+      );
+    }
   }, []);
 
   useEffect(() => {
