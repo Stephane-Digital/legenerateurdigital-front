@@ -379,37 +379,26 @@ export default function DashboardPage() {
                   {hasPaidAccess ? "Démarrer maintenant" : "Voir les plans"}
                 </PrimaryButton>
               </div>
-            </div>
-          </CardLuxe>
-        </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.08, duration: 0.32 }}
-          className="max-w-6xl mx-auto mt-8"
-        >
-          <CardLuxe className="px-6 py-7 sm:px-8 sm:py-8">
-            <div className="flex flex-col items-center text-center">
-              <div className="inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-4 py-1 text-[12px] text-white/75">
-                <FaRobot className="text-yellow-300" />
-                Progression du jour
-              </div>
+              <div className="mt-7 w-full max-w-4xl border-t border-yellow-600/15 pt-6">
+                <div className="flex flex-col items-center text-center">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-4 py-1 text-[12px] text-white/75">
+                    <FaRobot className="text-yellow-300" />
+                    Progression du jour
+                  </div>
 
-              <h2 className="mt-4 text-2xl sm:text-3xl font-extrabold text-[#ffb800]">
-                Ta progression aujourd’hui
-              </h2>
+                  <p className="mt-3 max-w-3xl text-white/70 text-sm">
+                    Garde le cap sur l’essentiel : une idée claire, un contenu créé, un email prêt,
+                    puis une offre envoyée.
+                  </p>
 
-              <p className="mt-3 max-w-3xl text-white/75 text-sm sm:text-base">
-                Garde le cap sur l’essentiel : une idée claire, un contenu créé, un email prêt,
-                puis une offre envoyée.
-              </p>
-
-              <div className="mt-6 grid w-full max-w-4xl grid-cols-1 md:grid-cols-2 gap-4">
-                <ProgressItem done label="Idée trouvée" />
-                <ProgressItem label="Contenu créé" />
-                <ProgressItem label="Email généré" />
-                <ProgressItem label="Offre envoyée" />
+                  <div className="mt-5 grid w-full grid-cols-1 md:grid-cols-2 gap-4">
+                    <ProgressItem done label="Idée trouvée" />
+                    <ProgressItem label="Contenu créé" />
+                    <ProgressItem label="Email généré" />
+                    <ProgressItem label="Offre envoyée" />
+                  </div>
+                </div>
               </div>
             </div>
           </CardLuxe>
