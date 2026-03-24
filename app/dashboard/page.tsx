@@ -10,6 +10,8 @@ import CardLuxe from "@/components/ui/CardLuxe";
 import {
   FaBolt,
   FaBook,
+  FaCheckCircle,
+  FaCircle,
   FaCrown,
   FaEnvelope,
   FaFilter,
@@ -151,6 +153,27 @@ function SoonBadge() {
       <FaBolt className="text-yellow-300" />
       Bientôt disponible
     </span>
+  );
+}
+
+function ProgressItem({
+  done,
+  label,
+}: {
+  done?: boolean;
+  label: string;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-2xl border border-yellow-600/15 bg-[#0b0b0b] px-4 py-3 text-left">
+      <div className="shrink-0">
+        {done ? (
+          <FaCheckCircle className="text-yellow-400 text-lg" />
+        ) : (
+          <FaCircle className="text-white/30 text-[12px]" />
+        )}
+      </div>
+      <span className={done ? "text-white/90" : "text-white/70"}>{label}</span>
+    </div>
   );
 }
 
@@ -361,9 +384,41 @@ export default function DashboardPage() {
         </motion.div>
 
         <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.08, duration: 0.32 }}
+          className="max-w-6xl mx-auto mt-8"
+        >
+          <CardLuxe className="px-6 py-7 sm:px-8 sm:py-8">
+            <div className="flex flex-col items-center text-center">
+              <div className="inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-4 py-1 text-[12px] text-white/75">
+                <FaRobot className="text-yellow-300" />
+                Progression du jour
+              </div>
+
+              <h2 className="mt-4 text-2xl sm:text-3xl font-extrabold text-[#ffb800]">
+                Ta progression aujourd’hui
+              </h2>
+
+              <p className="mt-3 max-w-3xl text-white/75 text-sm sm:text-base">
+                Garde le cap sur l’essentiel : une idée claire, un contenu créé, un email prêt,
+                puis une offre envoyée.
+              </p>
+
+              <div className="mt-6 grid w-full max-w-4xl grid-cols-1 md:grid-cols-2 gap-4">
+                <ProgressItem done label="Idée trouvée" />
+                <ProgressItem label="Contenu créé" />
+                <ProgressItem label="Email généré" />
+                <ProgressItem label="Offre envoyée" />
+              </div>
+            </div>
+          </CardLuxe>
+        </motion.div>
+
+        <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.08, duration: 0.3 }}
+          transition={{ delay: 0.1, duration: 0.3 }}
           className="max-w-6xl mx-auto mt-12"
         >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -433,7 +488,7 @@ export default function DashboardPage() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.12, duration: 0.3 }}
+          transition={{ delay: 0.14, duration: 0.3 }}
           className="max-w-6xl mx-auto mt-14"
         >
           <div className="text-center">
