@@ -10,7 +10,6 @@ import CardLuxe from "@/components/ui/CardLuxe";
 import {
   FaBolt,
   FaBook,
-  FaCalendarAlt,
   FaCrown,
   FaEnvelope,
   FaFilter,
@@ -26,7 +25,6 @@ type Plan = "none" | "essentiel" | "pro" | "ultime";
 
 type ModalKey =
   | "editor"
-  | "planner"
   | "coach"
   | "affiliation"
   | "emailing"
@@ -273,7 +271,7 @@ export default function DashboardPage() {
     router.push(path);
   }
 
-  function accessOrExplain(key: "editor" | "planner" | "coach" | "emailing") {
+  function accessOrExplain(key: "editor" | "coach" | "emailing") {
     openModal(key);
   }
 
@@ -369,26 +367,6 @@ export default function DashboardPage() {
 
               <div className="w-full mt-6">
                 <SecondaryButton onClick={() => accessOrExplain("editor")}>
-                  {hasPaidAccess ? "Accéder" : "Découvrir"}
-                </SecondaryButton>
-              </div>
-            </CardLuxe>
-
-            <CardLuxe className="min-h-[230px] flex flex-col items-center justify-between px-6 py-6 text-center">
-              <div className="flex flex-col items-center">
-                <FaCalendarAlt className={iconGlow} />
-                <h3 className="mt-3 text-xl font-bold text-[#ffb800]">
-                  Planner 24/24
-                </h3>
-                <p className="mt-2 text-white/70 max-w-[420px]">
-                  Planifie quand tu veux. Vue mensuelle / semaine / jour.
-                  Objectif : régularité + ventes.
-                </p>
-                {!hasPaidAccess ? <div className="mt-3"><LockBadge /></div> : null}
-              </div>
-
-              <div className="w-full mt-6">
-                <SecondaryButton onClick={() => accessOrExplain("planner")}>
                   {hasPaidAccess ? "Accéder" : "Découvrir"}
                 </SecondaryButton>
               </div>
@@ -538,56 +516,6 @@ export default function DashboardPage() {
                 onClick={() => {
                   closeModal();
                   go("/dashboard/automatisations/reseaux_sociaux/editor-intelligent");
-                }}
-              >
-                Accéder maintenant
-              </PrimaryButton>
-              {plan !== "ultime" ? (
-                <SecondaryButton onClick={openSystemeioPlans}>Upgrade</SecondaryButton>
-              ) : (
-                <SecondaryButton onClick={closeModal}>Fermer</SecondaryButton>
-              )}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <PrimaryButton onClick={openSystemeioPlans}>Voir les plans</PrimaryButton>
-              <SecondaryButton onClick={closeModal}>Fermer</SecondaryButton>
-            </div>
-          )}
-        </div>
-      </ModalShell>
-
-      <ModalShell
-        open={activeModal === "planner"}
-        title="Planner 24/24"
-        subtitle="Planifie quand tu veux. Régularité = ventes."
-        icon={<FaCalendarAlt />}
-        onClose={closeModal}
-      >
-        <div className="grid gap-4">
-          <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4 text-white/80">
-            <div className="text-yellow-200 font-semibold">Ce que tu obtiens</div>
-            <ul className="mt-2 space-y-2 text-sm">
-              <li>• Planification 24/24 (pas de plage horaire bloquante)</li>
-              <li>• Vue jour / semaine / mois</li>
-              <li>• Organisation “contenu → action → ventes”</li>
-            </ul>
-          </div>
-
-          <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4 text-white/80">
-            <div className="text-yellow-200 font-semibold">Pourquoi c’est rentable</div>
-            <p className="mt-2 text-sm text-white/70">
-              La plupart abandonnent faute de système. Le Planner te garde constant → tu
-              augmentes la probabilité de vente.
-            </p>
-          </div>
-
-          {hasPaidAccess ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <PrimaryButton
-                onClick={() => {
-                  closeModal();
-                  go("/dashboard/automatisations/reseaux_sociaux/planner");
                 }}
               >
                 Accéder maintenant
