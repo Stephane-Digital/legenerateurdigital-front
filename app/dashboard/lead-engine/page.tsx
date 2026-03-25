@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   FaArrowLeft,
   FaEnvelopeOpenText,
@@ -12,6 +12,8 @@ import {
   FaMailBulk,
   FaFolderOpen,
   FaRocket,
+  FaHistory,
+  FaRedo,
 } from "react-icons/fa";
 
 import CardLuxe from "@/components/ui/CardLuxe";
@@ -22,6 +24,19 @@ type LeadMagnetType =
   | "template"
   | "ebook"
   | "challenge";
+
+type LeadEnginePayload = {
+  id: string;
+  leadType: LeadMagnetType;
+  niche: string;
+  target: string;
+  promise: string;
+  magnetName: string;
+  hook: string;
+  cta: string;
+  landingTitle: string;
+  createdAt: string;
+};
 
 const leadMagnetOptions: { value: LeadMagnetType; label: string }[] = [
   { value: "checklist", label: "Checklist" },
@@ -36,6 +51,7 @@ const LS_LEAD_ENGINE_V1 = "lgd_lead_engine_v1";
 const LS_EMAIL_CAMPAIGN_LEAD_ENGINE = "lgd_email_campaign_lead_engine";
 const LS_LIBRARY_LEAD_ENGINE_DRAFT = "lgd_library_lead_engine_draft";
 const LS_SIO_LEAD_MAGNET_TEMPLATE = "lgd_sio_lead_magnet_template";
+const LS_LEAD_ENGINE_BASES = "lgd_lead_engine_bases";
 
 function buildLeadHook(niche: string, target: string, promise: string) {
   const n = niche.trim() || "ton marché";
@@ -67,13 +83,14 @@ function buildLeadPayload(
   niche: string,
   target: string,
   promise: string
-) {
+): LeadEnginePayload {
   const magnetName = buildLeadMagnetName(leadType, niche, promise);
   const hook = buildLeadHook(niche, target, promise);
   const cta = buildCTA(promise);
   const landingTitle = buildLandingTitle(target, promise);
 
   return {
+    id: `${Date.now()}`,
     leadType,
     niche: niche.trim(),
     target: target.trim(),
@@ -93,14 +110,34 @@ export default function LeadEnginePage() {
   const [leadType, setLeadType] = useState<LeadMagnetType>("checklist");
   const [generated, setGenerated] = useState(false);
   const [actionMsg, setActionMsg] = useState("");
+  const [savedBases, setSavedBases] = useState<LeadEnginePayload[]>([]);
 
   const preview = useMemo(() => {
     return buildLeadPayload(leadType, niche, target, promise);
   }, [leadType, niche, target, promise]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(LS_LEAD_ENGINE_BASES);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as LeadEnginePayload[];
+      setSavedBases(Array.isArray(parsed) ? parsed : []);
+    } catch {
+      // ignore
+    }
+  }, []);
+
   function flash(message: string) {
     setActionMsg(message);
     window.setTimeout(() => setActionMsg(""), 3500);
+  }
+
+  function persistBases(next: LeadEnginePayload[]) {
+    setSavedBases(next);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(LS_LEAD_ENGINE_BASES, JSON.stringify(next));
+    }
   }
 
   function handleGenerate() {
@@ -111,50 +148,50 @@ export default function LeadEnginePage() {
     flash("✅ Base Lead Engine générée.");
   }
 
-  function injectIntoEditor() {
+  function injectIntoEditor(payload: LeadEnginePayload) {
     if (typeof window === "undefined") return;
 
     const brief = {
       brief:
-        `${preview.hook}\n\n` +
-        `Lead magnet : ${preview.magnetName}\n` +
-        `Promesse : ${preview.promise || "Résultat rapide"}\n` +
-        `CTA : ${preview.cta}`,
-      source: "lead_engine_v1",
+        `${payload.hook}\n\n` +
+        `Lead magnet : ${payload.magnetName}\n` +
+        `Promesse : ${payload.promise || "Résultat rapide"}\n` +
+        `CTA : ${payload.cta}`,
+      source: "lead_engine_v5",
       createdAtISO: new Date().toISOString(),
     };
 
     window.localStorage.setItem(LS_EDITOR_INTELLIGENT_BRIEF, JSON.stringify(brief));
-    window.localStorage.setItem(LS_LEAD_ENGINE_V1, JSON.stringify(preview));
+    window.localStorage.setItem(LS_LEAD_ENGINE_V1, JSON.stringify(payload));
     window.location.href = "/dashboard/automatisations/reseaux_sociaux/editor-intelligent";
   }
 
-  function injectIntoEmailing() {
+  function injectIntoEmailing(payload: LeadEnginePayload) {
     if (typeof window === "undefined") return;
 
     const emailPayload = {
-      source: "lead_engine_v1",
-      angle: preview.hook,
-      offer_name: preview.magnetName,
-      promise: preview.promise,
-      cta: preview.cta,
-      target: preview.target,
-      niche: preview.niche,
+      source: "lead_engine_v5",
+      angle: payload.hook,
+      offer_name: payload.magnetName,
+      promise: payload.promise,
+      cta: payload.cta,
+      target: payload.target,
+      niche: payload.niche,
       createdAt: new Date().toISOString(),
     };
 
     window.localStorage.setItem(LS_EMAIL_CAMPAIGN_LEAD_ENGINE, JSON.stringify(emailPayload));
-    window.localStorage.setItem(LS_LEAD_ENGINE_V1, JSON.stringify(preview));
+    window.localStorage.setItem(LS_LEAD_ENGINE_V1, JSON.stringify(payload));
     window.location.href = "/dashboard/email-campaigns";
   }
 
-  function saveToLibrary() {
+  function saveToLibrary(payload: LeadEnginePayload) {
     if (typeof window === "undefined") return;
 
     const libraryPayload = {
-      kind: "lgd_lead_engine_v1",
-      title: preview.magnetName,
-      data: preview,
+      kind: "lgd_lead_engine_v5",
+      title: payload.magnetName,
+      data: payload,
       createdAt: new Date().toISOString(),
     };
 
@@ -162,25 +199,20 @@ export default function LeadEnginePage() {
     flash("✅ Base Lead Engine sauvegardée pour la Bibliothèque.");
   }
 
-  function prepareSioTemplate() {
+  function prepareSioTemplate(payload: LeadEnginePayload) {
     if (typeof window === "undefined") return;
 
     const sioTemplate = {
-      source: "lead_engine_v1",
+      source: "lead_engine_v5",
       template_type: "lead_magnet",
-      title: preview.magnetName,
-      headline: preview.landingTitle,
-      subheadline: preview.hook,
-      cta: preview.cta,
-      niche: preview.niche,
-      target: preview.target,
-      promise: preview.promise,
-      sections: [
-        "Hero",
-        "Bénéfices",
-        "Formulaire email",
-        "Call-to-action",
-      ],
+      title: payload.magnetName,
+      headline: payload.landingTitle,
+      subheadline: payload.hook,
+      cta: payload.cta,
+      niche: payload.niche,
+      target: payload.target,
+      promise: payload.promise,
+      sections: ["Hero", "Bénéfices", "Formulaire email", "Call-to-action"],
       createdAt: new Date().toISOString(),
     };
 
@@ -188,9 +220,33 @@ export default function LeadEnginePage() {
     flash("✅ Template Lead Magnet SIO préparé.");
   }
 
+  function saveCurrentBase() {
+    const exists = savedBases.some((item) => item.id === preview.id || item.magnetName === preview.magnetName);
+    const next = exists ? savedBases : [preview, ...savedBases];
+    persistBases(next);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(LS_LEAD_ENGINE_V1, JSON.stringify(preview));
+    }
+    flash("✅ Base Lead Engine sauvegardée.");
+  }
+
+  function reuseBase(payload: LeadEnginePayload) {
+    setNiche(payload.niche);
+    setTarget(payload.target);
+    setPromise(payload.promise);
+    setLeadType(payload.leadType);
+    setGenerated(true);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(LS_LEAD_ENGINE_V1, JSON.stringify(payload));
+    }
+    flash("✅ Base Lead Engine rechargée.");
+  }
+
+  const activePayload = generated ? preview : preview;
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
-      <div className="mx-auto max-w-6xl px-6 pt-[120px] pb-16">
+      <div className="mx-auto max-w-7xl px-6 pt-[120px] pb-16">
         <div className="flex items-start justify-between gap-4">
           <Link
             href="/dashboard"
@@ -204,7 +260,7 @@ export default function LeadEnginePage() {
         <div className="mt-10 text-center">
           <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-4 py-1 text-[12px] text-white/75">
             <FaEnvelopeOpenText className="text-yellow-300" />
-            Lead Engine V2
+            Lead Engine V5
           </div>
 
           <h1 className="mt-4 text-3xl sm:text-4xl font-extrabold text-[#ffb800]">
@@ -212,12 +268,12 @@ export default function LeadEnginePage() {
           </h1>
 
           <p className="mt-3 max-w-3xl mx-auto text-white/70">
-            LGD prépare la base de ton Lead Engine : promesse, lead magnet, hook, CTA
-            et premières actions d’injection dans l’écosystème LGD.
+            LGD prépare la base de ton Lead Engine : promesse, lead magnet, hook, CTA,
+            stockage réutilisable et injections concrètes dans l’écosystème LGD.
           </p>
         </div>
 
-        <div className="mt-12 grid grid-cols-1 xl:grid-cols-2 gap-8">
+        <div className="mt-12 grid grid-cols-1 xl:grid-cols-[1fr_1fr] gap-8">
           <CardLuxe className="px-6 py-6">
             <div className="flex items-center gap-3">
               <FaMagic className="text-[#ffb800] text-2xl" />
@@ -335,7 +391,7 @@ export default function LeadEnginePage() {
                 <div className="rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-4 text-center">
                   <div className="text-yellow-200 font-semibold">Base Lead Engine générée</div>
                   <p className="mt-2 text-sm text-white/75">
-                    La V2 est prête. Tu peux maintenant réinjecter ta base dans l’écosystème LGD.
+                    La V5 est prête. Tu peux maintenant réinjecter ta base dans l’écosystème LGD.
                   </p>
                 </div>
               ) : null}
@@ -343,7 +399,7 @@ export default function LeadEnginePage() {
           </CardLuxe>
         </div>
 
-        <div className="mt-10">
+        <div className="mt-10 grid grid-cols-1 xl:grid-cols-[1.5fr_1fr] gap-8">
           <CardLuxe className="px-6 py-6">
             <div className="flex items-center gap-3">
               <FaRocket className="text-[#ffb800] text-2xl" />
@@ -353,14 +409,14 @@ export default function LeadEnginePage() {
             </div>
 
             <p className="mt-3 text-white/70 max-w-3xl">
-              À partir de cette base, tu peux préparer ton contenu, ton emailing, ta bibliothèque
-              et ton template Lead Magnet pour SIO.
+              À partir de cette base, tu peux préparer ton contenu, ton emailing,
+              ta bibliothèque et ton template Lead Magnet pour SIO.
             </p>
 
             <div className="mt-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
               <button
                 type="button"
-                onClick={injectIntoEditor}
+                onClick={() => injectIntoEditor(activePayload)}
                 className="rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-5 py-4 text-left hover:bg-yellow-500/10 transition-all"
               >
                 <div className="flex items-center gap-3 text-yellow-200 font-semibold">
@@ -374,7 +430,7 @@ export default function LeadEnginePage() {
 
               <button
                 type="button"
-                onClick={injectIntoEmailing}
+                onClick={() => injectIntoEmailing(activePayload)}
                 className="rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-5 py-4 text-left hover:bg-yellow-500/10 transition-all"
               >
                 <div className="flex items-center gap-3 text-yellow-200 font-semibold">
@@ -388,7 +444,7 @@ export default function LeadEnginePage() {
 
               <button
                 type="button"
-                onClick={saveToLibrary}
+                onClick={() => saveToLibrary(activePayload)}
                 className="rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-5 py-4 text-left hover:bg-yellow-500/10 transition-all"
               >
                 <div className="flex items-center gap-3 text-yellow-200 font-semibold">
@@ -402,7 +458,7 @@ export default function LeadEnginePage() {
 
               <button
                 type="button"
-                onClick={prepareSioTemplate}
+                onClick={() => prepareSioTemplate(activePayload)}
                 className="rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-5 py-4 text-left hover:bg-yellow-500/10 transition-all"
               >
                 <div className="flex items-center gap-3 text-yellow-200 font-semibold">
@@ -416,10 +472,105 @@ export default function LeadEnginePage() {
             </div>
 
             <div className="mt-5 rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4 text-sm text-white/65">
-              Note importante : dans cette V2, LGD prépare les données et les injections internes.
-              Le vrai push API direct vers Systeme.io n’est pas encore branché ici, mais le template
-              Lead Magnet SIO est maintenant préparé pour l’intégration.
+              Note importante : dans cette V5, LGD effectue les injections internes
+              vers l’Éditeur et l’Emailing via stockage local. Le push API direct vers Systeme.io
+              n’est pas encore branché ici, mais le template Lead Magnet SIO est préparé.
             </div>
+          </CardLuxe>
+
+          <CardLuxe className="px-6 py-6">
+            <div className="flex items-center gap-3">
+              <FaHistory className="text-[#ffb800] text-2xl" />
+              <h2 className="text-2xl font-bold text-[#ffb800]">
+                Base générée
+              </h2>
+            </div>
+
+            <div className="mt-6 grid gap-4">
+              <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4">
+                <div className="text-yellow-200 font-semibold">Titre</div>
+                <p className="mt-2 text-white/80">{activePayload.magnetName}</p>
+              </div>
+
+              <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4">
+                <div className="text-yellow-200 font-semibold">Hook</div>
+                <p className="mt-2 text-white/80">{activePayload.hook}</p>
+              </div>
+
+              <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4">
+                <div className="text-yellow-200 font-semibold">CTA</div>
+                <p className="mt-2 text-white/80">{activePayload.cta}</p>
+              </div>
+
+              <button
+                type="button"
+                onClick={saveCurrentBase}
+                className="w-full rounded-2xl px-5 py-3 font-semibold bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] text-black hover:-translate-y-0.5 hover:shadow-lg hover:shadow-yellow-500/20 transition-all"
+              >
+                Sauvegarder cette base
+              </button>
+            </div>
+          </CardLuxe>
+        </div>
+
+        <div className="mt-10">
+          <CardLuxe className="px-6 py-6">
+            <div className="flex items-center gap-3">
+              <FaRedo className="text-[#ffb800] text-2xl" />
+              <h2 className="text-2xl font-bold text-[#ffb800]">
+                Mes bases Lead Engine
+              </h2>
+            </div>
+
+            {savedBases.length === 0 ? (
+              <p className="mt-4 text-white/65">
+                Aucune base sauvegardée pour le moment.
+              </p>
+            ) : (
+              <div className="mt-6 grid grid-cols-1 xl:grid-cols-2 gap-5">
+                {savedBases.map((item) => (
+                  <div
+                    key={item.id}
+                    className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-5"
+                  >
+                    <div className="text-yellow-200 font-semibold">{item.magnetName}</div>
+                    <p className="mt-2 text-sm text-white/70">{item.hook}</p>
+                    <p className="mt-2 text-sm text-white/55">CTA : {item.cta}</p>
+
+                    <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => reuseBase(item)}
+                        className="rounded-2xl border border-yellow-600/25 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-100 hover:bg-yellow-500/15 transition-all"
+                      >
+                        Réutiliser cette base
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => injectIntoEditor(item)}
+                        className="rounded-2xl border border-yellow-600/25 bg-[#111] px-4 py-3 text-sm font-semibold text-white/85 hover:bg-yellow-500/10 transition-all"
+                      >
+                        Vers l’Éditeur
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => injectIntoEmailing(item)}
+                        className="rounded-2xl border border-yellow-600/25 bg-[#111] px-4 py-3 text-sm font-semibold text-white/85 hover:bg-yellow-500/10 transition-all"
+                      >
+                        Vers Emailing
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => prepareSioTemplate(item)}
+                        className="rounded-2xl border border-yellow-600/25 bg-[#111] px-4 py-3 text-sm font-semibold text-white/85 hover:bg-yellow-500/10 transition-all"
+                      >
+                        Template SIO
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardLuxe>
         </div>
       </div>
