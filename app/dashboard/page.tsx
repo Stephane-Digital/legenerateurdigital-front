@@ -529,8 +529,6 @@ export default function DashboardPage() {
           </CardLuxe>
         </motion.div>
 
-        <LeadEngineBlock />
-
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -605,7 +603,7 @@ export default function DashboardPage() {
             </CardLuxe>
           </div>
         </motion.div>
-
+<LeadEngineBlock />
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
