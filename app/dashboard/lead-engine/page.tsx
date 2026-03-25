@@ -413,11 +413,11 @@ export default function LeadEnginePage() {
               ta bibliothèque et ton template Lead Magnet pour SIO.
             </p>
 
-            <div className="mt-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+            <div className="mt-6 flex flex-col gap-4">
               <button
                 type="button"
                 onClick={() => injectIntoEditor(activePayload)}
-                className="rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-5 py-4 text-left hover:bg-yellow-500/10 transition-all"
+                className="w-full rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-5 py-4 text-left hover:bg-yellow-500/10 transition-all"
               >
                 <div className="flex items-center gap-3 text-yellow-200 font-semibold">
                   <FaEdit />
@@ -431,7 +431,7 @@ export default function LeadEnginePage() {
               <button
                 type="button"
                 onClick={() => injectIntoEmailing(activePayload)}
-                className="rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-5 py-4 text-left hover:bg-yellow-500/10 transition-all"
+                className="w-full rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-5 py-4 text-left hover:bg-yellow-500/10 transition-all"
               >
                 <div className="flex items-center gap-3 text-yellow-200 font-semibold">
                   <FaMailBulk />
@@ -445,7 +445,7 @@ export default function LeadEnginePage() {
               <button
                 type="button"
                 onClick={() => saveToLibrary(activePayload)}
-                className="rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-5 py-4 text-left hover:bg-yellow-500/10 transition-all"
+                className="w-full rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-5 py-4 text-left hover:bg-yellow-500/10 transition-all"
               >
                 <div className="flex items-center gap-3 text-yellow-200 font-semibold">
                   <FaFolderOpen />
@@ -459,7 +459,7 @@ export default function LeadEnginePage() {
               <button
                 type="button"
                 onClick={() => prepareSioTemplate(activePayload)}
-                className="rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-5 py-4 text-left hover:bg-yellow-500/10 transition-all"
+                className="w-full rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-5 py-4 text-left hover:bg-yellow-500/10 transition-all"
               >
                 <div className="flex items-center gap-3 text-yellow-200 font-semibold">
                   <FaRocket />
