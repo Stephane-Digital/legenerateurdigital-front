@@ -1,6 +1,5 @@
 "use client";
 
-
 import CardLuxe from "@/components/ui/CardLuxe";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -17,7 +16,6 @@ import {
   FaHistory,
   FaRedo,
   FaTrash,
-
 } from "react-icons/fa";
 
 type LeadMagnetType =
@@ -283,246 +281,256 @@ export default function LeadEnginePage() {
 
         <div className="mt-12 grid grid-cols-1 xl:grid-cols-[1fr_1fr] gap-8 items-stretch">
           <CardLuxe className="h-full px-6 py-6">
-            <div className="flex items-center gap-3">
-              <FaMagic className="text-[#ffb800] text-2xl" />
-              <h2 className="text-2xl font-bold text-[#ffb800]">
-                Configuration rapide
-              </h2>
-            </div>
-
-            <div className="mt-6 grid gap-5">
-              <div>
-                <label className="block text-sm font-semibold text-yellow-200 mb-2">
-                  Ta niche / thématique
-                </label>
-                <input
-                  value={niche}
-                  onChange={(e) => setNiche(e.target.value)}
-                  placeholder="Ex : vendre des ebooks, MRR, business en ligne..."
-                  className="w-full rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-4 py-3 text-white outline-none focus:border-yellow-400"
-                />
+            <div className="flex h-full flex-col">
+              <div className="flex items-center gap-3">
+                <FaMagic className="text-[#ffb800] text-2xl" />
+                <h2 className="text-2xl font-bold text-[#ffb800]">
+                  Configuration rapide
+                </h2>
               </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-yellow-200 mb-2">
-                  Ta cible
-                </label>
-                <input
-                  value={target}
-                  onChange={(e) => setTarget(e.target.value)}
-                  placeholder="Ex : débutants, coaches, infopreneurs..."
-                  className="w-full rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-4 py-3 text-white outline-none focus:border-yellow-400"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-yellow-200 mb-2">
-                  Résultat / promesse principale
-                </label>
-                <input
-                  value={promise}
-                  onChange={(e) => setPromise(e.target.value)}
-                  placeholder="Ex : obtenir des leads qualifiés, vendre plus vite..."
-                  className="w-full rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-4 py-3 text-white outline-none focus:border-yellow-400"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-yellow-200 mb-2">
-                  Type de lead magnet
-                </label>
-                <select
-                  value={leadType}
-                  onChange={(e) => setLeadType(e.target.value as LeadMagnetType)}
-                  className="w-full rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-4 py-3 text-white outline-none focus:border-yellow-400"
-                >
-                  {leadMagnetOptions.map((option) => (
-                    <option key={option.value} value={option.value} className="bg-[#0b0b0b]">
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleGenerate}
-                className="mt-2 w-full rounded-2xl px-5 py-3 font-semibold bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] text-black hover:-translate-y-0.5 hover:shadow-lg hover:shadow-yellow-500/20 transition-all"
-              >
-                Générer ma base Lead Engine
-              </button>
-
-              {actionMsg ? (
-                <div className="rounded-2xl border border-yellow-500/25 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-100">
-                  {actionMsg}
+              <div className="mt-6 grid gap-5">
+                <div>
+                  <label className="block text-sm font-semibold text-yellow-200 mb-2">
+                    Ta niche / thématique
+                  </label>
+                  <input
+                    value={niche}
+                    onChange={(e) => setNiche(e.target.value)}
+                    placeholder="Ex : vendre des ebooks, MRR, business en ligne..."
+                    className="w-full rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-4 py-3 text-white outline-none focus:border-yellow-400"
+                  />
                 </div>
-              ) : null}
+
+                <div>
+                  <label className="block text-sm font-semibold text-yellow-200 mb-2">
+                    Ta cible
+                  </label>
+                  <input
+                    value={target}
+                    onChange={(e) => setTarget(e.target.value)}
+                    placeholder="Ex : débutants, coaches, infopreneurs..."
+                    className="w-full rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-4 py-3 text-white outline-none focus:border-yellow-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-yellow-200 mb-2">
+                    Résultat / promesse principale
+                  </label>
+                  <input
+                    value={promise}
+                    onChange={(e) => setPromise(e.target.value)}
+                    placeholder="Ex : obtenir des leads qualifiés, vendre plus vite..."
+                    className="w-full rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-4 py-3 text-white outline-none focus:border-yellow-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-yellow-200 mb-2">
+                    Type de lead magnet
+                  </label>
+                  <select
+                    value={leadType}
+                    onChange={(e) => setLeadType(e.target.value as LeadMagnetType)}
+                    className="w-full rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-4 py-3 text-white outline-none focus:border-yellow-400"
+                  >
+                    {leadMagnetOptions.map((option) => (
+                      <option key={option.value} value={option.value} className="bg-[#0b0b0b]">
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleGenerate}
+                  className="mt-2 w-full rounded-2xl px-5 py-3 font-semibold bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] text-black hover:-translate-y-0.5 hover:shadow-lg hover:shadow-yellow-500/20 transition-all"
+                >
+                  Générer ma base Lead Engine
+                </button>
+
+                {actionMsg ? (
+                  <div className="rounded-2xl border border-yellow-500/25 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-100">
+                    {actionMsg}
+                  </div>
+                ) : null}
+              </div>
             </div>
           </CardLuxe>
 
           <CardLuxe className="h-full px-6 py-6">
-            <div className="flex items-center gap-3">
-              <FaBullseye className="text-[#ffb800] text-2xl" />
-              <h2 className="text-2xl font-bold text-[#ffb800]">
-                Prévisualisation LGD
-              </h2>
-            </div>
-
-            <div className="mt-6 grid gap-4">
-              <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4">
-                <div className="text-yellow-200 font-semibold">Nom du lead magnet</div>
-                <p className="mt-2 text-white/80">{preview.magnetName}</p>
+            <div className="flex h-full flex-col">
+              <div className="flex items-center gap-3">
+                <FaBullseye className="text-[#ffb800] text-2xl" />
+                <h2 className="text-2xl font-bold text-[#ffb800]">
+                  Prévisualisation LGD
+                </h2>
               </div>
 
-              <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4">
-                <div className="text-yellow-200 font-semibold">Hook / angle</div>
-                <p className="mt-2 text-white/80">{preview.hook}</p>
-              </div>
-
-              <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4">
-                <div className="text-yellow-200 font-semibold">CTA de capture</div>
-                <p className="mt-2 text-white/80">{preview.cta}</p>
-              </div>
-
-              <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4">
-                <div className="flex items-center gap-2 text-yellow-200 font-semibold">
-                  <FaGift />
-                  Suite prévue
+              <div className="mt-6 grid gap-4">
+                <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4">
+                  <div className="text-yellow-200 font-semibold">Nom du lead magnet</div>
+                  <p className="mt-2 text-white/80">{preview.magnetName}</p>
                 </div>
-                <p className="mt-2 text-white/70 text-sm">
-                  Étape suivante : génération complète de la page de capture, du contenu du lead magnet
-                  et des CTA prêts à injecter dans les contenus LGD.
-                </p>
-              </div>
 
-              {generated ? (
-                <div className="rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-4 text-center">
-                  <div className="text-yellow-200 font-semibold">Base Lead Engine générée</div>
-                  <p className="mt-2 text-sm text-white/75">
-                    La V5 est prête. Tu peux maintenant réinjecter ta base dans l’écosystème LGD.
+                <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4">
+                  <div className="text-yellow-200 font-semibold">Hook / angle</div>
+                  <p className="mt-2 text-white/80">{preview.hook}</p>
+                </div>
+
+                <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4">
+                  <div className="text-yellow-200 font-semibold">CTA de capture</div>
+                  <p className="mt-2 text-white/80">{preview.cta}</p>
+                </div>
+
+                <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4">
+                  <div className="flex items-center gap-2 text-yellow-200 font-semibold">
+                    <FaGift />
+                    Suite prévue
+                  </div>
+                  <p className="mt-2 text-white/70 text-sm">
+                    Étape suivante : génération complète de la page de capture, du contenu du lead magnet
+                    et des CTA prêts à injecter dans les contenus LGD.
                   </p>
                 </div>
-              ) : null}
+
+                {generated ? (
+                  <div className="rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-4 text-center">
+                    <div className="text-yellow-200 font-semibold">Base Lead Engine générée</div>
+                    <p className="mt-2 text-sm text-white/75">
+                      La V5 est prête. Tu peux maintenant réinjecter ta base dans l’écosystème LGD.
+                    </p>
+                  </div>
+                ) : null}
+              </div>
             </div>
           </CardLuxe>
         </div>
 
         <div className="mt-10 grid grid-cols-1 xl:grid-cols-[1.5fr_1fr] gap-8 items-stretch">
           <CardLuxe className="h-full px-6 py-6">
-            <div className="flex items-center gap-3">
-              <FaRocket className="text-[#ffb800] text-2xl" />
-              <h2 className="text-2xl font-bold text-[#ffb800]">
-                Utiliser dans LGD
-              </h2>
-            </div>
+            <div className="flex h-full flex-col">
+              <div className="flex items-center gap-3">
+                <FaRocket className="text-[#ffb800] text-2xl" />
+                <h2 className="text-2xl font-bold text-[#ffb800]">
+                  Utiliser dans LGD
+                </h2>
+              </div>
 
-            <p className="mt-3 text-white/70 max-w-3xl">
-              À partir de cette base, tu peux préparer ton contenu, ton emailing,
-              ta bibliothèque et ton template Lead Magnet pour SIO.
-            </p>
+              <p className="mt-3 text-white/70 max-w-3xl">
+                À partir de cette base, tu peux préparer ton contenu, ton emailing,
+                ta bibliothèque et ton template Lead Magnet pour SIO.
+              </p>
 
-            <div className="mt-6 flex flex-col gap-4">
-              <button
-                type="button"
-                onClick={() => injectIntoEditor(activePayload)}
-                className="w-full rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-5 py-4 text-left hover:bg-yellow-500/10 transition-all"
-              >
-                <div className="flex items-center gap-3 text-yellow-200 font-semibold">
-                  <FaEdit />
-                  Injecter dans l’Éditeur
-                </div>
-                <p className="mt-2 text-sm text-white/65">
-                  Envoie le hook, la promesse et le CTA dans l’éditeur intelligent.
-                </p>
-              </button>
+              <div className="mt-6 flex flex-1 flex-col gap-4">
+                <button
+                  type="button"
+                  onClick={() => injectIntoEditor(activePayload)}
+                  className="w-full rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-5 py-4 text-left hover:bg-yellow-500/10 transition-all"
+                >
+                  <div className="flex items-center gap-3 text-yellow-200 font-semibold">
+                    <FaEdit />
+                    Injecter dans l’Éditeur
+                  </div>
+                  <p className="mt-2 text-sm text-white/65">
+                    Envoie le hook, la promesse et le CTA dans l’éditeur intelligent.
+                  </p>
+                </button>
 
-              <button
-                type="button"
-                onClick={() => injectIntoEmailing(activePayload)}
-                className="w-full rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-5 py-4 text-left hover:bg-yellow-500/10 transition-all"
-              >
-                <div className="flex items-center gap-3 text-yellow-200 font-semibold">
-                  <FaMailBulk />
-                  Injecter dans Emailing
-                </div>
-                <p className="mt-2 text-sm text-white/65">
-                  Prépare la base pour la séquence email liée à ce lead magnet.
-                </p>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => injectIntoEmailing(activePayload)}
+                  className="w-full rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-5 py-4 text-left hover:bg-yellow-500/10 transition-all"
+                >
+                  <div className="flex items-center gap-3 text-yellow-200 font-semibold">
+                    <FaMailBulk />
+                    Injecter dans Emailing
+                  </div>
+                  <p className="mt-2 text-sm text-white/65">
+                    Prépare la base pour la séquence email liée à ce lead magnet.
+                  </p>
+                </button>
 
-              <button
-                type="button"
-                onClick={() => saveToLibrary(activePayload)}
-                className="w-full rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-5 py-4 text-left hover:bg-yellow-500/10 transition-all"
-              >
-                <div className="flex items-center gap-3 text-yellow-200 font-semibold">
-                  <FaFolderOpen />
-                  Sauvegarder en Bibliothèque
-                </div>
-                <p className="mt-2 text-sm text-white/65">
-                  Garde cette base Lead Engine pour la réutiliser plus tard.
-                </p>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => saveToLibrary(activePayload)}
+                  className="w-full rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-5 py-4 text-left hover:bg-yellow-500/10 transition-all"
+                >
+                  <div className="flex items-center gap-3 text-yellow-200 font-semibold">
+                    <FaFolderOpen />
+                    Sauvegarder en Bibliothèque
+                  </div>
+                  <p className="mt-2 text-sm text-white/65">
+                    Garde cette base Lead Engine pour la réutiliser plus tard.
+                  </p>
+                </button>
 
-              <button
-                type="button"
-                onClick={() => prepareSioTemplate(activePayload)}
-                className="w-full rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-5 py-4 text-left hover:bg-yellow-500/10 transition-all"
-              >
-                <div className="flex items-center gap-3 text-yellow-200 font-semibold">
-                  <FaRocket />
-                  Template Lead Magnet SIO
-                </div>
-                <p className="mt-2 text-sm text-white/65">
-                  Prépare la structure du template à injecter côté Systeme.io.
-                </p>
-              </button>
-            </div>
+                <button
+                  type="button"
+                  onClick={() => prepareSioTemplate(activePayload)}
+                  className="w-full rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-5 py-4 text-left hover:bg-yellow-500/10 transition-all"
+                >
+                  <div className="flex items-center gap-3 text-yellow-200 font-semibold">
+                    <FaRocket />
+                    Template Lead Magnet SIO
+                  </div>
+                  <p className="mt-2 text-sm text-white/65">
+                    Prépare la structure du template à injecter côté Systeme.io.
+                  </p>
+                </button>
+              </div>
 
-            <div className="mt-5 rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4 text-sm text-white/65">
-              Note importante : dans cette V5, LGD effectue les injections internes
-              vers l’Éditeur et l’Emailing via stockage local. Le push API direct vers Systeme.io
-              n’est pas encore branché ici, mais le template Lead Magnet SIO est préparé.
+              <div className="mt-5 rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4 text-sm text-white/65">
+                Note importante : dans cette V5, LGD effectue les injections internes
+                vers l’Éditeur et l’Emailing via stockage local. Le push API direct vers Systeme.io
+                n’est pas encore branché ici, mais le template Lead Magnet SIO est préparé.
+              </div>
             </div>
           </CardLuxe>
 
           <CardLuxe className="h-full px-6 py-6">
-            <div className="flex items-center gap-3">
-              <FaHistory className="text-[#ffb800] text-2xl" />
-              <h2 className="text-2xl font-bold text-[#ffb800]">
-                Base générée
-              </h2>
-            </div>
-
-            <div className="mt-6 grid gap-4">
-              <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4">
-                <div className="text-yellow-200 font-semibold">Titre</div>
-                <p className="mt-2 text-white/80">{activePayload.magnetName}</p>
+            <div className="flex h-full flex-col">
+              <div className="flex items-center gap-3">
+                <FaHistory className="text-[#ffb800] text-2xl" />
+                <h2 className="text-2xl font-bold text-[#ffb800]">
+                  Base générée
+                </h2>
               </div>
 
-              <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4">
-                <div className="text-yellow-200 font-semibold">Hook</div>
-                <p className="mt-2 text-white/80">{activePayload.hook}</p>
-              </div>
+              <div className="mt-6 flex flex-1 flex-col gap-4">
+                <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4">
+                  <div className="text-yellow-200 font-semibold">Titre</div>
+                  <p className="mt-2 text-white/80">{activePayload.magnetName}</p>
+                </div>
 
-              <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4">
-                <div className="text-yellow-200 font-semibold">CTA</div>
-                <p className="mt-2 text-white/80">{activePayload.cta}</p>
-              </div>
+                <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4">
+                  <div className="text-yellow-200 font-semibold">Hook</div>
+                  <p className="mt-2 text-white/80">{activePayload.hook}</p>
+                </div>
 
-              <button
-                type="button"
-                onClick={saveCurrentBase}
-                className="w-full rounded-2xl px-5 py-3 font-semibold bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] text-black hover:-translate-y-0.5 hover:shadow-lg hover:shadow-yellow-500/20 transition-all"
-              >
-                Sauvegarder cette base
-              </button>
+                <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4">
+                  <div className="text-yellow-200 font-semibold">CTA</div>
+                  <p className="mt-2 text-white/80">{activePayload.cta}</p>
+                </div>
+
+                <div className="mt-auto">
+                  <button
+                    type="button"
+                    onClick={saveCurrentBase}
+                    className="w-full rounded-2xl px-5 py-3 font-semibold bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] text-black hover:-translate-y-0.5 hover:shadow-lg hover:shadow-yellow-500/20 transition-all"
+                  >
+                    Sauvegarder cette base
+                  </button>
+                </div>
+              </div>
             </div>
           </CardLuxe>
         </div>
 
-        <div className="mt-10">
-          <CardLuxe className="px-6 py-6">
+        <div className="mt-10 grid grid-cols-1 xl:grid-cols-[1.5fr_1fr] gap-8">
+          <CardLuxe className="xl:col-span-2 px-6 py-6">
             <div className="flex items-center gap-3">
               <FaRedo className="text-[#ffb800] text-2xl" />
               <h2 className="text-2xl font-bold text-[#ffb800]">
@@ -535,7 +543,7 @@ export default function LeadEnginePage() {
                 Aucune base sauvegardée pour le moment.
               </p>
             ) : (
-              <div className="mt-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+              <div className="mt-6 flex flex-col gap-5">
                 {savedBases.map((item) => (
                   <div
                     key={item.id}
