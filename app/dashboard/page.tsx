@@ -574,16 +574,10 @@ export default function DashboardPage() {
                 </SecondaryButton>
               </div>
             </CardLuxe>
-
-            <LeadEngineBlock />
-
-
             <LeadEngineBlock onDiscover={() => accessOrExplain("lead_engine")} />
 6fdaf0b (feat: add Lead Engine modal)
           </div>
         </motion.div>
-
-
 
         <motion.div
           initial={{ opacity: 0 }}
