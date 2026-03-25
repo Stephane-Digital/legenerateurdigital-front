@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import CardLuxe from "@/components/ui/CardLuxe";
+import LeadEngineBlock from "./components/LeadEngineBlock";
 
 // Icons (react-icons/fa)
 import {
@@ -935,3 +936,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+<LeadEngineBlock />
