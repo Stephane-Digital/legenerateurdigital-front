@@ -854,7 +854,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <PrimaryButton onClick={closeModal}>Je veux ce module</PrimaryButton>
+            <PrimaryButton onClick={closeModal}>Créer mon Lead Engine</PrimaryButton>
             <p className="text-xs text-white/50 mt-2">
   Génère ton premier aimant à prospects en quelques clics
 </p>
