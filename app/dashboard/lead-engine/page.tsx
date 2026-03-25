@@ -153,13 +153,9 @@ export default function LeadEnginePage() {
 
     const brief = {
       brief:
-        `${payload.hook}
-
-` +
-        `Lead magnet : ${payload.magnetName}
-` +
-        `Promesse : ${payload.promise || "Résultat rapide"}
-` +
+        `${payload.hook}\n\n` +
+        `Lead magnet : ${payload.magnetName}\n` +
+        `Promesse : ${payload.promise || "Résultat rapide"}\n` +
         `CTA : ${payload.cta}`,
       source: "lead_engine_v5",
       createdAtISO: new Date().toISOString(),
@@ -284,7 +280,7 @@ export default function LeadEnginePage() {
         </div>
 
         <div className="mt-12 grid grid-cols-1 xl:grid-cols-2 gap-8 items-stretch">
-          <CardLuxe className="h-full px-6 py-6">
+          <CardLuxe className="block w-full min-w-0 h-full px-6 py-6">
             <div className="flex h-full flex-col">
               <div className="flex items-center gap-3">
                 <FaMagic className="text-[#ffb800] text-2xl" />
@@ -364,7 +360,7 @@ export default function LeadEnginePage() {
             </div>
           </CardLuxe>
 
-          <CardLuxe className="h-full px-6 py-6">
+          <CardLuxe className="block w-full min-w-0 h-full px-6 py-6">
             <div className="flex h-full flex-col">
               <div className="flex items-center gap-3">
                 <FaBullseye className="text-[#ffb800] text-2xl" />
@@ -414,7 +410,7 @@ export default function LeadEnginePage() {
         </div>
 
         <div className="mt-10 grid grid-cols-1 xl:grid-cols-2 gap-8 items-stretch">
-          <CardLuxe className="h-full px-6 py-6">
+          <CardLuxe className="block w-full min-w-0 h-full px-6 py-6">
             <div className="flex h-full flex-col">
               <div className="flex items-center gap-3">
                 <FaRocket className="text-[#ffb800] text-2xl" />
@@ -494,7 +490,7 @@ export default function LeadEnginePage() {
             </div>
           </CardLuxe>
 
-          <CardLuxe className="h-full px-6 py-6">
+          <CardLuxe className="block w-full min-w-0 h-full px-6 py-6">
             <div className="flex h-full flex-col">
               <div className="flex items-center gap-3">
                 <FaHistory className="text-[#ffb800] text-2xl" />
@@ -533,8 +529,8 @@ export default function LeadEnginePage() {
           </CardLuxe>
         </div>
 
-        <div className="mt-10">
-          <CardLuxe className="w-full px-6 py-6">
+        <div className="mt-10 w-full">
+          <CardLuxe className="block w-full min-w-0 max-w-none px-6 py-6">
             <div className="flex items-center gap-3">
               <FaRedo className="text-[#ffb800] text-2xl" />
               <h2 className="text-2xl font-bold text-[#ffb800]">
@@ -547,7 +543,7 @@ export default function LeadEnginePage() {
                 Aucune base sauvegardée pour le moment.
               </p>
             ) : (
-              <div className="mt-6 flex flex-col gap-5">
+              <div className="mt-6 flex w-full flex-col gap-5">
                 {savedBases.map((item) => (
                   <div
                     key={item.id}
