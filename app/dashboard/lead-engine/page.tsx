@@ -153,9 +153,13 @@ export default function LeadEnginePage() {
 
     const brief = {
       brief:
-        `${payload.hook}\n\n` +
-        `Lead magnet : ${payload.magnetName}\n` +
-        `Promesse : ${payload.promise || "Résultat rapide"}\n` +
+        `${payload.hook}
+
+` +
+        `Lead magnet : ${payload.magnetName}
+` +
+        `Promesse : ${payload.promise || "Résultat rapide"}
+` +
         `CTA : ${payload.cta}`,
       source: "lead_engine_v5",
       createdAtISO: new Date().toISOString(),
@@ -279,7 +283,7 @@ export default function LeadEnginePage() {
           </p>
         </div>
 
-        <div className="mt-12 grid grid-cols-1 xl:grid-cols-[1fr_1fr] gap-8 items-stretch">
+        <div className="mt-12 grid grid-cols-1 xl:grid-cols-2 gap-8 items-stretch">
           <CardLuxe className="h-full px-6 py-6">
             <div className="flex h-full flex-col">
               <div className="flex items-center gap-3">
@@ -409,7 +413,7 @@ export default function LeadEnginePage() {
           </CardLuxe>
         </div>
 
-        <div className="mt-10 grid grid-cols-1 xl:grid-cols-[1.5fr_1fr] gap-8 items-stretch">
+        <div className="mt-10 grid grid-cols-1 xl:grid-cols-2 gap-8 items-stretch">
           <CardLuxe className="h-full px-6 py-6">
             <div className="flex h-full flex-col">
               <div className="flex items-center gap-3">
@@ -529,8 +533,8 @@ export default function LeadEnginePage() {
           </CardLuxe>
         </div>
 
-        <div className="mt-10 grid grid-cols-1 xl:grid-cols-[1.5fr_1fr] gap-8">
-          <CardLuxe className="xl:col-span-2 px-6 py-6">
+        <div className="mt-10">
+          <CardLuxe className="w-full px-6 py-6">
             <div className="flex items-center gap-3">
               <FaRedo className="text-[#ffb800] text-2xl" />
               <h2 className="text-2xl font-bold text-[#ffb800]">
@@ -547,7 +551,7 @@ export default function LeadEnginePage() {
                 {savedBases.map((item) => (
                   <div
                     key={item.id}
-                    className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-5"
+                    className="w-full rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-5"
                   >
                     <div className="text-yellow-200 font-semibold">{item.magnetName}</div>
                     <p className="mt-2 text-sm text-white/70">{item.hook}</p>
