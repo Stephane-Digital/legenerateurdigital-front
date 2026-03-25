@@ -125,7 +125,6 @@ function writeDailyProgress(progress: DailyProgress) {
   window.localStorage.setItem(LGD_DAILY_PROGRESS_KEY, JSON.stringify(progress));
 }
 
-
 function markDashboardProgress(partial: Partial<DailyProgress>) {
   if (typeof window === "undefined") return;
   try {
@@ -153,7 +152,6 @@ function markDashboardProgress(partial: Partial<DailyProgress>) {
     window.localStorage.setItem(LGD_DAILY_PROGRESS_KEY, JSON.stringify(fallback));
   }
 }
-
 
 function openSystemeioPlans() {
   window.open(SYSTEMEIO_PLANS_URL, "_blank", "noopener,noreferrer");
@@ -531,6 +529,8 @@ export default function DashboardPage() {
           </CardLuxe>
         </motion.div>
 
+        <LeadEngineBlock />
+
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -570,10 +570,12 @@ export default function DashboardPage() {
               </div>
 
               <div className="w-full mt-6">
-                <SecondaryButton onClick={() => {
-                  markContentCreated();
-                  accessOrExplain("editor");
-                }}>
+                <SecondaryButton
+                  onClick={() => {
+                    markContentCreated();
+                    accessOrExplain("editor");
+                  }}
+                >
                   {hasPaidAccess ? "Accéder" : "Découvrir"}
                 </SecondaryButton>
               </div>
@@ -936,4 +938,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-<LeadEngineBlock />
