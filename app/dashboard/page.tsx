@@ -855,8 +855,7 @@ export default function DashboardPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <PrimaryButton onClick={closeModal}>Créer mon Lead Engine</PrimaryButton>
-              <PrimaryButton
+                            <PrimaryButton
                 onClick={() => {
                   closeModal();
                   go("/dashboard/lead-engine");
