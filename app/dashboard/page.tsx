@@ -574,8 +574,8 @@ export default function DashboardPage() {
                 </SecondaryButton>
               </div>
             </CardLuxe>
+
             <LeadEngineBlock onDiscover={() => accessOrExplain("lead_engine")} />
-6fdaf0b (feat: add Lead Engine modal)
           </div>
         </motion.div>
 
@@ -855,6 +855,9 @@ export default function DashboardPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <PrimaryButton onClick={closeModal}>Je veux ce module</PrimaryButton>
+            <p className="text-xs text-white/50 mt-2">
+  Génère ton premier aimant à prospects en quelques clics
+</p>
             <SecondaryButton onClick={closeModal}>Fermer</SecondaryButton>
           </div>
         </div>
