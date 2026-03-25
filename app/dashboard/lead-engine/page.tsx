@@ -3,7 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-
+import LeadEngineBlock from "../components/LeadEngineBlock";
 import CardLuxe from "@/components/ui/CardLuxe";
 
 // Icons (react-icons/fa)
