@@ -3,7 +3,11 @@
 import CardLuxe from "@/components/ui/CardLuxe";
 import { FaEnvelopeOpenText } from "react-icons/fa";
 
-export default function LeadEngineBlock() {
+type LeadEngineBlockProps = {
+  onDiscover?: () => void;
+};
+
+export default function LeadEngineBlock({ onDiscover }: LeadEngineBlockProps) {
   return (
     <CardLuxe className="min-h-[230px] flex flex-col items-center justify-between px-6 py-6 text-center">
       <div className="flex flex-col items-center">
@@ -28,6 +32,7 @@ export default function LeadEngineBlock() {
       <div className="w-full mt-6">
         <button
           type="button"
+          onClick={onDiscover}
           className="w-full rounded-2xl px-5 py-3 font-semibold bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] text-black hover:-translate-y-0.5 hover:shadow-lg hover:shadow-yellow-500/20 transition-all"
         >
           Découvrir

@@ -34,7 +34,8 @@ type ModalKey =
   | "ebook"
   | "multiplier"
   | "offer"
-  | "funnel";
+  | "funnel"
+  | "lead_engine";
 
 type DailyProgress = {
   idea: boolean;
@@ -123,34 +124,6 @@ function readDailyProgress(): DailyProgress {
 function writeDailyProgress(progress: DailyProgress) {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(LGD_DAILY_PROGRESS_KEY, JSON.stringify(progress));
-}
-
-function markDashboardProgress(partial: Partial<DailyProgress>) {
-  if (typeof window === "undefined") return;
-  try {
-    const raw = window.localStorage.getItem(LGD_DAILY_PROGRESS_KEY);
-    const current: DailyProgress = raw
-      ? {
-          idea: Boolean(JSON.parse(raw).idea),
-          content: Boolean(JSON.parse(raw).content),
-          email: Boolean(JSON.parse(raw).email),
-          offer: Boolean(JSON.parse(raw).offer),
-        }
-      : DEFAULT_PROGRESS;
-
-    const updated: DailyProgress = {
-      ...current,
-      ...partial,
-    };
-
-    window.localStorage.setItem(LGD_DAILY_PROGRESS_KEY, JSON.stringify(updated));
-  } catch {
-    const fallback: DailyProgress = {
-      ...DEFAULT_PROGRESS,
-      ...partial,
-    };
-    window.localStorage.setItem(LGD_DAILY_PROGRESS_KEY, JSON.stringify(fallback));
-  }
 }
 
 function openSystemeioPlans() {
@@ -387,7 +360,7 @@ export default function DashboardPage() {
     router.push(path);
   }
 
-  function accessOrExplain(key: "editor" | "coach" | "emailing") {
+  function accessOrExplain(key: "editor" | "coach" | "emailing" | "lead_engine") {
     openModal(key);
   }
 
@@ -601,7 +574,12 @@ export default function DashboardPage() {
                 </SecondaryButton>
               </div>
             </CardLuxe>
+
             <LeadEngineBlock />
+
+
+            <LeadEngineBlock onDiscover={() => accessOrExplain("lead_engine")} />
+6fdaf0b (feat: add Lead Engine modal)
           </div>
         </motion.div>
 
@@ -846,6 +824,45 @@ export default function DashboardPage() {
               <SecondaryButton onClick={closeModal}>Fermer</SecondaryButton>
             </div>
           )}
+        </div>
+      </ModalShell>
+
+      <ModalShell
+        open={activeModal === "lead_engine"}
+        title="Lead Engine IA"
+        subtitle="Transforme ton contenu en machine à capturer des emails."
+        icon={<FaEnvelope />}
+        onClose={closeModal}
+      >
+        <div className="grid gap-4">
+          <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4 text-white/80">
+            <div className="text-yellow-200 font-semibold">Ce que LGD va générer</div>
+            <ul className="mt-2 space-y-2 text-sm">
+              <li>• Un lead magnet orienté conversion (checklist, mini-guide, template, ebook)</li>
+              <li>• Une page de capture premium prête à collecter des emails</li>
+              <li>• Des CTA optimisés à injecter dans tes posts, carrousels et contenus</li>
+            </ul>
+          </div>
+
+          <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4 text-white/80">
+            <div className="text-yellow-200 font-semibold">Pourquoi c’est stratégique</div>
+            <p className="mt-2 text-sm text-white/70">
+              Les followers peuvent disparaître. Une liste email reste ton actif.
+              Lead Engine a été pensé pour transformer ton audience en base email durable, exploitable et rentable.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4 text-white/80">
+            <div className="text-yellow-200 font-semibold">Bientôt dans LGD</div>
+            <p className="mt-2 text-sm text-white/70">
+              Génération d’aimant à prospects, page de capture, angle de promesse, CTA, puis connexion logique avec l’emailing.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <PrimaryButton onClick={closeModal}>Je veux ce module</PrimaryButton>
+            <SecondaryButton onClick={closeModal}>Fermer</SecondaryButton>
+          </div>
         </div>
       </ModalShell>
 
