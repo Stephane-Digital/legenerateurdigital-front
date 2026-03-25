@@ -537,32 +537,32 @@ export default function LeadEnginePage() {
                     <p className="mt-2 text-sm text-white/70">{item.hook}</p>
                     <p className="mt-2 text-sm text-white/55">CTA : {item.cta}</p>
 
-                    <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="mt-4 flex flex-col gap-3">
                       <button
                         type="button"
                         onClick={() => reuseBase(item)}
-                        className="rounded-2xl border border-yellow-600/25 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-100 hover:bg-yellow-500/15 transition-all"
+                        className="w-full rounded-2xl border border-yellow-600/25 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-100 hover:bg-yellow-500/15 transition-all"
                       >
                         Réutiliser cette base
                       </button>
                       <button
                         type="button"
                         onClick={() => injectIntoEditor(item)}
-                        className="rounded-2xl border border-yellow-600/25 bg-[#111] px-4 py-3 text-sm font-semibold text-white/85 hover:bg-yellow-500/10 transition-all"
+                        className="w-full rounded-2xl border border-yellow-600/25 bg-[#111] px-4 py-3 text-sm font-semibold text-white/85 hover:bg-yellow-500/10 transition-all"
                       >
                         Vers l’Éditeur
                       </button>
                       <button
                         type="button"
                         onClick={() => injectIntoEmailing(item)}
-                        className="rounded-2xl border border-yellow-600/25 bg-[#111] px-4 py-3 text-sm font-semibold text-white/85 hover:bg-yellow-500/10 transition-all"
+                        className="w-full rounded-2xl border border-yellow-600/25 bg-[#111] px-4 py-3 text-sm font-semibold text-white/85 hover:bg-yellow-500/10 transition-all"
                       >
                         Vers Emailing
                       </button>
                       <button
                         type="button"
                         onClick={() => prepareSioTemplate(item)}
-                        className="rounded-2xl border border-yellow-600/25 bg-[#111] px-4 py-3 text-sm font-semibold text-white/85 hover:bg-yellow-500/10 transition-all"
+                        className="w-full rounded-2xl border border-yellow-600/25 bg-[#111] px-4 py-3 text-sm font-semibold text-white/85 hover:bg-yellow-500/10 transition-all"
                       >
                         Template SIO
                       </button>
