@@ -357,6 +357,84 @@ export default function LeadEnginePage() {
                   </div>
                 ) : null}
               </div>
+
+              <div className="mt-6 rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4 text-sm text-white/65">
+                Note importante : dans cette V5, LGD effectue les injections internes
+                vers l’Éditeur et l’Emailing via stockage local. Le push API direct vers Systeme.io
+                n’est pas encore branché ici, mais le template Lead Magnet SIO est préparé.
+              </div>
+
+              <div className="mt-6 border-t border-yellow-600/15 pt-6">
+                <div className="flex items-center gap-3">
+                  <FaRocket className="text-[#ffb800] text-2xl" />
+                  <h2 className="text-2xl font-bold text-[#ffb800]">
+                    Utiliser dans LGD
+                  </h2>
+                </div>
+
+                <p className="mt-3 text-white/70">
+                  À partir de cette base, tu peux préparer ton contenu, ton emailing,
+                  ta bibliothèque et ton template Lead Magnet pour SIO.
+                </p>
+
+                <div className="mt-6 flex flex-col gap-4">
+                  <button
+                    type="button"
+                    onClick={() => injectIntoEditor(activePayload)}
+                    className="w-full rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-5 py-4 text-left hover:bg-yellow-500/10 transition-all"
+                  >
+                    <div className="flex items-center gap-3 text-yellow-200 font-semibold">
+                      <FaEdit />
+                      Injecter dans l’Éditeur
+                    </div>
+                    <p className="mt-2 text-sm text-white/65">
+                      Envoie le hook, la promesse et le CTA dans l’éditeur intelligent.
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => injectIntoEmailing(activePayload)}
+                    className="w-full rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-5 py-4 text-left hover:bg-yellow-500/10 transition-all"
+                  >
+                    <div className="flex items-center gap-3 text-yellow-200 font-semibold">
+                      <FaMailBulk />
+                      Injecter dans Emailing
+                    </div>
+                    <p className="mt-2 text-sm text-white/65">
+                      Prépare la base pour la séquence email liée à ce lead magnet.
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => saveToLibrary(activePayload)}
+                    className="w-full rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-5 py-4 text-left hover:bg-yellow-500/10 transition-all"
+                  >
+                    <div className="flex items-center gap-3 text-yellow-200 font-semibold">
+                      <FaFolderOpen />
+                      Sauvegarder en Bibliothèque
+                    </div>
+                    <p className="mt-2 text-sm text-white/65">
+                      Garde cette base Lead Engine pour la réutiliser plus tard.
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => prepareSioTemplate(activePayload)}
+                    className="w-full rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-5 py-4 text-left hover:bg-yellow-500/10 transition-all"
+                  >
+                    <div className="flex items-center gap-3 text-yellow-200 font-semibold">
+                      <FaRocket />
+                      Template Lead Magnet SIO
+                    </div>
+                    <p className="mt-2 text-sm text-white/65">
+                      Prépare la structure du template à injecter côté Systeme.io.
+                    </p>
+                  </button>
+                </div>
+              </div>
             </div>
           </CardLuxe>
 
@@ -369,7 +447,7 @@ export default function LeadEnginePage() {
                 </h2>
               </div>
 
-              <div className="mt-6 grid gap-4">
+              <div className="mt-6 flex flex-1 flex-col gap-4">
                 <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4">
                   <div className="text-yellow-200 font-semibold">Nom du lead magnet</div>
                   <p className="mt-2 text-white/80">{preview.magnetName}</p>
@@ -404,125 +482,41 @@ export default function LeadEnginePage() {
                     </p>
                   </div>
                 ) : null}
-              </div>
-            </div>
-          </CardLuxe>
-        </div>
 
-        <div className="mt-10 grid grid-cols-1 xl:grid-cols-2 gap-8 items-stretch">
-          <CardLuxe className="block w-full min-w-0 h-full px-6 py-6">
-            <div className="flex h-full flex-col">
-              <div className="flex items-center gap-3">
-                <FaRocket className="text-[#ffb800] text-2xl" />
-                <h2 className="text-2xl font-bold text-[#ffb800]">
-                  Utiliser dans LGD
-                </h2>
-              </div>
-
-              <p className="mt-3 text-white/70 max-w-3xl">
-                À partir de cette base, tu peux préparer ton contenu, ton emailing,
-                ta bibliothèque et ton template Lead Magnet pour SIO.
-              </p>
-
-              <div className="mt-6 flex flex-1 flex-col gap-4">
-                <button
-                  type="button"
-                  onClick={() => injectIntoEditor(activePayload)}
-                  className="w-full rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-5 py-4 text-left hover:bg-yellow-500/10 transition-all"
-                >
-                  <div className="flex items-center gap-3 text-yellow-200 font-semibold">
-                    <FaEdit />
-                    Injecter dans l’Éditeur
+                <div className="mt-2 border-t border-yellow-600/15 pt-6">
+                  <div className="flex items-center gap-3">
+                    <FaHistory className="text-[#ffb800] text-2xl" />
+                    <h2 className="text-2xl font-bold text-[#ffb800]">
+                      Base générée
+                    </h2>
                   </div>
-                  <p className="mt-2 text-sm text-white/65">
-                    Envoie le hook, la promesse et le CTA dans l’éditeur intelligent.
-                  </p>
-                </button>
 
-                <button
-                  type="button"
-                  onClick={() => injectIntoEmailing(activePayload)}
-                  className="w-full rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-5 py-4 text-left hover:bg-yellow-500/10 transition-all"
-                >
-                  <div className="flex items-center gap-3 text-yellow-200 font-semibold">
-                    <FaMailBulk />
-                    Injecter dans Emailing
+                  <div className="mt-6 flex flex-col gap-4">
+                    <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4">
+                      <div className="text-yellow-200 font-semibold">Titre</div>
+                      <p className="mt-2 text-white/80">{activePayload.magnetName}</p>
+                    </div>
+
+                    <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4">
+                      <div className="text-yellow-200 font-semibold">Hook</div>
+                      <p className="mt-2 text-white/80">{activePayload.hook}</p>
+                    </div>
+
+                    <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4">
+                      <div className="text-yellow-200 font-semibold">CTA</div>
+                      <p className="mt-2 text-white/80">{activePayload.cta}</p>
+                    </div>
+
+                    <div className="mt-2">
+                      <button
+                        type="button"
+                        onClick={saveCurrentBase}
+                        className="w-full rounded-2xl px-5 py-3 font-semibold bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] text-black hover:-translate-y-0.5 hover:shadow-lg hover:shadow-yellow-500/20 transition-all"
+                      >
+                        Sauvegarder cette base
+                      </button>
+                    </div>
                   </div>
-                  <p className="mt-2 text-sm text-white/65">
-                    Prépare la base pour la séquence email liée à ce lead magnet.
-                  </p>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => saveToLibrary(activePayload)}
-                  className="w-full rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-5 py-4 text-left hover:bg-yellow-500/10 transition-all"
-                >
-                  <div className="flex items-center gap-3 text-yellow-200 font-semibold">
-                    <FaFolderOpen />
-                    Sauvegarder en Bibliothèque
-                  </div>
-                  <p className="mt-2 text-sm text-white/65">
-                    Garde cette base Lead Engine pour la réutiliser plus tard.
-                  </p>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => prepareSioTemplate(activePayload)}
-                  className="w-full rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-5 py-4 text-left hover:bg-yellow-500/10 transition-all"
-                >
-                  <div className="flex items-center gap-3 text-yellow-200 font-semibold">
-                    <FaRocket />
-                    Template Lead Magnet SIO
-                  </div>
-                  <p className="mt-2 text-sm text-white/65">
-                    Prépare la structure du template à injecter côté Systeme.io.
-                  </p>
-                </button>
-              </div>
-
-              <div className="mt-5 rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4 text-sm text-white/65">
-                Note importante : dans cette V5, LGD effectue les injections internes
-                vers l’Éditeur et l’Emailing via stockage local. Le push API direct vers Systeme.io
-                n’est pas encore branché ici, mais le template Lead Magnet SIO est préparé.
-              </div>
-            </div>
-          </CardLuxe>
-
-          <CardLuxe className="block w-full min-w-0 h-full px-6 py-6">
-            <div className="flex h-full flex-col">
-              <div className="flex items-center gap-3">
-                <FaHistory className="text-[#ffb800] text-2xl" />
-                <h2 className="text-2xl font-bold text-[#ffb800]">
-                  Base générée
-                </h2>
-              </div>
-
-              <div className="mt-6 flex flex-1 flex-col gap-4">
-                <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4">
-                  <div className="text-yellow-200 font-semibold">Titre</div>
-                  <p className="mt-2 text-white/80">{activePayload.magnetName}</p>
-                </div>
-
-                <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4">
-                  <div className="text-yellow-200 font-semibold">Hook</div>
-                  <p className="mt-2 text-white/80">{activePayload.hook}</p>
-                </div>
-
-                <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4">
-                  <div className="text-yellow-200 font-semibold">CTA</div>
-                  <p className="mt-2 text-white/80">{activePayload.cta}</p>
-                </div>
-
-                <div className="mt-auto">
-                  <button
-                    type="button"
-                    onClick={saveCurrentBase}
-                    className="w-full rounded-2xl px-5 py-3 font-semibold bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] text-black hover:-translate-y-0.5 hover:shadow-lg hover:shadow-yellow-500/20 transition-all"
-                  >
-                    Sauvegarder cette base
-                  </button>
                 </div>
               </div>
             </div>
