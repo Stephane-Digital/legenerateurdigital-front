@@ -1,4 +1,4 @@
-"use client";
+ "use client";
 
 import CardLuxe from "@/components/ui/CardLuxe";
 import { useMemo, useRef, useState } from "react";
@@ -60,13 +60,7 @@ const BLOCK_LABELS: Record<BlockKey, { title: string; hint: string }> = {
   story: { title: "Storytelling", hint: "Créer l’identification" },
 };
 
-const FONT_OPTIONS = [
-  "Inter",
-  "Poppins",
-  "Montserrat",
-  "Playfair Display",
-  "Lato",
-];
+const FONT_OPTIONS = ["Inter", "Poppins", "Montserrat", "Playfair Display", "Lato"];
 
 const DEFAULT_ARCHIVE: ArchiveItem[] = [
   {
@@ -281,14 +275,19 @@ export default function LeadEnginePage() {
     borderColor: `${brandPrimary}33`,
   } as const;
 
+  const passiveButton =
+    "rounded-2xl border border-yellow-600/20 bg-[#111] px-4 py-3 text-sm font-semibold text-white/85";
+  const passivePanel =
+    "rounded-2xl border border-yellow-600/20 bg-[#0b0b0b]";
+
   return (
     <div className="min-h-screen text-white" style={pageShellStyle}>
-      <div className="mx-auto max-w-[1800px] px-6 pt-[110px] pb-14">
+      <div className="mx-auto max-w-[1850px] px-6 pt-[110px] pb-14">
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <div>
             <Link
               href="/dashboard"
-              className="inline-flex items-center gap-2 rounded-xl border border-yellow-600/25 bg-[#0b0b0b] px-4 py-2 text-sm font-semibold text-yellow-200 hover:bg-yellow-500/10 transition-all"
+              className="inline-flex items-center gap-2 rounded-xl border border-yellow-600/25 bg-[#0b0b0b] px-4 py-2 text-sm font-semibold text-yellow-200"
             >
               <FaArrowLeft />
               Retour Dashboard
@@ -316,7 +315,7 @@ export default function LeadEnginePage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 2xl:grid-cols-[340px_minmax(980px,1fr)_360px] xl:grid-cols-[320px_minmax(760px,1fr)_340px] gap-6 items-start">
+        <div className="grid grid-cols-1 xl:grid-cols-[300px_minmax(900px,1fr)_320px] gap-6 items-start">
           <CardLuxe className="p-4 sticky top-[96px]">
             <div className="grid grid-cols-3 gap-2">
               {[
@@ -329,10 +328,10 @@ export default function LeadEnginePage() {
                   type="button"
                   onClick={() => setLeftTab(value as BuilderTab)}
                   className={[
-                    "rounded-2xl px-3 py-3 text-sm font-semibold transition-all",
+                    "rounded-2xl px-3 py-3 text-sm font-semibold",
                     leftTab === value
                       ? "bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] text-black"
-                      : "border border-yellow-600/20 bg-[#0b0b0b] text-white/75 hover:bg-yellow-500/10",
+                      : "border border-yellow-600/20 bg-[#0b0b0b] text-white/75",
                   ].join(" ")}
                 >
                   {label}
@@ -342,7 +341,7 @@ export default function LeadEnginePage() {
 
             {leftTab === "medias" ? (
               <div className="mt-5 space-y-4">
-                <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4">
+                <div className={`${passivePanel} p-4`}>
                   <div className="flex items-center gap-3 text-yellow-200 font-semibold">
                     <FaPhotoVideo />
                     Images / Vidéos du lead
@@ -355,7 +354,7 @@ export default function LeadEnginePage() {
                     <button
                       type="button"
                       onClick={() => imageInputRef.current?.click()}
-                      className="rounded-2xl border border-yellow-600/20 bg-[#111] px-4 py-3 text-sm font-semibold text-white/85 hover:bg-yellow-500/10"
+                      className={passiveButton}
                     >
                       <span className="inline-flex items-center gap-2">
                         <FaImage className="text-yellow-300" />
@@ -366,7 +365,7 @@ export default function LeadEnginePage() {
                     <button
                       type="button"
                       onClick={() => videoInputRef.current?.click()}
-                      className="rounded-2xl border border-yellow-600/20 bg-[#111] px-4 py-3 text-sm font-semibold text-white/85 hover:bg-yellow-500/10"
+                      className={passiveButton}
                     >
                       <span className="inline-flex items-center gap-2">
                         <FaVideo className="text-yellow-300" />
@@ -457,7 +456,7 @@ export default function LeadEnginePage() {
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4">
+                <div className={`${passivePanel} p-4`}>
                   <div className="flex items-center gap-3 text-yellow-200 font-semibold">
                     <FaArchive />
                     Archive LGD
@@ -468,7 +467,7 @@ export default function LeadEnginePage() {
                   <button
                     type="button"
                     onClick={() => setLeftTab("archive")}
-                    className="mt-4 w-full rounded-2xl border border-yellow-600/20 bg-[#111] px-4 py-3 text-sm font-semibold text-white/85 hover:bg-yellow-500/10"
+                    className={`mt-4 w-full ${passiveButton}`}
                   >
                     Ouvrir l’Archive
                   </button>
@@ -492,7 +491,7 @@ export default function LeadEnginePage() {
                       key={item.id}
                       type="button"
                       onClick={() => applyArchiveItem(item)}
-                      className="w-full rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-3 text-left hover:bg-yellow-500/10 transition-all"
+                      className="w-full rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-3 text-left"
                     >
                       <div className="flex gap-3">
                         <div className="h-16 w-16 rounded-2xl border border-yellow-600/20 bg-[#111] overflow-hidden flex items-center justify-center">
@@ -538,10 +537,10 @@ export default function LeadEnginePage() {
                       type="button"
                       onClick={() => toggleBlock(typedKey)}
                       className={[
-                        "w-full rounded-2xl border px-4 py-4 text-left transition-all",
+                        "w-full rounded-2xl border px-4 py-4 text-left",
                         enabled
                           ? "border-yellow-500/30 bg-yellow-500/10"
-                          : "border-yellow-600/20 bg-[#0b0b0b] hover:bg-yellow-500/10",
+                          : "border-yellow-600/20 bg-[#0b0b0b]",
                       ].join(" ")}
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -572,7 +571,7 @@ export default function LeadEnginePage() {
                 <button
                   type="button"
                   onClick={optimizeAutomatically}
-                  className="mt-2 w-full rounded-2xl bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] px-4 py-3 font-semibold text-black hover:-translate-y-0.5 transition-all"
+                  className="mt-2 w-full rounded-2xl bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] px-4 py-3 font-semibold text-black"
                 >
                   <span className="inline-flex items-center gap-2">
                     <FaMagic />
@@ -596,7 +595,7 @@ export default function LeadEnginePage() {
               <button
                 type="button"
                 onClick={optimizeAutomatically}
-                className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] px-4 py-3 text-sm font-semibold text-white/80 hover:bg-yellow-500/10"
+                className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] px-4 py-3 text-sm font-semibold text-white/80"
               >
                 <span className="inline-flex items-center gap-2">
                   <FaRobot className="text-yellow-300" />
@@ -605,142 +604,113 @@ export default function LeadEnginePage() {
               </button>
             </div>
 
-            <div className="mx-auto max-w-[1120px]">
-              <div
-                className="overflow-hidden rounded-[32px] border"
-                style={{
-                  borderColor: `${brandPrimary}33`,
-                  background: `linear-gradient(180deg, ${brandSecondary}, ${surfaceBackground})`,
-                }}
-              >
-                {blocks.hero ? (
-                  <div
-                    className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.15fr)_420px] gap-0 border-b"
-                    style={{ borderColor: `${brandPrimary}22` }}
-                  >
-                    <div className="px-8 py-8 sm:px-10 sm:py-10 lg:px-12 lg:py-12">
-                      {logo ? (
-                        <img
-                          src={logo}
-                          alt="Logo"
-                          className="mb-5 h-14 w-auto object-contain rounded-xl border border-yellow-600/20 bg-[#111] p-2"
-                        />
-                      ) : (
-                        <div
-                          className="mb-5 inline-flex rounded-full border border-yellow-600/25 bg-[#111] px-4 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]"
-                          style={previewAccentStyle}
-                        >
-                          Aimant à prospects
-                        </div>
-                      )}
-
-                      <h3
-                        className="max-w-3xl text-4xl font-extrabold leading-tight sm:text-[44px]"
-                        style={{ color: "#ffffff", fontFamily: titleFont }}
+            <div
+              className="overflow-hidden rounded-[32px] border"
+              style={{
+                borderColor: `${brandPrimary}33`,
+                background: `linear-gradient(180deg, ${brandSecondary}, ${surfaceBackground})`,
+              }}
+            >
+              {blocks.hero ? (
+                <div
+                  className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-0 border-b"
+                  style={{ borderColor: `${brandPrimary}22` }}
+                >
+                  <div className="px-10 py-10 lg:px-12 lg:py-12">
+                    {logo ? (
+                      <img
+                        src={logo}
+                        alt="Logo"
+                        className="mb-5 h-14 w-auto object-contain rounded-xl border border-yellow-600/20 bg-[#111] p-2"
+                      />
+                    ) : (
+                      <div
+                        className="mb-5 inline-flex rounded-full border border-yellow-600/25 bg-[#111] px-4 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]"
+                        style={previewAccentStyle}
                       >
-                        {heroTitle}
-                      </h3>
+                        Aimant à prospects
+                      </div>
+                    )}
 
-                      <p className="mt-5 max-w-2xl text-lg leading-8 text-white/72">
-                        {heroSubtitle}
-                      </p>
+                    <h3
+                      className="max-w-3xl text-4xl font-extrabold leading-tight xl:text-5xl"
+                      style={{ color: "#ffffff", fontFamily: titleFont }}
+                    >
+                      {heroTitle}
+                    </h3>
 
-                      <div className="mt-7 flex flex-wrap gap-3">
-                        <button
-                          type="button"
-                          className="rounded-2xl px-6 py-4 font-semibold text-black shadow-lg"
-                          style={{ backgroundColor: brandPrimary }}
-                        >
-                          {cta}
-                        </button>
+                    <p className="mt-5 max-w-2xl text-lg leading-8 text-white/72">
+                      {heroSubtitle}
+                    </p>
 
-                        <div
-                          className="rounded-2xl border px-5 py-4 text-sm text-white/65"
-                          style={{ borderColor: `${brandPrimary}33` }}
-                        >
-                          {renderLevel === "ultra"
-                            ? "Version ultra conversion"
-                            : renderLevel === "premium"
-                            ? "Version premium"
-                            : "Version standard"}
-                        </div>
+                    <div className="mt-7 flex flex-wrap gap-3">
+                      <button
+                        type="button"
+                        className="rounded-2xl px-6 py-4 font-semibold text-black shadow-lg"
+                        style={{ backgroundColor: brandPrimary }}
+                      >
+                        {cta}
+                      </button>
+
+                      <div
+                        className="rounded-2xl border px-5 py-4 text-sm text-white/65"
+                        style={{ borderColor: `${brandPrimary}33` }}
+                      >
+                        {renderLevel === "ultra"
+                          ? "Version ultra conversion"
+                          : renderLevel === "premium"
+                          ? "Version premium"
+                          : "Version standard"}
                       </div>
                     </div>
+                  </div>
 
-                    <div className="border-l p-5 lg:p-6" style={{ borderColor: `${brandPrimary}22` }}>
-                      <div className="grid h-full min-h-[360px] place-items-center rounded-[26px] border bg-[#111]" style={{ borderColor: `${brandPrimary}20` }}>
-                        {images[0] ? (
-                          <img src={images[0]} alt="Hero visuel" className="h-full w-full rounded-[26px] object-cover" />
-                        ) : (
-                          <div className="px-6 text-center">
-                            <FaImage className="mx-auto text-5xl" style={previewAccentStyle} />
-                            <p className="mt-3 text-sm text-white/45">
-                              Ajoute un visuel hero depuis Médias ou Archive
-                            </p>
-                          </div>
-                        )}
-                      </div>
+                  <div className="border-l p-6" style={{ borderColor: `${brandPrimary}22` }}>
+                    <div className="grid h-full min-h-[340px] place-items-center rounded-[26px] border bg-[#111]" style={{ borderColor: `${brandPrimary}20` }}>
+                      {images[0] ? (
+                        <img src={images[0]} alt="Hero visuel" className="h-full w-full rounded-[26px] object-cover" />
+                      ) : (
+                        <div className="px-6 text-center">
+                          <FaImage className="mx-auto text-5xl" style={previewAccentStyle} />
+                          <p className="mt-3 text-sm text-white/45">
+                            Ajoute un visuel hero depuis Médias ou Archive
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="grid gap-5 px-8 py-8 lg:px-10 lg:py-10">
+                {blocks.benefits ? (
+                  <div className="rounded-[28px] border p-6" style={surfaceStyle}>
+                    <div className="font-semibold text-lg" style={previewAccentStyle}>Bénéfices</div>
+                    <div className="mt-4 grid gap-3 md:grid-cols-3">
+                      {[
+                        "Attire des prospects plus qualifiés sans complexifier ton marketing.",
+                        "Transforme tes contenus en machine à leads plus cohérente.",
+                        "Crée une structure premium qui donne envie de s’inscrire.",
+                      ].map((item, index) => (
+                        <div
+                          key={index}
+                          className="rounded-2xl border bg-[#111] px-4 py-4 text-sm leading-7 text-white/78"
+                          style={{ borderColor: `${brandPrimary}22` }}
+                        >
+                          {item}
+                        </div>
+                      ))}
                     </div>
                   </div>
                 ) : null}
 
-                <div className="grid gap-5 px-6 py-6 sm:px-8 sm:py-8 lg:px-10 lg:py-10">
-                  {blocks.benefits ? (
-                    <div className="rounded-[28px] border p-6" style={surfaceStyle}>
-                      <div className="font-semibold text-lg" style={previewAccentStyle}>Bénéfices</div>
-                      <div className="mt-4 grid gap-3 md:grid-cols-3">
-                        {[
-                          "Attire des prospects plus qualifiés sans complexifier ton marketing.",
-                          "Transforme tes contenus en machine à leads plus cohérente.",
-                          "Crée une structure premium qui donne envie de s’inscrire.",
-                        ].map((item, index) => (
-                          <div
-                            key={index}
-                            className="rounded-2xl border bg-[#111] px-4 py-4 text-sm leading-7 text-white/78"
-                            style={{ borderColor: `${brandPrimary}22` }}
-                          >
-                            {item}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {blocks.story ? (
-                    <div className="rounded-[28px] border p-6" style={surfaceStyle}>
-                      <div className="font-semibold text-lg" style={previewAccentStyle}>Storytelling</div>
-                      <p className="mt-3 text-base leading-8 text-white/72">
-                        Tu postes peut-être déjà du contenu, mais sans système de capture solide tu laisses partir une partie de tes futurs clients. Ce lead a été pensé pour créer une vraie passerelle entre ton audience et ton offre.
-                      </p>
-                    </div>
-                  ) : null}
-
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
                   {blocks.proof ? (
                     <div className="rounded-[28px] border p-6" style={surfaceStyle}>
                       <div className="font-semibold text-lg" style={previewAccentStyle}>Preuve sociale</div>
                       <p className="mt-3 text-base leading-8 text-white/75">
                         Cette structure aide à capter plus facilement des leads réellement intéressés par ton offre.
                       </p>
-                    </div>
-                  ) : null}
-
-                  {blocks.testimonials ? (
-                    <div className="rounded-[28px] border p-6" style={surfaceStyle}>
-                      <div className="font-semibold text-lg" style={previewAccentStyle}>Avis</div>
-                      <div className="mt-4 grid gap-3 md:grid-cols-2">
-                        {[
-                          "“Le rendu donne tout de suite un effet premium.”",
-                          "“On sent que la page est pensée pour convertir.”",
-                        ].map((item, index) => (
-                          <div
-                            key={index}
-                            className="rounded-2xl border bg-[#111] px-4 py-4 text-sm leading-7 text-white/72"
-                            style={{ borderColor: `${brandPrimary}22` }}
-                          >
-                            {item}
-                          </div>
-                        ))}
-                      </div>
                     </div>
                   ) : null}
 
@@ -752,69 +722,98 @@ export default function LeadEnginePage() {
                       </p>
                     </div>
                   ) : null}
-
-                  {blocks.urgency ? (
-                    <div className="rounded-[28px] border p-6" style={surfaceStyle}>
-                      <div className="font-semibold text-lg" style={previewAccentStyle}>Urgence</div>
-                      <p className="mt-3 text-base leading-8 text-white/75">
-                        Disponible maintenant — ajoute une logique de rareté ou de timing dans ton copywriting pour augmenter le passage à l’action.
-                      </p>
-                    </div>
-                  ) : null}
-
-                  {blocks.faq ? (
-                    <div className="rounded-[28px] border p-6" style={surfaceStyle}>
-                      <div className="font-semibold text-lg" style={previewAccentStyle}>FAQ</div>
-                      <div className="mt-4 grid gap-3">
-                        {[
-                          {
-                            q: "Est-ce adapté aux débutants ?",
-                            a: "Oui, la structure a été pensée pour rester simple à mettre en œuvre.",
-                          },
-                          {
-                            q: "Combien de temps faut-il pour l’utiliser ?",
-                            a: "Le format est conçu pour être actionnable rapidement, sans lecture interminable.",
-                          },
-                        ].map((item, index) => (
-                          <div
-                            key={index}
-                            className="rounded-2xl border bg-[#111] px-5 py-5"
-                            style={{ borderColor: `${brandPrimary}22` }}
-                          >
-                            <div className="font-semibold text-white">{item.q}</div>
-                            <div className="mt-2 text-sm leading-7 text-white/68">{item.a}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {images.length > 1 || videos.length > 0 ? (
-                    <div className="rounded-[28px] border p-6" style={surfaceStyle}>
-                      <div className="font-semibold text-lg" style={previewAccentStyle}>Galerie médias</div>
-                      <div className="mt-4 flex flex-wrap gap-3">
-                        {images.slice(1).map((img, index) => (
-                          <img
-                            key={index}
-                            src={img}
-                            alt={`galerie-${index}`}
-                            className="h-28 w-28 rounded-2xl object-cover border"
-                            style={{ borderColor: `${brandPrimary}22` }}
-                          />
-                        ))}
-                        {videos.map((_, index) => (
-                          <div
-                            key={index}
-                            className="grid h-28 w-28 place-items-center rounded-2xl border bg-[#111]"
-                            style={{ borderColor: `${brandPrimary}22` }}
-                          >
-                            <FaVideo style={previewAccentStyle} />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
                 </div>
+
+                {blocks.testimonials ? (
+                  <div className="rounded-[28px] border p-6" style={surfaceStyle}>
+                    <div className="font-semibold text-lg" style={previewAccentStyle}>Avis</div>
+                    <div className="mt-4 grid gap-3 md:grid-cols-2">
+                      {[
+                        "“Le rendu donne tout de suite un effet premium.”",
+                        "“On sent que la page est pensée pour convertir.”",
+                      ].map((item, index) => (
+                        <div
+                          key={index}
+                          className="rounded-2xl border bg-[#111] px-4 py-4 text-sm leading-7 text-white/72"
+                          style={{ borderColor: `${brandPrimary}22` }}
+                        >
+                          {item}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {blocks.story ? (
+                  <div className="rounded-[28px] border p-6" style={surfaceStyle}>
+                    <div className="font-semibold text-lg" style={previewAccentStyle}>Storytelling</div>
+                    <p className="mt-3 text-base leading-8 text-white/72">
+                      Tu postes peut-être déjà du contenu, mais sans système de capture solide tu laisses partir une partie de tes futurs clients. Ce lead a été pensé pour créer une vraie passerelle entre ton audience et ton offre.
+                    </p>
+                  </div>
+                ) : null}
+
+                {blocks.urgency ? (
+                  <div className="rounded-[28px] border p-6" style={surfaceStyle}>
+                    <div className="font-semibold text-lg" style={previewAccentStyle}>Urgence</div>
+                    <p className="mt-3 text-base leading-8 text-white/75">
+                      Disponible maintenant — ajoute une logique de rareté ou de timing dans ton copywriting pour augmenter le passage à l’action.
+                    </p>
+                  </div>
+                ) : null}
+
+                {blocks.faq ? (
+                  <div className="rounded-[28px] border p-6" style={surfaceStyle}>
+                    <div className="font-semibold text-lg" style={previewAccentStyle}>FAQ</div>
+                    <div className="mt-4 grid gap-3">
+                      {[
+                        {
+                          q: "Est-ce adapté aux débutants ?",
+                          a: "Oui, la structure a été pensée pour rester simple à mettre en œuvre.",
+                        },
+                        {
+                          q: "Combien de temps faut-il pour l’utiliser ?",
+                          a: "Le format est conçu pour être actionnable rapidement, sans lecture interminable.",
+                        },
+                      ].map((item, index) => (
+                        <div
+                          key={index}
+                          className="rounded-2xl border bg-[#111] px-5 py-5"
+                          style={{ borderColor: `${brandPrimary}22` }}
+                        >
+                          <div className="font-semibold text-white">{item.q}</div>
+                          <div className="mt-2 text-sm leading-7 text-white/68">{item.a}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {images.length > 1 || videos.length > 0 ? (
+                  <div className="rounded-[28px] border p-6" style={surfaceStyle}>
+                    <div className="font-semibold text-lg" style={previewAccentStyle}>Galerie médias</div>
+                    <div className="mt-4 flex flex-wrap gap-3">
+                      {images.slice(1).map((img, index) => (
+                        <img
+                          key={index}
+                          src={img}
+                          alt={`galerie-${index}`}
+                          className="h-28 w-28 rounded-2xl object-cover border"
+                          style={{ borderColor: `${brandPrimary}22` }}
+                        />
+                      ))}
+                      {videos.map((_, index) => (
+                        <div
+                          key={index}
+                          className="grid h-28 w-28 place-items-center rounded-2xl border bg-[#111]"
+                          style={{ borderColor: `${brandPrimary}22` }}
+                        >
+                          <FaVideo style={previewAccentStyle} />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </div>
           </CardLuxe>
@@ -830,10 +829,10 @@ export default function LeadEnginePage() {
                   type="button"
                   onClick={() => setRightTab(value as RightTab)}
                   className={[
-                    "rounded-2xl px-3 py-3 text-sm font-semibold transition-all",
+                    "rounded-2xl px-3 py-3 text-sm font-semibold",
                     rightTab === value
                       ? "bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] text-black"
-                      : "border border-yellow-600/20 bg-[#0b0b0b] text-white/75 hover:bg-yellow-500/10",
+                      : "border border-yellow-600/20 bg-[#0b0b0b] text-white/75",
                   ].join(" ")}
                 >
                   {label}
@@ -843,7 +842,7 @@ export default function LeadEnginePage() {
 
             {rightTab === "proprietes" ? (
               <div className="mt-5 space-y-4">
-                <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4">
+                <div className={`${passivePanel} p-4`}>
                   <div className="inline-flex items-center gap-2 text-yellow-200 font-semibold">
                     <FaPalette />
                     Branding
@@ -873,7 +872,7 @@ export default function LeadEnginePage() {
                     <button
                       type="button"
                       onClick={() => logoInputRef.current?.click()}
-                      className="rounded-2xl border border-yellow-600/20 bg-[#111] px-4 py-3 text-sm font-semibold text-white/85 hover:bg-yellow-500/10"
+                      className={passiveButton}
                     >
                       {logo ? "Changer le logo" : "Ajouter un logo"}
                     </button>
@@ -887,7 +886,7 @@ export default function LeadEnginePage() {
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4">
+                <div className={`${passivePanel} p-4`}>
                   <div className="inline-flex items-center gap-2 text-yellow-200 font-semibold">
                     <FaFont />
                     Typographies
@@ -926,7 +925,7 @@ export default function LeadEnginePage() {
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4">
+                <div className={`${passivePanel} p-4`}>
                   <div className="inline-flex items-center gap-2 text-yellow-200 font-semibold">
                     <FaCogs />
                     Rendu
@@ -1006,7 +1005,7 @@ export default function LeadEnginePage() {
 
             {rightTab === "copilote" ? (
               <div className="mt-5 space-y-4">
-                <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4">
+                <div className={`${passivePanel} p-4`}>
                   <div className="inline-flex items-center gap-2 text-yellow-200 font-semibold">
                     <FaRobot />
                     Copilote Lead Builder
@@ -1063,7 +1062,7 @@ export default function LeadEnginePage() {
                   <button
                     type="button"
                     onClick={optimizeAutomatically}
-                    className="mt-4 w-full rounded-2xl bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] px-4 py-3 font-semibold text-black hover:-translate-y-0.5 transition-all"
+                    className="mt-4 w-full rounded-2xl bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] px-4 py-3 font-semibold text-black"
                   >
                     <span className="inline-flex items-center gap-2">
                       <FaMagic />
@@ -1080,7 +1079,7 @@ export default function LeadEnginePage() {
                       );
                       setCta("Je veux mes premiers leads");
                     }}
-                    className="mt-3 w-full rounded-2xl border border-yellow-600/20 bg-[#111] px-4 py-3 font-semibold text-white/85 hover:bg-yellow-500/10 transition-all"
+                    className={`mt-3 w-full ${passiveButton}`}
                   >
                     <span className="inline-flex items-center gap-2">
                       <FaStar className="text-yellow-300" />
@@ -1089,7 +1088,7 @@ export default function LeadEnginePage() {
                   </button>
                 </div>
 
-                <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4">
+                <div className={`${passivePanel} p-4`}>
                   <div className="text-sm font-semibold text-yellow-200">Texte live</div>
 
                   <div className="mt-4 grid gap-3">
