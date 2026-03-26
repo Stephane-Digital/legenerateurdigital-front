@@ -63,7 +63,7 @@ type EmailSequenceItem = {
 };
 
 type SioReadyPayload = {
-  source: "lead_engine_v6_phase47";
+  source: "lead_engine_v6_phase48";
   funnel_name: string;
   page_name: string;
   form_name: string;
@@ -519,7 +519,7 @@ function buildSioHtmlExport(payload: {
 <div style="width:100%;max-width:920px;margin:0 auto;background:#070707;color:#ffffff;font-family:Arial,Helvetica,sans-serif;border:1px solid rgba(255,184,0,0.15);border-radius:28px;overflow:hidden;">
   <div style="padding:40px 28px;background:linear-gradient(135deg,#1c1405 0%,#0d0d0d 60%,#070707 100%);border-bottom:1px solid rgba(255,184,0,0.15);text-align:center;">
     <div style="display:inline-block;padding:8px 14px;border-radius:999px;border:1px solid rgba(255,184,0,0.22);background:rgba(0,0,0,0.2);color:#ffd36a;font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;">
-      Lead Magnet
+      Aimant à prospects
     </div>
     <h1 style="margin:20px 0 0 0;font-size:34px;line-height:1.2;color:#ffffff;">${escapeHtml(
       payload.heroTitle
@@ -527,7 +527,7 @@ function buildSioHtmlExport(payload: {
     <p style="margin:16px auto 0 auto;max-width:720px;font-size:16px;line-height:1.8;color:#d0d0d0;">${escapeHtml(
       payload.heroSubtitle
     )}</p>
-    <a href="#lgd-form-placeholder" style="margin-top:24px;display:inline-block;padding:16px 22px;border-radius:18px;background:linear-gradient(90deg,#ffb800 0%,#ffcc4d 100%);color:#000000;font-weight:700;font-size:15px;text-decoration:none;">
+    <a href="#lgd-form-transition" style="margin-top:24px;display:inline-block;padding:16px 22px;border-radius:18px;background:linear-gradient(90deg,#ffb800 0%,#ffcc4d 100%);color:#000000;font-weight:700;font-size:15px;text-decoration:none;">
       ${escapeHtml(payload.cta)}
     </a>
   </div>
@@ -540,16 +540,13 @@ function buildSioHtmlExport(payload: {
       </div>
     </div>
 
-    <div id="lgd-form-placeholder" style="margin-top:18px;padding:22px;border:1px solid rgba(255,184,0,0.15);border-radius:24px;background:#0b0b0b;">
-      <div style="font-size:15px;font-weight:700;color:#ffd36a;">Zone formulaire Systeme.io</div>
-      <p style="margin:10px 0 0 0;color:#ffd36a;font-size:13px;line-height:1.7;">
-        👉 Remplace ce bloc par ton formulaire Systeme.io natif (champ email + bouton submit).
-      </p>
-      <p style="margin:14px 0 0 0;color:#d0d0d0;font-size:15px;line-height:1.7;">${escapeHtml(
+    <div id="lgd-form-transition" style="margin-top:18px;padding:22px;border:1px solid rgba(255,184,0,0.15);border-radius:24px;background:#0b0b0b;text-align:center;">
+      <div style="font-size:15px;font-weight:700;color:#ffd36a;">Étape suivante</div>
+      <p style="margin:14px auto 0 auto;max-width:680px;color:#d0d0d0;font-size:15px;line-height:1.8;">${escapeHtml(
         payload.formIntro
       )}</p>
-      <div style="margin-top:18px;padding:16px;border:1px dashed rgba(255,184,0,0.35);border-radius:16px;background:#111111;color:#9b9b9b;font-size:14px;line-height:1.7;text-align:center;">
-        Placeholder LGD — ajoute ici ton vrai formulaire Systeme.io
+      <div style="margin-top:18px;padding:18px;border:1px solid rgba(255,184,0,0.18);border-radius:18px;background:#111111;color:#ffd36a;font-size:14px;line-height:1.8;">
+        👉 Ajoute maintenant ton formulaire Systeme.io natif juste sous ce bloc HTML pour rendre la capture email active.
       </div>
     </div>
 
@@ -594,7 +591,7 @@ function buildSioReadyPayload(
   });
 
   return {
-    source: "lead_engine_v6_phase47",
+    source: "lead_engine_v6_phase48",
     funnel_name: `Funnel LGD - ${magnetName}`,
     page_name: `capture-${slug}`,
     form_name: `form-${slug}`,
@@ -812,7 +809,7 @@ export default function LeadEnginePage() {
     if (typeof window !== "undefined") {
       window.localStorage.setItem(LS_LEAD_ENGINE_V1, JSON.stringify(preview));
     }
-    flash("✅ Lead Engine V6 Phase 4.7 généré.");
+    flash("✅ Lead Engine V6 Phase 4.8 généré.");
   }
 
   function injectIntoEditor(payload: LeadEnginePayload) {
@@ -825,7 +822,7 @@ export default function LeadEnginePage() {
         `Promesse : ${payload.promise || "Résultat rapide"}\n` +
         `CTA : ${payload.cta}\n` +
         `Landing hero : ${payload.landing.heroTitle}`,
-      source: "lead_engine_v6_phase47",
+      source: "lead_engine_v6_phase48",
       createdAtISO: new Date().toISOString(),
     };
 
@@ -838,7 +835,7 @@ export default function LeadEnginePage() {
     if (typeof window === "undefined") return;
 
     const emailPayload = {
-      source: "lead_engine_v6_phase47",
+      source: "lead_engine_v6_phase48",
       angle: payload.hook,
       offer_name: payload.magnetName,
       promise: payload.promise,
@@ -860,7 +857,7 @@ export default function LeadEnginePage() {
     if (typeof window === "undefined") return;
 
     const libraryPayload = {
-      kind: "lgd_lead_engine_v6_phase47",
+      kind: "lgd_lead_engine_v6_phase48",
       title: payload.magnetName,
       data: payload,
       createdAt: new Date().toISOString(),
@@ -921,7 +918,7 @@ export default function LeadEnginePage() {
     if (typeof window !== "undefined") {
       window.localStorage.setItem(LS_LEAD_ENGINE_V1, JSON.stringify(preview));
     }
-    flash("✅ Lead Engine Phase 4.7 sauvegardé.");
+    flash("✅ Lead Engine Phase 4.8 sauvegardé.");
   }
 
   function reuseBase(payload: LeadEnginePayload) {
@@ -989,7 +986,7 @@ export default function LeadEnginePage() {
         <div className="mt-10 text-center">
           <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-4 py-1 text-[12px] text-white/75">
             <FaEnvelopeOpenText className="text-yellow-300" />
-            Lead Engine V6 — Phase 4.7
+            Lead Engine V6 — Phase 4.8
           </div>
 
           <h1 className="mt-4 text-3xl sm:text-4xl font-extrabold text-[#ffb800]">
@@ -997,8 +994,8 @@ export default function LeadEnginePage() {
           </h1>
 
           <p className="mt-3 max-w-3xl mx-auto text-white/70">
-            LGD génère maintenant le JSON interne, l’export HTML hybride Systeme.io,
-            la séquence email complète et l’export PRO guidé avec zone formulaire native.
+            LGD génère maintenant le JSON interne, l’export HTML compatible Systeme.io,
+            la séquence email complète et l’export PRO guidé avec intégration formulaire séparée.
           </p>
         </div>
 
@@ -1154,8 +1151,8 @@ export default function LeadEnginePage() {
                 </div>
 
                 <p className="mt-3 text-white/70">
-                  À partir de cette Phase 4.7, tu peux préparer ton contenu, ton emailing,
-                  ton JSON interne et ton HTML hybride Systeme.io.
+                  À partir de cette Phase 4.8, tu peux préparer ton contenu, ton emailing,
+                  ton JSON interne et ton HTML compatible Systeme.io.
                 </p>
 
                 <div className="mt-6 flex flex-col gap-4">
@@ -1197,7 +1194,7 @@ export default function LeadEnginePage() {
                       Sauvegarder en Bibliothèque
                     </div>
                     <p className="mt-2 text-sm text-white/65">
-                      Garde cette Phase 4.7 complète pour la réutiliser plus tard.
+                      Garde cette Phase 4.8 complète pour la réutiliser plus tard.
                     </p>
                   </button>
 
@@ -1239,7 +1236,7 @@ export default function LeadEnginePage() {
                       Copier le HTML SIO
                     </div>
                     <p className="mt-2 text-sm text-white/65">
-                      Copie le HTML hybride prêt à coller, avec placeholder pour le vrai formulaire Systeme.io.
+                      Copie le HTML compatible prêt à coller, avec puis ajoute ton formulaire Systeme.io natif juste en dessous.
                     </p>
                   </button>
 
@@ -1323,12 +1320,12 @@ export default function LeadEnginePage() {
                       </div>
 
                       <div className="rounded-2xl border border-yellow-600/15 bg-[#0b0b0b] p-4">
-                        <div className="text-sm font-semibold text-yellow-200">Zone formulaire hybride</div>
-                        <p className="mt-2 text-sm text-yellow-100">
-                          Ici, dans Systeme.io, tu remplaces ce bloc par ton vrai formulaire natif.
+                        <div className="text-sm font-semibold text-yellow-200">Transition vers le formulaire Systeme.io</div>
+                        <p className="mt-2 text-sm text-white/70">
+                          Cette landing se termine ici. Ajoute maintenant ton formulaire Systeme.io natif juste sous ce bloc HTML pour garder une intégration propre et réellement active.
                         </p>
-                        <div className="mt-4 rounded-2xl border border-dashed border-yellow-500/35 bg-[#111] px-4 py-5 text-center text-sm text-white/45">
-                          Placeholder LGD — ajoute ici ton formulaire Systeme.io
+                        <div className="mt-4 rounded-2xl border border-yellow-600/15 bg-[#111] px-4 py-5 text-center text-sm text-yellow-100">
+                          Étape suivante : insère ton formulaire Systeme.io sous cette section
                         </div>
                       </div>
 
@@ -1378,9 +1375,9 @@ export default function LeadEnginePage() {
 
                 {generated ? (
                   <div className="rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-4 text-center">
-                    <div className="text-yellow-200 font-semibold">Phase 4.7 générée</div>
+                    <div className="text-yellow-200 font-semibold">Phase 4.8 générée</div>
                     <p className="mt-2 text-sm text-white/75">
-                      HTML hybride Systeme.io et JSON interne sont prêts.
+                      HTML compatible Systeme.io et JSON interne sont prêts.
                     </p>
                   </div>
                 ) : null}
@@ -1415,7 +1412,7 @@ export default function LeadEnginePage() {
                     Mes bases Lead Engine
                   </h2>
                   <p className="mt-2 text-white/65">
-                    Toutes tes bases Phase 4.7 sont stockées ici dans une modale dédiée style bibliothèque LGD.
+                    Toutes tes bases Phase 4.8 sont stockées ici dans une modale dédiée style bibliothèque LGD.
                   </p>
                 </div>
 
@@ -1520,7 +1517,7 @@ export default function LeadEnginePage() {
                     Bridge LGD → Systeme.io
                   </h2>
                   <p className="mt-2 text-white/65">
-                    Utilise le HTML pour le bloc Code HTML, puis ajoute juste en dessous le vrai formulaire natif Systeme.io.
+                    Utilise le HTML pour ton bloc Code HTML, puis ajoute juste en dessous le vrai formulaire natif Systeme.io pour une intégration propre.
                   </p>
                 </div>
 
@@ -1539,7 +1536,7 @@ export default function LeadEnginePage() {
                   <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-5">
                     <div className="flex items-center gap-2 text-yellow-200 font-semibold">
                       <FaCode />
-                      HTML hybride prêt à coller
+                      HTML compatible prêt à coller
                     </div>
                     <pre className="mt-4 max-h-[240px] overflow-auto rounded-2xl border border-yellow-600/15 bg-[#111] p-4 text-xs text-white/80 whitespace-pre-wrap break-words">
 {activePayload.sioReady.html_export}
@@ -1603,7 +1600,7 @@ export default function LeadEnginePage() {
                     </div>
                     <div className="rounded-2xl border border-yellow-600/15 bg-[#111] p-3">
                       <p className="font-semibold text-white/90">2. Garde la zone placeholder</p>
-                      <p className="mt-1">Le placeholder LGD te montre l’endroit prévu pour le vrai formulaire.</p>
+                      <p className="mt-1">Le bloc HTML se termine volontairement avant le formulaire pour éviter tout faux champ non fonctionnel.</p>
                     </div>
                     <div className="rounded-2xl border border-yellow-600/15 bg-[#111] p-3">
                       <p className="font-semibold text-white/90">3. Ajoute juste en dessous le formulaire SIO</p>
