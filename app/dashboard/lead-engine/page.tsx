@@ -16,6 +16,7 @@ import {
   FaHistory,
   FaRedo,
   FaTrash,
+  FaTimes,
 } from "react-icons/fa";
 
 type LeadMagnetType =
@@ -38,12 +39,27 @@ type LeadEnginePayload = {
   createdAt: string;
 };
 
+type SavedBaseAction =
+  | "reuse"
+  | "editor"
+  | "emailing"
+  | "sio"
+  | "delete";
+
 const leadMagnetOptions: { value: LeadMagnetType; label: string }[] = [
   { value: "checklist", label: "Checklist" },
   { value: "mini-guide", label: "Mini-guide" },
   { value: "template", label: "Template" },
   { value: "ebook", label: "Ebook" },
   { value: "challenge", label: "Challenge" },
+];
+
+const savedBaseActionOptions: { value: SavedBaseAction; label: string }[] = [
+  { value: "reuse", label: "Réutiliser cette base" },
+  { value: "editor", label: "Vers l’Éditeur" },
+  { value: "emailing", label: "Vers Emailing" },
+  { value: "sio", label: "Template SIO" },
+  { value: "delete", label: "Supprimer cette base" },
 ];
 
 const LS_EDITOR_INTELLIGENT_BRIEF = "lgd_editor_intelligent_brief";
@@ -111,6 +127,8 @@ export default function LeadEnginePage() {
   const [generated, setGenerated] = useState(false);
   const [actionMsg, setActionMsg] = useState("");
   const [savedBases, setSavedBases] = useState<LeadEnginePayload[]>([]);
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [selectedActions, setSelectedActions] = useState<Record<string, SavedBaseAction>>({});
 
   const preview = useMemo(() => {
     return buildLeadPayload(leadType, niche, target, promise);
@@ -245,7 +263,34 @@ export default function LeadEnginePage() {
   function deleteBase(id: string) {
     const next = savedBases.filter((item) => item.id !== id);
     persistBases(next);
+    setSelectedActions((prev) => {
+      const updated = { ...prev };
+      delete updated[id];
+      return updated;
+    });
     flash("🗑️ Base Lead Engine supprimée.");
+  }
+
+  function runSavedBaseAction(item: LeadEnginePayload) {
+    const action = selectedActions[item.id] || "reuse";
+
+    if (action === "reuse") {
+      reuseBase(item);
+      return;
+    }
+    if (action === "editor") {
+      injectIntoEditor(item);
+      return;
+    }
+    if (action === "emailing") {
+      injectIntoEmailing(item);
+      return;
+    }
+    if (action === "sio") {
+      prepareSioTemplate(item);
+      return;
+    }
+    deleteBase(item.id);
   }
 
   const activePayload = generated ? preview : preview;
@@ -433,6 +478,20 @@ export default function LeadEnginePage() {
                       Prépare la structure du template à injecter côté Systeme.io.
                     </p>
                   </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setLibraryOpen(true)}
+                    className="w-full rounded-2xl border border-yellow-600/25 bg-[#111] px-5 py-4 text-left hover:bg-yellow-500/10 transition-all"
+                  >
+                    <div className="flex items-center gap-3 text-yellow-200 font-semibold">
+                      <FaHistory />
+                      Ouvrir la modale Bibliothèque
+                    </div>
+                    <p className="mt-2 text-sm text-white/65">
+                      Consulte toutes tes bases Lead Engine dans une modale dédiée.
+                    </p>
+                  </button>
                 </div>
               </div>
             </div>
@@ -522,78 +581,112 @@ export default function LeadEnginePage() {
             </div>
           </CardLuxe>
         </div>
-
-        <div className="mt-10 w-full">
-          <CardLuxe className="block w-full min-w-0 max-w-none px-6 py-6">
-            <div className="flex items-center gap-3">
-              <FaRedo className="text-[#ffb800] text-2xl" />
-              <h2 className="text-2xl font-bold text-[#ffb800]">
-                Mes bases Lead Engine
-              </h2>
-            </div>
-
-            {savedBases.length === 0 ? (
-              <p className="mt-4 text-white/65">
-                Aucune base sauvegardée pour le moment.
-              </p>
-            ) : (
-              <div className="mt-6 flex w-full flex-col gap-5">
-                {savedBases.map((item) => (
-                  <div
-                    key={item.id}
-                    className="w-full rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-5"
-                  >
-                    <div className="text-yellow-200 font-semibold">{item.magnetName}</div>
-                    <p className="mt-2 text-sm text-white/70">{item.hook}</p>
-                    <p className="mt-2 text-sm text-white/55">CTA : {item.cta}</p>
-
-                    <div className="mt-4 flex flex-col gap-3">
-                      <button
-                        type="button"
-                        onClick={() => reuseBase(item)}
-                        className="w-full rounded-2xl border border-yellow-600/25 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-100 hover:bg-yellow-500/15 transition-all"
-                      >
-                        Réutiliser cette base
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => injectIntoEditor(item)}
-                        className="w-full rounded-2xl border border-yellow-600/25 bg-[#111] px-4 py-3 text-sm font-semibold text-white/85 hover:bg-yellow-500/10 transition-all"
-                      >
-                        Vers l’Éditeur
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => injectIntoEmailing(item)}
-                        className="w-full rounded-2xl border border-yellow-600/25 bg-[#111] px-4 py-3 text-sm font-semibold text-white/85 hover:bg-yellow-500/10 transition-all"
-                      >
-                        Vers Emailing
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => prepareSioTemplate(item)}
-                        className="w-full rounded-2xl border border-yellow-600/25 bg-[#111] px-4 py-3 text-sm font-semibold text-white/85 hover:bg-yellow-500/10 transition-all"
-                      >
-                        Template SIO
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => deleteBase(item.id)}
-                        className="w-full rounded-2xl border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-100 hover:bg-red-500/15 transition-all"
-                      >
-                        <span className="inline-flex items-center gap-2">
-                          <FaTrash />
-                          Supprimer cette base
-                        </span>
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardLuxe>
-        </div>
       </div>
+
+      {libraryOpen ? (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
+          <div
+            className="absolute inset-0 bg-black/75"
+            onClick={() => setLibraryOpen(false)}
+          />
+          <div className="relative z-[101] w-full max-w-5xl">
+            <div className="rounded-[28px] border border-yellow-600/20 bg-gradient-to-b from-[#111] to-[#0b0b0b] p-6 shadow-2xl sm:p-8">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-4 py-1 text-[12px] text-white/75">
+                    <FaHistory className="text-yellow-300" />
+                    Bibliothèque Lead Engine
+                  </div>
+                  <h2 className="mt-4 text-2xl sm:text-3xl font-extrabold text-[#ffb800]">
+                    Mes bases Lead Engine
+                  </h2>
+                  <p className="mt-2 text-white/65">
+                    Toutes tes bases sont stockées ici, dans une modale dédiée style bibliothèque LGD.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setLibraryOpen(false)}
+                  className="inline-flex items-center justify-center rounded-xl border border-yellow-600/25 bg-[#0b0b0b] px-3 py-3 text-yellow-200 hover:bg-yellow-500/10 transition-all"
+                  aria-label="Fermer la bibliothèque"
+                >
+                  <FaTimes />
+                </button>
+              </div>
+
+              {savedBases.length === 0 ? (
+                <div className="mt-8 rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-6 text-white/65">
+                  Aucune base sauvegardée pour le moment.
+                </div>
+              ) : (
+                <div className="mt-8 grid grid-cols-1 xl:grid-cols-2 gap-5 max-h-[65vh] overflow-y-auto pr-1">
+                  {savedBases.map((item) => {
+                    const currentAction = selectedActions[item.id] || "reuse";
+
+                    return (
+                      <div
+                        key={item.id}
+                        className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-5"
+                      >
+                        <div className="text-yellow-200 font-semibold">{item.magnetName}</div>
+                        <p className="mt-2 text-sm text-white/70">{item.hook}</p>
+                        <p className="mt-2 text-sm text-white/55">CTA : {item.cta}</p>
+
+                        <div className="mt-4 grid gap-3">
+                          <select
+                            value={currentAction}
+                            onChange={(e) =>
+                              setSelectedActions((prev) => ({
+                                ...prev,
+                                [item.id]: e.target.value as SavedBaseAction,
+                              }))
+                            }
+                            className="w-full rounded-2xl border border-yellow-600/25 bg-[#111] px-4 py-3 text-sm text-white outline-none focus:border-yellow-400"
+                          >
+                            {savedBaseActionOptions.map((option) => (
+                              <option
+                                key={`${item.id}-${option.value}`}
+                                value={option.value}
+                                className="bg-[#111]"
+                              >
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+
+                          <button
+                            type="button"
+                            onClick={() => runSavedBaseAction(item)}
+                            className={[
+                              "w-full rounded-2xl px-4 py-3 text-sm font-semibold transition-all",
+                              currentAction === "delete"
+                                ? "border border-red-500/25 bg-red-500/10 text-red-100 hover:bg-red-500/15"
+                                : "bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] text-black hover:-translate-y-0.5 hover:shadow-lg hover:shadow-yellow-500/20",
+                            ].join(" ")}
+                          >
+                            {currentAction === "delete" ? (
+                              <span className="inline-flex items-center gap-2">
+                                <FaTrash />
+                                Exécuter l’action
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-2">
+                                <FaRedo />
+                                Exécuter l’action
+                              </span>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
