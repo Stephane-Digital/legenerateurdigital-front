@@ -20,6 +20,7 @@ import {
   FaCopy,
   FaExternalLinkAlt,
   FaCheckCircle,
+  FaCode,
 } from "react-icons/fa";
 
 type LeadMagnetType =
@@ -62,7 +63,7 @@ type EmailSequenceItem = {
 };
 
 type SioReadyPayload = {
-  source: "lead_engine_v6_phase45";
+  source: "lead_engine_v6_phase46";
   funnel_name: string;
   page_name: string;
   form_name: string;
@@ -84,6 +85,7 @@ type SioReadyPayload = {
     items: string[];
   };
   emails_sequence: EmailSequenceItem[];
+  html_export: string;
   meta: {
     niche: string;
     target: string;
@@ -155,6 +157,7 @@ const LS_EMAIL_CAMPAIGN_LEAD_ENGINE = "lgd_email_campaign_lead_engine";
 const LS_LIBRARY_LEAD_ENGINE_DRAFT = "lgd_library_lead_engine_draft";
 const LS_SIO_LEAD_MAGNET_TEMPLATE = "lgd_sio_lead_magnet_template";
 const LS_SIO_READY_EXPORT = "lgd_sio_ready_export_v1";
+const LS_SIO_HTML_EXPORT = "lgd_sio_html_export_v1";
 const LS_LEAD_ENGINE_BASES = "lgd_lead_engine_bases";
 
 function safeSlug(input: string) {
@@ -165,6 +168,15 @@ function safeSlug(input: string) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 60);
+}
+
+function escapeHtml(input: string) {
+  return String(input || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }
 
 function buildLeadHook(
@@ -480,6 +492,91 @@ function buildEmailsSequence(
   ];
 }
 
+function buildSioHtmlExport(payload: {
+  heroTitle: string;
+  heroSubtitle: string;
+  cta: string;
+  benefits: string[];
+  formIntro: string;
+  proof: string;
+  faq: LandingFaqItem[];
+}) {
+  const benefitsHtml = payload.benefits
+    .map(
+      (benefit) =>
+        `<div style="padding:14px 16px;border:1px solid rgba(255,184,0,0.18);border-radius:16px;background:#111111;color:#e7e7e7;font-size:14px;line-height:1.6;">${escapeHtml(
+          benefit
+        )}</div>`
+    )
+    .join("");
+
+  const faqHtml = payload.faq
+    .map(
+      (item) => `
+        <div style="padding:16px;border:1px solid rgba(255,184,0,0.18);border-radius:16px;background:#111111;">
+          <div style="font-weight:700;color:#ffd36a;font-size:14px;">${escapeHtml(item.question)}</div>
+          <div style="margin-top:8px;color:#cfcfcf;font-size:14px;line-height:1.7;">${escapeHtml(item.answer)}</div>
+        </div>`
+    )
+    .join("");
+
+  return `
+<div style="width:100%;max-width:920px;margin:0 auto;background:#070707;color:#ffffff;font-family:Arial,Helvetica,sans-serif;border:1px solid rgba(255,184,0,0.15);border-radius:28px;overflow:hidden;">
+  <div style="padding:40px 28px;background:linear-gradient(135deg,#1c1405 0%,#0d0d0d 60%,#070707 100%);border-bottom:1px solid rgba(255,184,0,0.15);text-align:center;">
+    <div style="display:inline-block;padding:8px 14px;border-radius:999px;border:1px solid rgba(255,184,0,0.22);background:rgba(0,0,0,0.2);color:#ffd36a;font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;">
+      Lead Magnet
+    </div>
+    <h1 style="margin:20px 0 0 0;font-size:34px;line-height:1.2;color:#ffffff;">${escapeHtml(
+      payload.heroTitle
+    )}</h1>
+    <p style="margin:16px auto 0 auto;max-width:720px;font-size:16px;line-height:1.8;color:#d0d0d0;">${escapeHtml(
+      payload.heroSubtitle
+    )}</p>
+    <div style="margin-top:24px;display:inline-block;padding:16px 22px;border-radius:18px;background:linear-gradient(90deg,#ffb800 0%,#ffcc4d 100%);color:#000000;font-weight:700;font-size:15px;">
+      ${escapeHtml(payload.cta)}
+    </div>
+  </div>
+
+  <div style="padding:28px;">
+    <div style="padding:22px;border:1px solid rgba(255,184,0,0.15);border-radius:24px;background:#0b0b0b;">
+      <div style="font-size:15px;font-weight:700;color:#ffd36a;">Bénéfices</div>
+      <div style="margin-top:16px;display:grid;gap:12px;">
+        ${benefitsHtml}
+      </div>
+    </div>
+
+    <div style="margin-top:18px;padding:22px;border:1px solid rgba(255,184,0,0.15);border-radius:24px;background:#0b0b0b;">
+      <div style="font-size:15px;font-weight:700;color:#ffd36a;">Bloc formulaire</div>
+      <p style="margin:14px 0 0 0;color:#d0d0d0;font-size:15px;line-height:1.7;">${escapeHtml(
+        payload.formIntro
+      )}</p>
+      <div style="margin-top:18px;display:flex;gap:12px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:220px;padding:15px 16px;border:1px solid rgba(255,184,0,0.12);border-radius:16px;background:#111111;color:#6f6f6f;font-size:14px;">
+          email@exemple.com
+        </div>
+        <div style="padding:15px 18px;border-radius:16px;background:linear-gradient(90deg,#ffb800 0%,#ffcc4d 100%);color:#000000;font-weight:700;font-size:14px;">
+          ${escapeHtml(payload.cta)}
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:18px;padding:22px;border:1px solid rgba(255,184,0,0.15);border-radius:24px;background:#0b0b0b;">
+      <div style="font-size:15px;font-weight:700;color:#ffd36a;">Preuve</div>
+      <p style="margin:14px 0 0 0;color:#d0d0d0;font-size:15px;line-height:1.7;">${escapeHtml(
+        payload.proof
+      )}</p>
+    </div>
+
+    <div style="margin-top:18px;padding:22px;border:1px solid rgba(255,184,0,0.15);border-radius:24px;background:#0b0b0b;">
+      <div style="font-size:15px;font-weight:700;color:#ffd36a;">FAQ</div>
+      <div style="margin-top:16px;display:grid;gap:12px;">
+        ${faqHtml}
+      </div>
+    </div>
+  </div>
+</div>`.trim();
+}
+
 function buildSioReadyPayload(
   leadType: LeadMagnetType,
   detailLevel: DetailLevel,
@@ -493,8 +590,18 @@ function buildSioReadyPayload(
   emailsSequence: EmailSequenceItem[]
 ): SioReadyPayload {
   const slug = safeSlug(`${niche}-${promise}`) || "lead-engine";
+  const htmlExport = buildSioHtmlExport({
+    heroTitle: landing.heroTitle,
+    heroSubtitle: landing.heroSubtitle,
+    cta: landing.heroCta,
+    benefits: landing.benefits,
+    formIntro: landing.formIntro,
+    proof: landing.proof,
+    faq: landing.faq,
+  });
+
   return {
-    source: "lead_engine_v6_phase45",
+    source: "lead_engine_v6_phase46",
     funnel_name: `Funnel LGD - ${magnetName}`,
     page_name: `capture-${slug}`,
     form_name: `form-${slug}`,
@@ -516,6 +623,7 @@ function buildSioReadyPayload(
       items: content.items,
     },
     emails_sequence: emailsSequence,
+    html_export: htmlExport,
     meta: {
       niche: niche.trim(),
       target: target.trim(),
@@ -652,6 +760,7 @@ export default function LeadEnginePage() {
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [selectedActions, setSelectedActions] = useState<Record<string, SavedBaseAction>>({});
   const [copied, setCopied] = useState(false);
+  const [copiedHtml, setCopiedHtml] = useState(false);
   const [selectedEmailDay, setSelectedEmailDay] = useState(1);
 
   const preview = useMemo(() => {
@@ -710,7 +819,7 @@ export default function LeadEnginePage() {
     if (typeof window !== "undefined") {
       window.localStorage.setItem(LS_LEAD_ENGINE_V1, JSON.stringify(preview));
     }
-    flash("✅ Lead Engine V6 Phase 4.5 généré.");
+    flash("✅ Lead Engine V6 Phase 4.6 généré.");
   }
 
   function injectIntoEditor(payload: LeadEnginePayload) {
@@ -723,7 +832,7 @@ export default function LeadEnginePage() {
         `Promesse : ${payload.promise || "Résultat rapide"}\n` +
         `CTA : ${payload.cta}\n` +
         `Landing hero : ${payload.landing.heroTitle}`,
-      source: "lead_engine_v6_phase45",
+      source: "lead_engine_v6_phase46",
       createdAtISO: new Date().toISOString(),
     };
 
@@ -736,7 +845,7 @@ export default function LeadEnginePage() {
     if (typeof window === "undefined") return;
 
     const emailPayload = {
-      source: "lead_engine_v6_phase45",
+      source: "lead_engine_v6_phase46",
       angle: payload.hook,
       offer_name: payload.magnetName,
       promise: payload.promise,
@@ -758,7 +867,7 @@ export default function LeadEnginePage() {
     if (typeof window === "undefined") return;
 
     const libraryPayload = {
-      kind: "lgd_lead_engine_v6_phase45",
+      kind: "lgd_lead_engine_v6_phase46",
       title: payload.magnetName,
       data: payload,
       createdAt: new Date().toISOString(),
@@ -790,12 +899,40 @@ export default function LeadEnginePage() {
     window.localStorage.setItem(LS_SIO_LEAD_MAGNET_TEMPLATE, raw);
   }
 
+  async function copySioHtml(payload: LeadEnginePayload) {
+    if (typeof window === "undefined") return;
+    const raw = payload.sioReady.html_export;
+    try {
+      await navigator.clipboard.writeText(raw);
+      setCopiedHtml(true)  # will error in python string? no, content string only
+    } catch {}
+  }
+
   async function exportSioReady(payload: LeadEnginePayload) {
     await copySioReady(payload);
   }
 
   async function copyAndOpenSio(payload: LeadEnginePayload) {
     await copySioReady(payload);
+    window.open("https://app.systeme.io/dashboard", "_blank", "noopener,noreferrer");
+  }
+
+  async function copyHtmlOnly(payload: LeadEnginePayload) {
+    if (typeof window === "undefined") return;
+    const raw = payload.sioReady.html_export;
+    try {
+      await navigator.clipboard.writeText(raw);
+      setCopiedHtml(true);
+      window.setTimeout(() => setCopiedHtml(false), 2500);
+      flash("✅ HTML Système.io copié.");
+    } catch {
+      flash("⚠️ Copie HTML impossible automatiquement.");
+    }
+    window.localStorage.setItem(LS_SIO_HTML_EXPORT, raw);
+  }
+
+  async function copyHtmlAndOpenSio(payload: LeadEnginePayload) {
+    await copyHtmlOnly(payload);
     window.open("https://app.systeme.io/dashboard", "_blank", "noopener,noreferrer");
   }
 
@@ -806,7 +943,7 @@ export default function LeadEnginePage() {
     if (typeof window !== "undefined") {
       window.localStorage.setItem(LS_LEAD_ENGINE_V1, JSON.stringify(preview));
     }
-    flash("✅ Lead Engine Phase 4.5 sauvegardé.");
+    flash("✅ Lead Engine Phase 4.6 sauvegardé.");
   }
 
   function reuseBase(payload: LeadEnginePayload) {
@@ -874,7 +1011,7 @@ export default function LeadEnginePage() {
         <div className="mt-10 text-center">
           <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-4 py-1 text-[12px] text-white/75">
             <FaEnvelopeOpenText className="text-yellow-300" />
-            Lead Engine V6 — Phase 4.5
+            Lead Engine V6 — Phase 4.6
           </div>
 
           <h1 className="mt-4 text-3xl sm:text-4xl font-extrabold text-[#ffb800]">
@@ -882,8 +1019,8 @@ export default function LeadEnginePage() {
           </h1>
 
           <p className="mt-3 max-w-3xl mx-auto text-white/70">
-            LGD génère maintenant la base marketing, la landing page visuelle, le contenu réel
-            du lead magnet, la séquence email complète, le score conversion et l’export Système.io PRO.
+            LGD génère maintenant le JSON interne, l’export HTML prêt à coller dans Systeme.io,
+            la séquence email complète et l’export PRO guidé.
           </p>
         </div>
 
@@ -1039,8 +1176,8 @@ export default function LeadEnginePage() {
                 </div>
 
                 <p className="mt-3 text-white/70">
-                  À partir de cette Phase 4.5, tu peux préparer ton contenu, ton emailing,
-                  ta bibliothèque et ton export SIO Ready.
+                  À partir de cette Phase 4.6, tu peux préparer ton contenu, ton emailing,
+                  ton JSON interne et ton vrai HTML Systeme.io.
                 </p>
 
                 <div className="mt-6 flex flex-col gap-4">
@@ -1082,7 +1219,7 @@ export default function LeadEnginePage() {
                       Sauvegarder en Bibliothèque
                     </div>
                     <p className="mt-2 text-sm text-white/65">
-                      Garde cette Phase 4.5 complète pour la réutiliser plus tard.
+                      Garde cette Phase 4.6 complète pour la réutiliser plus tard.
                     </p>
                   </button>
 
@@ -1096,7 +1233,7 @@ export default function LeadEnginePage() {
                       Template Lead Magnet SIO
                     </div>
                     <p className="mt-2 text-sm text-white/65">
-                      Prépare la structure standardisée pour Systeme.io.
+                      Prépare la structure JSON interne pour Systeme.io.
                     </p>
                   </button>
 
@@ -1110,7 +1247,21 @@ export default function LeadEnginePage() {
                       Export Système.io Ready
                     </div>
                     <p className="mt-2 text-sm text-white/65">
-                      Génère le payload funnel + page + tag + campagne + emails prêt à brancher.
+                      Copie le JSON interne funnel + page + tag + campagne + emails.
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => copyHtmlOnly(activePayload)}
+                    className="w-full rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-5 py-4 text-left hover:bg-yellow-500/10 transition-all"
+                  >
+                    <div className="flex items-center gap-3 text-yellow-200 font-semibold">
+                      <FaCode />
+                      Copier le HTML SIO
+                    </div>
+                    <p className="mt-2 text-sm text-white/65">
+                      Copie le vrai HTML prêt à coller dans un bloc Code HTML de Systeme.io.
                     </p>
                   </button>
 
@@ -1124,7 +1275,7 @@ export default function LeadEnginePage() {
                       Export Système.io PRO
                     </div>
                     <p className="mt-2 text-sm text-black/80">
-                      Ouvre la modale pro avec copie JSON, ouverture Systeme.io et checklist guidée.
+                      Ouvre la modale pro avec HTML, JSON, ouverture Systeme.io et checklist guidée.
                     </p>
                   </button>
 
@@ -1290,9 +1441,9 @@ export default function LeadEnginePage() {
 
                 {generated ? (
                   <div className="rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-4 text-center">
-                    <div className="text-yellow-200 font-semibold">Phase 4.5 générée</div>
+                    <div className="text-yellow-200 font-semibold">Phase 4.6 générée</div>
                     <p className="mt-2 text-sm text-white/75">
-                      Landing visuelle, preview email, audit IA et export pro sont prêts.
+                      HTML SIO, JSON interne, preview email et export pro sont prêts.
                     </p>
                   </div>
                 ) : null}
@@ -1327,7 +1478,7 @@ export default function LeadEnginePage() {
                     Mes bases Lead Engine
                   </h2>
                   <p className="mt-2 text-white/65">
-                    Toutes tes bases Phase 4.5 sont stockées ici dans une modale dédiée style bibliothèque LGD.
+                    Toutes tes bases Phase 4.6 sont stockées ici dans une modale dédiée style bibliothèque LGD.
                   </p>
                 </div>
 
@@ -1420,7 +1571,7 @@ export default function LeadEnginePage() {
       {exportModalOpen ? (
         <div className="fixed inset-0 z-[110] flex items-center justify-center px-4">
           <div className="absolute inset-0 bg-black/80" onClick={() => setExportModalOpen(false)} />
-          <div className="relative z-[111] w-full max-w-3xl">
+          <div className="relative z-[111] w-full max-w-4xl">
             <div className="rounded-[28px] border border-yellow-600/20 bg-gradient-to-b from-[#111] to-[#0b0b0b] p-6 shadow-2xl sm:p-8">
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -1432,7 +1583,7 @@ export default function LeadEnginePage() {
                     Bridge LGD → Systeme.io
                   </h2>
                   <p className="mt-2 text-white/65">
-                    Copie le JSON prêt, ouvre Systeme.io et suis la checklist guidée pour reconstruire rapidement ton funnel.
+                    Copie maintenant le vrai HTML prêt à coller dans un bloc Code HTML, ou garde le JSON pour la suite interne.
                   </p>
                 </div>
 
@@ -1446,38 +1597,63 @@ export default function LeadEnginePage() {
                 </button>
               </div>
 
-              <div className="mt-8 grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
-                <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-5">
-                  <div className="flex items-center gap-2 text-yellow-200 font-semibold">
-                    <FaCopy />
-                    JSON prêt à l’export
+              <div className="mt-8 grid gap-5 lg:grid-cols-[1.15fr_0.85fr]">
+                <div className="grid gap-5">
+                  <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-5">
+                    <div className="flex items-center gap-2 text-yellow-200 font-semibold">
+                      <FaCode />
+                      HTML prêt à coller dans Systeme.io
+                    </div>
+                    <pre className="mt-4 max-h-[240px] overflow-auto rounded-2xl border border-yellow-600/15 bg-[#111] p-4 text-xs text-white/80 whitespace-pre-wrap break-words">
+{activePayload.sioReady.html_export}
+                    </pre>
+
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                      <button
+                        type="button"
+                        onClick={() => copyHtmlOnly(activePayload)}
+                        className="w-full rounded-2xl border border-yellow-600/25 bg-[#111] px-4 py-3 text-sm font-semibold text-yellow-100 hover:bg-yellow-500/10 transition-all"
+                      >
+                        <span className="inline-flex items-center gap-2">
+                          {copiedHtml ? <FaCheckCircle /> : <FaCode />}
+                          {copiedHtml ? "HTML copié" : "Copier le HTML"}
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => copyHtmlAndOpenSio(activePayload)}
+                        className="w-full rounded-2xl px-4 py-3 text-sm font-semibold bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] text-black hover:-translate-y-0.5 hover:shadow-lg hover:shadow-yellow-500/20 transition-all"
+                      >
+                        <span className="inline-flex items-center gap-2">
+                          <FaExternalLinkAlt />
+                          HTML + Ouvrir Systeme.io
+                        </span>
+                      </button>
+                    </div>
                   </div>
-                  <pre className="mt-4 max-h-[380px] overflow-auto rounded-2xl border border-yellow-600/15 bg-[#111] p-4 text-xs text-white/80 whitespace-pre-wrap break-words">
+
+                  <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-5">
+                    <div className="flex items-center gap-2 text-yellow-200 font-semibold">
+                      <FaCopy />
+                      JSON interne
+                    </div>
+                    <pre className="mt-4 max-h-[220px] overflow-auto rounded-2xl border border-yellow-600/15 bg-[#111] p-4 text-xs text-white/80 whitespace-pre-wrap break-words">
 {JSON.stringify(activePayload.sioReady, null, 2)}
-                  </pre>
+                    </pre>
 
-                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                    <button
-                      type="button"
-                      onClick={() => copySioReady(activePayload)}
-                      className="w-full rounded-2xl border border-yellow-600/25 bg-[#111] px-4 py-3 text-sm font-semibold text-yellow-100 hover:bg-yellow-500/10 transition-all"
-                    >
-                      <span className="inline-flex items-center gap-2">
-                        {copied ? <FaCheckCircle /> : <FaCopy />}
-                        {copied ? "JSON copié" : "Copier le JSON"}
-                      </span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => copyAndOpenSio(activePayload)}
-                      className="w-full rounded-2xl px-4 py-3 text-sm font-semibold bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] text-black hover:-translate-y-0.5 hover:shadow-lg hover:shadow-yellow-500/20 transition-all"
-                    >
-                      <span className="inline-flex items-center gap-2">
-                        <FaExternalLinkAlt />
-                        Copier + Ouvrir Systeme.io
-                      </span>
-                    </button>
+                    <div className="mt-4">
+                      <button
+                        type="button"
+                        onClick={() => copySioReady(activePayload)}
+                        className="w-full rounded-2xl border border-yellow-600/25 bg-[#111] px-4 py-3 text-sm font-semibold text-yellow-100 hover:bg-yellow-500/10 transition-all"
+                      >
+                        <span className="inline-flex items-center gap-2">
+                          {copied ? <FaCheckCircle /> : <FaCopy />}
+                          {copied ? "JSON copié" : "Copier le JSON"}
+                        </span>
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -1485,26 +1661,24 @@ export default function LeadEnginePage() {
                   <div className="text-yellow-200 font-semibold">Checklist guidée</div>
                   <div className="mt-4 grid gap-3 text-sm text-white/75">
                     <div className="rounded-2xl border border-yellow-600/15 bg-[#111] p-3">
-                      <p className="font-semibold text-white/90">1. Crée le funnel</p>
-                      <p className="mt-1">Nom à coller : {activePayload.sioReady.funnel_name}</p>
+                      <p className="font-semibold text-white/90">1. Ajoute un bloc Code HTML</p>
+                      <p className="mt-1">Dans l’éditeur de page Systeme.io, ajoute un bloc Code HTML.</p>
                     </div>
                     <div className="rounded-2xl border border-yellow-600/15 bg-[#111] p-3">
-                      <p className="font-semibold text-white/90">2. Crée la page de capture</p>
-                      <p className="mt-1">Nom à coller : {activePayload.sioReady.page_name}</p>
+                      <p className="font-semibold text-white/90">2. Clique sur “Copier le HTML”</p>
+                      <p className="mt-1">Colle ensuite ce HTML dans le bloc Code HTML, pas le JSON.</p>
                     </div>
                     <div className="rounded-2xl border border-yellow-600/15 bg-[#111] p-3">
-                      <p className="font-semibold text-white/90">3. Crée le formulaire + tag</p>
-                      <p className="mt-1">Formulaire : {activePayload.sioReady.form_name}</p>
-                      <p className="mt-1">Tag : {activePayload.sioReady.tag_name}</p>
+                      <p className="font-semibold text-white/90">3. Sauvegarde la page</p>
+                      <p className="mt-1">Le rendu visuel doit apparaître comme une vraie section de landing page.</p>
                     </div>
                     <div className="rounded-2xl border border-yellow-600/15 bg-[#111] p-3">
-                      <p className="font-semibold text-white/90">4. Crée la campagne email</p>
-                      <p className="mt-1">Campagne : {activePayload.sioReady.campaign_name}</p>
-                      <p className="mt-1">7 emails sont déjà prêts dans le JSON.</p>
+                      <p className="font-semibold text-white/90">4. Garde le JSON pour plus tard</p>
+                      <p className="mt-1">Le JSON reste utile pour la campagne email, les tags et le futur pont API.</p>
                     </div>
                     <div className="rounded-2xl border border-yellow-600/15 bg-[#111] p-3">
-                      <p className="font-semibold text-white/90">5. Colle les textes LGD</p>
-                      <p className="mt-1">Headline, CTA, bénéfices, FAQ et emails sont déjà structurés.</p>
+                      <p className="font-semibold text-white/90">5. Vérifie le rendu</p>
+                      <p className="mt-1">Hero, bénéfices, formulaire, preuve et FAQ doivent apparaître visuellement.</p>
                     </div>
                   </div>
                 </div>
