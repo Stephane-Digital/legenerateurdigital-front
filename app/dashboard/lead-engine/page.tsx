@@ -26,17 +26,46 @@ type LeadMagnetType =
   | "ebook"
   | "challenge";
 
+type DetailLevel = "rapide" | "standard" | "premium";
+type ConversionAngle = "leads" | "vente" | "autorite" | "engagement";
+
+type LandingFaqItem = {
+  question: string;
+  answer: string;
+};
+
+type LandingSection = {
+  heroTitle: string;
+  heroSubtitle: string;
+  heroCta: string;
+  benefits: string[];
+  formIntro: string;
+  formButton: string;
+  proof: string;
+  faq: LandingFaqItem[];
+};
+
+type LeadMagnetContent = {
+  title: string;
+  intro: string;
+  items: string[];
+};
+
 type LeadEnginePayload = {
   id: string;
   leadType: LeadMagnetType;
   niche: string;
   target: string;
   promise: string;
+  detailLevel: DetailLevel;
+  conversionAngle: ConversionAngle;
   magnetName: string;
   hook: string;
   cta: string;
   landingTitle: string;
   createdAt: string;
+  landing: LandingSection;
+  content: LeadMagnetContent;
 };
 
 type SavedBaseAction =
@@ -54,6 +83,19 @@ const leadMagnetOptions: { value: LeadMagnetType; label: string }[] = [
   { value: "challenge", label: "Challenge" },
 ];
 
+const detailLevelOptions: { value: DetailLevel; label: string }[] = [
+  { value: "rapide", label: "Rapide" },
+  { value: "standard", label: "Standard" },
+  { value: "premium", label: "Premium" },
+];
+
+const conversionAngleOptions: { value: ConversionAngle; label: string }[] = [
+  { value: "leads", label: "Acquisition de leads" },
+  { value: "vente", label: "Vente directe" },
+  { value: "autorite", label: "Autorité / expertise" },
+  { value: "engagement", label: "Engagement / nurturing" },
+];
+
 const savedBaseActionOptions: { value: SavedBaseAction; label: string }[] = [
   { value: "reuse", label: "Réutiliser cette base" },
   { value: "editor", label: "Vers l’Éditeur" },
@@ -69,10 +111,25 @@ const LS_LIBRARY_LEAD_ENGINE_DRAFT = "lgd_library_lead_engine_draft";
 const LS_SIO_LEAD_MAGNET_TEMPLATE = "lgd_sio_lead_magnet_template";
 const LS_LEAD_ENGINE_BASES = "lgd_lead_engine_bases";
 
-function buildLeadHook(niche: string, target: string, promise: string) {
+function buildLeadHook(
+  niche: string,
+  target: string,
+  promise: string,
+  angle: ConversionAngle
+) {
   const n = niche.trim() || "ton marché";
   const t = target.trim() || "ta cible";
   const p = promise.trim() || "un premier résultat rapide";
+
+  if (angle === "vente") {
+    return `Le guide express pour aider ${t} à transformer ${n} en ventes plus rapides grâce à ${p}.`;
+  }
+  if (angle === "autorite") {
+    return `Le guide express pour positionner ${t} comme référence dans ${n} tout en obtenant ${p}.`;
+  }
+  if (angle === "engagement") {
+    return `Le guide express pour aider ${t} à créer plus d’engagement et à obtenir ${p} dans ${n}.`;
+  }
   return `Le guide express pour aider ${t} à obtenir ${p} dans ${n}.`;
 }
 
@@ -83,8 +140,11 @@ function buildLeadMagnetName(type: LeadMagnetType, niche: string, promise: strin
   return `${label} IA — ${n} pour ${p}`;
 }
 
-function buildCTA(promise: string) {
+function buildCTA(promise: string, angle: ConversionAngle) {
   const p = promise.trim() || "ton prochain résultat";
+  if (angle === "vente") return `Télécharger maintenant pour vendre plus vite grâce à ${p}`;
+  if (angle === "autorite") return `Télécharger maintenant pour renforcer ton expertise et obtenir ${p}`;
+  if (angle === "engagement") return `Télécharger maintenant pour créer plus d’engagement et obtenir ${p}`;
   return `Télécharger maintenant pour obtenir ${p}`;
 }
 
@@ -94,16 +154,248 @@ function buildLandingTitle(target: string, promise: string) {
   return `Obtiens ${p} grâce à ce lead magnet pensé pour ${t}`;
 }
 
+function detailCount(level: DetailLevel) {
+  if (level === "rapide") return 3;
+  if (level === "premium") return 5;
+  return 4;
+}
+
+function buildBenefits(
+  niche: string,
+  target: string,
+  promise: string,
+  angle: ConversionAngle,
+  level: DetailLevel
+) {
+  const n = niche.trim() || "ton activité";
+  const t = target.trim() || "ta cible";
+  const p = promise.trim() || "un résultat concret";
+  const base = [
+    `Clarifier la méthode la plus simple pour aider ${t} à atteindre ${p}.`,
+    `Éviter les erreurs classiques qui bloquent les résultats dans ${n}.`,
+    `Passer à l’action rapidement avec une structure claire et réutilisable.`,
+  ];
+
+  if (angle === "vente") {
+    base.push(`Transformer plus facilement l’intérêt en prise de décision et en ventes.`);
+  }
+  if (angle === "autorite") {
+    base.push(`Renforcer la crédibilité perçue et la confiance autour de ton expertise.`);
+  }
+  if (angle === "engagement") {
+    base.push(`Créer davantage de réponses, clics et interactions qualifiées.`);
+  }
+  if (level === "premium") {
+    base.push(`Donner à ${t} une feuille de route exploitable immédiatement sans surcharge inutile.`);
+  }
+
+  return base.slice(0, detailCount(level));
+}
+
+function buildFaq(
+  target: string,
+  promise: string,
+  type: LeadMagnetType,
+  angle: ConversionAngle
+): LandingFaqItem[] {
+  const t = target.trim() || "les débutants";
+  const p = promise.trim() || "un résultat concret";
+  const typeLabel = leadMagnetOptions.find((item) => item.value === type)?.label || "lead magnet";
+
+  const items: LandingFaqItem[] = [
+    {
+      question: `Ce ${typeLabel.toLowerCase()} est-il adapté à ${t} ?`,
+      answer: `Oui. Il a été pensé pour rester simple à appliquer et orienté vers ${p}.`,
+    },
+    {
+      question: "Combien de temps faut-il pour l’utiliser ?",
+      answer: "Le format est conçu pour être actionnable rapidement, sans lecture interminable.",
+    },
+    {
+      question: "Que vais-je obtenir concrètement ?",
+      answer:
+        angle === "vente"
+          ? "Une structure claire pour passer plus vite de l’attention à la conversion."
+          : angle === "autorite"
+          ? "Une base claire pour renforcer ta crédibilité tout en guidant ton audience."
+          : angle === "engagement"
+          ? "Des éléments concrets pour créer plus d’interactions utiles et régulières."
+          : "Une base claire pour capter des leads plus qualifiés et mieux préparer la suite.",
+    },
+  ];
+
+  return items;
+}
+
+function buildLeadContent(
+  type: LeadMagnetType,
+  niche: string,
+  target: string,
+  promise: string,
+  angle: ConversionAngle,
+  level: DetailLevel,
+  magnetName: string
+): LeadMagnetContent {
+  const n = niche.trim() || "ton activité";
+  const t = target.trim() || "ta cible";
+  const p = promise.trim() || "un résultat concret";
+  const count = detailCount(level) + 3;
+
+  if (type === "checklist") {
+    return {
+      title: magnetName,
+      intro: `Checklist pratique pour aider ${t} à obtenir ${p} dans ${n}.`,
+      items: Array.from({ length: count }, (_, index) => {
+        const number = index + 1;
+        if (index === 0) return `${number}. Clarifier l’objectif exact à atteindre avec cette base.`;
+        if (index === 1) return `${number}. Définir la promesse principale sans la compliquer inutilement.`;
+        if (index === 2) return `${number}. Préparer un CTA unique, simple et orienté action.`;
+        if (angle === "vente") return `${number}. Ajouter un élément qui rapproche le prospect de l’achat.`;
+        if (angle === "autorite") return `${number}. Ajouter une preuve ou un élément qui renforce l’expertise.`;
+        if (angle === "engagement") return `${number}. Ajouter un point qui favorise la réponse ou l’interaction.`;
+        return `${number}. Vérifier que chaque point aide vraiment ${t} à avancer vers ${p}.`;
+      }),
+    };
+  }
+
+  if (type === "mini-guide") {
+    return {
+      title: magnetName,
+      intro: `Mini-guide structuré pour aider ${t} à progresser vers ${p}.`,
+      items: Array.from({ length: count }, (_, index) => {
+        const number = index + 1;
+        if (index === 0) return `Introduction — Pourquoi ${p} est stratégique maintenant.`;
+        if (index === 1) return `Section ${number} — Les blocages principaux rencontrés par ${t}.`;
+        if (index === 2) return `Section ${number} — La méthode simple pour avancer dans ${n}.`;
+        if (angle === "vente") return `Section ${number} — Comment transformer l’intérêt en décision.`;
+        if (angle === "autorite") return `Section ${number} — Comment augmenter la confiance et la crédibilité.`;
+        if (angle === "engagement") return `Section ${number} — Comment obtenir plus de réponses et d’attention.`;
+        return `Section ${number} — Action concrète à appliquer pour approcher ${p}.`;
+      }),
+    };
+  }
+
+  if (type === "template") {
+    return {
+      title: magnetName,
+      intro: `Template prêt à compléter pour aider ${t} à obtenir ${p}.`,
+      items: Array.from({ length: count }, (_, index) => {
+        const number = index + 1;
+        if (index === 0) return `[Bloc ${number}] Objectif du template`;
+        if (index === 1) return `[Bloc ${number}] Promesse principale`;
+        if (index === 2) return `[Bloc ${number}] Étapes d’exécution`;
+        if (angle === "vente") return `[Bloc ${number}] Preuve / argument de conversion`;
+        if (angle === "autorite") return `[Bloc ${number}] Marqueur d’expertise / crédibilité`;
+        if (angle === "engagement") return `[Bloc ${number}] Question / déclencheur d’interaction`;
+        return `[Bloc ${number}] Champ à personnaliser pour ${t}`;
+      }),
+    };
+  }
+
+  if (type === "ebook") {
+    return {
+      title: magnetName,
+      intro: `Sommaire d’ebook orienté résultats pour aider ${t} à atteindre ${p}.`,
+      items: Array.from({ length: count }, (_, index) => {
+        const number = index + 1;
+        if (index === 0) return `Chapitre 1 — Le contexte et l’objectif recherché.`;
+        if (index === 1) return `Chapitre 2 — Les erreurs à éviter dès le départ.`;
+        if (index === 2) return `Chapitre 3 — La méthode principale à appliquer dans ${n}.`;
+        if (angle === "vente") return `Chapitre ${number} — Le passage de l’attention à la conversion.`;
+        if (angle === "autorite") return `Chapitre ${number} — La crédibilité comme accélérateur de résultats.`;
+        if (angle === "engagement") return `Chapitre ${number} — La mécanique d’engagement qui crée de l’élan.`;
+        return `Chapitre ${number} — Mise en application concrète vers ${p}.`;
+      }),
+    };
+  }
+
+  return {
+    title: magnetName,
+    intro: `Challenge simple et actionnable pour aider ${t} à obtenir ${p}.`,
+    items: Array.from({ length: count }, (_, index) => {
+      const day = index + 1;
+      if (day === 1) return `Jour 1 — Clarifier l’objectif final et le point de départ.`;
+      if (day === 2) return `Jour 2 — Préparer la structure la plus simple pour avancer.`;
+      if (day === 3) return `Jour 3 — Exécuter la première action visible.`;
+      if (angle === "vente") return `Jour ${day} — Ajouter un levier orienté décision et conversion.`;
+      if (angle === "autorite") return `Jour ${day} — Ajouter un élément qui renforce la confiance.`;
+      if (angle === "engagement") return `Jour ${day} — Ajouter un point qui stimule l’interaction.`;
+      return `Jour ${day} — Consolider la progression vers ${p}.`;
+    }),
+  };
+}
+
+function buildLandingSection(
+  niche: string,
+  target: string,
+  promise: string,
+  angle: ConversionAngle,
+  level: DetailLevel,
+  cta: string,
+  landingTitle: string
+): LandingSection {
+  const t = target.trim() || "ta cible";
+  const p = promise.trim() || "un résultat concret";
+  const n = niche.trim() || "ton marché";
+
+  const subtitle =
+    angle === "vente"
+      ? `Une page simple pour transformer plus facilement l’intérêt de ${t} en passage à l’action.`
+      : angle === "autorite"
+      ? `Une page premium pour renforcer ta crédibilité dans ${n} tout en guidant ${t} vers ${p}.`
+      : angle === "engagement"
+      ? `Une page pensée pour créer plus de réponses, d’attention et d’intérêt qualifié.`
+      : `Une page pensée pour transformer ton audience en leads plus qualifiés et exploitables.`;
+
+  return {
+    heroTitle: landingTitle,
+    heroSubtitle: subtitle,
+    heroCta: cta,
+    benefits: buildBenefits(niche, target, promise, angle, level),
+    formIntro: `Entre ton email pour recevoir immédiatement cette ressource pensée pour ${t}.`,
+    formButton: cta,
+    proof:
+      angle === "vente"
+        ? `Cette structure aide à rapprocher plus vite le prospect d’une décision claire.`
+        : angle === "autorite"
+        ? `Cette structure met en avant la valeur et la crédibilité perçue de ton expertise.`
+        : angle === "engagement"
+        ? `Cette structure favorise les clics, réponses et interactions utiles.`
+        : `Cette structure aide à capter plus facilement des leads réellement intéressés par ${p}.`,
+    faq: buildFaq(target, promise, "checklist", angle),
+  };
+}
+
 function buildLeadPayload(
   leadType: LeadMagnetType,
   niche: string,
   target: string,
-  promise: string
+  promise: string,
+  detailLevel: DetailLevel,
+  conversionAngle: ConversionAngle
 ): LeadEnginePayload {
   const magnetName = buildLeadMagnetName(leadType, niche, promise);
-  const hook = buildLeadHook(niche, target, promise);
-  const cta = buildCTA(promise);
+  const hook = buildLeadHook(niche, target, promise, conversionAngle);
+  const cta = buildCTA(promise, conversionAngle);
   const landingTitle = buildLandingTitle(target, promise);
+  const landing = buildLandingSection(
+    niche,
+    target,
+    promise,
+    conversionAngle,
+    detailLevel,
+    cta,
+    landingTitle
+  );
+  const content = buildLeadContent(
+    leadType,
+    niche,
+    target,
+    promise,
+    conversionAngle,
+    detailLevel,
+    magnetName
+  );
 
   return {
     id: `${Date.now()}`,
@@ -111,11 +403,15 @@ function buildLeadPayload(
     niche: niche.trim(),
     target: target.trim(),
     promise: promise.trim(),
+    detailLevel,
+    conversionAngle,
     magnetName,
     hook,
     cta,
     landingTitle,
     createdAt: new Date().toISOString(),
+    landing,
+    content,
   };
 }
 
@@ -124,6 +420,8 @@ export default function LeadEnginePage() {
   const [target, setTarget] = useState("");
   const [promise, setPromise] = useState("");
   const [leadType, setLeadType] = useState<LeadMagnetType>("checklist");
+  const [detailLevel, setDetailLevel] = useState<DetailLevel>("standard");
+  const [conversionAngle, setConversionAngle] = useState<ConversionAngle>("leads");
   const [generated, setGenerated] = useState(false);
   const [actionMsg, setActionMsg] = useState("");
   const [savedBases, setSavedBases] = useState<LeadEnginePayload[]>([]);
@@ -131,8 +429,15 @@ export default function LeadEnginePage() {
   const [selectedActions, setSelectedActions] = useState<Record<string, SavedBaseAction>>({});
 
   const preview = useMemo(() => {
-    return buildLeadPayload(leadType, niche, target, promise);
-  }, [leadType, niche, target, promise]);
+    return buildLeadPayload(
+      leadType,
+      niche,
+      target,
+      promise,
+      detailLevel,
+      conversionAngle
+    );
+  }, [leadType, niche, target, promise, detailLevel, conversionAngle]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -163,7 +468,7 @@ export default function LeadEnginePage() {
     if (typeof window !== "undefined") {
       window.localStorage.setItem(LS_LEAD_ENGINE_V1, JSON.stringify(preview));
     }
-    flash("✅ Base Lead Engine générée.");
+    flash("✅ Lead Engine V6 généré.");
   }
 
   function injectIntoEditor(payload: LeadEnginePayload) {
@@ -174,8 +479,9 @@ export default function LeadEnginePage() {
         `${payload.hook}\n\n` +
         `Lead magnet : ${payload.magnetName}\n` +
         `Promesse : ${payload.promise || "Résultat rapide"}\n` +
-        `CTA : ${payload.cta}`,
-      source: "lead_engine_v5",
+        `CTA : ${payload.cta}\n` +
+        `Landing hero : ${payload.landing.heroTitle}`,
+      source: "lead_engine_v6",
       createdAtISO: new Date().toISOString(),
     };
 
@@ -188,13 +494,15 @@ export default function LeadEnginePage() {
     if (typeof window === "undefined") return;
 
     const emailPayload = {
-      source: "lead_engine_v5",
+      source: "lead_engine_v6",
       angle: payload.hook,
       offer_name: payload.magnetName,
       promise: payload.promise,
       cta: payload.cta,
       target: payload.target,
       niche: payload.niche,
+      landing_title: payload.landing.heroTitle,
+      lead_content_intro: payload.content.intro,
       createdAt: new Date().toISOString(),
     };
 
@@ -207,7 +515,7 @@ export default function LeadEnginePage() {
     if (typeof window === "undefined") return;
 
     const libraryPayload = {
-      kind: "lgd_lead_engine_v5",
+      kind: "lgd_lead_engine_v6",
       title: payload.magnetName,
       data: payload,
       createdAt: new Date().toISOString(),
@@ -221,31 +529,35 @@ export default function LeadEnginePage() {
     if (typeof window === "undefined") return;
 
     const sioTemplate = {
-      source: "lead_engine_v5",
+      source: "lead_engine_v6",
       template_type: "lead_magnet",
       title: payload.magnetName,
-      headline: payload.landingTitle,
-      subheadline: payload.hook,
-      cta: payload.cta,
+      headline: payload.landing.heroTitle,
+      subheadline: payload.landing.heroSubtitle,
+      cta: payload.landing.heroCta,
       niche: payload.niche,
       target: payload.target,
       promise: payload.promise,
-      sections: ["Hero", "Bénéfices", "Formulaire email", "Call-to-action"],
+      benefits: payload.landing.benefits,
+      form_intro: payload.landing.formIntro,
+      proof: payload.landing.proof,
+      faq: payload.landing.faq,
+      lead_content: payload.content,
       createdAt: new Date().toISOString(),
     };
 
     window.localStorage.setItem(LS_SIO_LEAD_MAGNET_TEMPLATE, JSON.stringify(sioTemplate));
-    flash("✅ Template Lead Magnet SIO préparé.");
+    flash("✅ Template Lead Magnet SIO V6 préparé.");
   }
 
   function saveCurrentBase() {
-    const exists = savedBases.some((item) => item.id === preview.id || item.magnetName === preview.magnetName);
+    const exists = savedBases.some((item) => item.magnetName === preview.magnetName);
     const next = exists ? savedBases : [preview, ...savedBases];
     persistBases(next);
     if (typeof window !== "undefined") {
       window.localStorage.setItem(LS_LEAD_ENGINE_V1, JSON.stringify(preview));
     }
-    flash("✅ Base Lead Engine sauvegardée.");
+    flash("✅ Lead Engine V6 sauvegardé.");
   }
 
   function reuseBase(payload: LeadEnginePayload) {
@@ -253,11 +565,13 @@ export default function LeadEnginePage() {
     setTarget(payload.target);
     setPromise(payload.promise);
     setLeadType(payload.leadType);
+    setDetailLevel(payload.detailLevel || "standard");
+    setConversionAngle(payload.conversionAngle || "leads");
     setGenerated(true);
     if (typeof window !== "undefined") {
       window.localStorage.setItem(LS_LEAD_ENGINE_V1, JSON.stringify(payload));
     }
-    flash("✅ Base Lead Engine rechargée.");
+    flash("✅ Lead Engine rechargé.");
   }
 
   function deleteBase(id: string) {
@@ -293,7 +607,7 @@ export default function LeadEnginePage() {
     deleteBase(item.id);
   }
 
-  const activePayload = generated ? preview : preview;
+  const activePayload = preview;
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
@@ -311,7 +625,7 @@ export default function LeadEnginePage() {
         <div className="mt-10 text-center">
           <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-4 py-1 text-[12px] text-white/75">
             <FaEnvelopeOpenText className="text-yellow-300" />
-            Lead Engine V5
+            Lead Engine V6
           </div>
 
           <h1 className="mt-4 text-3xl sm:text-4xl font-extrabold text-[#ffb800]">
@@ -319,8 +633,8 @@ export default function LeadEnginePage() {
           </h1>
 
           <p className="mt-3 max-w-3xl mx-auto text-white/70">
-            LGD prépare la base de ton Lead Engine : promesse, lead magnet, hook, CTA,
-            stockage réutilisable et injections concrètes dans l’écosystème LGD.
+            LGD génère maintenant la base marketing, la page de capture et le contenu réel
+            du lead magnet dans une même interface premium.
           </p>
         </div>
 
@@ -330,7 +644,7 @@ export default function LeadEnginePage() {
               <div className="flex items-center gap-3">
                 <FaMagic className="text-[#ffb800] text-2xl" />
                 <h2 className="text-2xl font-bold text-[#ffb800]">
-                  Configuration rapide
+                  Configuration V6
                 </h2>
               </div>
 
@@ -388,12 +702,46 @@ export default function LeadEnginePage() {
                   </select>
                 </div>
 
+                <div>
+                  <label className="block text-sm font-semibold text-yellow-200 mb-2">
+                    Niveau de détail
+                  </label>
+                  <select
+                    value={detailLevel}
+                    onChange={(e) => setDetailLevel(e.target.value as DetailLevel)}
+                    className="w-full rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-4 py-3 text-white outline-none focus:border-yellow-400"
+                  >
+                    {detailLevelOptions.map((option) => (
+                      <option key={option.value} value={option.value} className="bg-[#0b0b0b]">
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-yellow-200 mb-2">
+                    Angle de conversion
+                  </label>
+                  <select
+                    value={conversionAngle}
+                    onChange={(e) => setConversionAngle(e.target.value as ConversionAngle)}
+                    className="w-full rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-4 py-3 text-white outline-none focus:border-yellow-400"
+                  >
+                    {conversionAngleOptions.map((option) => (
+                      <option key={option.value} value={option.value} className="bg-[#0b0b0b]">
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 <button
                   type="button"
                   onClick={handleGenerate}
                   className="mt-2 w-full rounded-2xl px-5 py-3 font-semibold bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] text-black hover:-translate-y-0.5 hover:shadow-lg hover:shadow-yellow-500/20 transition-all"
                 >
-                  Générer ma base Lead Engine
+                  Générer la V6 complète
                 </button>
 
                 {actionMsg ? (
@@ -404,9 +752,8 @@ export default function LeadEnginePage() {
               </div>
 
               <div className="mt-6 rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4 text-sm text-white/65">
-                Note importante : dans cette V5, LGD effectue les injections internes
-                vers l’Éditeur et l’Emailing via stockage local. Le push API direct vers Systeme.io
-                n’est pas encore branché ici, mais le template Lead Magnet SIO est préparé.
+                La V6 conserve les injections LGD existantes et ajoute une structure complète
+                de landing page ainsi qu’un contenu réel d’aimant à prospects.
               </div>
 
               <div className="mt-6 border-t border-yellow-600/15 pt-6">
@@ -418,7 +765,7 @@ export default function LeadEnginePage() {
                 </div>
 
                 <p className="mt-3 text-white/70">
-                  À partir de cette base, tu peux préparer ton contenu, ton emailing,
+                  À partir de cette V6, tu peux préparer ton contenu, ton emailing,
                   ta bibliothèque et ton template Lead Magnet pour SIO.
                 </p>
 
@@ -433,7 +780,7 @@ export default function LeadEnginePage() {
                       Injecter dans l’Éditeur
                     </div>
                     <p className="mt-2 text-sm text-white/65">
-                      Envoie le hook, la promesse et le CTA dans l’éditeur intelligent.
+                      Envoie le hook, la promesse, le CTA et l’angle V6 dans l’éditeur intelligent.
                     </p>
                   </button>
 
@@ -447,7 +794,7 @@ export default function LeadEnginePage() {
                       Injecter dans Emailing
                     </div>
                     <p className="mt-2 text-sm text-white/65">
-                      Prépare la base pour la séquence email liée à ce lead magnet.
+                      Prépare la base emailing liée à la landing page et au lead magnet.
                     </p>
                   </button>
 
@@ -461,7 +808,7 @@ export default function LeadEnginePage() {
                       Sauvegarder en Bibliothèque
                     </div>
                     <p className="mt-2 text-sm text-white/65">
-                      Garde cette base Lead Engine pour la réutiliser plus tard.
+                      Garde cette V6 complète pour la réutiliser plus tard.
                     </p>
                   </button>
 
@@ -475,7 +822,7 @@ export default function LeadEnginePage() {
                       Template Lead Magnet SIO
                     </div>
                     <p className="mt-2 text-sm text-white/65">
-                      Prépare la structure du template à injecter côté Systeme.io.
+                      Prépare la structure V6 à injecter côté Systeme.io.
                     </p>
                   </button>
 
@@ -502,7 +849,7 @@ export default function LeadEnginePage() {
               <div className="flex items-center gap-3">
                 <FaBullseye className="text-[#ffb800] text-2xl" />
                 <h2 className="text-2xl font-bold text-[#ffb800]">
-                  Prévisualisation LGD
+                  Prévisualisation V6
                 </h2>
               </div>
 
@@ -525,57 +872,92 @@ export default function LeadEnginePage() {
                 <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4">
                   <div className="flex items-center gap-2 text-yellow-200 font-semibold">
                     <FaGift />
-                    Suite prévue
+                    Landing page preview
+                  </div>
+                  <div className="mt-3 grid gap-3 text-sm">
+                    <div className="rounded-2xl border border-yellow-600/15 bg-[#111] p-3">
+                      <div className="text-yellow-200 font-semibold">Hero</div>
+                      <p className="mt-2 text-white/80">{preview.landing.heroTitle}</p>
+                      <p className="mt-2 text-white/65">{preview.landing.heroSubtitle}</p>
+                      <p className="mt-2 text-yellow-100">{preview.landing.heroCta}</p>
+                    </div>
+
+                    <div className="rounded-2xl border border-yellow-600/15 bg-[#111] p-3">
+                      <div className="text-yellow-200 font-semibold">Bénéfices</div>
+                      <ul className="mt-2 grid gap-2 text-white/75">
+                        {preview.landing.benefits.map((benefit, index) => (
+                          <li key={`benefit-${index}`}>• {benefit}</li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div className="rounded-2xl border border-yellow-600/15 bg-[#111] p-3">
+                      <div className="text-yellow-200 font-semibold">Formulaire</div>
+                      <p className="mt-2 text-white/75">{preview.landing.formIntro}</p>
+                      <p className="mt-2 text-yellow-100">{preview.landing.formButton}</p>
+                    </div>
+
+                    <div className="rounded-2xl border border-yellow-600/15 bg-[#111] p-3">
+                      <div className="text-yellow-200 font-semibold">Preuve</div>
+                      <p className="mt-2 text-white/75">{preview.landing.proof}</p>
+                    </div>
+
+                    <div className="rounded-2xl border border-yellow-600/15 bg-[#111] p-3">
+                      <div className="text-yellow-200 font-semibold">FAQ</div>
+                      <div className="mt-2 grid gap-2">
+                        {preview.landing.faq.map((item, index) => (
+                          <div key={`faq-${index}`} className="text-white/75">
+                            <p className="font-semibold text-white/85">{item.question}</p>
+                            <p className="mt-1">{item.answer}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4">
+                  <div className="flex items-center gap-2 text-yellow-200 font-semibold">
+                    <FaHistory />
+                    Contenu réel du lead magnet
+                  </div>
+                  <p className="mt-2 text-white/80">{preview.content.title}</p>
+                  <p className="mt-2 text-white/65">{preview.content.intro}</p>
+                  <ul className="mt-3 grid gap-2 text-sm text-white/75">
+                    {preview.content.items.map((item, index) => (
+                      <li key={`content-${index}`}>• {item}</li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4">
+                  <div className="flex items-center gap-2 text-yellow-200 font-semibold">
+                    <FaRedo />
+                    V6 générée
                   </div>
                   <p className="mt-2 text-white/70 text-sm">
-                    Étape suivante : génération complète de la page de capture, du contenu du lead magnet
-                    et des CTA prêts à injecter dans les contenus LGD.
+                    Cette version est prête à être sauvegardée, réutilisée, injectée dans LGD
+                    et préparée pour Systeme.io.
                   </p>
                 </div>
 
                 {generated ? (
                   <div className="rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-4 text-center">
-                    <div className="text-yellow-200 font-semibold">Base Lead Engine générée</div>
+                    <div className="text-yellow-200 font-semibold">Lead Engine V6 généré</div>
                     <p className="mt-2 text-sm text-white/75">
-                      La V5 est prête. Tu peux maintenant réinjecter ta base dans l’écosystème LGD.
+                      La page de capture et le contenu réel sont prêts.
                     </p>
                   </div>
                 ) : null}
 
-                <div className="mt-2 border-t border-yellow-600/15 pt-6">
-                  <div className="flex items-center gap-3">
-                    <FaHistory className="text-[#ffb800] text-2xl" />
-                    <h2 className="text-2xl font-bold text-[#ffb800]">
-                      Base générée
-                    </h2>
-                  </div>
-
-                  <div className="mt-6 flex flex-col gap-4">
-                    <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4">
-                      <div className="text-yellow-200 font-semibold">Titre</div>
-                      <p className="mt-2 text-white/80">{activePayload.magnetName}</p>
-                    </div>
-
-                    <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4">
-                      <div className="text-yellow-200 font-semibold">Hook</div>
-                      <p className="mt-2 text-white/80">{activePayload.hook}</p>
-                    </div>
-
-                    <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4">
-                      <div className="text-yellow-200 font-semibold">CTA</div>
-                      <p className="mt-2 text-white/80">{activePayload.cta}</p>
-                    </div>
-
-                    <div className="mt-2">
-                      <button
-                        type="button"
-                        onClick={saveCurrentBase}
-                        className="w-full rounded-2xl px-5 py-3 font-semibold bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] text-black hover:-translate-y-0.5 hover:shadow-lg hover:shadow-yellow-500/20 transition-all"
-                      >
-                        Sauvegarder cette base
-                      </button>
-                    </div>
-                  </div>
+                <div className="mt-2">
+                  <button
+                    type="button"
+                    onClick={saveCurrentBase}
+                    className="w-full rounded-2xl px-5 py-3 font-semibold bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] text-black hover:-translate-y-0.5 hover:shadow-lg hover:shadow-yellow-500/20 transition-all"
+                  >
+                    Sauvegarder cette base
+                  </button>
                 </div>
               </div>
             </div>
@@ -601,7 +983,7 @@ export default function LeadEnginePage() {
                     Mes bases Lead Engine
                   </h2>
                   <p className="mt-2 text-white/65">
-                    Toutes tes bases sont stockées ici, dans une modale dédiée style bibliothèque LGD.
+                    Toutes tes bases V6 sont stockées ici dans une modale dédiée style bibliothèque LGD.
                   </p>
                 </div>
 
@@ -632,6 +1014,9 @@ export default function LeadEnginePage() {
                         <div className="text-yellow-200 font-semibold">{item.magnetName}</div>
                         <p className="mt-2 text-sm text-white/70">{item.hook}</p>
                         <p className="mt-2 text-sm text-white/55">CTA : {item.cta}</p>
+                        <p className="mt-2 text-sm text-white/55">
+                          Angle : {conversionAngleOptions.find((option) => option.value === item.conversionAngle)?.label || "Acquisition de leads"}
+                        </p>
 
                         <div className="mt-4 grid gap-3">
                           <select
