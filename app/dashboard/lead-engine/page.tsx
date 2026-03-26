@@ -20,6 +20,7 @@ import {
   FaStar,
   FaTrash,
   FaVideo,
+  FaCogs, // ✅ AJOUT ICI
 } from "react-icons/fa";
 import Link from "next/link";
 
