@@ -7,7 +7,7 @@ import {
   FaArchive,
   FaCheckCircle,
   FaChevronRight,
-  FaCopy,
+  FaCogs,
   FaFont,
   FaImage,
   FaImages,
@@ -15,12 +15,10 @@ import {
   FaMagic,
   FaPalette,
   FaPhotoVideo,
-  FaPlus,
   FaRobot,
   FaStar,
   FaTrash,
   FaVideo,
-  FaCogs, // ✅ AJOUT ICI
 } from "react-icons/fa";
 import Link from "next/link";
 
@@ -285,7 +283,7 @@ export default function LeadEnginePage() {
 
   return (
     <div className="min-h-screen text-white" style={pageShellStyle}>
-      <div className="mx-auto max-w-[1700px] px-6 pt-[110px] pb-14">
+      <div className="mx-auto max-w-[1800px] px-6 pt-[110px] pb-14">
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <div>
             <Link
@@ -318,8 +316,7 @@ export default function LeadEnginePage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-[340px_minmax(0,1fr)_360px] gap-6 items-start">
-          {/* LEFT */}
+        <div className="grid grid-cols-1 2xl:grid-cols-[340px_minmax(980px,1fr)_360px] xl:grid-cols-[320px_minmax(760px,1fr)_340px] gap-6 items-start">
           <CardLuxe className="p-4 sticky top-[96px]">
             <div className="grid grid-cols-3 gap-2">
               {[
@@ -586,8 +583,7 @@ export default function LeadEnginePage() {
             ) : null}
           </CardLuxe>
 
-          {/* CENTER */}
-          <CardLuxe className="p-5 sticky top-[96px]">
+          <CardLuxe className="p-5">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
                 <div className="inline-flex items-center gap-2 rounded-full border border-yellow-600/20 bg-[#0b0b0b] px-4 py-1 text-[12px] text-white/75">
@@ -609,196 +605,220 @@ export default function LeadEnginePage() {
               </button>
             </div>
 
-            <div
-              className="overflow-hidden rounded-[32px] border"
-              style={{
-                borderColor: `${brandPrimary}33`,
-                background: `linear-gradient(180deg, ${brandSecondary}, ${surfaceBackground})`,
-              }}
-            >
-              {blocks.hero ? (
-                <div className="grid grid-cols-1 xl:grid-cols-[1.25fr_0.75fr] gap-0 border-b" style={{ borderColor: `${brandPrimary}22` }}>
-                  <div className="px-8 py-8 sm:px-10 sm:py-10">
-                    {logo ? (
-                      <img
-                        src={logo}
-                        alt="Logo"
-                        className="mb-5 h-14 w-auto object-contain rounded-xl border border-yellow-600/20 bg-[#111] p-2"
-                      />
-                    ) : (
-                      <div className="mb-5 inline-flex rounded-full border border-yellow-600/25 bg-[#111] px-4 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]" style={previewAccentStyle}>
-                        Aimant à prospects
-                      </div>
-                    )}
-
-                    <h3
-                      className="max-w-3xl text-3xl font-extrabold leading-tight sm:text-4xl"
-                      style={{ color: "#ffffff", fontFamily: titleFont }}
-                    >
-                      {heroTitle}
-                    </h3>
-
-                    <p className="mt-4 max-w-2xl text-base leading-8 text-white/72">
-                      {heroSubtitle}
-                    </p>
-
-                    <div className="mt-6 flex flex-wrap gap-3">
-                      <button
-                        type="button"
-                        className="rounded-2xl px-6 py-4 font-semibold text-black shadow-lg"
-                        style={{ backgroundColor: brandPrimary }}
-                      >
-                        {cta}
-                      </button>
-
-                      <div className="rounded-2xl border px-5 py-4 text-sm text-white/65" style={{ borderColor: `${brandPrimary}33` }}>
-                        {renderLevel === "ultra" ? "Version ultra conversion" : renderLevel === "premium" ? "Version premium" : "Version standard"}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="min-h-[240px] border-l p-4" style={{ borderColor: `${brandPrimary}22` }}>
-                    <div className="grid h-full place-items-center rounded-[26px] border bg-[#111]" style={{ borderColor: `${brandPrimary}20` }}>
-                      {images[0] ? (
-                        <img src={images[0]} alt="Hero visuel" className="h-full w-full rounded-[26px] object-cover" />
+            <div className="mx-auto max-w-[1120px]">
+              <div
+                className="overflow-hidden rounded-[32px] border"
+                style={{
+                  borderColor: `${brandPrimary}33`,
+                  background: `linear-gradient(180deg, ${brandSecondary}, ${surfaceBackground})`,
+                }}
+              >
+                {blocks.hero ? (
+                  <div
+                    className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.15fr)_420px] gap-0 border-b"
+                    style={{ borderColor: `${brandPrimary}22` }}
+                  >
+                    <div className="px-8 py-8 sm:px-10 sm:py-10 lg:px-12 lg:py-12">
+                      {logo ? (
+                        <img
+                          src={logo}
+                          alt="Logo"
+                          className="mb-5 h-14 w-auto object-contain rounded-xl border border-yellow-600/20 bg-[#111] p-2"
+                        />
                       ) : (
-                        <div className="text-center">
-                          <FaImage className="mx-auto text-4xl" style={previewAccentStyle} />
-                          <p className="mt-3 text-sm text-white/45">Ajoute un visuel hero depuis Médias ou Archive</p>
+                        <div
+                          className="mb-5 inline-flex rounded-full border border-yellow-600/25 bg-[#111] px-4 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]"
+                          style={previewAccentStyle}
+                        >
+                          Aimant à prospects
                         </div>
                       )}
+
+                      <h3
+                        className="max-w-3xl text-4xl font-extrabold leading-tight sm:text-[44px]"
+                        style={{ color: "#ffffff", fontFamily: titleFont }}
+                      >
+                        {heroTitle}
+                      </h3>
+
+                      <p className="mt-5 max-w-2xl text-lg leading-8 text-white/72">
+                        {heroSubtitle}
+                      </p>
+
+                      <div className="mt-7 flex flex-wrap gap-3">
+                        <button
+                          type="button"
+                          className="rounded-2xl px-6 py-4 font-semibold text-black shadow-lg"
+                          style={{ backgroundColor: brandPrimary }}
+                        >
+                          {cta}
+                        </button>
+
+                        <div
+                          className="rounded-2xl border px-5 py-4 text-sm text-white/65"
+                          style={{ borderColor: `${brandPrimary}33` }}
+                        >
+                          {renderLevel === "ultra"
+                            ? "Version ultra conversion"
+                            : renderLevel === "premium"
+                            ? "Version premium"
+                            : "Version standard"}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="border-l p-5 lg:p-6" style={{ borderColor: `${brandPrimary}22` }}>
+                      <div className="grid h-full min-h-[360px] place-items-center rounded-[26px] border bg-[#111]" style={{ borderColor: `${brandPrimary}20` }}>
+                        {images[0] ? (
+                          <img src={images[0]} alt="Hero visuel" className="h-full w-full rounded-[26px] object-cover" />
+                        ) : (
+                          <div className="px-6 text-center">
+                            <FaImage className="mx-auto text-5xl" style={previewAccentStyle} />
+                            <p className="mt-3 text-sm text-white/45">
+                              Ajoute un visuel hero depuis Médias ou Archive
+                            </p>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
+                ) : null}
+
+                <div className="grid gap-5 px-6 py-6 sm:px-8 sm:py-8 lg:px-10 lg:py-10">
+                  {blocks.benefits ? (
+                    <div className="rounded-[28px] border p-6" style={surfaceStyle}>
+                      <div className="font-semibold text-lg" style={previewAccentStyle}>Bénéfices</div>
+                      <div className="mt-4 grid gap-3 md:grid-cols-3">
+                        {[
+                          "Attire des prospects plus qualifiés sans complexifier ton marketing.",
+                          "Transforme tes contenus en machine à leads plus cohérente.",
+                          "Crée une structure premium qui donne envie de s’inscrire.",
+                        ].map((item, index) => (
+                          <div
+                            key={index}
+                            className="rounded-2xl border bg-[#111] px-4 py-4 text-sm leading-7 text-white/78"
+                            style={{ borderColor: `${brandPrimary}22` }}
+                          >
+                            {item}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {blocks.story ? (
+                    <div className="rounded-[28px] border p-6" style={surfaceStyle}>
+                      <div className="font-semibold text-lg" style={previewAccentStyle}>Storytelling</div>
+                      <p className="mt-3 text-base leading-8 text-white/72">
+                        Tu postes peut-être déjà du contenu, mais sans système de capture solide tu laisses partir une partie de tes futurs clients. Ce lead a été pensé pour créer une vraie passerelle entre ton audience et ton offre.
+                      </p>
+                    </div>
+                  ) : null}
+
+                  {blocks.proof ? (
+                    <div className="rounded-[28px] border p-6" style={surfaceStyle}>
+                      <div className="font-semibold text-lg" style={previewAccentStyle}>Preuve sociale</div>
+                      <p className="mt-3 text-base leading-8 text-white/75">
+                        Cette structure aide à capter plus facilement des leads réellement intéressés par ton offre.
+                      </p>
+                    </div>
+                  ) : null}
+
+                  {blocks.testimonials ? (
+                    <div className="rounded-[28px] border p-6" style={surfaceStyle}>
+                      <div className="font-semibold text-lg" style={previewAccentStyle}>Avis</div>
+                      <div className="mt-4 grid gap-3 md:grid-cols-2">
+                        {[
+                          "“Le rendu donne tout de suite un effet premium.”",
+                          "“On sent que la page est pensée pour convertir.”",
+                        ].map((item, index) => (
+                          <div
+                            key={index}
+                            className="rounded-2xl border bg-[#111] px-4 py-4 text-sm leading-7 text-white/72"
+                            style={{ borderColor: `${brandPrimary}22` }}
+                          >
+                            {item}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {blocks.bonus ? (
+                    <div className="rounded-[28px] border p-6" style={surfaceStyle}>
+                      <div className="font-semibold text-lg" style={previewAccentStyle}>Bonus</div>
+                      <p className="mt-3 text-base leading-8 text-white/75">
+                        Bonus visuel, checklist ou mini framework à ajouter pour augmenter la valeur perçue.
+                      </p>
+                    </div>
+                  ) : null}
+
+                  {blocks.urgency ? (
+                    <div className="rounded-[28px] border p-6" style={surfaceStyle}>
+                      <div className="font-semibold text-lg" style={previewAccentStyle}>Urgence</div>
+                      <p className="mt-3 text-base leading-8 text-white/75">
+                        Disponible maintenant — ajoute une logique de rareté ou de timing dans ton copywriting pour augmenter le passage à l’action.
+                      </p>
+                    </div>
+                  ) : null}
+
+                  {blocks.faq ? (
+                    <div className="rounded-[28px] border p-6" style={surfaceStyle}>
+                      <div className="font-semibold text-lg" style={previewAccentStyle}>FAQ</div>
+                      <div className="mt-4 grid gap-3">
+                        {[
+                          {
+                            q: "Est-ce adapté aux débutants ?",
+                            a: "Oui, la structure a été pensée pour rester simple à mettre en œuvre.",
+                          },
+                          {
+                            q: "Combien de temps faut-il pour l’utiliser ?",
+                            a: "Le format est conçu pour être actionnable rapidement, sans lecture interminable.",
+                          },
+                        ].map((item, index) => (
+                          <div
+                            key={index}
+                            className="rounded-2xl border bg-[#111] px-5 py-5"
+                            style={{ borderColor: `${brandPrimary}22` }}
+                          >
+                            <div className="font-semibold text-white">{item.q}</div>
+                            <div className="mt-2 text-sm leading-7 text-white/68">{item.a}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {images.length > 1 || videos.length > 0 ? (
+                    <div className="rounded-[28px] border p-6" style={surfaceStyle}>
+                      <div className="font-semibold text-lg" style={previewAccentStyle}>Galerie médias</div>
+                      <div className="mt-4 flex flex-wrap gap-3">
+                        {images.slice(1).map((img, index) => (
+                          <img
+                            key={index}
+                            src={img}
+                            alt={`galerie-${index}`}
+                            className="h-28 w-28 rounded-2xl object-cover border"
+                            style={{ borderColor: `${brandPrimary}22` }}
+                          />
+                        ))}
+                        {videos.map((_, index) => (
+                          <div
+                            key={index}
+                            className="grid h-28 w-28 place-items-center rounded-2xl border bg-[#111]"
+                            style={{ borderColor: `${brandPrimary}22` }}
+                          >
+                            <FaVideo style={previewAccentStyle} />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
-              ) : null}
-
-              <div className="grid gap-5 px-6 py-6 sm:px-8 sm:py-8">
-                {blocks.benefits ? (
-                  <div className="rounded-[28px] border p-5" style={surfaceStyle}>
-                    <div className="font-semibold" style={previewAccentStyle}>Bénéfices</div>
-                    <div className="mt-4 grid gap-3">
-                      {[
-                        "Attire des prospects plus qualifiés sans complexifier ton marketing.",
-                        "Transforme tes contenus en machine à leads plus cohérente.",
-                        "Crée une structure premium qui donne envie de s’inscrire.",
-                      ].map((item, index) => (
-                        <div
-                          key={index}
-                          className="rounded-2xl border bg-[#111] px-4 py-4 text-sm text-white/78"
-                          style={{ borderColor: `${brandPrimary}22` }}
-                        >
-                          {item}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-
-                {blocks.story ? (
-                  <div className="rounded-[28px] border p-5" style={surfaceStyle}>
-                    <div className="font-semibold" style={previewAccentStyle}>Storytelling</div>
-                    <p className="mt-3 text-sm leading-7 text-white/72">
-                      Tu postes peut-être déjà du contenu, mais sans système de capture solide tu laisses partir une partie de tes futurs clients. Ce lead a été pensé pour créer une vraie passerelle entre ton audience et ton offre.
-                    </p>
-                  </div>
-                ) : null}
-
-                {blocks.proof ? (
-                  <div className="rounded-[28px] border p-5" style={surfaceStyle}>
-                    <div className="font-semibold" style={previewAccentStyle}>Preuve sociale</div>
-                    <p className="mt-3 text-sm text-white/75">
-                      Cette structure aide à capter plus facilement des leads réellement intéressés par ton offre.
-                    </p>
-                  </div>
-                ) : null}
-
-                {blocks.testimonials ? (
-                  <div className="rounded-[28px] border p-5" style={surfaceStyle}>
-                    <div className="font-semibold" style={previewAccentStyle}>Avis</div>
-                    <div className="mt-4 grid gap-3 md:grid-cols-2">
-                      {[
-                        "“Le rendu donne tout de suite un effet premium.”",
-                        "“On sent que la page est pensée pour convertir.”",
-                      ].map((item, index) => (
-                        <div key={index} className="rounded-2xl border bg-[#111] px-4 py-4 text-sm text-white/72" style={{ borderColor: `${brandPrimary}22` }}>
-                          {item}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-
-                {blocks.bonus ? (
-                  <div className="rounded-[28px] border p-5" style={surfaceStyle}>
-                    <div className="font-semibold" style={previewAccentStyle}>Bonus</div>
-                    <p className="mt-3 text-sm text-white/75">
-                      Bonus visuel, checklist ou mini framework à ajouter pour augmenter la valeur perçue.
-                    </p>
-                  </div>
-                ) : null}
-
-                {blocks.urgency ? (
-                  <div className="rounded-[28px] border p-5" style={surfaceStyle}>
-                    <div className="font-semibold" style={previewAccentStyle}>Urgence</div>
-                    <p className="mt-3 text-sm text-white/75">
-                      Disponible maintenant — ajoute une logique de rareté ou de timing dans ton copywriting pour augmenter le passage à l’action.
-                    </p>
-                  </div>
-                ) : null}
-
-                {blocks.faq ? (
-                  <div className="rounded-[28px] border p-5" style={surfaceStyle}>
-                    <div className="font-semibold" style={previewAccentStyle}>FAQ</div>
-                    <div className="mt-4 grid gap-3">
-                      {[
-                        {
-                          q: "Est-ce adapté aux débutants ?",
-                          a: "Oui, la structure a été pensée pour rester simple à mettre en œuvre.",
-                        },
-                        {
-                          q: "Combien de temps faut-il pour l’utiliser ?",
-                          a: "Le format est conçu pour être actionnable rapidement, sans lecture interminable.",
-                        },
-                      ].map((item, index) => (
-                        <div key={index} className="rounded-2xl border bg-[#111] px-4 py-4" style={{ borderColor: `${brandPrimary}22` }}>
-                          <div className="font-semibold text-white">{item.q}</div>
-                          <div className="mt-2 text-sm text-white/68">{item.a}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-
-                                {(images.length > 1 || videos.length > 0) ? (
-                  <div className="rounded-[28px] border p-5" style={surfaceStyle}>
-                    <div className="font-semibold" style={previewAccentStyle}>Galerie médias</div>
-                    <div className="mt-4 flex flex-wrap gap-3">
-                      {images.slice(1).map((img, index) => (
-                        <img
-                          key={index}
-                          src={img}
-                          alt={`galerie-${index}`}
-                          className="h-24 w-24 rounded-2xl object-cover border"
-                          style={{ borderColor: `${brandPrimary}22` }}
-                        />
-                      ))}
-                      {videos.map((_, index) => (
-                        <div
-                          key={index}
-                          className="grid h-24 w-24 place-items-center rounded-2xl border bg-[#111]"
-                          style={{ borderColor: `${brandPrimary}22` }}
-                        >
-                          <FaVideo style={previewAccentStyle} />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
               </div>
             </div>
           </CardLuxe>
 
-          {/* RIGHT */}
           <CardLuxe className="p-4 sticky top-[96px]">
             <div className="grid grid-cols-2 gap-2">
               {[
