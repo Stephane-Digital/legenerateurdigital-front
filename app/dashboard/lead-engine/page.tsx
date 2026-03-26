@@ -51,6 +51,43 @@ type LeadMagnetContent = {
   items: string[];
 };
 
+type SioReadyPayload = {
+  source: "lead_engine_v6_phase2";
+  funnel_name: string;
+  page_name: string;
+  form_name: string;
+  tag_name: string;
+  campaign_name: string;
+  landing_page: {
+    headline: string;
+    subheadline: string;
+    cta: string;
+    benefits: string[];
+    form_intro: string;
+    proof: string;
+    faq: LandingFaqItem[];
+  };
+  lead_magnet: {
+    title: string;
+    type: LeadMagnetType;
+    intro: string;
+    items: string[];
+  };
+  emails_sequence: {
+    subject: string;
+    goal: string;
+    body_hint: string;
+  }[];
+  meta: {
+    niche: string;
+    target: string;
+    promise: string;
+    detail_level: DetailLevel;
+    conversion_angle: ConversionAngle;
+    createdAt: string;
+  };
+};
+
 type LeadEnginePayload = {
   id: string;
   leadType: LeadMagnetType;
@@ -66,6 +103,7 @@ type LeadEnginePayload = {
   createdAt: string;
   landing: LandingSection;
   content: LeadMagnetContent;
+  sioReady: SioReadyPayload;
 };
 
 type SavedBaseAction =
@@ -109,7 +147,18 @@ const LS_LEAD_ENGINE_V1 = "lgd_lead_engine_v1";
 const LS_EMAIL_CAMPAIGN_LEAD_ENGINE = "lgd_email_campaign_lead_engine";
 const LS_LIBRARY_LEAD_ENGINE_DRAFT = "lgd_library_lead_engine_draft";
 const LS_SIO_LEAD_MAGNET_TEMPLATE = "lgd_sio_lead_magnet_template";
+const LS_SIO_READY_EXPORT = "lgd_sio_ready_export_v1";
 const LS_LEAD_ENGINE_BASES = "lgd_lead_engine_bases";
+
+function safeSlug(input: string) {
+  return (input || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+}
 
 function buildLeadHook(
   niche: string,
@@ -202,7 +251,7 @@ function buildFaq(
   const p = promise.trim() || "un résultat concret";
   const typeLabel = leadMagnetOptions.find((item) => item.value === type)?.label || "lead magnet";
 
-  const items: LandingFaqItem[] = [
+  return [
     {
       question: `Ce ${typeLabel.toLowerCase()} est-il adapté à ${t} ?`,
       answer: `Oui. Il a été pensé pour rester simple à appliquer et orienté vers ${p}.`,
@@ -223,8 +272,6 @@ function buildFaq(
           : "Une base claire pour capter des leads plus qualifiés et mieux préparer la suite.",
     },
   ];
-
-  return items;
 }
 
 function buildLeadContent(
@@ -332,7 +379,8 @@ function buildLandingSection(
   angle: ConversionAngle,
   level: DetailLevel,
   cta: string,
-  landingTitle: string
+  landingTitle: string,
+  type: LeadMagnetType
 ): LandingSection {
   const t = target.trim() || "ta cible";
   const p = promise.trim() || "un résultat concret";
@@ -362,7 +410,91 @@ function buildLandingSection(
         : angle === "engagement"
         ? `Cette structure favorise les clics, réponses et interactions utiles.`
         : `Cette structure aide à capter plus facilement des leads réellement intéressés par ${p}.`,
-    faq: buildFaq(target, promise, "checklist", angle),
+    faq: buildFaq(target, promise, type, angle),
+  };
+}
+
+function buildEmailsSequence(
+  magnetName: string,
+  promise: string,
+  target: string,
+  conversionAngle: ConversionAngle
+) {
+  const p = promise.trim() || "un résultat concret";
+  const t = target.trim() || "ta cible";
+
+  return [
+    {
+      subject: `Voici ton ressource : ${magnetName}`,
+      goal: "Livraison du lead magnet",
+      body_hint: `Remettre la ressource, rappeler la promesse ${p} et donner un premier pas simple à ${t}.`,
+    },
+    {
+      subject:
+        conversionAngle === "vente"
+          ? `Comment passer de l’intérêt à la vente plus vite`
+          : conversionAngle === "autorite"
+          ? `Le détail qui renforce immédiatement ta crédibilité`
+          : conversionAngle === "engagement"
+          ? `Le levier simple pour créer plus d’engagement`
+          : `Le levier simple pour obtenir des leads plus qualifiés`,
+      goal: "Nurturing / valeur",
+      body_hint: `Recontextualiser le problème, apporter un conseil clair et préparer la prochaine action.`,
+    },
+    {
+      subject:
+        conversionAngle === "vente"
+          ? `Prêt à aller plus loin ?`
+          : `Quelle est la prochaine étape ?`,
+      goal: "CTA vers l’offre ou l’étape suivante",
+      body_hint: "Faire le lien entre la ressource gratuite et la prochaine action rentable.",
+    },
+  ];
+}
+
+function buildSioReadyPayload(
+  leadType: LeadMagnetType,
+  detailLevel: DetailLevel,
+  conversionAngle: ConversionAngle,
+  niche: string,
+  target: string,
+  promise: string,
+  magnetName: string,
+  landing: LandingSection,
+  content: LeadMagnetContent
+): SioReadyPayload {
+  const slug = safeSlug(`${niche}-${promise}`) || "lead-engine";
+  return {
+    source: "lead_engine_v6_phase2",
+    funnel_name: `Funnel LGD - ${magnetName}`,
+    page_name: `capture-${slug}`,
+    form_name: `form-${slug}`,
+    tag_name: `lead-${slug}`,
+    campaign_name: `Campaign - ${magnetName}`,
+    landing_page: {
+      headline: landing.heroTitle,
+      subheadline: landing.heroSubtitle,
+      cta: landing.heroCta,
+      benefits: landing.benefits,
+      form_intro: landing.formIntro,
+      proof: landing.proof,
+      faq: landing.faq,
+    },
+    lead_magnet: {
+      title: content.title,
+      type: leadType,
+      intro: content.intro,
+      items: content.items,
+    },
+    emails_sequence: buildEmailsSequence(magnetName, promise, target, conversionAngle),
+    meta: {
+      niche: niche.trim(),
+      target: target.trim(),
+      promise: promise.trim(),
+      detail_level: detailLevel,
+      conversion_angle: conversionAngle,
+      createdAt: new Date().toISOString(),
+    },
   };
 }
 
@@ -385,7 +517,8 @@ function buildLeadPayload(
     conversionAngle,
     detailLevel,
     cta,
-    landingTitle
+    landingTitle,
+    leadType
   );
   const content = buildLeadContent(
     leadType,
@@ -395,6 +528,17 @@ function buildLeadPayload(
     conversionAngle,
     detailLevel,
     magnetName
+  );
+  const sioReady = buildSioReadyPayload(
+    leadType,
+    detailLevel,
+    conversionAngle,
+    niche,
+    target,
+    promise,
+    magnetName,
+    landing,
+    content
   );
 
   return {
@@ -412,6 +556,7 @@ function buildLeadPayload(
     createdAt: new Date().toISOString(),
     landing,
     content,
+    sioReady,
   };
 }
 
@@ -468,7 +613,7 @@ export default function LeadEnginePage() {
     if (typeof window !== "undefined") {
       window.localStorage.setItem(LS_LEAD_ENGINE_V1, JSON.stringify(preview));
     }
-    flash("✅ Lead Engine V6 généré.");
+    flash("✅ Lead Engine V6 Phase 2 généré.");
   }
 
   function injectIntoEditor(payload: LeadEnginePayload) {
@@ -481,7 +626,7 @@ export default function LeadEnginePage() {
         `Promesse : ${payload.promise || "Résultat rapide"}\n` +
         `CTA : ${payload.cta}\n` +
         `Landing hero : ${payload.landing.heroTitle}`,
-      source: "lead_engine_v6",
+      source: "lead_engine_v6_phase2",
       createdAtISO: new Date().toISOString(),
     };
 
@@ -494,7 +639,7 @@ export default function LeadEnginePage() {
     if (typeof window === "undefined") return;
 
     const emailPayload = {
-      source: "lead_engine_v6",
+      source: "lead_engine_v6_phase2",
       angle: payload.hook,
       offer_name: payload.magnetName,
       promise: payload.promise,
@@ -503,6 +648,7 @@ export default function LeadEnginePage() {
       niche: payload.niche,
       landing_title: payload.landing.heroTitle,
       lead_content_intro: payload.content.intro,
+      emails_sequence: payload.sioReady.emails_sequence,
       createdAt: new Date().toISOString(),
     };
 
@@ -515,7 +661,7 @@ export default function LeadEnginePage() {
     if (typeof window === "undefined") return;
 
     const libraryPayload = {
-      kind: "lgd_lead_engine_v6",
+      kind: "lgd_lead_engine_v6_phase2",
       title: payload.magnetName,
       data: payload,
       createdAt: new Date().toISOString(),
@@ -528,26 +674,15 @@ export default function LeadEnginePage() {
   function prepareSioTemplate(payload: LeadEnginePayload) {
     if (typeof window === "undefined") return;
 
-    const sioTemplate = {
-      source: "lead_engine_v6",
-      template_type: "lead_magnet",
-      title: payload.magnetName,
-      headline: payload.landing.heroTitle,
-      subheadline: payload.landing.heroSubtitle,
-      cta: payload.landing.heroCta,
-      niche: payload.niche,
-      target: payload.target,
-      promise: payload.promise,
-      benefits: payload.landing.benefits,
-      form_intro: payload.landing.formIntro,
-      proof: payload.landing.proof,
-      faq: payload.landing.faq,
-      lead_content: payload.content,
-      createdAt: new Date().toISOString(),
-    };
+    window.localStorage.setItem(LS_SIO_LEAD_MAGNET_TEMPLATE, JSON.stringify(payload.sioReady));
+    flash("✅ Template Lead Magnet SIO préparé.");
+  }
 
-    window.localStorage.setItem(LS_SIO_LEAD_MAGNET_TEMPLATE, JSON.stringify(sioTemplate));
-    flash("✅ Template Lead Magnet SIO V6 préparé.");
+  function exportSioReady(payload: LeadEnginePayload) {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(LS_SIO_READY_EXPORT, JSON.stringify(payload.sioReady));
+    window.localStorage.setItem(LS_SIO_LEAD_MAGNET_TEMPLATE, JSON.stringify(payload.sioReady));
+    flash("🚀 Export Système.io Ready généré.");
   }
 
   function saveCurrentBase() {
@@ -557,7 +692,7 @@ export default function LeadEnginePage() {
     if (typeof window !== "undefined") {
       window.localStorage.setItem(LS_LEAD_ENGINE_V1, JSON.stringify(preview));
     }
-    flash("✅ Lead Engine V6 sauvegardé.");
+    flash("✅ Lead Engine Phase 2 sauvegardé.");
   }
 
   function reuseBase(payload: LeadEnginePayload) {
@@ -625,7 +760,7 @@ export default function LeadEnginePage() {
         <div className="mt-10 text-center">
           <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-4 py-1 text-[12px] text-white/75">
             <FaEnvelopeOpenText className="text-yellow-300" />
-            Lead Engine V6
+            Lead Engine V6 — Phase 2
           </div>
 
           <h1 className="mt-4 text-3xl sm:text-4xl font-extrabold text-[#ffb800]">
@@ -633,8 +768,8 @@ export default function LeadEnginePage() {
           </h1>
 
           <p className="mt-3 max-w-3xl mx-auto text-white/70">
-            LGD génère maintenant la base marketing, la page de capture et le contenu réel
-            du lead magnet dans une même interface premium.
+            LGD génère maintenant la base marketing, la page de capture, le contenu réel
+            du lead magnet et un export Système.io prêt à brancher.
           </p>
         </div>
 
@@ -752,8 +887,8 @@ export default function LeadEnginePage() {
               </div>
 
               <div className="mt-6 rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4 text-sm text-white/65">
-                La V6 conserve les injections LGD existantes et ajoute une structure complète
-                de landing page ainsi qu’un contenu réel d’aimant à prospects.
+                La Phase 2 prépare un payload Système.io standardisé : funnel, page, formulaire,
+                tag, campagne et séquence email.
               </div>
 
               <div className="mt-6 border-t border-yellow-600/15 pt-6">
@@ -765,8 +900,8 @@ export default function LeadEnginePage() {
                 </div>
 
                 <p className="mt-3 text-white/70">
-                  À partir de cette V6, tu peux préparer ton contenu, ton emailing,
-                  ta bibliothèque et ton template Lead Magnet pour SIO.
+                  À partir de cette Phase 2, tu peux préparer ton contenu, ton emailing,
+                  ta bibliothèque et ton export SIO Ready.
                 </p>
 
                 <div className="mt-6 flex flex-col gap-4">
@@ -780,7 +915,7 @@ export default function LeadEnginePage() {
                       Injecter dans l’Éditeur
                     </div>
                     <p className="mt-2 text-sm text-white/65">
-                      Envoie le hook, la promesse, le CTA et l’angle V6 dans l’éditeur intelligent.
+                      Envoie le hook, la promesse, le CTA et l’angle dans l’éditeur intelligent.
                     </p>
                   </button>
 
@@ -808,7 +943,7 @@ export default function LeadEnginePage() {
                       Sauvegarder en Bibliothèque
                     </div>
                     <p className="mt-2 text-sm text-white/65">
-                      Garde cette V6 complète pour la réutiliser plus tard.
+                      Garde cette Phase 2 complète pour la réutiliser plus tard.
                     </p>
                   </button>
 
@@ -822,7 +957,21 @@ export default function LeadEnginePage() {
                       Template Lead Magnet SIO
                     </div>
                     <p className="mt-2 text-sm text-white/65">
-                      Prépare la structure V6 à injecter côté Systeme.io.
+                      Prépare la structure standardisée pour Systeme.io.
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => exportSioReady(activePayload)}
+                    className="w-full rounded-2xl px-5 py-4 text-left font-semibold bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] text-black hover:-translate-y-0.5 hover:shadow-lg hover:shadow-yellow-500/20 transition-all"
+                  >
+                    <div className="flex items-center gap-3">
+                      <FaRocket />
+                      Export Système.io Ready
+                    </div>
+                    <p className="mt-2 text-sm text-black/80">
+                      Génère le payload funnel + page + tag + campagne + emails prêt à brancher.
                     </p>
                   </button>
 
@@ -849,7 +998,7 @@ export default function LeadEnginePage() {
               <div className="flex items-center gap-3">
                 <FaBullseye className="text-[#ffb800] text-2xl" />
                 <h2 className="text-2xl font-bold text-[#ffb800]">
-                  Prévisualisation V6
+                  Prévisualisation Phase 2
                 </h2>
               </div>
 
@@ -890,29 +1039,6 @@ export default function LeadEnginePage() {
                         ))}
                       </ul>
                     </div>
-
-                    <div className="rounded-2xl border border-yellow-600/15 bg-[#111] p-3">
-                      <div className="text-yellow-200 font-semibold">Formulaire</div>
-                      <p className="mt-2 text-white/75">{preview.landing.formIntro}</p>
-                      <p className="mt-2 text-yellow-100">{preview.landing.formButton}</p>
-                    </div>
-
-                    <div className="rounded-2xl border border-yellow-600/15 bg-[#111] p-3">
-                      <div className="text-yellow-200 font-semibold">Preuve</div>
-                      <p className="mt-2 text-white/75">{preview.landing.proof}</p>
-                    </div>
-
-                    <div className="rounded-2xl border border-yellow-600/15 bg-[#111] p-3">
-                      <div className="text-yellow-200 font-semibold">FAQ</div>
-                      <div className="mt-2 grid gap-2">
-                        {preview.landing.faq.map((item, index) => (
-                          <div key={`faq-${index}`} className="text-white/75">
-                            <p className="font-semibold text-white/85">{item.question}</p>
-                            <p className="mt-1">{item.answer}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
                   </div>
                 </div>
 
@@ -924,28 +1050,31 @@ export default function LeadEnginePage() {
                   <p className="mt-2 text-white/80">{preview.content.title}</p>
                   <p className="mt-2 text-white/65">{preview.content.intro}</p>
                   <ul className="mt-3 grid gap-2 text-sm text-white/75">
-                    {preview.content.items.map((item, index) => (
+                    {preview.content.items.slice(0, 6).map((item, index) => (
                       <li key={`content-${index}`}>• {item}</li>
                     ))}
                   </ul>
                 </div>
 
-                <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4">
-                  <div className="flex items-center gap-2 text-yellow-200 font-semibold">
-                    <FaRedo />
-                    V6 générée
+                <div className="rounded-2xl border border-yellow-500/25 bg-yellow-500/10 p-4">
+                  <div className="flex items-center gap-2 text-yellow-100 font-semibold">
+                    <FaRocket />
+                    Export SIO Ready
                   </div>
-                  <p className="mt-2 text-white/70 text-sm">
-                    Cette version est prête à être sauvegardée, réutilisée, injectée dans LGD
-                    et préparée pour Systeme.io.
-                  </p>
+                  <div className="mt-3 grid gap-2 text-sm text-white/80">
+                    <p><span className="text-yellow-200">Funnel :</span> {preview.sioReady.funnel_name}</p>
+                    <p><span className="text-yellow-200">Page :</span> {preview.sioReady.page_name}</p>
+                    <p><span className="text-yellow-200">Formulaire :</span> {preview.sioReady.form_name}</p>
+                    <p><span className="text-yellow-200">Tag :</span> {preview.sioReady.tag_name}</p>
+                    <p><span className="text-yellow-200">Campagne :</span> {preview.sioReady.campaign_name}</p>
+                  </div>
                 </div>
 
                 {generated ? (
                   <div className="rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-4 text-center">
-                    <div className="text-yellow-200 font-semibold">Lead Engine V6 généré</div>
+                    <div className="text-yellow-200 font-semibold">Phase 2 générée</div>
                     <p className="mt-2 text-sm text-white/75">
-                      La page de capture et le contenu réel sont prêts.
+                      Le payload Système.io Ready est prêt.
                     </p>
                   </div>
                 ) : null}
@@ -983,7 +1112,7 @@ export default function LeadEnginePage() {
                     Mes bases Lead Engine
                   </h2>
                   <p className="mt-2 text-white/65">
-                    Toutes tes bases V6 sont stockées ici dans une modale dédiée style bibliothèque LGD.
+                    Toutes tes bases Phase 2 sont stockées ici dans une modale dédiée style bibliothèque LGD.
                   </p>
                 </div>
 
@@ -1015,7 +1144,7 @@ export default function LeadEnginePage() {
                         <p className="mt-2 text-sm text-white/70">{item.hook}</p>
                         <p className="mt-2 text-sm text-white/55">CTA : {item.cta}</p>
                         <p className="mt-2 text-sm text-white/55">
-                          Angle : {conversionAngleOptions.find((option) => option.value === item.conversionAngle)?.label || "Acquisition de leads"}
+                          Campagne : {item.sioReady?.campaign_name || "Campaign"}
                         </p>
 
                         <div className="mt-4 grid gap-3">
