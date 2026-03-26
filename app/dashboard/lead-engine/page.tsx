@@ -5,22 +5,21 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
   FaArrowLeft,
-  FaEnvelopeOpenText,
-  FaMagic,
   FaBullseye,
-  FaGift,
-  FaEdit,
-  FaMailBulk,
-  FaFolderOpen,
-  FaRocket,
-  FaHistory,
-  FaRedo,
-  FaTrash,
-  FaTimes,
-  FaCopy,
-  FaExternalLinkAlt,
   FaCheckCircle,
   FaCode,
+  FaCopy,
+  FaEdit,
+  FaEnvelopeOpenText,
+  FaExternalLinkAlt,
+  FaFolderOpen,
+  FaHistory,
+  FaMagic,
+  FaMailBulk,
+  FaRedo,
+  FaRocket,
+  FaTimes,
+  FaTrash
 } from "react-icons/fa";
 
 type LeadMagnetType =
@@ -899,14 +898,19 @@ export default function LeadEnginePage() {
     window.localStorage.setItem(LS_SIO_LEAD_MAGNET_TEMPLATE, raw);
   }
 
-  async function copySioHtml(payload: LeadEnginePayload) {
-    if (typeof window === "undefined") return;
-    const raw = payload.sioReady.html_export;
-    try {
-      await navigator.clipboard.writeText(raw);
-      setCopiedHtml(true)  # will error in python string? no, content string only
-    } catch {}
+ async function copySioHtml(payload: LeadEnginePayload) {
+  if (typeof window === "undefined") return;
+
+  const raw = payload.sioReady.html_export;
+
+  try {
+    await navigator.clipboard.writeText(raw);
+    setCopiedHtml(true);
+    window.setTimeout(() => setCopiedHtml(false), 2500);
+  } catch {
+    // ignore
   }
+}
 
   async function exportSioReady(payload: LeadEnginePayload) {
     await copySioReady(payload);
