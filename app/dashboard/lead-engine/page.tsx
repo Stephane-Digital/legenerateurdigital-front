@@ -9,24 +9,8 @@ import LeadEditorLayout from "@/dashboard/automatisations/reseaux_sociaux/carrou
 import { buildLeadHtmlExport } from "@/dashboard/lead-engine/utils/exportHtml";
 
 const STORAGE_KEY = "lgd_lead_engine_builder_v4";
-const STORAGE_UI_KEY = "lgd_lead_engine_builder_v4_ui";
 const STORAGE_CTA_KEY = "lgd_lead_engine_builder_v4_cta_url";
 const STORAGE_CANVAS_HEIGHT_KEY = "lgd_lead_engine_builder_v4_canvas_height";
-
-type LeadEditorUIState = {
-  formatKey: string;
-  bgMode: "color" | "gradient" | "image";
-  bgColor: string;
-  bgColor1: string;
-  bgColor2: string;
-  bgAngle: number;
-  bgImage: string | null;
-  overlayEnabled: boolean;
-  overlayType: "color" | "gradient";
-  overlayColor1: string;
-  overlayColor2: string;
-  overlayOpacity: number;
-};
 
 function buildLeadPreset(): LayerData[] {
   return [
@@ -300,38 +284,11 @@ function buildLeadPreset(): LayerData[] {
   ];
 }
 
-function buildDefaultUI(): LeadEditorUIState {
-  return {
-    formatKey: "landing",
-    bgMode: "color",
-    bgColor: "#111111",
-    bgColor1: "#111111",
-    bgColor2: "#000000",
-    bgAngle: 135,
-    bgImage: null,
-    overlayEnabled: false,
-    overlayType: "color",
-    overlayColor1: "#000000",
-    overlayColor2: "#000000",
-    overlayOpacity: 0.35,
-  };
-}
-
 function safeParseLayers(raw: string | null): LayerData[] | null {
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? (parsed as LayerData[]) : null;
-  } catch {
-    return null;
-  }
-}
-
-function safeParseUI(raw: string | null): Partial<LeadEditorUIState> | null {
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === "object" ? (parsed as Partial<LeadEditorUIState>) : null;
   } catch {
     return null;
   }
@@ -355,46 +312,10 @@ function computeAutoCanvasHeight(layers: LayerData[]) {
   return Math.max(900, Math.ceil(maxBottom + 140));
 }
 
-function syncCanvasHeightToLayers(layers: LayerData[], targetHeight: number): LayerData[] {
-  const next = JSON.parse(JSON.stringify(layers)) as LayerData[];
-
-  const height = Math.max(900, Math.round(targetHeight));
-  const markerId = "lead-canvas-height-marker";
-  const markerIndex = next.findIndex((layer: any) => String(layer?.id) === markerId);
-
-  const markerLayer: any = {
-    id: markerId,
-    type: "shape",
-    shapeType: "rect",
-    x: 0,
-    y: 0,
-    width: 1,
-    height,
-    opacity: 0,
-    visible: false,
-    selected: false,
-    locked: true,
-    zIndex: -9999,
-    style: {
-      fill: "transparent",
-      stroke: "transparent",
-    },
-  };
-
-  if (markerIndex >= 0) {
-    next[markerIndex] = markerLayer;
-  } else {
-    next.push(markerLayer as LayerData);
-  }
-
-  return next;
-}
-
 export default function LeadEnginePage() {
   const [editorKey, setEditorKey] = useState(0);
   const [hydrated, setHydrated] = useState(false);
   const [initialLayers, setInitialLayers] = useState<LayerData[]>(() => buildLeadPreset());
-  const [initialUI, setInitialUI] = useState<LeadEditorUIState>(() => buildDefaultUI());
   const [layers, setLayers] = useState<LayerData[]>(() => buildLeadPreset());
   const [ctaUrl, setCtaUrl] = useState("");
   const [copied, setCopied] = useState(false);
@@ -404,41 +325,26 @@ export default function LeadEnginePage() {
   useEffect(() => {
     try {
       const savedLayers = safeParseLayers(window.localStorage.getItem(STORAGE_KEY));
-      const savedUI = safeParseUI(window.localStorage.getItem(STORAGE_UI_KEY));
       const savedCta = window.localStorage.getItem(STORAGE_CTA_KEY) || "";
       const savedCanvasHeight = safeParseHeight(
         window.localStorage.getItem(STORAGE_CANVAS_HEIGHT_KEY)
       );
 
-      const baseLayers =
+      const nextLayers =
         savedLayers && savedLayers.length > 0 ? savedLayers : buildLeadPreset();
 
-      const nextHeight = savedCanvasHeight ?? computeAutoCanvasHeight(baseLayers);
-      const nextLayers = syncCanvasHeightToLayers(baseLayers, nextHeight);
-
-      const nextUI: LeadEditorUIState = {
-        ...buildDefaultUI(),
-        ...(savedUI || {}),
-      };
+      const nextHeight = savedCanvasHeight ?? computeAutoCanvasHeight(nextLayers);
 
       setInitialLayers(nextLayers);
       setLayers(nextLayers);
-      setInitialUI(nextUI);
       setCtaUrl(savedCta);
       setCanvasHeight(nextHeight);
-
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextLayers));
-      window.localStorage.setItem(STORAGE_CANVAS_HEIGHT_KEY, String(nextHeight));
     } catch {
       const preset = buildLeadPreset();
-      const nextHeight = computeAutoCanvasHeight(preset);
-      const nextLayers = syncCanvasHeightToLayers(preset, nextHeight);
-
-      setInitialLayers(nextLayers);
-      setLayers(nextLayers);
-      setInitialUI(buildDefaultUI());
+      setInitialLayers(preset);
+      setLayers(preset);
       setCtaUrl("");
-      setCanvasHeight(nextHeight);
+      setCanvasHeight(computeAutoCanvasHeight(preset));
     } finally {
       setHydrated(true);
     }
@@ -446,7 +352,6 @@ export default function LeadEnginePage() {
 
   useEffect(() => {
     if (!hydrated) return;
-
     try {
       window.localStorage.setItem(STORAGE_CTA_KEY, ctaUrl);
     } catch {
@@ -471,85 +376,50 @@ export default function LeadEnginePage() {
     }
   }
 
-  function persistLayers(nextLayers: LayerData[]) {
+  function persistWorkingState(nextLayers: LayerData[], nextHeight: number) {
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextLayers));
+      window.localStorage.setItem(STORAGE_CANVAS_HEIGHT_KEY, String(nextHeight));
     } catch {
       // noop
     }
   }
 
   function handleLayersChange(nextLayers: LayerData[]) {
+    const nextHeight = computeAutoCanvasHeight(nextLayers);
+
     setLayers(nextLayers);
-    setLastSavedAt(new Date().toLocaleTimeString());
-
-    const nextHeight = computeAutoCanvasHeight(
-      nextLayers.filter((layer: any) => String(layer?.id) !== "lead-canvas-height-marker")
-    );
-    const syncedLayers = syncCanvasHeightToLayers(nextLayers, nextHeight);
-
+    setInitialLayers(nextLayers);
     setCanvasHeight(nextHeight);
-    persistLayers(syncedLayers);
-
-    try {
-      window.localStorage.setItem(STORAGE_CANVAS_HEIGHT_KEY, String(nextHeight));
-    } catch {
-      // noop
-    }
-  }
-
-  function handleUIChange(nextUI: LeadEditorUIState) {
-    setInitialUI(nextUI);
     setLastSavedAt(new Date().toLocaleTimeString());
 
-    try {
-      window.localStorage.setItem(STORAGE_UI_KEY, JSON.stringify(nextUI));
-    } catch {
-      // noop
-    }
+    persistWorkingState(nextLayers, nextHeight);
   }
 
   function resetPreset() {
     const preset = buildLeadPreset();
-    const defaultUI = buildDefaultUI();
     const nextHeight = computeAutoCanvasHeight(preset);
-    const syncedLayers = syncCanvasHeightToLayers(preset, nextHeight);
 
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(syncedLayers));
-      window.localStorage.setItem(STORAGE_UI_KEY, JSON.stringify(defaultUI));
-      window.localStorage.setItem(STORAGE_CANVAS_HEIGHT_KEY, String(nextHeight));
-    } catch {
-      // noop
-    }
-
-    setInitialLayers(syncedLayers);
-    setLayers(syncedLayers);
-    setInitialUI(defaultUI);
+    setInitialLayers(preset);
+    setLayers(preset);
     setCanvasHeight(nextHeight);
     setEditorKey((value) => value + 1);
     setLastSavedAt(new Date().toLocaleTimeString());
+
+    persistWorkingState(preset, nextHeight);
   }
 
   function applyAutoHeightCanvas() {
-    const visibleLayers = layers.filter(
-      (layer: any) => String(layer?.id) !== "lead-canvas-height-marker"
-    );
-    const nextHeight = computeAutoCanvasHeight(visibleLayers);
-    const syncedLayers = syncCanvasHeightToLayers(visibleLayers, nextHeight);
+    const nextHeight = computeAutoCanvasHeight(layers);
+
+    setCanvasHeight(nextHeight);
+    setLastSavedAt(new Date().toLocaleTimeString());
 
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(syncedLayers));
       window.localStorage.setItem(STORAGE_CANVAS_HEIGHT_KEY, String(nextHeight));
     } catch {
       // noop
     }
-
-    setInitialLayers(syncedLayers);
-    setLayers(syncedLayers);
-    setCanvasHeight(nextHeight);
-    setEditorKey((value) => value + 1);
-    setLastSavedAt(new Date().toLocaleTimeString());
   }
 
   return (
@@ -663,18 +533,20 @@ export default function LeadEnginePage() {
         </div>
 
         <div className="rounded-[28px] border border-yellow-600/20 bg-[#0b0b0b] p-4 sm:p-5">
-          {hydrated ? (
-            <LeadEditorLayout
-  key={editorKey}
-  initialLayers={initialLayers}
-  initialLayersKey={`lead-engine-${editorKey}`}
-  onChange={handleLayersChange}
-/>
-          ) : (
-            <div className="flex min-h-[680px] items-center justify-center rounded-[20px] border border-yellow-600/15 bg-[#090909] text-sm text-white/45">
-              Chargement du lead builder...
-            </div>
-          )}
+          <div style={{ minHeight: `${canvasHeight}px` }}>
+            {hydrated ? (
+              <LeadEditorLayout
+                key={editorKey}
+                initialLayers={initialLayers}
+                initialLayersKey={`lead-engine-${editorKey}`}
+                onChange={handleLayersChange}
+              />
+            ) : (
+              <div className="flex min-h-[680px] items-center justify-center rounded-[20px] border border-yellow-600/15 bg-[#090909] text-sm text-white/45">
+                Chargement du lead builder...
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="mt-6 rounded-[28px] border border-yellow-600/20 bg-[#0b0b0b] p-5">
