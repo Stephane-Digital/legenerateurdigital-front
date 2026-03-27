@@ -1,14 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  FaArrowLeft,
-  FaCopy,
-  FaExpandArrowsAlt,
-  FaMagic,
-  FaRedo,
-} from "react-icons/fa";
+import { useEffect, useMemo, useState } from "react";
+import { FaArrowLeft, FaCopy, FaMagic, FaRedo } from "react-icons/fa";
 
 import type { LayerData } from "@/dashboard/automatisations/reseaux_sociaux/carrousel/editor/v5/types/layers";
 import LeadEditorLayout from "@/dashboard/automatisations/reseaux_sociaux/carrousel/editor/v5/ui/LeadEditorLayout";
@@ -17,6 +11,7 @@ import { buildLeadHtmlExport } from "@/dashboard/lead-engine/utils/exportHtml";
 const STORAGE_KEY = "lgd_lead_engine_builder_v4";
 const STORAGE_UI_KEY = "lgd_lead_engine_builder_v4_ui";
 const STORAGE_CTA_KEY = "lgd_lead_engine_builder_v4_cta_url";
+const STORAGE_CANVAS_HEIGHT_KEY = "lgd_lead_engine_builder_v4_canvas_height";
 
 type LeadEditorUIState = {
   formatKey: string;
@@ -342,127 +337,54 @@ function safeParseUI(raw: string | null): Partial<LeadEditorUIState> | null {
   }
 }
 
-function getText(layer: any) {
-  return typeof layer?.text === "string" ? layer.text : "";
+function safeParseHeight(raw: string | null): number | null {
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return null;
+  return Math.max(900, Math.min(4000, n));
 }
 
-function estimateTextHeight(text: string, width: number, fontSize: number, lineHeight: number) {
-  const safeWidth = Math.max(220, width);
-  const safeFontSize = Math.max(14, fontSize);
-  const safeLineHeight = Math.max(1.1, lineHeight || 1.2);
-
-  const charsPerLine = Math.max(10, Math.floor(safeWidth / (safeFontSize * 0.58)));
-  const lines = Math.max(1, Math.ceil(String(text || "").length / charsPerLine));
-
-  return Math.ceil(lines * safeFontSize * safeLineHeight + 20);
+function getBottom(layer: any) {
+  const y = Number(layer?.y ?? 0);
+  const h = Number(layer?.height ?? 0);
+  return y + h;
 }
 
-function cloneLayer(layer: LayerData): LayerData {
-  return JSON.parse(JSON.stringify(layer)) as LayerData;
+function computeAutoCanvasHeight(layers: LayerData[]) {
+  const visible = layers.filter((layer: any) => layer?.visible !== false);
+  const maxBottom = visible.reduce((max, layer: any) => Math.max(max, getBottom(layer)), 0);
+  return Math.max(900, Math.ceil(maxBottom + 140));
 }
 
-function autoSizeHero(layers: LayerData[]): LayerData[] {
-  const next = layers.map(cloneLayer);
+function syncCanvasHeightToLayers(layers: LayerData[], targetHeight: number): LayerData[] {
+  const next = JSON.parse(JSON.stringify(layers)) as LayerData[];
 
-  const find = (idPart: string) => next.find((layer: any) => String(layer.id).includes(idPart));
+  const height = Math.max(900, Math.round(targetHeight));
+  const markerId = "lead-canvas-height-marker";
+  const markerIndex = next.findIndex((layer: any) => String(layer?.id) === markerId);
 
-  const title = find("lead-title");
-  const subtitle = find("lead-subtitle");
-  const cta = find("lead-cta");
-  const benefitsTitle = find("lead-benefits-title");
-  const benefit1 = find("lead-benefit-1");
-  const benefit2 = find("lead-benefit-2");
-  const benefit3 = find("lead-benefit-3");
+  const markerLayer: any = {
+    id: markerId,
+    type: "shape",
+    shapeType: "rect",
+    x: 0,
+    y: 0,
+    width: 1,
+    height,
+    opacity: 0,
+    visible: false,
+    selected: false,
+    locked: true,
+    zIndex: -9999,
+    style: {
+      fill: "transparent",
+      stroke: "transparent",
+    },
+  };
 
-  const imageLayer = next.find(
-    (layer: any) => layer?.type === "image" && typeof layer?.src === "string" && !!layer?.src
-  ) as any;
-
-  if (!title || !subtitle || !cta || !benefitsTitle || !benefit1 || !benefit2 || !benefit3) {
-    return next;
-  }
-
-  title.x = 74;
-  title.y = 86;
-  title.width = 560;
-  title.height = estimateTextHeight(
-    getText(title),
-    Number(title.width ?? 560),
-    Number((title as any)?.style?.fontSize ?? 60),
-    Number((title as any)?.style?.lineHeight ?? 1.04)
-  );
-
-  subtitle.x = 78;
-  subtitle.y = Number(title.y) + Number(title.height) + 28;
-  subtitle.width = 530;
-  subtitle.height = estimateTextHeight(
-    getText(subtitle),
-    Number(subtitle.width ?? 530),
-    Number((subtitle as any)?.style?.fontSize ?? 24),
-    Number((subtitle as any)?.style?.lineHeight ?? 1.45)
-  );
-
-  cta.x = 78;
-  cta.y = Number(subtitle.y) + Number(subtitle.height) + 24;
-  cta.width = Math.max(320, Math.min(420, getText(cta).length * 10 + 110));
-  cta.height = Math.max(
-    64,
-    estimateTextHeight(
-      getText(cta),
-      Number(cta.width ?? 330),
-      Number((cta as any)?.style?.fontSize ?? 22),
-      Number((cta as any)?.style?.lineHeight ?? 1.2)
-    ) + 8
-  );
-
-  benefitsTitle.x = 74;
-  benefitsTitle.y = Number(cta.y) + Number(cta.height) + 72;
-
-  benefit1.x = 78;
-  benefit1.y = Number(benefitsTitle.y) + Number(benefitsTitle.height) + 14;
-  benefit1.width = 520;
-  benefit1.height = estimateTextHeight(
-    getText(benefit1),
-    Number(benefit1.width ?? 520),
-    Number((benefit1 as any)?.style?.fontSize ?? 20),
-    Number((benefit1 as any)?.style?.lineHeight ?? 1.32)
-  );
-
-  benefit2.x = 78;
-  benefit2.y = Number(benefit1.y) + Number(benefit1.height) + 10;
-  benefit2.width = 520;
-  benefit2.height = estimateTextHeight(
-    getText(benefit2),
-    Number(benefit2.width ?? 520),
-    Number((benefit2 as any)?.style?.fontSize ?? 20),
-    Number((benefit2 as any)?.style?.lineHeight ?? 1.32)
-  );
-
-  benefit3.x = 78;
-  benefit3.y = Number(benefit2.y) + Number(benefit2.height) + 10;
-  benefit3.width = 520;
-  benefit3.height = estimateTextHeight(
-    getText(benefit3),
-    Number(benefit3.width ?? 520),
-    Number((benefit3 as any)?.style?.fontSize ?? 20),
-    Number((benefit3 as any)?.style?.lineHeight ?? 1.32)
-  );
-
-  if (imageLayer) {
-    imageLayer.x = 622;
-    imageLayer.y = 86;
-
-    const heroTextBottom = Math.max(
-      Number(cta.y) + Number(cta.height),
-      Number(benefit3.y) + Number(benefit3.height)
-    );
-
-    imageLayer.width = 318;
-    imageLayer.height = Math.max(560, heroTextBottom - 56);
-
-    if (!imageLayer.style) imageLayer.style = {};
-    imageLayer.style.objectFit = "contain";
-    imageLayer.style.objectPosition = "center center";
+  if (markerIndex >= 0) {
+    next[markerIndex] = markerLayer;
+  } else {
+    next.push(markerLayer as LayerData);
   }
 
   return next;
@@ -477,16 +399,22 @@ export default function LeadEnginePage() {
   const [ctaUrl, setCtaUrl] = useState("");
   const [copied, setCopied] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState("");
-  const inlineNoticeShownRef = useRef(false);
+  const [canvasHeight, setCanvasHeight] = useState(1650);
 
   useEffect(() => {
     try {
       const savedLayers = safeParseLayers(window.localStorage.getItem(STORAGE_KEY));
       const savedUI = safeParseUI(window.localStorage.getItem(STORAGE_UI_KEY));
       const savedCta = window.localStorage.getItem(STORAGE_CTA_KEY) || "";
+      const savedCanvasHeight = safeParseHeight(
+        window.localStorage.getItem(STORAGE_CANVAS_HEIGHT_KEY)
+      );
 
-      const nextLayers =
-        savedLayers && savedLayers.length > 0 ? autoSizeHero(savedLayers) : buildLeadPreset();
+      const baseLayers =
+        savedLayers && savedLayers.length > 0 ? savedLayers : buildLeadPreset();
+
+      const nextHeight = savedCanvasHeight ?? computeAutoCanvasHeight(baseLayers);
+      const nextLayers = syncCanvasHeightToLayers(baseLayers, nextHeight);
 
       const nextUI: LeadEditorUIState = {
         ...buildDefaultUI(),
@@ -497,16 +425,20 @@ export default function LeadEnginePage() {
       setLayers(nextLayers);
       setInitialUI(nextUI);
       setCtaUrl(savedCta);
+      setCanvasHeight(nextHeight);
 
-      if (!savedLayers) {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextLayers));
-      }
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextLayers));
+      window.localStorage.setItem(STORAGE_CANVAS_HEIGHT_KEY, String(nextHeight));
     } catch {
       const preset = buildLeadPreset();
-      setInitialLayers(preset);
-      setLayers(preset);
+      const nextHeight = computeAutoCanvasHeight(preset);
+      const nextLayers = syncCanvasHeightToLayers(preset, nextHeight);
+
+      setInitialLayers(nextLayers);
+      setLayers(nextLayers);
       setInitialUI(buildDefaultUI());
       setCtaUrl("");
+      setCanvasHeight(nextHeight);
     } finally {
       setHydrated(true);
     }
@@ -539,12 +471,28 @@ export default function LeadEnginePage() {
     }
   }
 
+  function persistLayers(nextLayers: LayerData[]) {
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextLayers));
+    } catch {
+      // noop
+    }
+  }
+
   function handleLayersChange(nextLayers: LayerData[]) {
     setLayers(nextLayers);
     setLastSavedAt(new Date().toLocaleTimeString());
 
+    const nextHeight = computeAutoCanvasHeight(
+      nextLayers.filter((layer: any) => String(layer?.id) !== "lead-canvas-height-marker")
+    );
+    const syncedLayers = syncCanvasHeightToLayers(nextLayers, nextHeight);
+
+    setCanvasHeight(nextHeight);
+    persistLayers(syncedLayers);
+
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextLayers));
+      window.localStorage.setItem(STORAGE_CANVAS_HEIGHT_KEY, String(nextHeight));
     } catch {
       // noop
     }
@@ -564,43 +512,44 @@ export default function LeadEnginePage() {
   function resetPreset() {
     const preset = buildLeadPreset();
     const defaultUI = buildDefaultUI();
+    const nextHeight = computeAutoCanvasHeight(preset);
+    const syncedLayers = syncCanvasHeightToLayers(preset, nextHeight);
 
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(preset));
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(syncedLayers));
       window.localStorage.setItem(STORAGE_UI_KEY, JSON.stringify(defaultUI));
+      window.localStorage.setItem(STORAGE_CANVAS_HEIGHT_KEY, String(nextHeight));
     } catch {
       // noop
     }
 
-    setInitialLayers(preset);
-    setLayers(preset);
+    setInitialLayers(syncedLayers);
+    setLayers(syncedLayers);
     setInitialUI(defaultUI);
+    setCanvasHeight(nextHeight);
     setEditorKey((value) => value + 1);
     setLastSavedAt(new Date().toLocaleTimeString());
   }
 
-  function applyHeroAutoLayout() {
-    const normalized = autoSizeHero(layers);
+  function applyAutoHeightCanvas() {
+    const visibleLayers = layers.filter(
+      (layer: any) => String(layer?.id) !== "lead-canvas-height-marker"
+    );
+    const nextHeight = computeAutoCanvasHeight(visibleLayers);
+    const syncedLayers = syncCanvasHeightToLayers(visibleLayers, nextHeight);
 
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(syncedLayers));
+      window.localStorage.setItem(STORAGE_CANVAS_HEIGHT_KEY, String(nextHeight));
     } catch {
       // noop
     }
 
-    setInitialLayers(normalized);
-    setLayers(normalized);
+    setInitialLayers(syncedLayers);
+    setLayers(syncedLayers);
+    setCanvasHeight(nextHeight);
     setEditorKey((value) => value + 1);
     setLastSavedAt(new Date().toLocaleTimeString());
-  }
-
-  function showInlineBaseMessage() {
-    if (inlineNoticeShownRef.current) return;
-
-    inlineNoticeShownRef.current = true;
-    window.alert(
-      "Base inline activée : pour l’instant, le texte reste édité via le panneau de propriétés de droite. L’étape suivante branchera le double-clic direct sur le canvas sans toucher au V5 verrouillé."
-    );
   }
 
   return (
@@ -619,7 +568,7 @@ export default function LeadEnginePage() {
 
               <div className="inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-4 py-1 text-[12px] text-white/75">
                 <FaMagic className="text-yellow-300" />
-                Lead Builder V4.2.2 — HERO auto + Inline base
+                Lead Builder V4.2.3 — Auto Height Canvas
               </div>
             </div>
 
@@ -627,8 +576,8 @@ export default function LeadEnginePage() {
               Lead Engine branché sur la vraie structure éditeur
             </h1>
             <p className="mt-2 max-w-3xl text-white/65">
-              La zone HERO peut maintenant être auto-réajustée selon le contenu.
-              Le visuel hero est repositionné pour rester entier au maximum.
+              Le bloc central ajuste maintenant automatiquement sa hauteur selon le
+              contenu réel de la landing.
             </p>
           </div>
 
@@ -674,42 +623,40 @@ export default function LeadEnginePage() {
 
             <div className="rounded-2xl border border-yellow-600/20 bg-[#111] p-4">
               <div className="text-sm font-semibold text-yellow-300">
-                HERO automatique
+                Auto height canvas
               </div>
 
               <div className="mt-2 text-sm text-white/60">
-                Ajuste le bloc hero selon le volume de texte. Le visuel est replacé à droite et agrandi pour rester entier.
+                Le bloc central se recalibre selon le point bas du contenu visible.
               </div>
 
               <button
                 type="button"
-                onClick={applyHeroAutoLayout}
+                onClick={applyAutoHeightCanvas}
                 className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#ffb800] px-4 py-3 text-sm font-bold text-black"
               >
-                <FaExpandArrowsAlt />
-                Auto-ajuster la zone HERO
+                Auto-ajuster la hauteur du canvas
               </button>
             </div>
 
             <div className="rounded-2xl border border-yellow-600/20 bg-[#111] p-4">
               <div className="text-sm font-semibold text-yellow-300">
-                Inline base
+                Vérification
               </div>
 
-              <div className="mt-2 text-sm text-white/60">
-                Base préparée : l’étape suivante branchera le double-clic direct sur le texte. Pour l’instant, l’édition se fait via le panneau de droite.
-              </div>
-
-              <button
-                type="button"
-                onClick={showInlineBaseMessage}
-                className="mt-4 rounded-xl border border-yellow-600/25 px-4 py-3 text-sm font-semibold text-white/85"
-              >
-                Voir le statut inline
-              </button>
-
-              <div className="mt-3 text-xs text-white/40">
-                Dernière synchro : {lastSavedAt || "en attente d’une modification"}
+              <div className="mt-3 space-y-2 text-sm text-white/70">
+                <div>
+                  <span className="font-semibold text-white/90">Hauteur actuelle :</span>{" "}
+                  {canvasHeight}px
+                </div>
+                <div>
+                  <span className="font-semibold text-white/90">Dernière synchro :</span>{" "}
+                  {lastSavedAt || "en attente d’une modification"}
+                </div>
+                <div>
+                  <span className="font-semibold text-white/90">Texte du bouton :</span>{" "}
+                  layer <code className="text-yellow-300">lead-cta</code>
+                </div>
               </div>
             </div>
           </div>
