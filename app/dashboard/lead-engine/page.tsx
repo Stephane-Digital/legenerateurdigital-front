@@ -354,9 +354,7 @@ export default function LeadEnginePage() {
     if (!hydrated) return;
     try {
       window.localStorage.setItem(STORAGE_CTA_KEY, ctaUrl);
-    } catch {
-      // noop
-    }
+    } catch {}
   }, [ctaUrl, hydrated]);
 
   const htmlExport = useMemo(() => {
@@ -371,18 +369,14 @@ export default function LeadEnginePage() {
       await navigator.clipboard.writeText(htmlExport);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1800);
-    } catch {
-      // noop
-    }
+    } catch {}
   }
 
   function persistWorkingState(nextLayers: LayerData[], nextHeight: number) {
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextLayers));
       window.localStorage.setItem(STORAGE_CANVAS_HEIGHT_KEY, String(nextHeight));
-    } catch {
-      // noop
-    }
+    } catch {}
   }
 
   function handleLayersChange(nextLayers: LayerData[]) {
@@ -411,15 +405,12 @@ export default function LeadEnginePage() {
 
   function applyAutoHeightCanvas() {
     const nextHeight = computeAutoCanvasHeight(layers);
-
     setCanvasHeight(nextHeight);
     setLastSavedAt(new Date().toLocaleTimeString());
 
     try {
       window.localStorage.setItem(STORAGE_CANVAS_HEIGHT_KEY, String(nextHeight));
-    } catch {
-      // noop
-    }
+    } catch {}
   }
 
   return (
