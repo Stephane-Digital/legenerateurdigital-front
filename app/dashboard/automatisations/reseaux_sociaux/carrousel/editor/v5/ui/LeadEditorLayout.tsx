@@ -15,7 +15,6 @@ const BACKGROUND_LAYER_ID = "background-post";
 type BackgroundMode = "color" | "gradient" | "image";
 type OverlayType = "color" | "gradient";
 
-/* ================= LGD MICRO PATCH — TYPES ================= */
 type EditorUIState = {
   formatKey: CanvasFormatKey;
   bgMode: BackgroundMode;
@@ -36,15 +35,11 @@ interface Props {
   initialLayersKey?: string | number;
   initialUI?: Partial<EditorUIState>;
   onUIChange?: (ui: EditorUIState) => void;
-
-  // (Carrousel mode) persist slide layers
   onChange?: (layers: LayerData[]) => void;
-
-  // MOBILE tools driven by Button A
   mobileToolsOpen?: boolean;
   onCloseMobileTools?: () => void;
+  canvasHeight?: number;
 }
-/* ========================================================== */
 
 const GRADIENT_PRESETS = [
   { label: "LGD Gold", color1: "#ffb800", color2: "#ff8c00", angle: 135 },
@@ -85,7 +80,6 @@ function stripNonSerializable(input: any): any {
   }
   return out;
 }
-
 
 function estimateWrappedTextHeight({
   text,
@@ -240,14 +234,13 @@ export default function EditorLayout({
   onChange,
   mobileToolsOpen = false,
   onCloseMobileTools,
+  canvasHeight,
 }: Props) {
-  /* ================= FORMAT ================= */
   const [formatKey, setFormatKey] = useState<CanvasFormatKey>(
     initialUI?.formatKey ?? "instagram_post"
   );
   const rawFormat = CANVAS_FORMATS[formatKey] as any;
 
-  // Provide both width/height and w/h to be compatible with CanvasStage
   const format = useMemo(() => {
     const w = rawFormat?.w ?? rawFormat?.width ?? 1080;
     const h = rawFormat?.h ?? rawFormat?.height ?? 1080;
@@ -263,15 +256,13 @@ export default function EditorLayout({
   const [layers, setLayers] = useState<LayerData[]>([]);
   const [showProps, setShowProps] = useState(false);
 
-  /* ================= BACKGROUND STATE ================= */
   const [bgMode, setBgMode] = useState<BackgroundMode>(initialUI?.bgMode ?? "color");
   const [bgColor, setBgColor] = useState(initialUI?.bgColor ?? "#111111");
   const [bgColor1, setBgColor1] = useState(initialUI?.bgColor1 ?? "#ffb800");
   const [bgColor2, setBgColor2] = useState(initialUI?.bgColor2 ?? "#00ffcc");
   const [bgAngle, setBgAngle] = useState(initialUI?.bgAngle ?? 135);
-  const [bgImage, setBgImage] = useState<string | null>(initialUI?.bgImage ?? null);
+  const [bgImage, setBgImage] = useState(initialUI?.bgImage ?? null);
 
-  /* ================= OVERLAY STATE ================= */
   const [overlayEnabled, setOverlayEnabled] = useState(initialUI?.overlayEnabled ?? false);
   const [overlayType, setOverlayType] = useState<OverlayType>(initialUI?.overlayType ?? "color");
   const [overlayColor1, setOverlayColor1] = useState(initialUI?.overlayColor1 ?? "#000000");
@@ -281,7 +272,6 @@ export default function EditorLayout({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const bgImageInputRef = useRef<HTMLInputElement | null>(null);
 
-  // guards to prevent loops
   const hydratingRef = useRef(false);
   const lastReceivedSigRef = useRef<string>("");
   const lastInitKeyRef = useRef<string | number | null>(null);
@@ -290,7 +280,6 @@ export default function EditorLayout({
   const onUIChangeRef = useRef<Props["onUIChange"]>(onUIChange);
   const onChangeRef = useRef<Props["onChange"]>(onChange);
 
-  /* ================= CANVA-LIKE GUIDES (HTML overlay) ================= */
   const stageWrapRef = useRef<HTMLDivElement | null>(null);
   const [stagePx, setStagePx] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
 
@@ -310,6 +299,8 @@ export default function EditorLayout({
     return () => ro.disconnect();
   }, []);
 
+  const effectiveCanvasHeight = Math.max(680, Math.round(Number(canvasHeight ?? stagePx.h ?? 0)));
+
   const scale = useMemo(() => {
     if (!stagePx.w || !stagePx.h) return 1;
     const sx = stagePx.w / (format.w || 1);
@@ -328,7 +319,6 @@ export default function EditorLayout({
     onChangeRef.current = onChange;
   }, [onChange]);
 
-  /* ================= UI SYNC ================= */
   useEffect(() => {
     if (!onUIChangeRef.current) return;
 
@@ -367,9 +357,7 @@ export default function EditorLayout({
     overlayOpacity,
   ]);
 
-  /* ================= INIT (from parent slide) ================= */
   const incomingSig = useMemo(() => {
-    // ✅ If parent provides an empty array, it's authoritative (no fallback template).
     if (typeof initialLayers === "undefined") return "";
     const coerced = coerceIncomingLayers(initialLayers ?? []);
     const cleaned = stripNonSerializable(coerced) as LayerData[];
@@ -384,17 +372,14 @@ export default function EditorLayout({
     const keyChanged = nextKey !== lastInitKeyRef.current;
 
     const init = async () => {
-      // If parent provides layers (even empty array), we must hydrate from it.
       const parentProvided = typeof initialLayers !== "undefined";
 
       if (parentProvided) {
-        // Avoid infinite loop when parent echoes the same content for the same key.
         if (!keyChanged && incomingSig && incomingSig === lastEmittedSigRef.current) return;
 
         const coerced = coerceIncomingLayers(initialLayers ?? []);
         let cleaned = stripNonSerializable(coerced) as LayerData[];
 
-        // Safety: always ensure we have a background layer.
         const hasBg = cleaned.some(
           (l: any) => l?.id === BACKGROUND_LAYER_ID || l?.type === "background"
         );
@@ -427,7 +412,6 @@ export default function EditorLayout({
         return;
       }
 
-      // default (only when parent hasn't provided layers yet)
       hydratingRef.current = true;
       if (!cancelled) {
         setLayers([
@@ -467,10 +451,8 @@ export default function EditorLayout({
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [incomingSig, initialLayersKey]);
+  }, [incomingSig, initialLayersKey, bgColor]);
 
-  /* ================= PERSIST TO PARENT (CARROUSEL) ================= */
   useEffect(() => {
     if (!onChangeRef.current) return;
     if (hydratingRef.current) return;
@@ -483,10 +465,8 @@ export default function EditorLayout({
 
     lastEmittedSigRef.current = sig;
     onChangeRef.current(cleaned);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layers]);
 
-  /* ================= SAFE AUTO-LAYOUT (never move background) ================= */
   const applyAutoLayoutSafe = useCallback(
     (input: LayerData[]) => {
       const bg = input.find((l: any) => l.id === BACKGROUND_LAYER_ID) as any;
@@ -497,7 +477,6 @@ export default function EditorLayout({
     [format]
   );
 
-  /* ================= SYNC BACKGROUND (COLOR/GRADIENT) ================= */
   useEffect(() => {
     if (bgMode === "image") return;
 
@@ -558,7 +537,6 @@ export default function EditorLayout({
     });
   }, [bgMode, bgColor, bgColor1, bgColor2, bgAngle]);
 
-  /* ================= BACKGROUND IMAGE : FIXED + RESIZE WITH FORMAT ================= */
   useEffect(() => {
     if (bgMode !== "image") return;
     if (!bgImage) return;
@@ -595,7 +573,6 @@ export default function EditorLayout({
     });
   }, [bgMode, bgImage, format.w, format.h]);
 
-  /* ================= SYNC OVERLAY (WORKS ON ANY BACKGROUND) ================= */
   useEffect(() => {
     setLayers((prev: any[]) => {
       let changed = false;
@@ -607,7 +584,6 @@ export default function EditorLayout({
 
         if (!overlayEnabled) {
           if (!currentOverlay) return l;
-          // @ts-ignore
           delete baseStyle.overlay;
           changed = true;
           return { ...l, style: baseStyle };
@@ -707,7 +683,6 @@ export default function EditorLayout({
     });
   }, []);
 
-  /* ================= ACTIONS ================= */
   const addText = useCallback(() => {
     const id = `text-${Date.now()}`;
     setLayers((prev: any[]) => [
@@ -763,17 +738,12 @@ export default function EditorLayout({
         const imgs = built.map((l, i) => ({ ...l, zIndex: baseZ + i }));
 
         const combined = [...prev.map((l) => ({ ...l, selected: false })), ...imgs];
-        // ✅ never move BG
         return applyAutoLayoutSafe(combined as any);
       });
     },
     [applyAutoLayoutSafe]
   );
 
-  /**
-   * Background Mode A: single image replacement
-   * Must stay fixed and resized with format, never auto-layout moved
-   */
   const onImportBackgroundImage = useCallback(
     async (file: File | null) => {
       if (!file) return;
@@ -798,7 +768,6 @@ export default function EditorLayout({
             zIndex: -1000,
             visible: true,
             selected: false,
-            // keep overlay style if exists
             style: { ...(oldBg?.style ?? {}) },
           } as any,
           ...withoutBg,
@@ -835,7 +804,6 @@ export default function EditorLayout({
     });
   }, [bgColor]);
 
-  /* ================= CANVA-LIKE MEASURES (selected layer distances) ================= */
   const selectedMetrics = useMemo(() => {
     if (!selectedLayer) return null;
     const w = selectedLayer.width ?? 0;
@@ -851,7 +819,6 @@ export default function EditorLayout({
     return { x, y, w, h, left, top, right, bottom };
   }, [selectedLayer, format.w, format.h]);
 
-  /* ================= RENDER ================= */
   return (
     <div className="w-full h-full relative">
       <input
@@ -862,7 +829,6 @@ export default function EditorLayout({
         hidden
         onChange={(e) => {
           onImportImages(e.currentTarget.files);
-          // ✅ allow re-importing the same file
           e.currentTarget.value = "";
         }}
       />
@@ -874,12 +840,10 @@ export default function EditorLayout({
         hidden
         onChange={(e) => {
           onImportBackgroundImage(e.currentTarget.files?.[0] ?? null);
-          // ✅ allow re-importing the same file
           e.currentTarget.value = "";
         }}
       />
 
-      {/* ================= MOBILE/TABLET TOOLS (overlay over canvas) ================= */}
       {mobileToolsOpen && (
         <div className="min-[900px]:hidden absolute left-0 right-0 top-0 z-50 px-6">
           <div className="w-full max-w-[420px] mx-auto mt-4 rounded-2xl border border-yellow-500/20 bg-black/75 backdrop-blur p-4 space-y-4 shadow-2xl max-h-[78vh] overflow-y-auto">
@@ -893,7 +857,6 @@ export default function EditorLayout({
               </button>
             </div>
 
-            {/* ===== ACTIONS ===== */}
             <button
               onClick={() => {
                 addText();
@@ -917,19 +880,17 @@ export default function EditorLayout({
               🧩 Réorganiser la landing
             </button>
 
-            {/* ===== FORMAT ===== */}
             <div className="pt-4 border-t border-yellow-500/15">
               <label className="block text-yellow-400 text-sm mb-2">Format du lead</label>
               <select
-  value={"pinterest_pin" as CanvasFormatKey}
-  onChange={() => setFormatKey("pinterest_pin" as CanvasFormatKey)}
-  className="w-full rounded-xl bg-black/40 border border-yellow-500/20 px-3 py-2 text-yellow-100"
->
-  <option value="pinterest_pin">Landing SIO pleine page</option>
-</select>
+                value={"pinterest_pin" as CanvasFormatKey}
+                onChange={() => setFormatKey("pinterest_pin" as CanvasFormatKey)}
+                className="w-full rounded-xl bg-black/40 border border-yellow-500/20 px-3 py-2 text-yellow-100"
+              >
+                <option value="pinterest_pin">Landing SIO pleine page</option>
+              </select>
             </div>
 
-            {/* ===== BACKGROUND ===== */}
             <div className="pt-4 border-t border-yellow-500/15">
               <label className="block text-yellow-400 text-sm mb-2">Fond de la landing</label>
 
@@ -1031,7 +992,6 @@ export default function EditorLayout({
               )}
             </div>
 
-            {/* ===== OVERLAY ===== */}
             <div className="pt-4 border-t border-yellow-500/15">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-yellow-400 text-sm">Overlay de lisibilité</span>
@@ -1115,7 +1075,6 @@ export default function EditorLayout({
               </div>
             </div>
 
-            {/* ===== LAYERS + PROPERTIES (mobile/tablet) ===== */}
             <div className="pt-4 border-t border-yellow-500/15">
               <div className="text-yellow-300 font-semibold text-sm mb-3">Layers</div>
 
@@ -1146,7 +1105,6 @@ export default function EditorLayout({
 
       <div className="mx-auto w-full max-w-[1800px] px-6 pb-10">
         <div className="grid grid-cols-1 min-[900px]:grid-cols-[280px_1fr_360px] gap-6">
-          {/* LEFT (desktop only) */}
           <aside className="hidden min-[900px]:block rounded-2xl border border-yellow-500/15 bg-black/30 p-4">
             <button
               onClick={addText}
@@ -1169,21 +1127,19 @@ export default function EditorLayout({
               🧩 Réorganiser la landing
             </button>
 
-            {/* FORMAT */}
             <div className="mt-4">
               <label className="block text-yellow-400 text-sm mb-2">Format du lead</label>
               <select
-  value="pinterest_pin"
- onChange={() => setFormatKey("pinterest_pin" as CanvasFormatKey)}
-  className="w-full rounded-xl bg-black/40 border border-yellow-500/20 px-3 py-2 text-yellow-100"
->
-  <option value="pinterest_pin">
-    Landing SIO pleine page
-  </option>
-</select>
+                value="pinterest_pin"
+                onChange={() => setFormatKey("pinterest_pin" as CanvasFormatKey)}
+                className="w-full rounded-xl bg-black/40 border border-yellow-500/20 px-3 py-2 text-yellow-100"
+              >
+                <option value="pinterest_pin">
+                  Landing SIO pleine page
+                </option>
+              </select>
             </div>
 
-            {/* BACKGROUND */}
             <div className="mt-6 border-t border-yellow-500/15 pt-4">
               <label className="block text-yellow-400 text-sm mb-2">Fond de la landing</label>
 
@@ -1285,7 +1241,6 @@ export default function EditorLayout({
               )}
             </div>
 
-            {/* OVERLAY */}
             <div className="mt-6 border-t border-yellow-500/15 pt-4">
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-yellow-400 text-sm">Overlay de lisibilité</label>
@@ -1379,13 +1334,12 @@ export default function EditorLayout({
             </div>
           </aside>
 
-          {/* CENTER */}
           <main className="rounded-2xl border border-white/10 bg-black/25 p-5 relative">
             <div
               ref={stageWrapRef}
-              className="w-full h-[72vh] rounded-2xl border border-yellow-500/20 overflow-hidden relative"
+              className="w-full rounded-2xl border border-yellow-500/20 overflow-hidden relative"
+              style={{ height: `${effectiveCanvasHeight}px` }}
             >
-              {/* CANVA center guides (light) */}
               <div
                 className="pointer-events-none absolute inset-0"
                 style={{ opacity: 0.55 }}
@@ -1400,7 +1354,6 @@ export default function EditorLayout({
                 />
               </div>
 
-              {/* distance labels (selected layer) */}
               {selectedMetrics && (
                 <div className="pointer-events-none absolute inset-0">
                   <div className="absolute left-3 top-3 text-[11px] text-yellow-200/70">
@@ -1420,7 +1373,6 @@ export default function EditorLayout({
             </div>
           </main>
 
-          {/* RIGHT (desktop only) */}
           <aside className="hidden min-[900px]:block rounded-2xl border border-yellow-500/15 bg-black/30 p-4">
             <LayersPanelV5
               layers={layers.filter((l: any) => l.id !== BACKGROUND_LAYER_ID)}
