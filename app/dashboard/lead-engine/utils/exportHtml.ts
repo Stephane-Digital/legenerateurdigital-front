@@ -34,6 +34,11 @@ function escapeHtml(input: string) {
     .replaceAll("'", "&#39;");
 }
 
+function estimateHeroMinHeight(title: string, subtitle: string, cta: string) {
+  const total = (title.length * 1.4) + subtitle.length + (cta.length * 0.7);
+  return Math.max(420, Math.min(760, Math.round(total * 2.2)));
+}
+
 export function buildLeadHtmlExport({
   layers,
   ctaUrl,
@@ -87,6 +92,7 @@ export function buildLeadHtmlExport({
   ].filter((item) => item.q || item.a);
 
   const safeCtaUrl = escapeHtml(normalizeUrl(ctaUrl));
+  const heroMinHeight = estimateHeroMinHeight(title, subtitle, cta);
 
   const benefitsHtml = benefitTexts
     .map(
@@ -114,8 +120,8 @@ export function buildLeadHtmlExport({
 
   return `
 <div style="max-width:1200px;margin:0 auto;background:linear-gradient(180deg,#120d02,#050505);color:#ffffff;font-family:Inter,Arial,sans-serif;border:1px solid rgba(255,184,0,0.18);border-radius:32px;overflow:hidden;">
-  <section style="display:grid;grid-template-columns:1.2fr 0.8fr;gap:0;border-bottom:1px solid rgba(255,184,0,0.14);">
-    <div style="padding:56px;">
+  <section style="display:grid;grid-template-columns:minmax(0,1.05fr) minmax(320px,0.95fr);gap:0;border-bottom:1px solid rgba(255,184,0,0.14);align-items:stretch;">
+    <div style="padding:56px;min-height:${heroMinHeight}px;display:flex;flex-direction:column;justify-content:center;">
       <div style="display:inline-block;padding:8px 14px;border-radius:999px;border:1px solid rgba(255,184,0,0.22);background:#111111;color:#ffb800;font-size:11px;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;">Aimant à prospects</div>
       <h1 style="margin:22px 0 0 0;font-size:58px;line-height:1.02;font-weight:800;color:#ffffff;">${escapeHtml(
         title
@@ -129,13 +135,13 @@ export function buildLeadHtmlExport({
   )}</a>
       </div>
     </div>
-    <div style="padding:28px;border-left:1px solid rgba(255,184,0,0.14);">
-      <div style="min-height:420px;border-radius:26px;overflow:hidden;border:1px solid rgba(255,184,0,0.16);background:#111111;display:flex;align-items:center;justify-content:center;">
+    <div style="padding:28px;border-left:1px solid rgba(255,184,0,0.14);display:flex;">
+      <div style="width:100%;min-height:${heroMinHeight}px;border-radius:26px;overflow:hidden;border:1px solid rgba(255,184,0,0.16);background:#111111;display:flex;align-items:center;justify-content:center;">
         ${
           imageSrc
             ? `<img src="${escapeHtml(
                 imageSrc
-              )}" alt="Visuel du lead" style="width:100%;height:100%;object-fit:cover;" />`
+              )}" alt="Visuel du lead" style="width:100%;height:100%;object-fit:contain;object-position:center center;background:#111111;" />`
             : `<div style="padding:24px;color:#d4d4d8;">Ajoute un visuel hero depuis l’éditeur</div>`
         }
       </div>
