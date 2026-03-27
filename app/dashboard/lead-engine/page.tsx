@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FaArrowLeft, FaCopy, FaMagic, FaRedo } from "react-icons/fa";
 
 import type { LayerData } from "@/dashboard/automatisations/reseaux_sociaux/carrousel/editor/v5/types/layers";
 import LeadEditorLayout from "@/dashboard/automatisations/reseaux_sociaux/carrousel/editor/v5/ui/LeadEditorLayout";
+
+const STORAGE_KEY = "lgd_lead_engine_builder_v4";
+const STORAGE_CTA_KEY = "lgd_lead_engine_builder_v4_cta_url";
 
 function buildLeadPreset(): LayerData[] {
   return [
@@ -283,7 +286,30 @@ function getText(layer: any) {
   return typeof layer?.text === "string" ? layer.text : "";
 }
 
-function buildHtmlExport(layers: LayerData[]) {
+function normalizeUrl(url: string) {
+  const value = String(url || "").trim();
+  if (!value) return "#sio-formulaire";
+  if (
+    value.startsWith("http://") ||
+    value.startsWith("https://") ||
+    value.startsWith("/") ||
+    value.startsWith("#")
+  ) {
+    return value;
+  }
+  return `https://${value}`;
+}
+
+function escapeHtml(input: string) {
+  return String(input || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function buildHtmlExport(layers: LayerData[], ctaUrl: string) {
   const visible = [...layers]
     .filter((layer: any) => layer?.visible !== false)
     .sort((a: any, b: any) => Number(a?.y ?? 0) - Number(b?.y ?? 0));
@@ -297,6 +323,8 @@ function buildHtmlExport(layers: LayerData[]) {
   const cta =
     getText(visible.find((l: any) => String(l.id).includes("lead-cta"))) ||
     "Recevoir le lead";
+
+  const safeCtaUrl = escapeHtml(normalizeUrl(ctaUrl));
 
   const imageLayer = visible.find(
     (l: any) => l?.type === "image" && typeof l?.src === "string"
@@ -332,7 +360,9 @@ function buildHtmlExport(layers: LayerData[]) {
   const benefitsHtml = benefitTexts
     .map(
       (text) =>
-        `<div style="padding:18px;border:1px solid rgba(255,184,0,0.18);border-radius:18px;background:#111111;color:#ffffff;font-size:18px;line-height:1.7;">${text}</div>`
+        `<div style="padding:18px;border:1px solid rgba(255,184,0,0.18);border-radius:18px;background:#111111;color:#ffffff;font-size:18px;line-height:1.7;">${escapeHtml(
+          text
+        )}</div>`
     )
     .join("");
 
@@ -340,8 +370,12 @@ function buildHtmlExport(layers: LayerData[]) {
     .map(
       (item) => `
         <div style="padding:18px;border:1px solid rgba(255,184,0,0.18);border-radius:18px;background:#111111;">
-          <div style="font-size:20px;font-weight:800;color:#ffffff;">${item.q}</div>
-          <div style="margin-top:10px;font-size:17px;line-height:1.7;color:#d4d4d8;">${item.a}</div>
+          <div style="font-size:20px;font-weight:800;color:#ffffff;">${escapeHtml(
+            item.q
+          )}</div>
+          <div style="margin-top:10px;font-size:17px;line-height:1.7;color:#d4d4d8;">${escapeHtml(
+            item.a
+          )}</div>
         </div>
       `
     )
@@ -352,17 +386,25 @@ function buildHtmlExport(layers: LayerData[]) {
   <section style="display:grid;grid-template-columns:1.2fr 0.8fr;gap:0;border-bottom:1px solid rgba(255,184,0,0.14);">
     <div style="padding:56px;">
       <div style="display:inline-block;padding:8px 14px;border-radius:999px;border:1px solid rgba(255,184,0,0.22);background:#111111;color:#ffb800;font-size:11px;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;">Aimant à prospects</div>
-      <h1 style="margin:22px 0 0 0;font-size:58px;line-height:1.02;font-weight:800;color:#ffffff;">${title}</h1>
-      <p style="margin:24px 0 0 0;max-width:720px;font-size:22px;line-height:1.7;color:#d4d4d8;">${subtitle}</p>
+      <h1 style="margin:22px 0 0 0;font-size:58px;line-height:1.02;font-weight:800;color:#ffffff;">${escapeHtml(
+        title
+      )}</h1>
+      <p style="margin:24px 0 0 0;max-width:720px;font-size:22px;line-height:1.7;color:#d4d4d8;">${escapeHtml(
+        subtitle
+      )}</p>
       <div style="margin-top:30px;">
-        <a href="#sio-formulaire" style="display:inline-block;padding:18px 24px;border-radius:18px;background:#ffb800;color:#111111;font-size:18px;font-weight:800;text-decoration:none;">${cta}</a>
+        <a href="${safeCtaUrl}" style="display:inline-block;padding:18px 24px;border-radius:18px;background:#ffb800;color:#111111;font-size:18px;font-weight:800;text-decoration:none;">${escapeHtml(
+    cta
+  )}</a>
       </div>
     </div>
     <div style="padding:28px;border-left:1px solid rgba(255,184,0,0.14);">
       <div style="min-height:420px;border-radius:26px;overflow:hidden;border:1px solid rgba(255,184,0,0.16);background:#111111;display:flex;align-items:center;justify-content:center;">
         ${
           imageSrc
-            ? `<img src="${imageSrc}" alt="Visuel du lead" style="width:100%;height:100%;object-fit:cover;" />`
+            ? `<img src="${escapeHtml(
+                imageSrc
+              )}" alt="Visuel du lead" style="width:100%;height:100%;object-fit:cover;" />`
             : `<div style="padding:24px;color:#d4d4d8;">Ajoute un visuel hero depuis l’éditeur</div>`
         }
       </div>
@@ -376,14 +418,20 @@ function buildHtmlExport(layers: LayerData[]) {
 
   <section style="padding:0 44px 44px 44px;">
     <div style="padding:28px;border:1px solid rgba(255,184,0,0.16);border-radius:28px;background:#0d0d0d;">
-      <div style="font-size:28px;font-weight:800;color:#ffb800;">${proofTitle}</div>
-      <div style="margin-top:16px;font-size:20px;line-height:1.8;color:#d4d4d8;">${proofBody}</div>
+      <div style="font-size:28px;font-weight:800;color:#ffb800;">${escapeHtml(
+        proofTitle
+      )}</div>
+      <div style="margin-top:16px;font-size:20px;line-height:1.8;color:#d4d4d8;">${escapeHtml(
+        proofBody
+      )}</div>
     </div>
   </section>
 
   <section style="padding:0 44px 44px 44px;">
     <div style="padding:28px;border:1px solid rgba(255,184,0,0.16);border-radius:28px;background:#0d0d0d;">
-      <div style="font-size:28px;font-weight:800;color:#ffb800;">${faqTitle}</div>
+      <div style="font-size:28px;font-weight:800;color:#ffb800;">${escapeHtml(
+        faqTitle
+      )}</div>
       <div style="margin-top:20px;display:grid;gap:16px;">${faqHtml}</div>
     </div>
   </section>
@@ -401,14 +449,65 @@ export default function LeadEnginePage() {
   const [editorKey, setEditorKey] = useState(0);
   const [layers, setLayers] = useState<LayerData[]>(() => buildLeadPreset());
   const [copied, setCopied] = useState(false);
+  const [ctaUrl, setCtaUrl] = useState("");
 
-  const htmlExport = useMemo(() => buildHtmlExport(layers), [layers]);
+  useEffect(() => {
+    try {
+      const rawLayers = window.localStorage.getItem(STORAGE_KEY);
+      const rawCta = window.localStorage.getItem(STORAGE_CTA_KEY);
+
+      if (rawLayers) {
+        const parsed = JSON.parse(rawLayers);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setLayers(parsed);
+        }
+      }
+
+      if (rawCta) {
+        setCtaUrl(rawCta);
+      }
+    } catch {
+      // noop
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      if (Array.isArray(layers) && layers.length > 0) {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(layers));
+      }
+    } catch {
+      // noop
+    }
+  }, [layers]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(STORAGE_CTA_KEY, ctaUrl);
+    } catch {
+      // noop
+    }
+  }, [ctaUrl]);
+
+  const htmlExport = useMemo(() => buildHtmlExport(layers, ctaUrl), [layers, ctaUrl]);
 
   async function copyHtml() {
     try {
       await navigator.clipboard.writeText(htmlExport);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // noop
+    }
+  }
+
+  function resetPreset() {
+    const preset = buildLeadPreset();
+    setLayers(preset);
+    setEditorKey((v) => v + 1);
+
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(preset));
     } catch {
       // noop
     }
@@ -432,11 +531,12 @@ export default function LeadEnginePage() {
               Lead Builder V4 — Lead Engine
             </div>
 
-            <h1 className="mt-4 text-3xl sm:text-4xl font-extrabold text-[#ffb800]">
+            <h1 className="mt-4 text-3xl font-extrabold text-[#ffb800] sm:text-4xl">
               Lead Engine branché sur la vraie structure éditeur
             </h1>
             <p className="mt-2 max-w-3xl text-white/65">
-              Colonne gauche adaptée au lead, format Landing SIO pleine page, et export HTML SIO prêt à copier.
+              Colonne gauche adaptée au lead, format Landing SIO pleine page, et
+              export HTML SIO prêt à copier.
             </p>
           </div>
 
@@ -452,7 +552,7 @@ export default function LeadEnginePage() {
 
             <button
               type="button"
-              onClick={() => setEditorKey((v) => v + 1)}
+              onClick={resetPreset}
               className="inline-flex items-center gap-2 rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-5 py-3 font-semibold text-white/85"
             >
               <FaRedo className="text-yellow-300" />
@@ -461,12 +561,25 @@ export default function LeadEnginePage() {
           </div>
         </div>
 
-        <div className="rounded-[28px] border border-yellow-600/20 bg-[#0b0b0b] p-4 sm:p-5">
-          <LeadEditorLayout
-            key={editorKey}
-            initialLayers={buildLeadPreset()}
-            onChange={(nextLayers) => setLayers(nextLayers)}
+        <div className="mb-6 rounded-[28px] border border-yellow-600/20 bg-[#0b0b0b] p-5">
+          <div className="mb-3 text-sm font-semibold text-yellow-300">
+            Lien CTA Systeme.io
+          </div>
+          <div className="text-sm text-white/55">
+            Ce lien sera utilisé dans le bouton principal exporté en HTML.
+          </div>
+
+          <input
+            type="text"
+            value={ctaUrl}
+            onChange={(e) => setCtaUrl(e.target.value)}
+            placeholder="https://ton-lien-systeme.io/ton-formulaire"
+            className="mt-4 w-full rounded-2xl border border-yellow-600/20 bg-[#111] px-4 py-4 text-sm text-white/85 outline-none placeholder:text-white/30"
           />
+        </div>
+
+        <div className="rounded-[28px] border border-yellow-600/20 bg-[#0b0b0b] p-4 sm:p-5">
+          <LeadEditorLayout key={editorKey} />
         </div>
 
         <div className="mt-6 rounded-[28px] border border-yellow-600/20 bg-[#0b0b0b] p-5">
