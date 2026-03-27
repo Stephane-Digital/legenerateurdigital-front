@@ -25,7 +25,7 @@ export default function LeadEngineBlock({ onDiscover }: LeadEngineBlockProps) {
 
         <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-3 py-1 text-[12px] text-white/60">
           <span className="text-yellow-300">⚡</span>
-          Fonction révolutionnaire — Maintenant disponible
+          Fonction révolutionnaire — bientôt disponible
         </div>
       </div>
 
