@@ -306,6 +306,14 @@ export default function EditorLayout({
 
   const effectiveCanvasHeight = Math.max(680, Math.round(Number(canvasHeight ?? stagePx.h ?? 0)));
 
+  const runtimeFormat = useMemo(() => {
+  return {
+    ...format,
+    h: effectiveCanvasHeight,
+    height: effectiveCanvasHeight,
+  };
+}, [format, effectiveCanvasHeight]);
+
   const scale = useMemo(() => {
     if (!stagePx.w || !stagePx.h) return 1;
     const sx = stagePx.w / (format.w || 1);
@@ -1340,7 +1348,7 @@ export default function EditorLayout({
           </aside>
 
           <main className="rounded-2xl border border-white/10 bg-black/25 p-5 relative">
-        <div
+  <div
   ref={stageWrapRef}
   className="w-full rounded-2xl border border-yellow-500/20 overflow-hidden relative"
   style={{ height: `${effectiveCanvasHeight}px` }}
