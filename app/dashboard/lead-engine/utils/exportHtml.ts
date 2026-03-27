@@ -44,7 +44,7 @@ export function buildLeadHtmlExport({
   ctaUrl,
 }: BuildLeadHtmlExportInput) {
   const visible = [...layers]
-    .filter((layer: any) => layer?.visible !== false)
+    .filter((layer: any) => layer?.visible !== false && String(layer?.id) !== "lead-canvas-height-marker")
     .sort((a: any, b: any) => Number(a?.y ?? 0) - Number(b?.y ?? 0));
 
   const title =
