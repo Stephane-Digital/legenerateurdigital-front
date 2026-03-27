@@ -533,20 +533,19 @@ export default function LeadEnginePage() {
         </div>
 
         <div className="rounded-[28px] border border-yellow-600/20 bg-[#0b0b0b] p-4 sm:p-5">
-          <div style={{ minHeight: `${canvasHeight}px` }}>
-            {hydrated ? (
-              <LeadEditorLayout
-                key={editorKey}
-                initialLayers={initialLayers}
-                initialLayersKey={`lead-engine-${editorKey}`}
-                onChange={handleLayersChange}
-              />
-            ) : (
-              <div className="flex min-h-[680px] items-center justify-center rounded-[20px] border border-yellow-600/15 bg-[#090909] text-sm text-white/45">
-                Chargement du lead builder...
-              </div>
-            )}
-          </div>
+          {hydrated ? (
+            <LeadEditorLayout
+              key={editorKey}
+              initialLayers={initialLayers}
+              initialLayersKey={`lead-engine-${editorKey}`}
+              canvasHeight={canvasHeight}
+              onChange={handleLayersChange}
+            />
+          ) : (
+            <div className="flex min-h-[680px] items-center justify-center rounded-[20px] border border-yellow-600/15 bg-[#090909] text-sm text-white/45">
+              Chargement du lead builder...
+            </div>
+          )}
         </div>
 
         <div className="mt-6 rounded-[28px] border border-yellow-600/20 bg-[#0b0b0b] p-5">
