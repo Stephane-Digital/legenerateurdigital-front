@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FaArrowLeft, FaCopy, FaMagic, FaRedo } from "react-icons/fa";
 
 import type { LayerData } from "@/dashboard/automatisations/reseaux_sociaux/carrousel/editor/v5/types/layers";
@@ -9,7 +9,23 @@ import LeadEditorLayout from "@/dashboard/automatisations/reseaux_sociaux/carrou
 import { buildLeadHtmlExport } from "@/dashboard/lead-engine/utils/exportHtml";
 
 const STORAGE_KEY = "lgd_lead_engine_builder_v4";
+const STORAGE_UI_KEY = "lgd_lead_engine_builder_v4_ui";
 const STORAGE_CTA_KEY = "lgd_lead_engine_builder_v4_cta_url";
+
+type LeadEditorUIState = {
+  formatKey: string;
+  bgMode: "color" | "gradient" | "image";
+  bgColor: string;
+  bgColor1: string;
+  bgColor2: string;
+  bgAngle: number;
+  bgImage: string | null;
+  overlayEnabled: boolean;
+  overlayType: "color" | "gradient";
+  overlayColor1: string;
+  overlayColor2: string;
+  overlayOpacity: number;
+};
 
 function buildLeadPreset(): LayerData[] {
   return [
@@ -283,6 +299,23 @@ function buildLeadPreset(): LayerData[] {
   ];
 }
 
+function buildDefaultUI(): LeadEditorUIState {
+  return {
+    formatKey: "landing",
+    bgMode: "color",
+    bgColor: "#111111",
+    bgColor1: "#111111",
+    bgColor2: "#000000",
+    bgAngle: 135,
+    bgImage: null,
+    overlayEnabled: false,
+    overlayType: "color",
+    overlayColor1: "#000000",
+    overlayColor2: "#000000",
+    overlayOpacity: 0.35,
+  };
+}
+
 function safeParseLayers(raw: string | null): LayerData[] | null {
   if (!raw) return null;
 
@@ -295,64 +328,65 @@ function safeParseLayers(raw: string | null): LayerData[] | null {
   }
 }
 
+function safeParseUI(raw: string | null): Partial<LeadEditorUIState> | null {
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+    return parsed as Partial<LeadEditorUIState>;
+  } catch {
+    return null;
+  }
+}
+
 export default function LeadEnginePage() {
   const [editorKey, setEditorKey] = useState(0);
+  const [hydrated, setHydrated] = useState(false);
+  const [initialLayers, setInitialLayers] = useState<LayerData[]>(() => buildLeadPreset());
+  const [initialUI, setInitialUI] = useState<LeadEditorUIState>(() => buildDefaultUI());
   const [layers, setLayers] = useState<LayerData[]>(() => buildLeadPreset());
   const [ctaUrl, setCtaUrl] = useState("");
   const [copied, setCopied] = useState(false);
-  const [lastSavedAt, setLastSavedAt] = useState<string>("");
-
-  const latestSerializedRef = useRef("");
+  const [lastSavedAt, setLastSavedAt] = useState("");
 
   useEffect(() => {
     try {
-      const existingLayers = safeParseLayers(window.localStorage.getItem(STORAGE_KEY));
-      const existingCta = window.localStorage.getItem(STORAGE_CTA_KEY) || "";
+      const savedLayers = safeParseLayers(window.localStorage.getItem(STORAGE_KEY));
+      const savedUI = safeParseUI(window.localStorage.getItem(STORAGE_UI_KEY));
+      const savedCta = window.localStorage.getItem(STORAGE_CTA_KEY) || "";
 
-      if (existingLayers && existingLayers.length > 0) {
-        setLayers(existingLayers);
-        latestSerializedRef.current = JSON.stringify(existingLayers);
-      } else {
-        const preset = buildLeadPreset();
-        const serialized = JSON.stringify(preset);
-        window.localStorage.setItem(STORAGE_KEY, serialized);
-        latestSerializedRef.current = serialized;
-        setLayers(preset);
-      }
+      const nextLayers =
+        savedLayers && savedLayers.length > 0 ? savedLayers : buildLeadPreset();
 
-      setCtaUrl(existingCta);
+      const nextUI: LeadEditorUIState = {
+        ...buildDefaultUI(),
+        ...(savedUI || {}),
+      };
+
+      setInitialLayers(nextLayers);
+      setLayers(nextLayers);
+      setInitialUI(nextUI);
+      setCtaUrl(savedCta);
     } catch {
-      // noop
+      setInitialLayers(buildLeadPreset());
+      setLayers(buildLeadPreset());
+      setInitialUI(buildDefaultUI());
+      setCtaUrl("");
+    } finally {
+      setHydrated(true);
     }
   }, []);
 
   useEffect(() => {
+    if (!hydrated) return;
+
     try {
       window.localStorage.setItem(STORAGE_CTA_KEY, ctaUrl);
     } catch {
       // noop
     }
-  }, [ctaUrl]);
-
-  useEffect(() => {
-    const interval = window.setInterval(() => {
-      try {
-        const raw = window.localStorage.getItem(STORAGE_KEY);
-        if (!raw || raw === latestSerializedRef.current) return;
-
-        const parsed = safeParseLayers(raw);
-        if (!parsed || parsed.length === 0) return;
-
-        latestSerializedRef.current = raw;
-        setLayers(parsed);
-        setLastSavedAt(new Date().toLocaleTimeString());
-      } catch {
-        // noop
-      }
-    }, 700);
-
-    return () => window.clearInterval(interval);
-  }, []);
+  }, [ctaUrl, hydrated]);
 
   const htmlExport = useMemo(() => {
     return buildLeadHtmlExport({
@@ -371,18 +405,42 @@ export default function LeadEnginePage() {
     }
   }
 
-  function resetPreset() {
-    const preset = buildLeadPreset();
-    const serialized = JSON.stringify(preset);
+  function handleLayersChange(nextLayers: LayerData[]) {
+    setLayers(nextLayers);
+    setLastSavedAt(new Date().toLocaleTimeString());
 
     try {
-      window.localStorage.setItem(STORAGE_KEY, serialized);
-      latestSerializedRef.current = serialized;
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextLayers));
+    } catch {
+      // noop
+    }
+  }
+
+  function handleUIChange(nextUI: LeadEditorUIState) {
+    setInitialUI(nextUI);
+    setLastSavedAt(new Date().toLocaleTimeString());
+
+    try {
+      window.localStorage.setItem(STORAGE_UI_KEY, JSON.stringify(nextUI));
+    } catch {
+      // noop
+    }
+  }
+
+  function resetPreset() {
+    const preset = buildLeadPreset();
+    const defaultUI = buildDefaultUI();
+
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(preset));
+      window.localStorage.setItem(STORAGE_UI_KEY, JSON.stringify(defaultUI));
     } catch {
       // noop
     }
 
+    setInitialLayers(preset);
     setLayers(preset);
+    setInitialUI(defaultUI);
     setEditorKey((value) => value + 1);
     setLastSavedAt(new Date().toLocaleTimeString());
   }
@@ -412,7 +470,8 @@ export default function LeadEnginePage() {
             </h1>
             <p className="mt-2 max-w-3xl text-white/65">
               Le champ CTA ci-dessous alimente directement le bouton exporté en HTML
-              Systeme.io. Le texte du bouton reste celui du layer “lead-cta”.
+              Systeme.io. Le fond, l’image et les overlays sont maintenant
+              restaurés au refresh.
             </p>
           </div>
 
@@ -486,7 +545,18 @@ export default function LeadEnginePage() {
         </div>
 
         <div className="rounded-[28px] border border-yellow-600/20 bg-[#0b0b0b] p-4 sm:p-5">
-          <LeadEditorLayout key={editorKey} />
+          {hydrated ? (
+            <LeadEditorLayout
+  key={editorKey}
+  initialLayers={initialLayers}
+  initialLayersKey={`lead-engine-${editorKey}`}
+  onChange={handleLayersChange}
+/>
+          ) : (
+            <div className="flex min-h-[680px] items-center justify-center rounded-[20px] border border-yellow-600/15 bg-[#090909] text-sm text-white/45">
+              Chargement du lead builder...
+            </div>
+          )}
         </div>
 
         <div className="mt-6 rounded-[28px] border border-yellow-600/20 bg-[#0b0b0b] p-5">
