@@ -1,8 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { FaArrowLeft, FaCopy, FaMagic, FaRedo } from "react-icons/fa";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  FaArrowLeft,
+  FaCopy,
+  FaExpandArrowsAlt,
+  FaMagic,
+  FaRedo,
+} from "react-icons/fa";
 
 import type { LayerData } from "@/dashboard/automatisations/reseaux_sociaux/carrousel/editor/v5/types/layers";
 import LeadEditorLayout from "@/dashboard/automatisations/reseaux_sociaux/carrousel/editor/v5/ui/LeadEditorLayout";
@@ -32,54 +38,54 @@ function buildLeadPreset(): LayerData[] {
     {
       id: "lead-title",
       type: "text",
-      x: 82,
-      y: 88,
-      width: 820,
-      height: 240,
+      x: 74,
+      y: 86,
+      width: 560,
+      height: 220,
       visible: true,
       selected: false,
       zIndex: 2,
       text: "Comment générer tes premiers leads qualifiés en 7 jours",
       style: {
-        fontSize: 68,
+        fontSize: 60,
         fontFamily: "Inter",
         color: "#ffffff",
         fontWeight: 800,
-        lineHeight: 1.06,
+        lineHeight: 1.04,
       },
     } as LayerData,
     {
       id: "lead-subtitle",
       type: "text",
-      x: 86,
-      y: 340,
-      width: 770,
-      height: 150,
+      x: 78,
+      y: 320,
+      width: 530,
+      height: 136,
       visible: true,
       selected: false,
       zIndex: 3,
       text: "Une landing premium pensée pour transformer ton audience en vrais prospects sans dépendre uniquement des algorithmes.",
       style: {
-        fontSize: 28,
+        fontSize: 24,
         fontFamily: "Inter",
-        color: "#d4d4d8",
+        color: "#e4e4e7",
         fontWeight: 500,
-        lineHeight: 1.35,
+        lineHeight: 1.45,
       },
     } as LayerData,
     {
       id: "lead-cta",
       type: "text",
-      x: 88,
-      y: 520,
-      width: 420,
-      height: 80,
+      x: 78,
+      y: 474,
+      width: 330,
+      height: 72,
       visible: true,
       selected: false,
       zIndex: 4,
       text: "Recevoir la méthode maintenant",
       style: {
-        fontSize: 26,
+        fontSize: 22,
         fontFamily: "Inter",
         color: "#111111",
         fontWeight: 800,
@@ -90,16 +96,16 @@ function buildLeadPreset(): LayerData[] {
     {
       id: "lead-benefits-title",
       type: "text",
-      x: 84,
-      y: 780,
-      width: 360,
-      height: 70,
+      x: 74,
+      y: 620,
+      width: 240,
+      height: 60,
       visible: true,
       selected: false,
       zIndex: 5,
       text: "Bénéfices",
       style: {
-        fontSize: 38,
+        fontSize: 34,
         fontFamily: "Inter",
         color: "#ffb800",
         fontWeight: 800,
@@ -109,73 +115,73 @@ function buildLeadPreset(): LayerData[] {
     {
       id: "lead-benefit-1",
       type: "text",
-      x: 88,
-      y: 860,
-      width: 860,
-      height: 72,
+      x: 78,
+      y: 688,
+      width: 520,
+      height: 64,
       visible: true,
       selected: false,
       zIndex: 6,
       text: "• Attire des prospects plus qualifiés sans complexifier ton marketing.",
       style: {
-        fontSize: 26,
+        fontSize: 20,
         fontFamily: "Inter",
         color: "#ffffff",
         fontWeight: 600,
-        lineHeight: 1.25,
+        lineHeight: 1.32,
       },
     } as LayerData,
     {
       id: "lead-benefit-2",
       type: "text",
-      x: 88,
-      y: 940,
-      width: 860,
-      height: 72,
+      x: 78,
+      y: 754,
+      width: 520,
+      height: 64,
       visible: true,
       selected: false,
       zIndex: 7,
       text: "• Transforme tes contenus en machine à leads plus cohérente.",
       style: {
-        fontSize: 26,
+        fontSize: 20,
         fontFamily: "Inter",
         color: "#ffffff",
         fontWeight: 600,
-        lineHeight: 1.25,
+        lineHeight: 1.32,
       },
     } as LayerData,
     {
       id: "lead-benefit-3",
       type: "text",
-      x: 88,
-      y: 1020,
-      width: 860,
-      height: 72,
+      x: 78,
+      y: 820,
+      width: 520,
+      height: 64,
       visible: true,
       selected: false,
       zIndex: 8,
       text: "• Crée une structure premium qui donne envie de s’inscrire.",
       style: {
-        fontSize: 26,
+        fontSize: 20,
         fontFamily: "Inter",
         color: "#ffffff",
         fontWeight: 600,
-        lineHeight: 1.25,
+        lineHeight: 1.32,
       },
     } as LayerData,
     {
       id: "lead-proof-title",
       type: "text",
-      x: 84,
-      y: 1180,
-      width: 360,
-      height: 70,
+      x: 74,
+      y: 960,
+      width: 340,
+      height: 60,
       visible: true,
       selected: false,
       zIndex: 9,
       text: "Preuve sociale",
       style: {
-        fontSize: 38,
+        fontSize: 34,
         fontFamily: "Inter",
         color: "#ffb800",
         fontWeight: 800,
@@ -185,35 +191,35 @@ function buildLeadPreset(): LayerData[] {
     {
       id: "lead-proof-body",
       type: "text",
-      x: 88,
-      y: 1260,
+      x: 78,
+      y: 1028,
       width: 860,
-      height: 100,
+      height: 92,
       visible: true,
       selected: false,
       zIndex: 10,
       text: "Cette structure aide à capter plus facilement des leads réellement intéressés par ton offre.",
       style: {
-        fontSize: 26,
+        fontSize: 24,
         fontFamily: "Inter",
         color: "#d4d4d8",
         fontWeight: 500,
-        lineHeight: 1.3,
+        lineHeight: 1.4,
       },
     } as LayerData,
     {
       id: "lead-faq-title",
       type: "text",
-      x: 84,
-      y: 1440,
-      width: 300,
-      height: 70,
+      x: 74,
+      y: 1188,
+      width: 220,
+      height: 60,
       visible: true,
       selected: false,
       zIndex: 11,
       text: "FAQ",
       style: {
-        fontSize: 38,
+        fontSize: 34,
         fontFamily: "Inter",
         color: "#ffb800",
         fontWeight: 800,
@@ -223,16 +229,16 @@ function buildLeadPreset(): LayerData[] {
     {
       id: "lead-faq-q1",
       type: "text",
-      x: 88,
-      y: 1520,
+      x: 78,
+      y: 1256,
       width: 860,
-      height: 72,
+      height: 60,
       visible: true,
       selected: false,
       zIndex: 12,
       text: "Est-ce adapté aux débutants ?",
       style: {
-        fontSize: 28,
+        fontSize: 26,
         fontFamily: "Inter",
         color: "#ffffff",
         fontWeight: 800,
@@ -242,35 +248,35 @@ function buildLeadPreset(): LayerData[] {
     {
       id: "lead-faq-a1",
       type: "text",
-      x: 88,
-      y: 1582,
+      x: 78,
+      y: 1318,
       width: 860,
-      height: 88,
+      height: 82,
       visible: true,
       selected: false,
       zIndex: 13,
       text: "Oui, la structure a été pensée pour rester simple à mettre en œuvre.",
       style: {
-        fontSize: 24,
+        fontSize: 22,
         fontFamily: "Inter",
         color: "#d4d4d8",
         fontWeight: 500,
-        lineHeight: 1.35,
+        lineHeight: 1.38,
       },
     } as LayerData,
     {
       id: "lead-faq-q2",
       type: "text",
-      x: 88,
-      y: 1720,
+      x: 78,
+      y: 1450,
       width: 860,
-      height: 72,
+      height: 60,
       visible: true,
       selected: false,
       zIndex: 14,
       text: "Combien de temps faut-il pour l’utiliser ?",
       style: {
-        fontSize: 28,
+        fontSize: 26,
         fontFamily: "Inter",
         color: "#ffffff",
         fontWeight: 800,
@@ -280,20 +286,20 @@ function buildLeadPreset(): LayerData[] {
     {
       id: "lead-faq-a2",
       type: "text",
-      x: 88,
-      y: 1784,
+      x: 78,
+      y: 1512,
       width: 860,
-      height: 88,
+      height: 82,
       visible: true,
       selected: false,
       zIndex: 15,
       text: "Le format est conçu pour être actionnable rapidement, sans lecture interminable.",
       style: {
-        fontSize: 24,
+        fontSize: 22,
         fontFamily: "Inter",
         color: "#d4d4d8",
         fontWeight: 500,
-        lineHeight: 1.35,
+        lineHeight: 1.38,
       },
     } as LayerData,
   ];
@@ -318,11 +324,9 @@ function buildDefaultUI(): LeadEditorUIState {
 
 function safeParseLayers(raw: string | null): LayerData[] | null {
   if (!raw) return null;
-
   try {
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return null;
-    return parsed as LayerData[];
+    return Array.isArray(parsed) ? (parsed as LayerData[]) : null;
   } catch {
     return null;
   }
@@ -330,14 +334,138 @@ function safeParseLayers(raw: string | null): LayerData[] | null {
 
 function safeParseUI(raw: string | null): Partial<LeadEditorUIState> | null {
   if (!raw) return null;
-
   try {
     const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object") return null;
-    return parsed as Partial<LeadEditorUIState>;
+    return parsed && typeof parsed === "object" ? (parsed as Partial<LeadEditorUIState>) : null;
   } catch {
     return null;
   }
+}
+
+function getText(layer: any) {
+  return typeof layer?.text === "string" ? layer.text : "";
+}
+
+function estimateTextHeight(text: string, width: number, fontSize: number, lineHeight: number) {
+  const safeWidth = Math.max(220, width);
+  const safeFontSize = Math.max(14, fontSize);
+  const safeLineHeight = Math.max(1.1, lineHeight || 1.2);
+
+  const charsPerLine = Math.max(10, Math.floor(safeWidth / (safeFontSize * 0.58)));
+  const lines = Math.max(1, Math.ceil(String(text || "").length / charsPerLine));
+
+  return Math.ceil(lines * safeFontSize * safeLineHeight + 20);
+}
+
+function cloneLayer(layer: LayerData): LayerData {
+  return JSON.parse(JSON.stringify(layer)) as LayerData;
+}
+
+function autoSizeHero(layers: LayerData[]): LayerData[] {
+  const next = layers.map(cloneLayer);
+
+  const find = (idPart: string) => next.find((layer: any) => String(layer.id).includes(idPart));
+
+  const title = find("lead-title");
+  const subtitle = find("lead-subtitle");
+  const cta = find("lead-cta");
+  const benefitsTitle = find("lead-benefits-title");
+  const benefit1 = find("lead-benefit-1");
+  const benefit2 = find("lead-benefit-2");
+  const benefit3 = find("lead-benefit-3");
+
+  const imageLayer = next.find(
+    (layer: any) => layer?.type === "image" && typeof layer?.src === "string" && !!layer?.src
+  ) as any;
+
+  if (!title || !subtitle || !cta || !benefitsTitle || !benefit1 || !benefit2 || !benefit3) {
+    return next;
+  }
+
+  title.x = 74;
+  title.y = 86;
+  title.width = 560;
+  title.height = estimateTextHeight(
+    getText(title),
+    Number(title.width ?? 560),
+    Number((title as any)?.style?.fontSize ?? 60),
+    Number((title as any)?.style?.lineHeight ?? 1.04)
+  );
+
+  subtitle.x = 78;
+  subtitle.y = Number(title.y) + Number(title.height) + 28;
+  subtitle.width = 530;
+  subtitle.height = estimateTextHeight(
+    getText(subtitle),
+    Number(subtitle.width ?? 530),
+    Number((subtitle as any)?.style?.fontSize ?? 24),
+    Number((subtitle as any)?.style?.lineHeight ?? 1.45)
+  );
+
+  cta.x = 78;
+  cta.y = Number(subtitle.y) + Number(subtitle.height) + 24;
+  cta.width = Math.max(320, Math.min(420, getText(cta).length * 10 + 110));
+  cta.height = Math.max(
+    64,
+    estimateTextHeight(
+      getText(cta),
+      Number(cta.width ?? 330),
+      Number((cta as any)?.style?.fontSize ?? 22),
+      Number((cta as any)?.style?.lineHeight ?? 1.2)
+    ) + 8
+  );
+
+  benefitsTitle.x = 74;
+  benefitsTitle.y = Number(cta.y) + Number(cta.height) + 72;
+
+  benefit1.x = 78;
+  benefit1.y = Number(benefitsTitle.y) + Number(benefitsTitle.height) + 14;
+  benefit1.width = 520;
+  benefit1.height = estimateTextHeight(
+    getText(benefit1),
+    Number(benefit1.width ?? 520),
+    Number((benefit1 as any)?.style?.fontSize ?? 20),
+    Number((benefit1 as any)?.style?.lineHeight ?? 1.32)
+  );
+
+  benefit2.x = 78;
+  benefit2.y = Number(benefit1.y) + Number(benefit1.height) + 10;
+  benefit2.width = 520;
+  benefit2.height = estimateTextHeight(
+    getText(benefit2),
+    Number(benefit2.width ?? 520),
+    Number((benefit2 as any)?.style?.fontSize ?? 20),
+    Number((benefit2 as any)?.style?.lineHeight ?? 1.32)
+  );
+
+  benefit3.x = 78;
+  benefit3.y = Number(benefit2.y) + Number(benefit2.height) + 10;
+  benefit3.width = 520;
+  benefit3.height = estimateTextHeight(
+    getText(benefit3),
+    Number(benefit3.width ?? 520),
+    Number((benefit3 as any)?.style?.fontSize ?? 20),
+    Number((benefit3 as any)?.style?.lineHeight ?? 1.32)
+  );
+
+  if (imageLayer) {
+    imageLayer.x = 622;
+    imageLayer.y = 86;
+
+    const heroTextBottom = Math.max(
+      Number(cta.y) + Number(cta.height),
+      Number(benefit3.y) + Number(benefit3.height)
+    );
+
+    imageLayer.width = 318;
+    imageLayer.height = Math.max(560, heroTextBottom - 56);
+
+    if (!imageLayer.style) imageLayer.style = {};
+    imageLayer.style.objectFit = "contain";
+    imageLayer.style.objectPosition = "center center";
+  }
+
+  return next;
 }
 
 export default function LeadEnginePage() {
@@ -349,6 +477,7 @@ export default function LeadEnginePage() {
   const [ctaUrl, setCtaUrl] = useState("");
   const [copied, setCopied] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState("");
+  const inlineNoticeShownRef = useRef(false);
 
   useEffect(() => {
     try {
@@ -357,7 +486,7 @@ export default function LeadEnginePage() {
       const savedCta = window.localStorage.getItem(STORAGE_CTA_KEY) || "";
 
       const nextLayers =
-        savedLayers && savedLayers.length > 0 ? savedLayers : buildLeadPreset();
+        savedLayers && savedLayers.length > 0 ? autoSizeHero(savedLayers) : buildLeadPreset();
 
       const nextUI: LeadEditorUIState = {
         ...buildDefaultUI(),
@@ -368,9 +497,14 @@ export default function LeadEnginePage() {
       setLayers(nextLayers);
       setInitialUI(nextUI);
       setCtaUrl(savedCta);
+
+      if (!savedLayers) {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextLayers));
+      }
     } catch {
-      setInitialLayers(buildLeadPreset());
-      setLayers(buildLeadPreset());
+      const preset = buildLeadPreset();
+      setInitialLayers(preset);
+      setLayers(preset);
       setInitialUI(buildDefaultUI());
       setCtaUrl("");
     } finally {
@@ -445,6 +579,30 @@ export default function LeadEnginePage() {
     setLastSavedAt(new Date().toLocaleTimeString());
   }
 
+  function applyHeroAutoLayout() {
+    const normalized = autoSizeHero(layers);
+
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+    } catch {
+      // noop
+    }
+
+    setInitialLayers(normalized);
+    setLayers(normalized);
+    setEditorKey((value) => value + 1);
+    setLastSavedAt(new Date().toLocaleTimeString());
+  }
+
+  function showInlineBaseMessage() {
+    if (inlineNoticeShownRef.current) return;
+
+    inlineNoticeShownRef.current = true;
+    window.alert(
+      "Base inline activée : pour l’instant, le texte reste édité via le panneau de propriétés de droite. L’étape suivante branchera le double-clic direct sur le canvas sans toucher au V5 verrouillé."
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
       <div className="mx-auto max-w-[1800px] px-6 pb-10 pt-[110px]">
@@ -461,7 +619,7 @@ export default function LeadEnginePage() {
 
               <div className="inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-4 py-1 text-[12px] text-white/75">
                 <FaMagic className="text-yellow-300" />
-                Lead Builder V4.2.1 — Champ ⇒ Bouton ⇒ SIO
+                Lead Builder V4.2.2 — HERO auto + Inline base
               </div>
             </div>
 
@@ -469,9 +627,8 @@ export default function LeadEnginePage() {
               Lead Engine branché sur la vraie structure éditeur
             </h1>
             <p className="mt-2 max-w-3xl text-white/65">
-              Le champ CTA ci-dessous alimente directement le bouton exporté en HTML
-              Systeme.io. Le fond, l’image et les overlays sont maintenant
-              restaurés au refresh.
+              La zone HERO peut maintenant être auto-réajustée selon le contenu.
+              Le visuel hero est repositionné pour rester entier au maximum.
             </p>
           </div>
 
@@ -497,14 +654,13 @@ export default function LeadEnginePage() {
         </div>
 
         <div className="mb-6 rounded-[28px] border border-yellow-600/20 bg-[#0b0b0b] p-5">
-          <div className="grid gap-5 xl:grid-cols-[1.25fr_0.75fr]">
+          <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr_0.85fr]">
             <div>
               <div className="mb-2 text-sm font-semibold text-yellow-300">
                 Champ CTA Systeme.io
               </div>
               <div className="text-sm text-white/55">
-                Ce champ pilote le lien du bouton exporté. Le flux est maintenant :
-                champ ⇒ bouton HTML ⇒ page ou formulaire Systeme.io.
+                Ce champ pilote le lien du bouton exporté. Flux : champ ⇒ bouton HTML ⇒ page ou formulaire Systeme.io.
               </div>
 
               <input
@@ -514,31 +670,46 @@ export default function LeadEnginePage() {
                 placeholder="https://ton-lien-systeme.io/ton-formulaire"
                 className="mt-4 w-full rounded-2xl border border-yellow-600/20 bg-[#111] px-4 py-4 text-sm text-white/85 outline-none placeholder:text-white/30"
               />
-
-              <div className="mt-3 text-xs text-white/40">
-                Astuce : si tu saisis seulement ton domaine, le HTML exporté le normalise
-                automatiquement.
-              </div>
             </div>
 
             <div className="rounded-2xl border border-yellow-600/20 bg-[#111] p-4">
               <div className="text-sm font-semibold text-yellow-300">
-                Vérification rapide
+                HERO automatique
               </div>
 
-              <div className="mt-3 space-y-2 text-sm text-white/70">
-                <div>
-                  <span className="font-semibold text-white/90">Texte du bouton :</span>{" "}
-                  extrait automatiquement du layer <code className="text-yellow-300">lead-cta</code>
-                </div>
-                <div>
-                  <span className="font-semibold text-white/90">Lien du bouton :</span>{" "}
-                  champ Systeme.io ci-contre
-                </div>
-                <div>
-                  <span className="font-semibold text-white/90">Dernière synchro :</span>{" "}
-                  {lastSavedAt || "en attente d’une modification"}
-                </div>
+              <div className="mt-2 text-sm text-white/60">
+                Ajuste le bloc hero selon le volume de texte. Le visuel est replacé à droite et agrandi pour rester entier.
+              </div>
+
+              <button
+                type="button"
+                onClick={applyHeroAutoLayout}
+                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#ffb800] px-4 py-3 text-sm font-bold text-black"
+              >
+                <FaExpandArrowsAlt />
+                Auto-ajuster la zone HERO
+              </button>
+            </div>
+
+            <div className="rounded-2xl border border-yellow-600/20 bg-[#111] p-4">
+              <div className="text-sm font-semibold text-yellow-300">
+                Inline base
+              </div>
+
+              <div className="mt-2 text-sm text-white/60">
+                Base préparée : l’étape suivante branchera le double-clic direct sur le texte. Pour l’instant, l’édition se fait via le panneau de droite.
+              </div>
+
+              <button
+                type="button"
+                onClick={showInlineBaseMessage}
+                className="mt-4 rounded-xl border border-yellow-600/25 px-4 py-3 text-sm font-semibold text-white/85"
+              >
+                Voir le statut inline
+              </button>
+
+              <div className="mt-3 text-xs text-white/40">
+                Dernière synchro : {lastSavedAt || "en attente d’une modification"}
               </div>
             </div>
           </div>
