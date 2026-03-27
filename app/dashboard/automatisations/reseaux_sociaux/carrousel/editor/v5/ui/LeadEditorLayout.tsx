@@ -36,8 +36,11 @@ interface Props {
   initialUI?: Partial<EditorUIState>;
   onUIChange?: (ui: EditorUIState) => void;
   onChange?: (layers: LayerData[]) => void;
+
   mobileToolsOpen?: boolean;
   onCloseMobileTools?: () => void;
+
+  // ✅ AJOUT
   canvasHeight?: number;
 }
 
@@ -234,6 +237,8 @@ export default function EditorLayout({
   onChange,
   mobileToolsOpen = false,
   onCloseMobileTools,
+
+  // ✅ AJOUT
   canvasHeight,
 }: Props) {
   const [formatKey, setFormatKey] = useState<CanvasFormatKey>(
@@ -1336,10 +1341,10 @@ export default function EditorLayout({
 
           <main className="rounded-2xl border border-white/10 bg-black/25 p-5 relative">
             <div
-              ref={stageWrapRef}
-              className="w-full rounded-2xl border border-yellow-500/20 overflow-hidden relative"
-              style={{ height: `${effectiveCanvasHeight}px` }}
-            >
+  ref={stageWrapRef}
+  className="w-full rounded-2xl border border-yellow-500/20 overflow-hidden relative"
+  style={{ height: `${canvasHeight || 1200}px` }}
+>
               <div
                 className="pointer-events-none absolute inset-0"
                 style={{ opacity: 0.55 }}
