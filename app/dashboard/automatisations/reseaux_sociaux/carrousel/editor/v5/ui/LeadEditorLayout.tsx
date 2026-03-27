@@ -1340,10 +1340,10 @@ export default function EditorLayout({
           </aside>
 
           <main className="rounded-2xl border border-white/10 bg-black/25 p-5 relative">
-            <div
+        <div
   ref={stageWrapRef}
   className="w-full rounded-2xl border border-yellow-500/20 overflow-hidden relative"
-  style={{ height: `${canvasHeight || 1200}px` }}
+  style={{ height: `${effectiveCanvasHeight}px` }}
 >
               <div
                 className="pointer-events-none absolute inset-0"
