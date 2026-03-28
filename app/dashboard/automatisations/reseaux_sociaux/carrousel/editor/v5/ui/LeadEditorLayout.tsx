@@ -40,7 +40,6 @@ interface Props {
   mobileToolsOpen?: boolean;
   onCloseMobileTools?: () => void;
 
-  // ✅ AJOUT
   canvasHeight?: number;
 }
 
@@ -143,7 +142,9 @@ function estimateWrappedTextHeight({
   };
 
   const measuredLines = measureWithCanvas();
-  const approxLines = measuredLines ?? Math.max(1, Math.ceil((safeText.length * safeFontSize * 0.58) / innerWidth));
+  const approxLines =
+    measuredLines ??
+    Math.max(1, Math.ceil((safeText.length * safeFontSize * 0.58) / innerWidth));
   const verticalPadding = 24;
   return Math.max(56, Math.ceil(approxLines * safeFontSize * safeLineHeight + verticalPadding));
 }
@@ -199,7 +200,7 @@ function stableSerialize(value: any): string {
 
     const out: Record<string, any> = {};
     for (const key of Object.keys(input).sort()) {
-      const normalized = normalize(input[key]);
+      const normalized = normalize((input as any)[key]);
       if (normalized !== undefined) out[key] = normalized;
     }
     return out;
@@ -237,8 +238,6 @@ export default function EditorLayout({
   onChange,
   mobileToolsOpen = false,
   onCloseMobileTools,
-
-  // ✅ AJOUT
   canvasHeight,
 }: Props) {
   const [formatKey, setFormatKey] = useState<CanvasFormatKey>(
@@ -304,25 +303,25 @@ export default function EditorLayout({
     return () => ro.disconnect();
   }, []);
 
-  const effectiveCanvasHeight = Math.max(680, Math.round(Number(canvasHeight ?? stagePx.h ?? 0)));
+  const effectiveCanvasHeight = Math.max(680, Math.round(Number(canvasHeight ?? stagePx.h ?? 1200)));
 
   const runtimeFormat = useMemo(() => {
-  return {
-    ...format,
-    h: effectiveCanvasHeight,
-    height: effectiveCanvasHeight,
-  };
-}, [format, effectiveCanvasHeight]);
+    return {
+      ...format,
+      h: effectiveCanvasHeight,
+      height: effectiveCanvasHeight,
+    };
+  }, [format, effectiveCanvasHeight]);
 
   const scale = useMemo(() => {
     if (!stagePx.w || !stagePx.h) return 1;
-    const sx = stagePx.w / (format.w || 1);
-    const sy = stagePx.h / (format.h || 1);
+    const sx = stagePx.w / (runtimeFormat.w || 1);
+    const sy = stagePx.h / (runtimeFormat.h || 1);
     return Math.min(sx, sy);
-  }, [stagePx.w, stagePx.h, format.w, format.h]);
+  }, [stagePx.w, stagePx.h, runtimeFormat.w, runtimeFormat.h]);
 
-  const centerX = useMemo(() => (format.w * scale) / 2, [format.w, scale]);
-  const centerY = useMemo(() => (format.h * scale) / 2, [format.h, scale]);
+  const centerX = useMemo(() => (runtimeFormat.w * scale) / 2, [runtimeFormat.w, scale]);
+  const centerY = useMemo(() => (runtimeFormat.h * scale) / 2, [runtimeFormat.h, scale]);
 
   useEffect(() => {
     onUIChangeRef.current = onUIChange;
@@ -462,7 +461,7 @@ export default function EditorLayout({
 
     init();
     return () => {
-      cancelled = true;
+      cancelled = true
     };
   }, [incomingSig, initialLayersKey, bgColor]);
 
@@ -484,10 +483,10 @@ export default function EditorLayout({
     (input: LayerData[]) => {
       const bg = input.find((l: any) => l.id === BACKGROUND_LAYER_ID) as any;
       const rest = input.filter((l: any) => l.id !== BACKGROUND_LAYER_ID);
-      const laid = applyAutoLayoutImages(rest as any, format as any) as any[];
+      const laid = applyAutoLayoutImages(rest as any, runtimeFormat as any) as any[];
       return bg ? ([bg, ...laid] as any) : (laid as any);
     },
-    [format]
+    [runtimeFormat]
   );
 
   useEffect(() => {
@@ -562,8 +561,8 @@ export default function EditorLayout({
         const alreadySynced =
           l.x === 0 &&
           l.y === 0 &&
-          l.width === format.w &&
-          l.height === format.h &&
+          l.width === runtimeFormat.w &&
+          l.height === runtimeFormat.h &&
           l.zIndex === -1000 &&
           l.visible === true &&
           l.selected === false;
@@ -574,8 +573,8 @@ export default function EditorLayout({
           ...l,
           x: 0,
           y: 0,
-          width: format.w,
-          height: format.h,
+          width: runtimeFormat.w,
+          height: runtimeFormat.h,
           zIndex: -1000,
           visible: true,
           selected: false,
@@ -584,7 +583,7 @@ export default function EditorLayout({
 
       return changed ? next : prev;
     });
-  }, [bgMode, bgImage, format.w, format.h]);
+  }, [bgMode, bgImage, runtimeFormat.w, runtimeFormat.h]);
 
   useEffect(() => {
     setLayers((prev: any[]) => {
@@ -704,8 +703,8 @@ export default function EditorLayout({
         id,
         type: "text",
         text: "Nouveau texte",
-        x: Math.round(format.w * 0.12),
-        y: Math.round(format.h * 0.08),
+        x: Math.round(runtimeFormat.w * 0.12),
+        y: Math.round(runtimeFormat.h * 0.08),
         zIndex: prev.length + 10,
         visible: true,
         selected: true,
@@ -717,7 +716,7 @@ export default function EditorLayout({
       } as any,
     ]);
     setShowProps(true);
-  }, [format.w, format.h]);
+  }, [runtimeFormat.w, runtimeFormat.h]);
 
   const reapplyAutoLayout = useCallback(() => {
     setLayers((prev) => applyAutoLayoutSafe(prev));
@@ -776,8 +775,8 @@ export default function EditorLayout({
             src: base64,
             x: 0,
             y: 0,
-            width: format.w,
-            height: format.h,
+            width: runtimeFormat.w,
+            height: runtimeFormat.h,
             zIndex: -1000,
             visible: true,
             selected: false,
@@ -787,7 +786,7 @@ export default function EditorLayout({
         ];
       });
     },
-    [format.w, format.h]
+    [runtimeFormat.w, runtimeFormat.h]
   );
 
   const removeBackgroundImage = useCallback(() => {
@@ -826,11 +825,11 @@ export default function EditorLayout({
 
     const left = Math.max(0, x);
     const top = Math.max(0, y);
-    const right = Math.max(0, format.w - (x + w));
-    const bottom = Math.max(0, format.h - (y + h));
+    const right = Math.max(0, runtimeFormat.w - (x + w));
+    const bottom = Math.max(0, runtimeFormat.h - (y + h));
 
     return { x, y, w, h, left, top, right, bottom };
-  }, [selectedLayer, format.w, format.h]);
+  }, [selectedLayer, runtimeFormat.w, runtimeFormat.h]);
 
   return (
     <div className="w-full h-full relative">
@@ -892,226 +891,6 @@ export default function EditorLayout({
             >
               🧩 Réorganiser la landing
             </button>
-
-            <div className="pt-4 border-t border-yellow-500/15">
-              <label className="block text-yellow-400 text-sm mb-2">Format du lead</label>
-              <select
-                value={"pinterest_pin" as CanvasFormatKey}
-                onChange={() => setFormatKey("pinterest_pin" as CanvasFormatKey)}
-                className="w-full rounded-xl bg-black/40 border border-yellow-500/20 px-3 py-2 text-yellow-100"
-              >
-                <option value="pinterest_pin">Landing SIO pleine page</option>
-              </select>
-            </div>
-
-            <div className="pt-4 border-t border-yellow-500/15">
-              <label className="block text-yellow-400 text-sm mb-2">Fond de la landing</label>
-
-              <div className="flex gap-2 mb-4">
-                {(["color", "gradient", "image"] as BackgroundMode[]).map((mode) => (
-                  <button
-                    key={mode}
-                    onClick={() => setBgMode(mode)}
-                    className={`flex-1 rounded-lg py-2 text-sm border ${
-                      bgMode === mode
-                        ? "bg-[#ffb800] text-black"
-                        : "border-yellow-500/20 text-yellow-200"
-                    }`}
-                  >
-                    {mode === "color" ? "Couleur" : mode === "gradient" ? "Gradient" : "Image"}
-                  </button>
-                ))}
-              </div>
-
-              {bgMode === "color" && (
-                <input
-                  type="color"
-                  value={bgColor}
-                  onChange={(e) => setBgColor(e.target.value)}
-                  className="w-full h-10 rounded-lg bg-black/40 border border-yellow-500/20"
-                />
-              )}
-
-              {bgMode === "gradient" && (
-                <>
-                  <div
-                    className="w-full h-10 rounded-lg border border-yellow-500/20 mb-3"
-                    style={{
-                      background: `linear-gradient(${bgAngle}deg, ${bgColor1}, ${bgColor2})`,
-                    }}
-                  />
-                  <div className="flex gap-2 mb-3">
-                    <input
-                      type="color"
-                      value={bgColor1}
-                      onChange={(e) => setBgColor1(e.target.value)}
-                      className="w-16 h-10 rounded-lg border border-yellow-500/20 bg-black/30"
-                    />
-                    <input
-                      type="color"
-                      value={bgColor2}
-                      onChange={(e) => setBgColor2(e.target.value)}
-                      className="w-16 h-10 rounded-lg border border-yellow-500/20 bg-black/30"
-                    />
-                  </div>
-
-                  <label className="block text-yellow-400 text-xs mb-2">Angle ({bgAngle}°)</label>
-                  <input
-                    type="range"
-                    min={0}
-                    max={360}
-                    value={bgAngle}
-                    onChange={(e) => setBgAngle(Number(e.target.value))}
-                    className="w-full"
-                  />
-
-                  <div className="grid grid-cols-2 gap-2 mt-4">
-                    {GRADIENT_PRESETS.map((p) => (
-                      <button
-                        key={p.label}
-                        onClick={() => {
-                          setBgMode("gradient");
-                          setBgColor1(p.color1);
-                          setBgColor2(p.color2);
-                          setBgAngle(p.angle);
-                        }}
-                        className="rounded-lg border border-yellow-500/20 bg-black/40 px-3 py-2 text-yellow-200 text-sm hover:bg-yellow-500/10"
-                      >
-                        {p.label}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-
-              {bgMode === "image" && (
-                <div className="space-y-3">
-                  <button
-                    onClick={() => bgImageInputRef.current?.click()}
-                    className="w-full rounded-lg border border-yellow-500/25 bg-yellow-500/10 text-yellow-200 py-2"
-                  >
-                    📸 Importer / remplacer
-                  </button>
-
-                  {bgImage && (
-                    <button
-                      onClick={removeBackgroundImage}
-                      className="w-full rounded-lg border border-red-500/30 bg-red-500/10 text-red-300 py-2"
-                    >
-                      ❌ Supprimer l’image
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="pt-4 border-t border-yellow-500/15">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-yellow-400 text-sm">Overlay de lisibilité</span>
-                <button
-                  onClick={() => setOverlayEnabled((v) => !v)}
-                  className={`rounded-lg px-3 py-1 text-xs border ${
-                    overlayEnabled
-                      ? "bg-[#ffb800] text-black"
-                      : "border-yellow-500/20 text-yellow-200"
-                  }`}
-                >
-                  {overlayEnabled ? "Activé" : "Désactivé"}
-                </button>
-              </div>
-
-              <div className={`space-y-3 ${overlayEnabled ? "" : "opacity-50 pointer-events-none"}`}>
-                <div className="flex gap-2">
-                  {(["color", "gradient"] as OverlayType[]).map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => setOverlayType(t)}
-                      className={`flex-1 rounded-lg py-2 text-sm border ${
-                        overlayType === t
-                          ? "bg-[#ffb800] text-black"
-                          : "border-yellow-500/20 text-yellow-200"
-                      }`}
-                    >
-                      {t === "color" ? "Couleur" : "Gradient"}
-                    </button>
-                  ))}
-                </div>
-
-                {overlayType === "color" && (
-                  <input
-                    type="color"
-                    value={overlayColor1}
-                    onChange={(e) => setOverlayColor1(e.target.value)}
-                    className="w-full h-10 rounded-lg bg-black/40 border border-yellow-500/20"
-                  />
-                )}
-
-                {overlayType === "gradient" && (
-                  <>
-                    <div
-                      className="w-full h-10 rounded-lg border border-yellow-500/20"
-                      style={{
-                        background: `linear-gradient(135deg, ${overlayColor1}, ${overlayColor2})`,
-                      }}
-                    />
-                    <div className="flex gap-2">
-                      <input
-                        type="color"
-                        value={overlayColor1}
-                        onChange={(e) => setOverlayColor1(e.target.value)}
-                        className="w-16 h-10 rounded-lg border border-yellow-500/20 bg-black/30"
-                      />
-                      <input
-                        type="color"
-                        value={overlayColor2}
-                        onChange={(e) => setOverlayColor2(e.target.value)}
-                        className="w-16 h-10 rounded-lg border border-yellow-500/20 bg-black/30"
-                      />
-                    </div>
-                  </>
-                )}
-
-                <div>
-                  <label className="block text-yellow-400 text-xs mb-2">
-                    Opacité ({Math.round(overlayOpacity * 100)}%)
-                  </label>
-                  <input
-                    type="range"
-                    min={0}
-                    max={1}
-                    step={0.01}
-                    value={overlayOpacity}
-                    onChange={(e) => setOverlayOpacity(Number(e.target.value))}
-                    className="w-full"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-yellow-500/15">
-              <div className="text-yellow-300 font-semibold text-sm mb-3">Layers</div>
-
-              <div className="rounded-2xl border border-yellow-500/15 bg-black/30 p-3">
-                <LayersPanelV5
-                  layers={layers.filter((l: any) => l.id !== BACKGROUND_LAYER_ID)}
-                  selectedLayerId={selectedLayer?.id ?? null}
-                  onSelectLayer={selectLayer}
-                  onToggleVisible={toggleVisible}
-                  onReorder={reorder}
-                  onDuplicate={() => {}}
-                  onDelete={deleteLayer}
-                />
-
-                {selectedLayer && (
-                  <PropertiesDrawer
-                    open
-                    layer={selectedLayer}
-                    onClose={() => setShowProps(false)}
-                    onChange={(patch) => updateLayer(selectedLayer.id, patch)}
-                  />
-                )}
-              </div>
-            </div>
           </div>
         </div>
       )}
@@ -1348,11 +1127,11 @@ export default function EditorLayout({
           </aside>
 
           <main className="rounded-2xl border border-white/10 bg-black/25 p-5 relative">
-  <div
-  ref={stageWrapRef}
-  className="w-full rounded-2xl border border-yellow-500/20 overflow-hidden relative"
-  style={{ height: `${effectiveCanvasHeight}px` }}
->
+            <div
+              ref={stageWrapRef}
+              className="w-full rounded-2xl border border-yellow-500/20 overflow-hidden relative"
+              style={{ height: `${effectiveCanvasHeight}px` }}
+            >
               <div
                 className="pointer-events-none absolute inset-0"
                 style={{ opacity: 0.55 }}
@@ -1377,11 +1156,11 @@ export default function EditorLayout({
               )}
 
               <CanvasStage
-                key={formatKey}
+                key={`${formatKey}-${effectiveCanvasHeight}`}
                 layers={layers}
                 setLayers={setLayers}
                 onSelectLayer={selectLayer}
-                format={format as any}
+                format={runtimeFormat as any}
               />
             </div>
           </main>
