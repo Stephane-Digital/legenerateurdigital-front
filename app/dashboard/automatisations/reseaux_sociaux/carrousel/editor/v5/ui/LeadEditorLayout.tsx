@@ -1126,7 +1126,7 @@ export default function EditorLayout({
             </div>
           </aside>
 
-          <main className="rounded-2xl border border-white/10 bg-black/25 p-5 relative">
+          <main className="rounded-2xl border border-white/10 bg-black/25 p-5 relative flex items-start justify-center">
             <div
               ref={stageWrapRef}
               className="w-full rounded-2xl border border-yellow-500/20 overflow-hidden relative"
@@ -1156,12 +1156,12 @@ export default function EditorLayout({
               )}
 
               <CanvasStage
-                key={`${formatKey}-${effectiveCanvasHeight}`}
-                layers={layers}
-                setLayers={setLayers}
-                onSelectLayer={selectLayer}
-                format={runtimeFormat as any}
-              />
+    key={`${formatKey}-${effectiveCanvasHeight}`}
+  layers={layers}
+  setLayers={setLayers}
+  onSelectLayer={selectLayer}
+  format={runtimeFormat as any}
+/>
             </div>
           </main>
 
