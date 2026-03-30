@@ -159,11 +159,14 @@ export default function CanvasStage({
     [layers]
   );
 
-const overlay =
-  (backgroundLayer?.style as any)?.overlay ?? {
-    value: "linear-gradient(180deg, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0.38) 100%)",
-    opacity: 1,
-  };
+  const overlay =
+    (backgroundLayer?.style as any)?.overlay ??
+    ((backgroundLayer?.style as any)?.color
+      ? {
+          value: "linear-gradient(180deg, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0.38) 100%)",
+          opacity: 1,
+        }
+      : null);
 
   const orderedLayers = useMemo(() => {
     const filtered = (layers as any[]).filter(
@@ -1238,6 +1241,11 @@ const overlay =
                         saveCurrentSelection();
                         updateToolbarFromSelection();
                       }
+                    }}
+                    onDoubleClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleDoubleClickText(layer.id);
                     }}
                     style={{
                       width: "100%",
