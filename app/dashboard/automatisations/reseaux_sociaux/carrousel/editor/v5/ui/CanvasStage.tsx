@@ -169,20 +169,23 @@ export default function CanvasStage({
     [setLayers, onSelectLayer]
   );
 
-  const getLocalPoint = (clientX: number, clientY: number) => {
-    const el = containerRef.current;
-    if (!el) return { x: 0, y: 0 };
-    const r = el.getBoundingClientRect();
+  const getLocalPoint = useCallback(
+    (clientX: number, clientY: number) => {
+      const el = containerRef.current;
+      if (!el) return { x: 0, y: 0 };
+      const r = el.getBoundingClientRect();
 
-    const stageWidth = (format.w || 0) * scale;
-    const stageLeft = r.left + (r.width - stageWidth) / 2;
-    const stageTop = r.top;
+      const stageWidth = (format.w || 0) * scale;
+      const stageLeft = r.left + (r.width - stageWidth) / 2;
+      const stageTop = r.top;
 
-    return {
-      x: (clientX - stageLeft) / scale,
-      y: (clientY - stageTop) / scale,
-    };
-  };
+      return {
+        x: (clientX - stageLeft) / scale,
+        y: (clientY - stageTop) / scale,
+      };
+    },
+    [format.w, scale]
+  );
 
   const getLayerDims = (layer: any) => {
     const w = typeof layer.width === "number" ? layer.width : 0;
@@ -408,88 +411,104 @@ export default function CanvasStage({
     });
   };
 
-  const onMouseMove = (e: React.MouseEvent) => {
-    if (!drag && !resize) return;
-    e.preventDefault();
+  const handlePointerMove = useCallback(
+    (clientX: number, clientY: number) => {
+      if (!drag && !resize) return;
 
-    const p = getLocalPoint(e.clientX, e.clientY);
+      const p = getLocalPoint(clientX, clientY);
 
-    if (resize?.kind === "image") {
-      const layer = layers.find((l: any) => l.id === resize.id);
-      if (!layer) return;
+      if (resize?.kind === "image") {
+        const dx = p.x - resize.startX;
+        const dy = p.y - resize.startY;
 
-      const dx = p.x - resize.startX;
-      const dy = p.y - resize.startY;
+        let newX = resize.origX;
+        let newY = resize.origY;
+        let newW = resize.origW;
+        let newH = resize.origH;
 
-      let newX = resize.origX;
-      let newY = resize.origY;
-      let newW = resize.origW;
-      let newH = resize.origH;
+        if (resize.corner.includes("r")) newW = clamp(resize.origW + dx, 20, format.w * 10);
+        if (resize.corner.includes("l")) {
+          newW = clamp(resize.origW - dx, 20, format.w * 10);
+          newX = resize.origX + dx;
+        }
+        if (resize.corner.includes("b")) newH = clamp(resize.origH + dy, 20, format.h * 10);
+        if (resize.corner.includes("t")) {
+          newH = clamp(resize.origH - dy, 20, format.h * 10);
+          newY = resize.origY + dy;
+        }
 
-      if (resize.corner.includes("r")) newW = clamp(resize.origW + dx, 20, format.w * 10);
-      if (resize.corner.includes("l")) {
-        newW = clamp(resize.origW - dx, 20, format.w * 10);
-        newX = resize.origX + dx;
+        updateLayer(resize.id, { x: newX, y: newY, width: newW, height: newH } as any);
+        return;
       }
-      if (resize.corner.includes("b")) newH = clamp(resize.origH + dy, 20, format.h * 10);
-      if (resize.corner.includes("t")) {
-        newH = clamp(resize.origH - dy, 20, format.h * 10);
-        newY = resize.origY + dy;
+
+      if (resize?.kind === "text") {
+        const dx = p.x - resize.startX;
+        const dy = p.y - resize.startY;
+
+        const delta = Math.max(dx, dy);
+        const scaleFactor = 1 + delta / 300;
+
+        const nextFontSize = clamp(resize.origFontSize * scaleFactor, 10, 220);
+        const newW = clamp(resize.origW * scaleFactor, 50, format.w * 2);
+        const newH = clamp(resize.origH * scaleFactor, 30, format.h * 2);
+
+        updateLayer(resize.id, {
+          width: newW,
+          height: newH,
+          style: { fontSize: nextFontSize } as any,
+        } as any);
+        return;
       }
 
-      updateLayer(resize.id, { x: newX, y: newY, width: newW, height: newH } as any);
-      return;
-    }
+      if (drag) {
+        const layer = layers.find((l: any) => l.id === drag.id);
+        if (!layer) return;
 
-    if (resize?.kind === "text") {
-      const layer = layers.find((l: any) => l.id === resize.id);
-      if (!layer) return;
+        const { w, h } = getLayerDims(layer as any);
 
-      const dx = p.x - resize.startX;
-      const dy = p.y - resize.startY;
+        const rawX = drag.origX + (p.x - drag.startX);
+        const rawY = drag.origY + (p.y - drag.startY);
 
-      const delta = Math.max(dx, dy);
-      const scaleFactor = 1 + delta / 300;
+        const snapped = applySnap(drag.id, rawX, rawY, w, h);
 
-      const nextFontSize = clamp(resize.origFontSize * scaleFactor, 10, 220);
-      const newW = clamp(resize.origW * scaleFactor, 50, format.w * 2);
-      const newH = clamp(resize.origH * scaleFactor, 30, format.h * 2);
+        updateLayer(drag.id, {
+          x: snapped.x,
+          y: snapped.y,
+        } as any);
 
-      updateLayer(resize.id, {
-        width: newW,
-        height: newH,
-        style: { fontSize: nextFontSize } as any,
-      } as any);
-      return;
-    }
+        setGuides({ x: snapped.gx, y: snapped.gy });
+        setHud(snapped.hud);
+      }
+    },
+    [drag, resize, getLocalPoint, format.w, format.h, updateLayer, layers, applySnap]
+  );
 
-    if (drag) {
-      const layer = layers.find((l: any) => l.id === drag.id);
-      if (!layer) return;
-
-      const { w, h } = getLayerDims(layer as any);
-
-      const rawX = drag.origX + (p.x - drag.startX);
-      const rawY = drag.origY + (p.y - drag.startY);
-
-      const snapped = applySnap(drag.id, rawX, rawY, w, h);
-
-      updateLayer(drag.id, {
-        x: snapped.x,
-        y: snapped.y,
-      } as any);
-
-      setGuides({ x: snapped.gx, y: snapped.gy });
-      setHud(snapped.hud);
-    }
-  };
-
-  const onMouseUp = () => {
+  const handlePointerUp = useCallback(() => {
     setDrag(null);
     setResize(null);
     setGuides({ x: null, y: null });
     setHud(null);
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!drag && !resize) return;
+
+    const onWindowMove = (e: MouseEvent) => {
+      handlePointerMove(e.clientX, e.clientY);
+    };
+
+    const onWindowUp = () => {
+      handlePointerUp();
+    };
+
+    window.addEventListener("mousemove", onWindowMove);
+    window.addEventListener("mouseup", onWindowUp);
+
+    return () => {
+      window.removeEventListener("mousemove", onWindowMove);
+      window.removeEventListener("mouseup", onWindowUp);
+    };
+  }, [drag, resize, handlePointerMove, handlePointerUp]);
 
   const canvasCursor = useMemo(() => {
     if (!resize && !drag) return "default";
@@ -510,9 +529,6 @@ export default function CanvasStage({
           transformOrigin: "top center",
           cursor: canvasCursor,
         }}
-        onMouseMove={onMouseMove}
-        onMouseUp={onMouseUp}
-        onMouseLeave={onMouseUp}
         onMouseDown={() => {
           setSelected(null);
           setGuides({ x: null, y: null });
