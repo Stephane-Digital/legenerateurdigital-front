@@ -15,6 +15,9 @@ const BACKGROUND_LAYER_ID = "background-post";
 
 type BackgroundMode = "color" | "gradient" | "image";
 type OverlayType = "color" | "gradient";
+type CopilotTone = "premium" | "coach" | "urgent" | "story" | "sio";
+type CopilotGoal = "leads" | "cta" | "clarity" | "premium";
+type CopilotAction = "title" | "cta" | "rewrite" | "landing" | null;
 
 type EditorUIState = {
   formatKey: CanvasFormatKey;
@@ -265,6 +268,11 @@ export default function EditorLayout({
   const [overlayColor1, setOverlayColor1] = useState(initialUI?.overlayColor1 ?? "#000000");
   const [overlayColor2, setOverlayColor2] = useState(initialUI?.overlayColor2 ?? "#000000");
   const [overlayOpacity, setOverlayOpacity] = useState(initialUI?.overlayOpacity ?? 0.35);
+
+  const [copilotTone, setCopilotTone] = useState<CopilotTone>("premium");
+  const [copilotGoal, setCopilotGoal] = useState<CopilotGoal>("leads");
+  const [copilotAction, setCopilotAction] = useState<CopilotAction>(null);
+  const [copilotDraft, setCopilotDraft] = useState("");
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const bgImageInputRef = useRef<HTMLInputElement | null>(null);
@@ -760,6 +768,93 @@ export default function EditorLayout({
     });
   }, [bgColor]);
 
+  const copilotSelectedLabel = useMemo(() => {
+    if (!selectedLayer) return "Aucun bloc sélectionné";
+    if (selectedLayer.type !== "text") return "Sélectionne un bloc texte";
+    return selectedLayer.id || "Bloc texte";
+  }, [selectedLayer]);
+
+  const buildCopilotSuggestion = useCallback(
+    (action: Exclude<CopilotAction, null>) => {
+      const targetText =
+        selectedLayer?.type === "text" ? String(selectedLayer.text ?? "").trim() : "";
+
+      if (!targetText) {
+        setCopilotAction(action);
+        setCopilotDraft("Sélectionne un bloc texte pour générer une proposition IA.");
+        return;
+      }
+
+      const toneLabel =
+        copilotTone === "premium"
+          ? "premium expert"
+          : copilotTone === "coach"
+          ? "coach direct"
+          : copilotTone === "urgent"
+          ? "urgence vente"
+          : copilotTone === "story"
+          ? "storytelling"
+          : "SIO funnel";
+
+      const goalLabel =
+        copilotGoal === "leads"
+          ? "générer plus de leads"
+          : copilotGoal === "cta"
+          ? "augmenter le clic CTA"
+          : copilotGoal === "clarity"
+          ? "clarifier la promesse"
+          : "rendre la landing plus premium";
+
+      const clean = targetText.replace(/\s+/g, " ").trim();
+      let next = clean;
+
+      if (action === "title") {
+        next =
+          copilotTone === "urgent"
+            ? `Découvre comment ${clean.toLowerCase()} sans perdre de temps`
+            : copilotTone === "coach"
+            ? `Passe à l'action : ${clean}`
+            : copilotTone === "story"
+            ? `Et si ${clean.toLowerCase()} devenait enfin simple ?`
+            : copilotTone === "sio"
+            ? `${clean} — méthode claire pour capturer plus de leads`
+            : `${clean} avec une approche premium qui convertit mieux`;
+      } else if (action === "cta") {
+        next =
+          copilotTone === "urgent"
+            ? "Je veux accéder à l'offre maintenant"
+            : copilotTone === "coach"
+            ? "Je passe à l'action maintenant"
+            : copilotTone === "story"
+            ? "Je découvre la méthode complète"
+            : copilotTone === "sio"
+            ? "Accéder au formulaire maintenant"
+            : "Recevoir la méthode premium";
+      } else if (action === "rewrite") {
+        next = `${clean}
+
+Version optimisée en ton ${toneLabel}, orientée ${goalLabel}.`;
+      } else if (action === "landing") {
+        next = `${clean}
+
+Version optimisée pour ${goalLabel}, avec un angle ${toneLabel}, plus claire, plus directe et plus convaincante.`;
+      }
+
+      setCopilotAction(action);
+      setCopilotDraft(next);
+    },
+    [selectedLayer, copilotTone, copilotGoal]
+  );
+
+  const applyCopilotDraft = useCallback(() => {
+    if (!selectedLayer || selectedLayer.type !== "text") return;
+    if (!copilotDraft.trim()) return;
+
+    updateLayer(selectedLayer.id, {
+      text: copilotDraft,
+    } as any);
+  }, [selectedLayer, copilotDraft, updateLayer]);
+
   function bumpCanvasHeight(delta: number) {
     const next = Math.max(1200, Math.min(5000, canvasHeight + delta));
     onCanvasHeightChange?.(next);
@@ -816,6 +911,64 @@ export default function EditorLayout({
             >
               🖼️ Importer un visuel
             </button>
+
+            <div className="pt-4 border-t border-yellow-500/15">
+              <div className="text-yellow-300 font-semibold text-sm mb-2">✨ Copilote IA</div>
+              <div className="text-[11px] text-white/45 mb-3">Bloc ciblé : {copilotSelectedLabel}</div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => buildCopilotSuggestion("title")}
+                  className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-200"
+                >
+                  Titre
+                </button>
+                <button
+                  onClick={() => buildCopilotSuggestion("cta")}
+                  className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-200"
+                >
+                  CTA
+                </button>
+                <button
+                  onClick={() => buildCopilotSuggestion("rewrite")}
+                  className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-200"
+                >
+                  Réécrire
+                </button>
+                <button
+                  onClick={() => buildCopilotSuggestion("landing")}
+                  className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-200"
+                >
+                  Landing
+                </button>
+              </div>
+
+              <textarea
+                value={copilotDraft}
+                onChange={(e) => setCopilotDraft(e.target.value)}
+                placeholder="Proposition du copilote"
+                className="mt-3 min-h-[120px] w-full rounded-xl border border-yellow-500/15 bg-black/40 px-3 py-3 text-sm text-white/85 outline-none placeholder:text-white/25"
+              />
+
+              <div className="mt-3 flex gap-2">
+                <button
+                  type="button"
+                  onClick={applyCopilotDraft}
+                  className="flex-1 rounded-xl bg-[#ffb800] px-4 py-2.5 text-black font-semibold"
+                >
+                  Appliquer
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (copilotAction) buildCopilotSuggestion(copilotAction);
+                  }}
+                  className="flex-1 rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-2.5 text-yellow-200"
+                >
+                  Régénérer
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -954,98 +1107,6 @@ export default function EditorLayout({
                   )}
                 </div>
               )}
-            </div>
-
-            <div className="mt-6 border-t border-yellow-500/15 pt-4">
-              <div className="flex items-center justify-between mb-2">
-                <label className="block text-yellow-400 text-sm">Overlay</label>
-
-                <button
-                  onClick={() => setOverlayEnabled((v) => !v)}
-                  className={`rounded-lg px-3 py-1 text-xs border ${
-                    overlayEnabled
-                      ? "bg-[#ffb800] text-black border-[#ffb800]"
-                      : "border-yellow-500/20 text-yellow-200"
-                  }`}
-                >
-                  {overlayEnabled ? "Activé" : "Désactivé"}
-                </button>
-              </div>
-
-              <p className="text-xs text-yellow-100/60 mb-3">
-                Assombrit / améliore la lisibilité du texte au-dessus d’une image.
-              </p>
-
-              <div className={`space-y-3 ${overlayEnabled ? "" : "opacity-50 pointer-events-none"}`}>
-                <div className="flex gap-2">
-                  {(["color", "gradient"] as OverlayType[]).map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => setOverlayType(t)}
-                      className={`flex-1 rounded-lg py-2 text-sm border ${
-                        overlayType === t
-                          ? "bg-[#ffb800] text-black"
-                          : "border-yellow-500/20 text-yellow-200"
-                      }`}
-                    >
-                      {t === "color" ? "Couleur" : "Gradient"}
-                    </button>
-                  ))}
-                </div>
-
-                {overlayType === "color" && (
-                  <div>
-                    <label className="block text-yellow-400 text-xs mb-2">Couleur overlay</label>
-                    <input
-                      type="color"
-                      value={overlayColor1}
-                      onChange={(e) => setOverlayColor1(e.target.value)}
-                      className="w-full h-10 rounded-lg bg-black/40 border border-yellow-500/20"
-                    />
-                  </div>
-                )}
-
-                {overlayType === "gradient" && (
-                  <div>
-                    <label className="block text-yellow-400 text-xs mb-2">Gradient overlay</label>
-                    <div
-                      className="w-full h-10 rounded-lg border border-yellow-500/20 mb-3"
-                      style={{
-                        background: `linear-gradient(135deg, ${overlayColor1}, ${overlayColor2})`,
-                      }}
-                    />
-                    <div className="flex gap-2">
-                      <input
-                        type="color"
-                        value={overlayColor1}
-                        onChange={(e) => setOverlayColor1(e.target.value)}
-                        className="w-16 h-10 rounded-lg border border-yellow-500/20 bg-black/30"
-                      />
-                      <input
-                        type="color"
-                        value={overlayColor2}
-                        onChange={(e) => setOverlayColor2(e.target.value)}
-                        className="w-16 h-10 rounded-lg border border-yellow-500/20 bg-black/30"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-yellow-400 text-xs mb-2">
-                    Opacité ({Math.round(overlayOpacity * 100)}%)
-                  </label>
-                  <input
-                    type="range"
-                    min={0}
-                    max={1}
-                    step={0.01}
-                    value={overlayOpacity}
-                    onChange={(e) => setOverlayOpacity(Number(e.target.value))}
-                    className="w-full"
-                  />
-                </div>
-              </div>
             </div>
           </aside>
 
