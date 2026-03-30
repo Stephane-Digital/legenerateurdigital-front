@@ -349,7 +349,20 @@ export default function CanvasStage({
     if (linkModal.open) return;
     if (typeof window === "undefined") return;
     const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+    const activeEl = document.activeElement as HTMLElement | null;
+
+    if (!selection || selection.rangeCount === 0) {
+      return;
+    }
+
+    // Important:
+    // when the caret is collapsed inside the live contentEditable,
+    // we must NOT hide/show the toolbar on every key press,
+    // otherwise React rerenders and breaks typing.
+    if (selection.isCollapsed) {
+      if (activeEl?.closest?.('[contenteditable="true"]')) {
+        return;
+      }
       hideToolbar();
       return;
     }
@@ -393,6 +406,16 @@ export default function CanvasStage({
         const editor = editorRefs.current[layerId];
         if (!editor) return;
 
+        const currentLayer = (orderedLayers as any[]).find((l: any) => l.id === layerId);
+        const currentHtml =
+          typeof currentLayer?.html === "string" && currentLayer.html.trim()
+            ? currentLayer.html
+            : textToHtml(currentLayer?.text ?? "");
+
+        if (editor.innerHTML !== currentHtml) {
+          editor.innerHTML = currentHtml;
+        }
+
         editor.focus();
 
         const range = document.createRange();
@@ -404,8 +427,28 @@ export default function CanvasStage({
         sel?.addRange(range);
       }, 0);
     },
-    [setSelected]
+    [setSelected, hideToolbar, orderedLayers]
   );
+  useEffect(() => {
+    for (const layer of orderedLayers as any[]) {
+      if (layer?.type !== "text") continue;
+
+      const editor = editorRefs.current[layer.id];
+      if (!editor) continue;
+
+      const layerHtml =
+        typeof layer.html === "string" && layer.html.trim()
+          ? layer.html
+          : textToHtml(layer.text ?? "");
+
+      // Never overwrite the DOM of the text currently being edited.
+      if (editingTextId === layer.id) continue;
+
+      if (editor.innerHTML !== layerHtml) {
+        editor.innerHTML = layerHtml;
+      }
+    }
+  }, [orderedLayers, editingTextId]);
 
   const onMouseDownLayer = (e: React.MouseEvent, layer: LayerData) => {
     if (editingTextId && editingTextId === (layer as any).id) return;
@@ -1106,6 +1149,7 @@ export default function CanvasStage({
                     suppressContentEditableWarning
                     spellCheck={false}
                     dir="ltr"
+                    tabIndex={isEditing ? 0 : -1}
                     onBlur={(e) => {
                       const nextTarget = e.relatedTarget as HTMLElement | null;
                       const activeEl =
@@ -1128,6 +1172,7 @@ export default function CanvasStage({
                     onFocus={() => {
                       setEditingTextId(layer.id);
                       setSelected(layer.id);
+                      saveCurrentSelection();
                     }}
                     onInput={() => {
                       if (isEditing) {
@@ -1211,7 +1256,7 @@ export default function CanvasStage({
                       writingMode: "horizontal-tb",
                       textAlign,
                     }}
-                    dangerouslySetInnerHTML={{ __html: html }}
+                    dangerouslySetInnerHTML={isEditing ? undefined : { __html: html }}
                   />
 
                   {isSelected &&
