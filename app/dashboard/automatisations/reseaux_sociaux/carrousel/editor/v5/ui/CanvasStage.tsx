@@ -668,10 +668,19 @@ export default function CanvasStage({
   const applyCommand = useCallback(
     (command: "bold" | "italic" | "underline") => {
       if (!editingTextId) return;
+
+      const editor = editorRefs.current[editingTextId];
+      editor?.focus();
+
       restoreSelection();
       document.execCommand(command, false);
+
       persistInlineHtml(editingTextId);
-      updateToolbarFromSelection();
+
+      requestAnimationFrame(() => {
+        editor?.focus();
+        updateToolbarFromSelection();
+      });
     },
     [editingTextId, persistInlineHtml, restoreSelection, updateToolbarFromSelection]
   );
@@ -1046,7 +1055,7 @@ export default function CanvasStage({
               return (
                 <div
                   key={layer.id}
-                  className="absolute whitespace-pre-wrap break-words select-none"
+                  className={`absolute whitespace-pre-wrap break-words ${isEditing ? "select-text" : "select-none"}`}
                   style={{
                     left: x,
                     top: y,
@@ -1092,6 +1101,8 @@ export default function CanvasStage({
                     }}
                     contentEditable={isEditing}
                     suppressContentEditableWarning
+                    spellCheck={false}
+                    dir="ltr"
                     onBlur={(e) => {
                       const nextTarget = e.relatedTarget as HTMLElement | null;
                       const activeEl =
@@ -1111,20 +1122,78 @@ export default function CanvasStage({
                       hideToolbar();
                       setEditingTextId(null);
                     }}
+                    onFocus={() => {
+                      setEditingTextId(layer.id);
+                      setSelected(layer.id);
+                    }}
                     onInput={() => {
                       if (isEditing) {
+                        saveCurrentSelection();
                         updateToolbarFromSelection();
                       }
                     }}
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                    }}
                     onMouseUp={() => {
-                      if (isEditing) updateToolbarFromSelection();
+                      if (isEditing) {
+                        saveCurrentSelection();
+                        updateToolbarFromSelection();
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (!isEditing) return;
+
+                      const isMeta = e.ctrlKey || e.metaKey;
+                      const key = e.key.toLowerCase();
+
+                      if (isMeta && key === "b") {
+                        e.preventDefault();
+                        applyCommand("bold");
+                        return;
+                      }
+
+                      if (isMeta && key === "i") {
+                        e.preventDefault();
+                        applyCommand("italic");
+                        return;
+                      }
+
+                      if (isMeta && key === "u") {
+                        e.preventDefault();
+                        applyCommand("underline");
+                        return;
+                      }
+
+                      if (e.key === "Escape") {
+                        e.preventDefault();
+                        persistInlineHtml(layer.id);
+                        hideToolbar();
+                        setEditingTextId(null);
+                        return;
+                      }
                     }}
                     onKeyUp={() => {
                       if (isEditing) {
+                        saveCurrentSelection();
                         updateToolbarFromSelection();
                       }
                     }}
-                    onClick={(e) => e.stopPropagation()}
+                    onPaste={(e) => {
+                      if (!isEditing) return;
+                      e.preventDefault();
+                      const pasted = e.clipboardData.getData("text/plain");
+                      document.execCommand("insertText", false, pasted);
+                      saveCurrentSelection();
+                      updateToolbarFromSelection();
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (isEditing) {
+                        saveCurrentSelection();
+                        updateToolbarFromSelection();
+                      }
+                    }}
                     style={{
                       width: "100%",
                       outline: "none",
@@ -1133,7 +1202,7 @@ export default function CanvasStage({
                       direction: "ltr",
                       unicodeBidi: "normal",
                       writingMode: "horizontal-tb",
-                      textAlign: "left",
+                      textAlign,
                     }}
                     dangerouslySetInnerHTML={{ __html: html }}
                   />
