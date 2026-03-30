@@ -955,6 +955,98 @@ export default function EditorLayout({
                 </div>
               )}
             </div>
+
+            <div className="mt-6 border-t border-yellow-500/15 pt-4">
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-yellow-400 text-sm">Overlay</label>
+
+                <button
+                  onClick={() => setOverlayEnabled((v) => !v)}
+                  className={`rounded-lg px-3 py-1 text-xs border ${
+                    overlayEnabled
+                      ? "bg-[#ffb800] text-black border-[#ffb800]"
+                      : "border-yellow-500/20 text-yellow-200"
+                  }`}
+                >
+                  {overlayEnabled ? "Activé" : "Désactivé"}
+                </button>
+              </div>
+
+              <p className="text-xs text-yellow-100/60 mb-3">
+                Assombrit / améliore la lisibilité du texte au-dessus d’une image.
+              </p>
+
+              <div className={`space-y-3 ${overlayEnabled ? "" : "opacity-50 pointer-events-none"}`}>
+                <div className="flex gap-2">
+                  {(["color", "gradient"] as OverlayType[]).map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => setOverlayType(t)}
+                      className={`flex-1 rounded-lg py-2 text-sm border ${
+                        overlayType === t
+                          ? "bg-[#ffb800] text-black"
+                          : "border-yellow-500/20 text-yellow-200"
+                      }`}
+                    >
+                      {t === "color" ? "Couleur" : "Gradient"}
+                    </button>
+                  ))}
+                </div>
+
+                {overlayType === "color" && (
+                  <div>
+                    <label className="block text-yellow-400 text-xs mb-2">Couleur overlay</label>
+                    <input
+                      type="color"
+                      value={overlayColor1}
+                      onChange={(e) => setOverlayColor1(e.target.value)}
+                      className="w-full h-10 rounded-lg bg-black/40 border border-yellow-500/20"
+                    />
+                  </div>
+                )}
+
+                {overlayType === "gradient" && (
+                  <div>
+                    <label className="block text-yellow-400 text-xs mb-2">Gradient overlay</label>
+                    <div
+                      className="w-full h-10 rounded-lg border border-yellow-500/20 mb-3"
+                      style={{
+                        background: `linear-gradient(135deg, ${overlayColor1}, ${overlayColor2})`,
+                      }}
+                    />
+                    <div className="flex gap-2">
+                      <input
+                        type="color"
+                        value={overlayColor1}
+                        onChange={(e) => setOverlayColor1(e.target.value)}
+                        className="w-16 h-10 rounded-lg border border-yellow-500/20 bg-black/30"
+                      />
+                      <input
+                        type="color"
+                        value={overlayColor2}
+                        onChange={(e) => setOverlayColor2(e.target.value)}
+                        className="w-16 h-10 rounded-lg border border-yellow-500/20 bg-black/30"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-yellow-400 text-xs mb-2">
+                    Opacité ({Math.round(overlayOpacity * 100)}%)
+                  </label>
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.01}
+                    value={overlayOpacity}
+                    onChange={(e) => setOverlayOpacity(Number(e.target.value))}
+                    className="w-full"
+                  />
+                </div>
+              </div>
+            </div>
           </aside>
 
           <main className="rounded-2xl border border-white/10 bg-black/25 p-5 relative flex items-start justify-center">
