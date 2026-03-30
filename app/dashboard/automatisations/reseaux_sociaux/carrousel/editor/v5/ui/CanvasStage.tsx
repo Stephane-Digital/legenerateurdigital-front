@@ -381,11 +381,28 @@ export default function CanvasStage({
 
   const handleDoubleClickText = useCallback(
     (layerId: string) => {
+      const editorBeforeEdit = editorRefs.current[layerId];
+      const domHtmlBeforeEdit = editorBeforeEdit?.innerHTML ?? "";
+
       setEditingTextId(layerId);
       setSelected(layerId);
+
       setTimeout(() => {
         const editor = editorRefs.current[layerId];
         if (!editor) return;
+
+        const currentLayer = (orderedLayers as any[]).find((l: any) => l.id === layerId);
+        const currentHtml =
+          domHtmlBeforeEdit.trim()
+            ? domHtmlBeforeEdit
+            : typeof currentLayer?.html === "string" && currentLayer.html.trim()
+              ? currentLayer.html
+              : textToHtml(currentLayer?.text ?? "");
+
+        if (editor.innerHTML !== currentHtml) {
+          editor.innerHTML = currentHtml;
+        }
+
         editor.focus();
 
         const range = document.createRange();
@@ -395,9 +412,11 @@ export default function CanvasStage({
         const sel = window.getSelection();
         sel?.removeAllRanges();
         sel?.addRange(range);
+
+        savedRangeRef.current = range.cloneRange();
       }, 0);
     },
-    [setSelected]
+    [setSelected, orderedLayers]
   );
 
   const onMouseDownLayer = (e: React.MouseEvent, layer: LayerData) => {
