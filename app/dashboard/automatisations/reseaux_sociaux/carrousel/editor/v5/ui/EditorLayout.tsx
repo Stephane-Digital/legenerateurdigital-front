@@ -1386,7 +1386,7 @@ export default function EditorLayout({
           </aside>
 
           {/* CENTER */}
-          <main className="rounded-2xl border border-white/10 bg-black/25 p-5 relative">
+          <main className="rounded-2xl border border-white/10 bg-black/25 p-5 relative flex items-start justify-center">
             <div
               ref={stageWrapRef}
               className="w-full h-[72vh] rounded-2xl border border-yellow-500/20 overflow-hidden relative"
