@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -36,11 +37,10 @@ interface Props {
   initialUI?: Partial<EditorUIState>;
   onUIChange?: (ui: EditorUIState) => void;
   onChange?: (layers: LayerData[]) => void;
-
   mobileToolsOpen?: boolean;
   onCloseMobileTools?: () => void;
-
   canvasHeight?: number;
+  onCanvasHeightChange?: (nextHeight: number) => void;
 }
 
 const GRADIENT_PRESETS = [
@@ -60,23 +60,18 @@ function stripNonSerializable(input: any): any {
   if (isProbablyDomImage(input)) return undefined;
 
   if (Array.isArray(input)) {
-    return input
-      .map((x) => stripNonSerializable(x))
-      .filter((x) => x !== undefined);
+    return input.map((x) => stripNonSerializable(x)).filter((x) => x !== undefined);
   }
 
   const out: any = {};
   for (const [k, v] of Object.entries(input)) {
     if (v === undefined) continue;
-
     if (k === "runtime" || k === "_runtime" || k === "__runtime") continue;
     if (k === "imageElement" || k === "imgEl" || k === "htmlImage") continue;
     if (k === "konva" || k === "_konva" || k === "__konva") continue;
-
     if ((k === "image" || k === "img") && typeof v === "object" && !Array.isArray(v)) {
       if (isProbablyDomImage(v)) continue;
     }
-
     const cleaned = stripNonSerializable(v);
     if (cleaned !== undefined) out[k] = cleaned;
   }
@@ -143,8 +138,7 @@ function estimateWrappedTextHeight({
 
   const measuredLines = measureWithCanvas();
   const approxLines =
-    measuredLines ??
-    Math.max(1, Math.ceil((safeText.length * safeFontSize * 0.58) / innerWidth));
+    measuredLines ?? Math.max(1, Math.ceil((safeText.length * safeFontSize * 0.58) / innerWidth));
   const verticalPadding = 24;
   return Math.max(56, Math.ceil(approxLines * safeFontSize * safeLineHeight + verticalPadding));
 }
@@ -190,7 +184,6 @@ function coerceIncomingLayers(incoming: LayerData[]): LayerData[] {
 
 function stableSerialize(value: any): string {
   const seen = new WeakSet();
-
   const normalize = (input: any): any => {
     if (input == null || typeof input !== "object") return input;
     if (seen.has(input)) return undefined;
@@ -200,7 +193,7 @@ function stableSerialize(value: any): string {
 
     const out: Record<string, any> = {};
     for (const key of Object.keys(input).sort()) {
-      const normalized = normalize((input as any)[key]);
+      const normalized = normalize(input[key]);
       if (normalized !== undefined) out[key] = normalized;
     }
     return out;
@@ -238,7 +231,8 @@ export default function EditorLayout({
   onChange,
   mobileToolsOpen = false,
   onCloseMobileTools,
-  canvasHeight,
+  canvasHeight = 1800,
+  onCanvasHeightChange,
 }: Props) {
   const [formatKey, setFormatKey] = useState<CanvasFormatKey>(
     initialUI?.formatKey ?? "instagram_post"
@@ -247,15 +241,14 @@ export default function EditorLayout({
 
   const format = useMemo(() => {
     const w = rawFormat?.w ?? rawFormat?.width ?? 1080;
-    const h = rawFormat?.h ?? rawFormat?.height ?? 1080;
     return {
       ...rawFormat,
       w,
-      h,
+      h: canvasHeight,
       width: rawFormat?.width ?? w,
-      height: rawFormat?.height ?? h,
+      height: canvasHeight,
     };
-  }, [rawFormat]);
+  }, [rawFormat, canvasHeight]);
 
   const [layers, setLayers] = useState<LayerData[]>([]);
   const [showProps, setShowProps] = useState(false);
@@ -281,58 +274,9 @@ export default function EditorLayout({
   const lastInitKeyRef = useRef<string | number | null>(null);
   const lastEmittedSigRef = useRef<string>("");
   const lastUiSigRef = useRef<string>("");
-  const onUIChangeRef = useRef<Props["onUIChange"]>(onUIChange);
-  const onChangeRef = useRef<Props["onChange"]>(onChange);
-
-  const stageWrapRef = useRef<HTMLDivElement | null>(null);
-  const [stagePx, setStagePx] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
 
   useEffect(() => {
-    const el = stageWrapRef.current;
-    if (!el) return;
-
-    const ro = new ResizeObserver(() => {
-      const r = el.getBoundingClientRect();
-      setStagePx({ w: r.width, h: r.height });
-    });
-    ro.observe(el);
-
-    const r0 = el.getBoundingClientRect();
-    setStagePx({ w: r0.width, h: r0.height });
-
-    return () => ro.disconnect();
-  }, []);
-
-  const effectiveCanvasHeight = Math.max(680, Math.round(Number(canvasHeight ?? stagePx.h ?? 1200)));
-
-  const runtimeFormat = useMemo(() => {
-    return {
-      ...format,
-      h: effectiveCanvasHeight,
-      height: effectiveCanvasHeight,
-    };
-  }, [format, effectiveCanvasHeight]);
-
-  const scale = useMemo(() => {
-    if (!stagePx.w || !stagePx.h) return 1;
-    const sx = stagePx.w / (runtimeFormat.w || 1);
-    const sy = stagePx.h / (runtimeFormat.h || 1);
-    return Math.min(sx, sy);
-  }, [stagePx.w, stagePx.h, runtimeFormat.w, runtimeFormat.h]);
-
-  const centerX = useMemo(() => (runtimeFormat.w * scale) / 2, [runtimeFormat.w, scale]);
-  const centerY = useMemo(() => (runtimeFormat.h * scale) / 2, [runtimeFormat.h, scale]);
-
-  useEffect(() => {
-    onUIChangeRef.current = onUIChange;
-  }, [onUIChange]);
-
-  useEffect(() => {
-    onChangeRef.current = onChange;
-  }, [onChange]);
-
-  useEffect(() => {
-    if (!onUIChangeRef.current) return;
+    if (!onUIChange) return;
 
     const nextUI: EditorUIState = {
       formatKey,
@@ -353,7 +297,7 @@ export default function EditorLayout({
     if (sig === lastUiSigRef.current) return;
 
     lastUiSigRef.current = sig;
-    onUIChangeRef.current(nextUI);
+    onUIChange(nextUI);
   }, [
     formatKey,
     bgMode,
@@ -367,6 +311,7 @@ export default function EditorLayout({
     overlayColor1,
     overlayColor2,
     overlayOpacity,
+    onUIChange,
   ]);
 
   const incomingSig = useMemo(() => {
@@ -461,12 +406,12 @@ export default function EditorLayout({
 
     init();
     return () => {
-      cancelled = true
+      cancelled = true;
     };
   }, [incomingSig, initialLayersKey, bgColor]);
 
   useEffect(() => {
-    if (!onChangeRef.current) return;
+    if (!onChange) return;
     if (hydratingRef.current) return;
 
     const cleaned = stripNonSerializable(layers) as LayerData[];
@@ -476,17 +421,17 @@ export default function EditorLayout({
     if (sig === lastReceivedSigRef.current) return;
 
     lastEmittedSigRef.current = sig;
-    onChangeRef.current(cleaned);
-  }, [layers]);
+    onChange(cleaned);
+  }, [layers, onChange]);
 
   const applyAutoLayoutSafe = useCallback(
     (input: LayerData[]) => {
       const bg = input.find((l: any) => l.id === BACKGROUND_LAYER_ID) as any;
       const rest = input.filter((l: any) => l.id !== BACKGROUND_LAYER_ID);
-      const laid = applyAutoLayoutImages(rest as any, runtimeFormat as any) as any[];
+      const laid = applyAutoLayoutImages(rest as any, format as any) as any[];
       return bg ? ([bg, ...laid] as any) : (laid as any);
     },
-    [runtimeFormat]
+    [format]
   );
 
   useEffect(() => {
@@ -561,8 +506,8 @@ export default function EditorLayout({
         const alreadySynced =
           l.x === 0 &&
           l.y === 0 &&
-          l.width === runtimeFormat.w &&
-          l.height === runtimeFormat.h &&
+          l.width === format.w &&
+          l.height === format.h &&
           l.zIndex === -1000 &&
           l.visible === true &&
           l.selected === false;
@@ -573,8 +518,8 @@ export default function EditorLayout({
           ...l,
           x: 0,
           y: 0,
-          width: runtimeFormat.w,
-          height: runtimeFormat.h,
+          width: format.w,
+          height: format.h,
           zIndex: -1000,
           visible: true,
           selected: false,
@@ -583,7 +528,7 @@ export default function EditorLayout({
 
       return changed ? next : prev;
     });
-  }, [bgMode, bgImage, runtimeFormat.w, runtimeFormat.h]);
+  }, [bgMode, bgImage, format.w, format.h]);
 
   useEffect(() => {
     setLayers((prev: any[]) => {
@@ -703,8 +648,8 @@ export default function EditorLayout({
         id,
         type: "text",
         text: "Nouveau texte",
-        x: Math.round(runtimeFormat.w * 0.12),
-        y: Math.round(runtimeFormat.h * 0.08),
+        x: Math.round(format.w * 0.12),
+        y: 80,
         zIndex: prev.length + 10,
         visible: true,
         selected: true,
@@ -716,7 +661,7 @@ export default function EditorLayout({
       } as any,
     ]);
     setShowProps(true);
-  }, [runtimeFormat.w, runtimeFormat.h]);
+  }, [format.w]);
 
   const reapplyAutoLayout = useCallback(() => {
     setLayers((prev) => applyAutoLayoutSafe(prev));
@@ -748,7 +693,6 @@ export default function EditorLayout({
       setLayers((prev: any[]) => {
         const baseZ = prev.length + 1;
         const imgs = built.map((l, i) => ({ ...l, zIndex: baseZ + i }));
-
         const combined = [...prev.map((l) => ({ ...l, selected: false })), ...imgs];
         return applyAutoLayoutSafe(combined as any);
       });
@@ -775,8 +719,8 @@ export default function EditorLayout({
             src: base64,
             x: 0,
             y: 0,
-            width: runtimeFormat.w,
-            height: runtimeFormat.h,
+            width: format.w,
+            height: format.h,
             zIndex: -1000,
             visible: true,
             selected: false,
@@ -786,7 +730,7 @@ export default function EditorLayout({
         ];
       });
     },
-    [runtimeFormat.w, runtimeFormat.h]
+    [format.w, format.h]
   );
 
   const removeBackgroundImage = useCallback(() => {
@@ -816,20 +760,10 @@ export default function EditorLayout({
     });
   }, [bgColor]);
 
-  const selectedMetrics = useMemo(() => {
-    if (!selectedLayer) return null;
-    const w = selectedLayer.width ?? 0;
-    const h = selectedLayer.height ?? 0;
-    const x = selectedLayer.x ?? 0;
-    const y = selectedLayer.y ?? 0;
-
-    const left = Math.max(0, x);
-    const top = Math.max(0, y);
-    const right = Math.max(0, runtimeFormat.w - (x + w));
-    const bottom = Math.max(0, runtimeFormat.h - (y + h));
-
-    return { x, y, w, h, left, top, right, bottom };
-  }, [selectedLayer, runtimeFormat.w, runtimeFormat.h]);
+  function bumpCanvasHeight(delta: number) {
+    const next = Math.max(1200, Math.min(5000, canvasHeight + delta));
+    onCanvasHeightChange?.(next);
+  }
 
   return (
     <div className="w-full h-full relative">
@@ -870,9 +804,7 @@ export default function EditorLayout({
             </div>
 
             <button
-              onClick={() => {
-                addText();
-              }}
+              onClick={addText}
               className="w-full rounded-xl bg-[#ffb800] text-black font-semibold py-3"
             >
               + Ajouter un bloc texte
@@ -883,13 +815,6 @@ export default function EditorLayout({
               className="w-full rounded-xl border border-yellow-500/25 bg-yellow-500/10 text-yellow-200 py-3"
             >
               🖼️ Importer un visuel
-            </button>
-
-            <button
-              onClick={reapplyAutoLayout}
-              className="w-full rounded-xl border border-yellow-500/25 bg-yellow-500/10 text-yellow-200 py-3"
-            >
-              🧩 Réorganiser la landing
             </button>
           </div>
         </div>
@@ -926,9 +851,7 @@ export default function EditorLayout({
                 onChange={() => setFormatKey("pinterest_pin" as CanvasFormatKey)}
                 className="w-full rounded-xl bg-black/40 border border-yellow-500/20 px-3 py-2 text-yellow-100"
               >
-                <option value="pinterest_pin">
-                  Landing SIO pleine page
-                </option>
+                <option value="pinterest_pin">Landing SIO pleine page</option>
               </select>
             </div>
 
@@ -1032,140 +955,54 @@ export default function EditorLayout({
                 </div>
               )}
             </div>
-
-            <div className="mt-6 border-t border-yellow-500/15 pt-4">
-              <div className="flex items-center justify-between mb-2">
-                <label className="block text-yellow-400 text-sm">Overlay de lisibilité</label>
-
-                <button
-                  onClick={() => setOverlayEnabled((v) => !v)}
-                  className={`rounded-lg px-3 py-1 text-xs border ${
-                    overlayEnabled
-                      ? "bg-[#ffb800] text-black border-[#ffb800]"
-                      : "border-yellow-500/20 text-yellow-200"
-                  }`}
-                >
-                  {overlayEnabled ? "Activé" : "Désactivé"}
-                </button>
-              </div>
-
-              <p className="text-xs text-yellow-100/60 mb-3">
-                Assombrit / améliore la lisibilité du texte au-dessus d’une image.
-              </p>
-
-              <div className={`space-y-3 ${overlayEnabled ? "" : "opacity-50 pointer-events-none"}`}>
-                <div className="flex gap-2">
-                  {(["color", "gradient"] as OverlayType[]).map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => setOverlayType(t)}
-                      className={`flex-1 rounded-lg py-2 text-sm border ${
-                        overlayType === t
-                          ? "bg-[#ffb800] text-black"
-                          : "border-yellow-500/20 text-yellow-200"
-                      }`}
-                    >
-                      {t === "color" ? "Couleur" : "Gradient"}
-                    </button>
-                  ))}
-                </div>
-
-                {overlayType === "color" && (
-                  <div>
-                    <label className="block text-yellow-400 text-xs mb-2">Couleur overlay</label>
-                    <input
-                      type="color"
-                      value={overlayColor1}
-                      onChange={(e) => setOverlayColor1(e.target.value)}
-                      className="w-full h-10 rounded-lg bg-black/40 border border-yellow-500/20"
-                    />
-                  </div>
-                )}
-
-                {overlayType === "gradient" && (
-                  <div>
-                    <label className="block text-yellow-400 text-xs mb-2">Gradient overlay</label>
-                    <div
-                      className="w-full h-10 rounded-lg border border-yellow-500/20 mb-3"
-                      style={{
-                        background: `linear-gradient(135deg, ${overlayColor1}, ${overlayColor2})`,
-                      }}
-                    />
-                    <div className="flex gap-2">
-                      <input
-                        type="color"
-                        value={overlayColor1}
-                        onChange={(e) => setOverlayColor1(e.target.value)}
-                        className="w-16 h-10 rounded-lg border border-yellow-500/20 bg-black/30"
-                      />
-                      <input
-                        type="color"
-                        value={overlayColor2}
-                        onChange={(e) => setOverlayColor2(e.target.value)}
-                        className="w-16 h-10 rounded-lg border border-yellow-500/20 bg-black/30"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-yellow-400 text-xs mb-2">
-                    Opacité ({Math.round(overlayOpacity * 100)}%)
-                  </label>
-                  <input
-                    type="range"
-                    min={0}
-                    max={1}
-                    step={0.01}
-                    value={overlayOpacity}
-                    onChange={(e) => setOverlayOpacity(Number(e.target.value))}
-                    className="w-full"
-                  />
-                </div>
-              </div>
-            </div>
           </aside>
 
           <main className="rounded-2xl border border-white/10 bg-black/25 p-5 relative flex items-start justify-center">
             <div
-              ref={stageWrapRef}
               className="w-full rounded-2xl border border-yellow-500/20 overflow-hidden relative"
-              style={{ height: `${effectiveCanvasHeight}px` }}
+              style={{ height: `${canvasHeight}px` }}
             >
-              <div
-                className="pointer-events-none absolute inset-0"
-                style={{ opacity: 0.55 }}
-              >
-                <div
-                  className="absolute top-0 bottom-0 w-px bg-yellow-400/25"
-                  style={{ left: `${centerX}px` }}
-                />
-                <div
-                  className="absolute left-0 right-0 h-px bg-yellow-400/25"
-                  style={{ top: `${centerY}px` }}
-                />
-              </div>
-
-              {selectedMetrics && (
-                <div className="pointer-events-none absolute inset-0">
-                  <div className="absolute left-3 top-3 text-[11px] text-yellow-200/70">
-                    L:{Math.round(selectedMetrics.left)} · T:{Math.round(selectedMetrics.top)} ·
-                    R:{Math.round(selectedMetrics.right)} · B:{Math.round(selectedMetrics.bottom)}
-                  </div>
-                </div>
-              )}
-
               <CanvasStage
-    key={`${formatKey}-${effectiveCanvasHeight}`}
-  layers={layers}
-  setLayers={setLayers}
-  onSelectLayer={selectLayer}
-  format={runtimeFormat as any}
-/>
+                key={`${formatKey}-${canvasHeight}`}
+                layers={layers}
+                setLayers={setLayers}
+                onSelectLayer={selectLayer}
+                format={format as any}
+              />
             </div>
           </main>
 
           <aside className="hidden min-[900px]:block rounded-2xl border border-yellow-500/15 bg-black/30 p-4">
+            <div className="mb-4 rounded-2xl border border-yellow-500/15 bg-black/30 p-3">
+              <div className="text-yellow-300 font-semibold text-sm mb-3">
+                Hauteur du canvas
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => bumpCanvasHeight(-200)}
+                  className="flex-1 rounded-xl border border-yellow-500/25 bg-yellow-500/10 px-3 py-2 text-yellow-200"
+                >
+                  - 200
+                </button>
+                <div className="min-w-[92px] text-center text-sm font-bold text-white">
+                  {canvasHeight}px
+                </div>
+                <button
+                  type="button"
+                  onClick={() => bumpCanvasHeight(200)}
+                  className="flex-1 rounded-xl bg-[#ffb800] px-3 py-2 font-bold text-black"
+                >
+                  + 200
+                </button>
+              </div>
+
+              <div className="mt-3 text-[12px] text-white/55">
+                Réglage manuel stable. Plus d’agrandissement automatique pendant le drag.
+              </div>
+            </div>
+
             <LayersPanelV5
               layers={layers.filter((l: any) => l.id !== BACKGROUND_LAYER_ID)}
               selectedLayerId={selectedLayer?.id ?? null}
@@ -1177,12 +1014,14 @@ export default function EditorLayout({
             />
 
             {selectedLayer && (
-              <PropertiesDrawer
-                open
-                layer={selectedLayer}
-                onClose={() => setShowProps(false)}
-                onChange={(patch) => updateLayer(selectedLayer.id, patch)}
-              />
+              <div className="mt-4">
+                <PropertiesDrawer
+                  open
+                  layer={selectedLayer}
+                  onClose={() => setShowProps(false)}
+                  onChange={(patch) => updateLayer(selectedLayer.id, patch)}
+                />
+              </div>
             )}
           </aside>
         </div>
