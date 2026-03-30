@@ -107,6 +107,8 @@ export default function CanvasStage({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const editorRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const savedRangeRef = useRef<Range | null>(null);
+  const toolbarRef = useRef<HTMLDivElement | null>(null);
+  const linkModalRef = useRef<HTMLDivElement | null>(null);
 
   const [drag, setDrag] = useState<DragState>(null);
   const [resize, setResize] = useState<ResizeState>(null);
@@ -820,6 +822,7 @@ export default function CanvasStage({
 
           {toolbarPos.visible && editingTextId && (
             <div
+              ref={toolbarRef}
               className="absolute z-[99999] -translate-x-1/2 -translate-y-full rounded-2xl border border-yellow-500/20 bg-[#111] p-2 shadow-2xl"
               style={{
                 left: toolbarPos.x,
@@ -1221,7 +1224,10 @@ export default function CanvasStage({
 
       {linkModal.open && (
         <div className="absolute inset-0 z-[100000] flex items-center justify-center bg-black/55">
-          <div className="w-[520px] max-w-[92vw] rounded-[24px] border border-white/10 bg-[#f5f5f5] p-0 text-black shadow-2xl">
+          <div
+            ref={linkModalRef}
+            tabIndex={-1}
+            className="w-[520px] max-w-[92vw] rounded-[24px] border border-white/10 bg-[#f5f5f5] p-0 text-black shadow-2xl">
             <div className="border-b border-black/10 px-6 py-5">
               <div className="flex items-center gap-6 text-[15px]">
                 <label className="flex items-center gap-2">
