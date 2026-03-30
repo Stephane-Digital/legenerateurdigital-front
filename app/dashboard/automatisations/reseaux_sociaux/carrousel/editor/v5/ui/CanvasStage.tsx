@@ -7,9 +7,7 @@ import type { LayerData } from "../types/layers";
 import EditorCanvasV5 from "./EditorCanvasV5";
 
 const HANDLE_SIZE = 10;
-const RESIZE_HIT = 12; // invisible resize hotspot for text corners
-
-// ✅ MUST MATCH EditorLayout.tsx (reference file 1224 lines)
+const RESIZE_HIT = 12;
 const BACKGROUND_LAYER_ID = "background-post";
 
 type DragState = {
@@ -44,7 +42,6 @@ type ResizeTextState = {
 } | null;
 
 type ResizeState = ResizeImageState | ResizeTextState;
-
 type Guides = { x: number | null; y: number | null };
 type Hud =
   | {
@@ -92,7 +89,6 @@ export default function CanvasStage({
   const [guides, setGuides] = useState<Guides>({ x: null, y: null });
   const [hud, setHud] = useState<Hud>(null);
 
-  // ================= SCALE AUTO — FIT (ResizeObserver) =================
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -111,7 +107,6 @@ export default function CanvasStage({
     return () => ro.disconnect();
   }, [format.w, format.h]);
 
-  // ✅ BG is always the layer with id "background-post" (legacy fallback supported)
   const backgroundLayer = useMemo(
     () =>
       ((layers as any[]).find((l: any) => l.id === BACKGROUND_LAYER_ID) as any) ??
@@ -121,10 +116,8 @@ export default function CanvasStage({
     [layers]
   );
 
-  // Overlay lives inside bg layer style.overlay (must work in BOTH bg modes)
   const overlay = (backgroundLayer?.style as any)?.overlay;
 
-  // ✅ do NOT render background layer as regular layer (even when it becomes type "image")
   const orderedLayers = useMemo(() => {
     const filtered = (layers as any[]).filter(
       (l: any) =>
@@ -136,7 +129,6 @@ export default function CanvasStage({
     return [...filtered].sort((a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0));
   }, [layers]);
 
-  // ================= Z-INDEX STRATEGY (Overlay above images, text above overlay) =================
   const overlayZ = useMemo(() => {
     let m = 0;
     for (const l of layers as any[]) {
@@ -181,9 +173,14 @@ export default function CanvasStage({
     const el = containerRef.current;
     if (!el) return { x: 0, y: 0 };
     const r = el.getBoundingClientRect();
+
+    const stageWidth = (format.w || 0) * scale;
+    const stageLeft = r.left + (r.width - stageWidth) / 2;
+    const stageTop = r.top;
+
     return {
-      x: (clientX - r.left) / scale,
-      y: (clientY - r.top) / scale,
+      x: (clientX - stageLeft) / scale,
+      y: (clientY - stageTop) / scale,
     };
   };
 
@@ -193,7 +190,6 @@ export default function CanvasStage({
     return { w, h };
   };
 
-  // ================= SNAP HELPERS =================
   const SNAP_THRESHOLD = 10;
 
   const applySnap = useCallback(
@@ -219,7 +215,6 @@ export default function CanvasStage({
         { target: format.h - h, guide: format.h },
       ];
 
-      // Optional alignment with other layers (edges/centers)
       for (const other of orderedLayers as any[]) {
         if (!other || other.id === id) continue;
         if (other.visible === false) continue;
@@ -229,14 +224,12 @@ export default function CanvasStage({
         const ow = other.width ?? 0;
         const oh = other.height ?? 0;
 
-        // left/center/right
         candidatesX.push(
           { target: ox, guide: ox },
           { target: ox + ow / 2 - w / 2, guide: ox + ow / 2 },
           { target: ox + ow - w, guide: ox + ow }
         );
 
-        // top/center/bottom
         candidatesY.push(
           { target: oy, guide: oy },
           { target: oy + oh / 2 - h / 2, guide: oy + oh / 2 },
@@ -260,7 +253,6 @@ export default function CanvasStage({
         }
       }
 
-      // Canva-like distances (to canvas)
       const L = Math.max(0, Math.round(nx));
       const T = Math.max(0, Math.round(ny));
       const R = Math.max(0, Math.round(format.w - (nx + w)));
@@ -280,7 +272,6 @@ export default function CanvasStage({
     [format.w, format.h, orderedLayers]
   );
 
-  // ================= RESIZE HIT DETECTION (TEXT: invisible corners) =================
   const getTextCornerHit = (layer: any, localX: number, localY: number) => {
     const x = layer.x ?? 0;
     const y = layer.y ?? 0;
@@ -303,12 +294,10 @@ export default function CanvasStage({
     return null;
   };
 
-  // ================= SELECT + DRAG / RESIZE =================
   const onMouseDownLayer = (e: React.MouseEvent, layer: LayerData) => {
     e.preventDefault();
     e.stopPropagation();
 
-    // 🔒 background is not interactable (even if bg is type "image")
     if (
       (layer as any).id === BACKGROUND_LAYER_ID ||
       (layer as any).id === "bg" ||
@@ -320,12 +309,10 @@ export default function CanvasStage({
 
     const p = getLocalPoint(e.clientX, e.clientY);
 
-    // select first
     setSelected((layer as any).id);
     setGuides({ x: null, y: null });
     setHud(null);
 
-    // TEXT: if near a corner -> resize (invisible)
     if ((layer as any).type === "text") {
       const corner = getTextCornerHit(layer, p.x, p.y);
       if (corner) {
@@ -353,7 +340,6 @@ export default function CanvasStage({
       }
     }
 
-    // otherwise drag
     setDrag({
       id: (layer as any).id,
       startX: p.x,
@@ -422,7 +408,6 @@ export default function CanvasStage({
     });
   };
 
-  // ================= DRAG / RESIZE MOVE =================
   const onMouseMove = (e: React.MouseEvent) => {
     if (!drag && !resize) return;
     e.preventDefault();
@@ -517,11 +502,12 @@ export default function CanvasStage({
   return (
     <div ref={containerRef} className="w-full h-full relative overflow-hidden">
       <div
-        className="absolute top-1/2 left-1/2"
+        className="absolute left-1/2 top-0"
         style={{
           width: format.w,
           height: format.h,
-          transform: `translate(-50%, -50%) scale(${scale})`,
+          transform: `translateX(-50%) scale(${scale})`,
+          transformOrigin: "top center",
           cursor: canvasCursor,
         }}
         onMouseMove={onMouseMove}
@@ -534,7 +520,6 @@ export default function CanvasStage({
         }}
       >
         <EditorCanvasV5 width={format.w} height={format.h}>
-          {/* ================= BACKGROUND (single source of truth) ================= */}
           <div
             className="absolute inset-0"
             style={{
@@ -544,7 +529,6 @@ export default function CanvasStage({
             }}
           />
 
-          {/* ================= BACKGROUND IMAGE (id=BACKGROUND_LAYER_ID) ================= */}
           {(backgroundLayer as any)?.id === BACKGROUND_LAYER_ID &&
             (backgroundLayer as any)?.type === "image" &&
             (backgroundLayer as any)?.src && (
@@ -560,7 +544,6 @@ export default function CanvasStage({
               />
             )}
 
-          {/* ================= OVERLAY (must be ABOVE imported BG image) ================= */}
           {overlay && (
             <div
               className="absolute inset-0"
@@ -573,7 +556,6 @@ export default function CanvasStage({
             />
           )}
 
-          {/* ================= SNAPPING GUIDES + HUD ================= */}
           {guides.x !== null && (
             <div
               className="absolute top-0 bottom-0 w-px"
@@ -619,7 +601,6 @@ export default function CanvasStage({
             </div>
           )}
 
-          {/* ================= LAYERS ================= */}
           {orderedLayers.map((layer: any) => {
             if (layer.visible === false) return null;
 
@@ -627,7 +608,6 @@ export default function CanvasStage({
             const y = layer.y ?? 0;
             const isSelected = layer.selected === true;
 
-            /* ================= IMAGE ================= */
             if (layer.type === "image") {
               const w = layer.width ?? 300;
               const h = layer.height ?? 300;
@@ -673,7 +653,6 @@ export default function CanvasStage({
               );
             }
 
-            /* ================= TEXT ================= */
             if (layer.type === "text") {
               const rawText = layer.text ?? "";
 
@@ -728,7 +707,6 @@ export default function CanvasStage({
                 >
                   <div style={{ width: "100%" }}>{rawText}</div>
 
-                  {/* ✅ Poignées texte : 4 points gold (sans rectangle) */}
                   {isSelected &&
                     (["tl", "tr", "bl", "br"] as const).map((corner) => (
                       <div
