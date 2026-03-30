@@ -1257,6 +1257,27 @@ export default function CanvasStage({
                       textAlign,
                     }}
                     dangerouslySetInnerHTML={isEditing ? undefined : { __html: html }}
+                    onMouseDown={(e) => {
+                      if (isEditing) {
+                        if (isEditing) {
+                          e.stopPropagation();
+                          const editor = editorRefs.current[layer.id];
+                          editor?.focus();
+                        }
+                        return;
+                      }
+
+                      const target = e.target as HTMLElement | null;
+                      const anchor = target?.closest?.("a") as HTMLAnchorElement | null;
+
+                      if (anchor) {
+                        e.stopPropagation();
+                        const href = anchor.getAttribute("href");
+                        if (href) {
+                          window.open(href, "_blank", "noopener,noreferrer");
+                        }
+                      }
+                    }}
                   />
 
                   {isSelected &&
