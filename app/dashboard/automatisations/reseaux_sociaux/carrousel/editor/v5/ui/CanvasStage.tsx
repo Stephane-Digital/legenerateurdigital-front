@@ -390,6 +390,7 @@ export default function CanvasStage({
       setTimeout(() => {
         const editor = editorRefs.current[layerId];
         if (!editor) return;
+
         editor.focus();
 
         const range = document.createRange();
@@ -1128,12 +1129,15 @@ export default function CanvasStage({
                     }}
                     onInput={() => {
                       if (isEditing) {
-                        saveCurrentSelection();
                         updateToolbarFromSelection();
                       }
                     }}
                     onMouseDown={(e) => {
-                      e.stopPropagation();
+                      if (isEditing) {
+                        e.stopPropagation();
+                        const editor = editorRefs.current[layer.id];
+                        editor?.focus();
+                      }
                     }}
                     onMouseUp={() => {
                       if (isEditing) {
@@ -1188,8 +1192,8 @@ export default function CanvasStage({
                       updateToolbarFromSelection();
                     }}
                     onClick={(e) => {
-                      e.stopPropagation();
                       if (isEditing) {
+                        e.stopPropagation();
                         saveCurrentSelection();
                         updateToolbarFromSelection();
                       }
