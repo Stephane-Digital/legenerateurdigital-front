@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { Dispatch, SetStateAction } from "react";
@@ -17,8 +18,6 @@ type DragState = {
   origX: number;
   origY: number;
 } | null;
-
-const UNSNAP_DISTANCE = 24;
 
 type ResizeImageState = {
   kind: "image";
@@ -208,16 +207,16 @@ export default function CanvasStage({
       let gx: number | null = null;
       let gy: number | null = null;
 
-      const candidatesX: Array<{ target: number; guide: number; kind?: string }> = [
-        { target: 0, guide: 0, kind: "left-edge" },
-        { target: format.w / 2 - w / 2, guide: format.w / 2, kind: "center-x" },
-        { target: format.w - w, guide: format.w, kind: "right-edge" },
+      const candidatesX: Array<{ target: number; guide: number }> = [
+        { target: 0, guide: 0 },
+        { target: format.w / 2 - w / 2, guide: format.w / 2 },
+        { target: format.w - w, guide: format.w },
       ];
 
-      const candidatesY: Array<{ target: number; guide: number; kind?: string }> = [
-        { target: 0, guide: 0, kind: "top-edge" },
-        { target: format.h / 2 - h / 2, guide: format.h / 2, kind: "center-y" },
-        { target: format.h - h, guide: format.h, kind: "bottom-edge" },
+      const candidatesY: Array<{ target: number; guide: number }> = [
+        { target: 0, guide: 0 },
+        { target: format.h / 2 - h / 2, guide: format.h / 2 },
+        { target: format.h - h, guide: format.h },
       ];
 
       for (const other of orderedLayers as any[]) {
@@ -230,15 +229,15 @@ export default function CanvasStage({
         const oh = other.height ?? 0;
 
         candidatesX.push(
-          { target: ox, guide: ox, kind: "other-left" },
-          { target: ox + ow / 2 - w / 2, guide: ox + ow / 2, kind: "other-center-x" },
-          { target: ox + ow - w, guide: ox + ow, kind: "other-right" }
+          { target: ox, guide: ox },
+          { target: ox + ow / 2 - w / 2, guide: ox + ow / 2 },
+          { target: ox + ow - w, guide: ox + ow }
         );
 
         candidatesY.push(
-          { target: oy, guide: oy, kind: "other-top" },
-          { target: oy + oh / 2 - h / 2, guide: oy + oh / 2, kind: "other-center-y" },
-          { target: oy + oh - h, guide: oy + oh, kind: "other-bottom" }
+          { target: oy, guide: oy },
+          { target: oy + oh / 2 - h / 2, guide: oy + oh / 2 },
+          { target: oy + oh - h, guide: oy + oh }
         );
       }
 
@@ -255,43 +254,6 @@ export default function CanvasStage({
           ny = c.target;
           gy = c.guide;
           break;
-        }
-      }
-
-      if (drag) {
-        const bottomSnapTarget = format.h - h;
-        const topSnapTarget = 0;
-        const leftSnapTarget = 0;
-        const rightSnapTarget = format.w - w;
-
-        const startedSnappedBottom = Math.abs(drag.origY - bottomSnapTarget) <= SNAP_THRESHOLD;
-        const startedSnappedTop = Math.abs(drag.origY - topSnapTarget) <= SNAP_THRESHOLD;
-        const startedSnappedLeft = Math.abs(drag.origX - leftSnapTarget) <= SNAP_THRESHOLD;
-        const startedSnappedRight = Math.abs(drag.origX - rightSnapTarget) <= SNAP_THRESHOLD;
-
-        const movedUpFromBottom = drag.origY - y;
-        const movedDownFromTop = y - drag.origY;
-        const movedRightFromLeft = x - drag.origX;
-        const movedLeftFromRight = drag.origX - x;
-
-        if (startedSnappedBottom && movedUpFromBottom > 0 && movedUpFromBottom < UNSNAP_DISTANCE && Math.abs(ny - bottomSnapTarget) <= SNAP_THRESHOLD) {
-          ny = bottomSnapTarget;
-          gy = format.h;
-        }
-
-        if (startedSnappedTop && movedDownFromTop > 0 && movedDownFromTop < UNSNAP_DISTANCE && Math.abs(ny - topSnapTarget) <= SNAP_THRESHOLD) {
-          ny = topSnapTarget;
-          gy = 0;
-        }
-
-        if (startedSnappedLeft && movedRightFromLeft > 0 && movedRightFromLeft < UNSNAP_DISTANCE && Math.abs(nx - leftSnapTarget) <= SNAP_THRESHOLD) {
-          nx = leftSnapTarget;
-          gx = 0;
-        }
-
-        if (startedSnappedRight && movedLeftFromRight > 0 && movedLeftFromRight < UNSNAP_DISTANCE && Math.abs(nx - rightSnapTarget) <= SNAP_THRESHOLD) {
-          nx = rightSnapTarget;
-          gx = format.w;
         }
       }
 
