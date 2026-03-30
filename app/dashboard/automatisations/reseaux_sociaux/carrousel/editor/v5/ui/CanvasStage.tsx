@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { Dispatch, SetStateAction } from "react";
@@ -355,10 +354,6 @@ export default function CanvasStage({
       return;
     }
 
-    // Important:
-    // when the caret is collapsed inside the live contentEditable,
-    // we must NOT hide/show the toolbar on every key press,
-    // otherwise React rerenders and breaks typing.
     if (selection.isCollapsed) {
       if (activeEl?.closest?.('[contenteditable="true"]')) {
         return;
@@ -429,6 +424,7 @@ export default function CanvasStage({
     },
     [setSelected, hideToolbar, orderedLayers]
   );
+
   useEffect(() => {
     for (const layer of orderedLayers as any[]) {
       if (layer?.type !== "text") continue;
@@ -441,7 +437,6 @@ export default function CanvasStage({
           ? layer.html
           : textToHtml(layer.text ?? "");
 
-      // Never overwrite the DOM of the text currently being edited.
       if (editingTextId === layer.id) continue;
 
       if (editor.innerHTML !== layerHtml) {
@@ -466,8 +461,9 @@ export default function CanvasStage({
       (layer as any).id === BACKGROUND_LAYER_ID ||
       (layer as any).id === "bg" ||
       (layer as any).id === "background"
-    )
+    ) {
       return;
+    }
 
     if ((layer as any).type === "background") return;
 
@@ -485,10 +481,8 @@ export default function CanvasStage({
             ? ((layer as any).style as any).fontSize
             : 48;
 
-        const baseW =
-          typeof (layer as any).width === "number" ? (layer as any).width : 420;
-        const baseH =
-          typeof (layer as any).height === "number" ? (layer as any).height : 120;
+        const baseW = typeof (layer as any).width === "number" ? (layer as any).width : 420;
+        const baseH = typeof (layer as any).height === "number" ? (layer as any).height : 120;
 
         setResize({
           kind: "text",
@@ -638,10 +632,8 @@ export default function CanvasStage({
         if (!layer) return;
 
         const { w, h } = getLayerDims(layer as any);
-
         const rawX = drag.origX + (p.x - drag.startX);
         const rawY = drag.origY + (p.y - drag.startY);
-
         const snapped = applySnap(drag.id, rawX, rawY, w, h);
 
         updateLayer(drag.id, {
@@ -653,7 +645,7 @@ export default function CanvasStage({
         setHud(snapped.hud);
       }
     },
-    [editingTextId, drag, resize, getLocalPoint, format.w, format.h, updateLayer, layers, applySnap]
+    [drag, resize, getLocalPoint, format.w, format.h, updateLayer, layers, applySnap]
   );
 
   const handlePointerUp = useCallback(() => {
@@ -694,7 +686,6 @@ export default function CanvasStage({
       document.removeEventListener("selectionchange", onSelectionChange);
     };
   }, [editingTextId, updateToolbarFromSelection]);
-
 
   const restoreSelection = useCallback(() => {
     if (!savedRangeRef.current) return;
@@ -985,6 +976,7 @@ export default function CanvasStage({
               }}
             />
           )}
+
           {guides.y !== null && (
             <div
               className="absolute left-0 right-0 h-px"
@@ -1094,14 +1086,17 @@ export default function CanvasStage({
 
               const w = typeof layer.width === "number" ? layer.width : 420;
               const h = typeof layer.height === "number" ? layer.height : 120;
-              const html = typeof layer.html === "string" && layer.html.trim()
-                ? layer.html
-                : textToHtml(layer.text ?? "");
+              const html =
+                typeof layer.html === "string" && layer.html.trim()
+                  ? layer.html
+                  : textToHtml(layer.text ?? "");
 
               return (
                 <div
                   key={layer.id}
-                  className={`absolute whitespace-pre-wrap break-words ${isEditing ? "select-text" : "select-none"}`}
+                  className={`absolute whitespace-pre-wrap break-words ${
+                    isEditing ? "select-text" : "select-none"
+                  }`}
                   style={{
                     left: x,
                     top: y,
@@ -1150,10 +1145,31 @@ export default function CanvasStage({
                     spellCheck={false}
                     dir="ltr"
                     tabIndex={isEditing ? 0 : -1}
+                    onMouseDown={(e) => {
+                      if (isEditing) {
+                        e.stopPropagation();
+                        const editor = editorRefs.current[layer.id];
+                        editor?.focus();
+                        return;
+                      }
+
+                      const target = e.target as HTMLElement | null;
+                      const anchor = target?.closest?.("a") as HTMLAnchorElement | null;
+
+                      if (anchor) {
+                        e.stopPropagation();
+                        const href = anchor.getAttribute("href");
+                        if (href) {
+                          window.open(href, "_blank", "noopener,noreferrer");
+                        }
+                      }
+                    }}
                     onBlur={(e) => {
                       const nextTarget = e.relatedTarget as HTMLElement | null;
                       const activeEl =
-                        typeof document !== "undefined" ? (document.activeElement as HTMLElement | null) : null;
+                        typeof document !== "undefined"
+                          ? (document.activeElement as HTMLElement | null)
+                          : null;
 
                       if (
                         linkModal.open ||
@@ -1177,13 +1193,6 @@ export default function CanvasStage({
                     onInput={() => {
                       if (isEditing) {
                         saveCurrentSelection();
-                      }
-                    }}
-                    onMouseDown={(e) => {
-                      if (isEditing) {
-                        e.stopPropagation();
-                        const editor = editorRefs.current[layer.id];
-                        editor?.focus();
                       }
                     }}
                     onMouseUp={() => {
@@ -1221,7 +1230,6 @@ export default function CanvasStage({
                         persistInlineHtml(layer.id);
                         hideToolbar();
                         setEditingTextId(null);
-                        return;
                       }
                     }}
                     onKeyUp={() => {
@@ -1257,27 +1265,6 @@ export default function CanvasStage({
                       textAlign,
                     }}
                     dangerouslySetInnerHTML={isEditing ? undefined : { __html: html }}
-                    onMouseDown={(e) => {
-                      if (isEditing) {
-                        if (isEditing) {
-                          e.stopPropagation();
-                          const editor = editorRefs.current[layer.id];
-                          editor?.focus();
-                        }
-                        return;
-                      }
-
-                      const target = e.target as HTMLElement | null;
-                      const anchor = target?.closest?.("a") as HTMLAnchorElement | null;
-
-                      if (anchor) {
-                        e.stopPropagation();
-                        const href = anchor.getAttribute("href");
-                        if (href) {
-                          window.open(href, "_blank", "noopener,noreferrer");
-                        }
-                      }
-                    }}
                   />
 
                   {isSelected &&
@@ -1328,18 +1315,11 @@ export default function CanvasStage({
             <div className="border-b border-black/10 px-6 py-5">
               <div className="flex items-center gap-6 text-[15px]">
                 <label className="flex items-center gap-2">
-                  <input
-                    type="radio"
-                    checked
-                    readOnly
-                  />
+                  <input type="radio" checked readOnly />
                   Privilège
                 </label>
                 <label className="flex items-center gap-2 opacity-70">
-                  <input
-                    type="radio"
-                    readOnly
-                  />
+                  <input type="radio" readOnly />
                   Surgir
                 </label>
               </div>
@@ -1437,4 +1417,3 @@ export default function CanvasStage({
     </div>
   );
 }
-
