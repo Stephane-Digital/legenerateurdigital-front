@@ -159,7 +159,14 @@ export default function CanvasStage({
     [layers]
   );
 
-  const overlay = (backgroundLayer?.style as any)?.overlay;
+  const overlay =
+    (backgroundLayer?.style as any)?.overlay ??
+    ((backgroundLayer?.style as any)?.color
+      ? {
+          value: "linear-gradient(180deg, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0.38) 100%)",
+          opacity: 1,
+        }
+      : null);
 
   const orderedLayers = useMemo(() => {
     const filtered = (layers as any[]).filter(
@@ -736,6 +743,15 @@ export default function CanvasStage({
     }
 
     persistInlineHtml(linkModal.layerId);
+
+    const editor = editorRefs.current[linkModal.layerId];
+    if (editor) {
+      updateLayer(linkModal.layerId, {
+        html: editor.innerHTML as any,
+        text: stripHtmlToText(editor.innerHTML) as any,
+      } as any);
+    }
+
     setLinkModal({
       open: false,
       layerId: null,
@@ -755,6 +771,46 @@ export default function CanvasStage({
       nofollow: false,
     });
   }, []);
+
+
+  useEffect(() => {
+    const persistAllTextLayers = () => {
+      for (const layer of orderedLayers as any[]) {
+        if (layer?.type !== "text") continue;
+        const editor = editorRefs.current[layer.id];
+        if (!editor) continue;
+
+        const nextHtml = editor.innerHTML;
+        const currentHtml =
+          typeof layer.html === "string" ? layer.html : textToHtml(layer.text ?? "");
+
+        if (nextHtml !== currentHtml) {
+          updateLayer(layer.id, {
+            html: nextHtml as any,
+            text: stripHtmlToText(nextHtml) as any,
+          } as any);
+        }
+      }
+    };
+
+    const handleBeforeUnload = () => {
+      persistAllTextLayers();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        persistAllTextLayers();
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [orderedLayers, updateLayer]);
 
   const canvasCursor = useMemo(() => {
     if (editingTextId) return "text";
@@ -1083,6 +1139,14 @@ export default function CanvasStage({
                         const targetBlank = anchor.getAttribute("target") === "_blank";
 
                         if (href) {
+                          const editor = editorRefs.current[layer.id];
+                          if (editor) {
+                            updateLayer(layer.id, {
+                              html: editor.innerHTML as any,
+                              text: stripHtmlToText(editor.innerHTML) as any,
+                            } as any);
+                          }
+
                           window.open(
                             href,
                             targetBlank ? "_blank" : "_self",
