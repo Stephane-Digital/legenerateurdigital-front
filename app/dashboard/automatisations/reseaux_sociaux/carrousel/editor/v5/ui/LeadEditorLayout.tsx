@@ -831,13 +831,9 @@ export default function EditorLayout({
             ? "Accéder au formulaire maintenant"
             : "Recevoir la méthode premium";
       } else if (action === "rewrite") {
-        next = `${clean}
-
-Version optimisée en ton ${toneLabel}, orientée ${goalLabel}.`;
+        next = `${clean}\n\nVersion optimisée en ton ${toneLabel}, orientée ${goalLabel}.`;
       } else if (action === "landing") {
-        next = `${clean}
-
-Version optimisée pour ${goalLabel}, avec un angle ${toneLabel}, plus claire, plus directe et plus convaincante.`;
+        next = `${clean}\n\nVersion optimisée pour ${goalLabel}, avec un angle ${toneLabel}, plus claire, plus directe et plus convaincante.`;
       }
 
       setCopilotAction(action);
@@ -918,24 +914,28 @@ Version optimisée pour ${goalLabel}, avec un angle ${toneLabel}, plus claire, p
 
               <div className="grid grid-cols-2 gap-2">
                 <button
+                  type="button"
                   onClick={() => buildCopilotSuggestion("title")}
                   className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-200"
                 >
                   Titre
                 </button>
                 <button
+                  type="button"
                   onClick={() => buildCopilotSuggestion("cta")}
                   className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-200"
                 >
                   CTA
                 </button>
                 <button
+                  type="button"
                   onClick={() => buildCopilotSuggestion("rewrite")}
                   className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-200"
                 >
                   Réécrire
                 </button>
                 <button
+                  type="button"
                   onClick={() => buildCopilotSuggestion("landing")}
                   className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-200"
                 >
@@ -1107,6 +1107,119 @@ Version optimisée pour ${goalLabel}, avec un angle ${toneLabel}, plus claire, p
                   )}
                 </div>
               )}
+            </div>
+
+            <div className="mt-6 border-t border-yellow-500/15 pt-4">
+              <div className="mb-3 flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-yellow-300 font-semibold text-sm">✨ Copilote IA</div>
+                  <div className="text-[11px] text-white/45 mt-1">
+                    Bloc ciblé : {copilotSelectedLabel}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCopilotDraft("");
+                    setCopilotAction(null);
+                  }}
+                  className="rounded-lg border border-yellow-500/20 px-3 py-1 text-[11px] text-yellow-200"
+                >
+                  Reset
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-yellow-400 text-xs mb-2">Ton / style</label>
+                  <select
+                    value={copilotTone}
+                    onChange={(e) => setCopilotTone(e.target.value as CopilotTone)}
+                    className="w-full rounded-xl bg-black/40 border border-yellow-500/20 px-3 py-2 text-yellow-100"
+                  >
+                    <option value="premium">Premium expert</option>
+                    <option value="coach">Coach direct</option>
+                    <option value="urgent">Urgence vente</option>
+                    <option value="story">Storytelling</option>
+                    <option value="sio">SIO funnel</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-yellow-400 text-xs mb-2">Objectif</label>
+                  <select
+                    value={copilotGoal}
+                    onChange={(e) => setCopilotGoal(e.target.value as CopilotGoal)}
+                    className="w-full rounded-xl bg-black/40 border border-yellow-500/20 px-3 py-2 text-yellow-100"
+                  >
+                    <option value="leads">Générer plus de leads</option>
+                    <option value="cta">Augmenter le clic CTA</option>
+                    <option value="clarity">Clarifier la promesse</option>
+                    <option value="premium">Rendre la landing plus premium</option>
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => buildCopilotSuggestion("title")}
+                    className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-200"
+                  >
+                    Booster le titre
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => buildCopilotSuggestion("cta")}
+                    className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-200"
+                  >
+                    Booster le CTA
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => buildCopilotSuggestion("rewrite")}
+                    className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-200"
+                  >
+                    Réécrire le bloc
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => buildCopilotSuggestion("landing")}
+                    className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-200"
+                  >
+                    Optimiser la landing
+                  </button>
+                </div>
+
+                <div>
+                  <label className="block text-yellow-400 text-xs mb-2">Proposition copilote</label>
+                  <textarea
+                    value={copilotDraft}
+                    onChange={(e) => setCopilotDraft(e.target.value)}
+                    placeholder="Le copilote propose ici une version optimisée du texte sélectionné."
+                    className="min-h-[128px] w-full rounded-xl border border-yellow-500/15 bg-black/40 px-3 py-3 text-sm text-white/85 outline-none placeholder:text-white/25"
+                  />
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={applyCopilotDraft}
+                    className="flex-1 rounded-xl bg-[#ffb800] px-4 py-2.5 text-black font-semibold"
+                  >
+                    Appliquer au bloc
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (copilotAction) buildCopilotSuggestion(copilotAction);
+                    }}
+                    className="flex-1 rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-2.5 text-yellow-200"
+                  >
+                    Régénérer
+                  </button>
+                </div>
+              </div>
             </div>
           </aside>
 
