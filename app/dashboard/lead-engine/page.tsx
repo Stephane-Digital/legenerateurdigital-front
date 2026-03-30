@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -10,7 +11,7 @@ import { buildLeadHtmlExport } from "@/dashboard/lead-engine/utils/exportHtml";
 
 const STORAGE_KEY = "lgd_lead_engine_builder_v4";
 const STORAGE_CTA_KEY = "lgd_lead_engine_builder_v4_cta_url";
-const STORAGE_CANVAS_HEIGHT_KEY = "lgd_lead_engine_builder_v4_canvas_height";
+const STORAGE_CANVAS_HEIGHT_KEY = "lgd_lead_engine_builder_v4_canvas_height_manual";
 
 function buildLeadPreset(): LayerData[] {
   return [
@@ -148,139 +149,6 @@ function buildLeadPreset(): LayerData[] {
         lineHeight: 1.32,
       },
     } as LayerData,
-    {
-      id: "lead-proof-title",
-      type: "text",
-      x: 74,
-      y: 960,
-      width: 340,
-      height: 60,
-      visible: true,
-      selected: false,
-      zIndex: 9,
-      text: "Preuve sociale",
-      style: {
-        fontSize: 34,
-        fontFamily: "Inter",
-        color: "#ffb800",
-        fontWeight: 800,
-        lineHeight: 1.1,
-      },
-    } as LayerData,
-    {
-      id: "lead-proof-body",
-      type: "text",
-      x: 78,
-      y: 1028,
-      width: 860,
-      height: 92,
-      visible: true,
-      selected: false,
-      zIndex: 10,
-      text: "Cette structure aide à capter plus facilement des leads réellement intéressés par ton offre.",
-      style: {
-        fontSize: 24,
-        fontFamily: "Inter",
-        color: "#d4d4d8",
-        fontWeight: 500,
-        lineHeight: 1.4,
-      },
-    } as LayerData,
-    {
-      id: "lead-faq-title",
-      type: "text",
-      x: 74,
-      y: 1188,
-      width: 220,
-      height: 60,
-      visible: true,
-      selected: false,
-      zIndex: 11,
-      text: "FAQ",
-      style: {
-        fontSize: 34,
-        fontFamily: "Inter",
-        color: "#ffb800",
-        fontWeight: 800,
-        lineHeight: 1.1,
-      },
-    } as LayerData,
-    {
-      id: "lead-faq-q1",
-      type: "text",
-      x: 78,
-      y: 1256,
-      width: 860,
-      height: 60,
-      visible: true,
-      selected: false,
-      zIndex: 12,
-      text: "Est-ce adapté aux débutants ?",
-      style: {
-        fontSize: 26,
-        fontFamily: "Inter",
-        color: "#ffffff",
-        fontWeight: 800,
-        lineHeight: 1.2,
-      },
-    } as LayerData,
-    {
-      id: "lead-faq-a1",
-      type: "text",
-      x: 78,
-      y: 1318,
-      width: 860,
-      height: 82,
-      visible: true,
-      selected: false,
-      zIndex: 13,
-      text: "Oui, la structure a été pensée pour rester simple à mettre en œuvre.",
-      style: {
-        fontSize: 22,
-        fontFamily: "Inter",
-        color: "#d4d4d8",
-        fontWeight: 500,
-        lineHeight: 1.38,
-      },
-    } as LayerData,
-    {
-      id: "lead-faq-q2",
-      type: "text",
-      x: 78,
-      y: 1450,
-      width: 860,
-      height: 60,
-      visible: true,
-      selected: false,
-      zIndex: 14,
-      text: "Combien de temps faut-il pour l’utiliser ?",
-      style: {
-        fontSize: 26,
-        fontFamily: "Inter",
-        color: "#ffffff",
-        fontWeight: 800,
-        lineHeight: 1.2,
-      },
-    } as LayerData,
-    {
-      id: "lead-faq-a2",
-      type: "text",
-      x: 78,
-      y: 1512,
-      width: 860,
-      height: 82,
-      visible: true,
-      selected: false,
-      zIndex: 15,
-      text: "Le format est conçu pour être actionnable rapidement, sans lecture interminable.",
-      style: {
-        fontSize: 22,
-        fontFamily: "Inter",
-        color: "#d4d4d8",
-        fontWeight: 500,
-        lineHeight: 1.38,
-      },
-    } as LayerData,
   ];
 }
 
@@ -297,19 +165,7 @@ function safeParseLayers(raw: string | null): LayerData[] | null {
 function safeParseHeight(raw: string | null): number | null {
   const n = Number(raw);
   if (!Number.isFinite(n)) return null;
-  return Math.max(900, Math.min(4000, n));
-}
-
-function getBottom(layer: any) {
-  const y = Number(layer?.y ?? 0);
-  const h = Number(layer?.height ?? 0);
-  return y + h;
-}
-
-function computeAutoCanvasHeight(layers: LayerData[]) {
-  const visible = layers.filter((layer: any) => layer?.visible !== false);
-  const maxBottom = visible.reduce((max, layer: any) => Math.max(max, getBottom(layer)), 0);
-  return Math.max(900, Math.ceil(maxBottom + 140));
+  return Math.max(1200, Math.min(5000, Math.round(n)));
 }
 
 export default function LeadEnginePage() {
@@ -320,7 +176,7 @@ export default function LeadEnginePage() {
   const [ctaUrl, setCtaUrl] = useState("");
   const [copied, setCopied] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState("");
-  const [canvasHeight, setCanvasHeight] = useState(1650);
+  const [canvasHeight, setCanvasHeight] = useState(1800);
 
   useEffect(() => {
     try {
@@ -333,18 +189,16 @@ export default function LeadEnginePage() {
       const nextLayers =
         savedLayers && savedLayers.length > 0 ? savedLayers : buildLeadPreset();
 
-      const nextHeight = savedCanvasHeight ?? computeAutoCanvasHeight(nextLayers);
-
       setInitialLayers(nextLayers);
       setLayers(nextLayers);
       setCtaUrl(savedCta);
-      setCanvasHeight(nextHeight);
+      setCanvasHeight(savedCanvasHeight ?? 1800);
     } catch {
       const preset = buildLeadPreset();
       setInitialLayers(preset);
       setLayers(preset);
       setCtaUrl("");
-      setCanvasHeight(computeAutoCanvasHeight(preset));
+      setCanvasHeight(1800);
     } finally {
       setHydrated(true);
     }
@@ -354,8 +208,11 @@ export default function LeadEnginePage() {
     if (!hydrated) return;
     try {
       window.localStorage.setItem(STORAGE_CTA_KEY, ctaUrl);
-    } catch {}
-  }, [ctaUrl, hydrated]);
+      window.localStorage.setItem(STORAGE_CANVAS_HEIGHT_KEY, String(canvasHeight));
+    } catch {
+      // noop
+    }
+  }, [ctaUrl, canvasHeight, hydrated]);
 
   const htmlExport = useMemo(() => {
     return buildLeadHtmlExport({
@@ -369,48 +226,52 @@ export default function LeadEnginePage() {
       await navigator.clipboard.writeText(htmlExport);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1800);
-    } catch {}
+    } catch {
+      // noop
+    }
   }
 
-  function persistWorkingState(nextLayers: LayerData[], nextHeight: number) {
+  function persistLayers(nextLayers: LayerData[]) {
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextLayers));
-      window.localStorage.setItem(STORAGE_CANVAS_HEIGHT_KEY, String(nextHeight));
-    } catch {}
+    } catch {
+      // noop
+    }
   }
 
   function handleLayersChange(nextLayers: LayerData[]) {
-    const nextHeight = computeAutoCanvasHeight(nextLayers);
-
     setLayers(nextLayers);
     setInitialLayers(nextLayers);
-    setCanvasHeight(nextHeight);
     setLastSavedAt(new Date().toLocaleTimeString());
-
-    persistWorkingState(nextLayers, nextHeight);
+    persistLayers(nextLayers);
   }
 
   function resetPreset() {
     const preset = buildLeadPreset();
-    const nextHeight = computeAutoCanvasHeight(preset);
-
     setInitialLayers(preset);
     setLayers(preset);
-    setCanvasHeight(nextHeight);
+    setCanvasHeight(1800);
     setEditorKey((value) => value + 1);
     setLastSavedAt(new Date().toLocaleTimeString());
 
-    persistWorkingState(preset, nextHeight);
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(preset));
+      window.localStorage.setItem(STORAGE_CANVAS_HEIGHT_KEY, "1800");
+    } catch {
+      // noop
+    }
   }
 
-  function applyAutoHeightCanvas() {
-    const nextHeight = computeAutoCanvasHeight(layers);
-    setCanvasHeight(nextHeight);
+  function handleCanvasHeightChange(nextHeight: number) {
+    const safeHeight = Math.max(1200, Math.min(5000, Math.round(nextHeight)));
+    setCanvasHeight(safeHeight);
     setLastSavedAt(new Date().toLocaleTimeString());
 
     try {
-      window.localStorage.setItem(STORAGE_CANVAS_HEIGHT_KEY, String(nextHeight));
-    } catch {}
+      window.localStorage.setItem(STORAGE_CANVAS_HEIGHT_KEY, String(safeHeight));
+    } catch {
+      // noop
+    }
   }
 
   return (
@@ -429,7 +290,7 @@ export default function LeadEnginePage() {
 
               <div className="inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-4 py-1 text-[12px] text-white/75">
                 <FaMagic className="text-yellow-300" />
-                Lead Builder V4.2.3 — Auto Height Canvas
+                Lead Builder V4.2.5 — Manual Height
               </div>
             </div>
 
@@ -437,8 +298,7 @@ export default function LeadEnginePage() {
               Lead Engine branché sur la vraie structure éditeur
             </h1>
             <p className="mt-2 max-w-3xl text-white/65">
-              Le bloc central ajuste maintenant automatiquement sa hauteur selon le
-              contenu réel de la landing.
+              Hauteur du canvas désormais gérée manuellement pour éviter tout collage du texte en bas.
             </p>
           </div>
 
@@ -484,20 +344,16 @@ export default function LeadEnginePage() {
 
             <div className="rounded-2xl border border-yellow-600/20 bg-[#111] p-4">
               <div className="text-sm font-semibold text-yellow-300">
-                Auto height canvas
+                Hauteur manuelle
               </div>
 
               <div className="mt-2 text-sm text-white/60">
-                Le bloc central se recalibre selon le point bas du contenu visible.
+                Le canvas ne s’agrandit plus automatiquement. Hauteur pilotée par boutons dans Propriétés.
               </div>
 
-              <button
-                type="button"
-                onClick={applyAutoHeightCanvas}
-                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#ffb800] px-4 py-3 text-sm font-bold text-black"
-              >
-                Auto-ajuster la hauteur du canvas
-              </button>
+              <div className="mt-4 text-sm text-white/80">
+                Hauteur actuelle : <span className="font-bold text-yellow-300">{canvasHeight}px</span>
+              </div>
             </div>
 
             <div className="rounded-2xl border border-yellow-600/20 bg-[#111] p-4">
@@ -507,16 +363,16 @@ export default function LeadEnginePage() {
 
               <div className="mt-3 space-y-2 text-sm text-white/70">
                 <div>
-                  <span className="font-semibold text-white/90">Hauteur actuelle :</span>{" "}
-                  {canvasHeight}px
-                </div>
-                <div>
                   <span className="font-semibold text-white/90">Dernière synchro :</span>{" "}
                   {lastSavedAt || "en attente d’une modification"}
                 </div>
                 <div>
                   <span className="font-semibold text-white/90">Texte du bouton :</span>{" "}
                   layer <code className="text-yellow-300">lead-cta</code>
+                </div>
+                <div>
+                  <span className="font-semibold text-white/90">Mode :</span>{" "}
+                  manuel stable
                 </div>
               </div>
             </div>
@@ -530,6 +386,7 @@ export default function LeadEnginePage() {
               initialLayers={initialLayers}
               initialLayersKey={`lead-engine-${editorKey}`}
               canvasHeight={canvasHeight}
+              onCanvasHeightChange={handleCanvasHeightChange}
               onChange={handleLayersChange}
             />
           ) : (
