@@ -679,6 +679,8 @@ export default function CanvasStage({
 
   const openLinkModal = useCallback(() => {
     if (!editingTextId) return;
+
+    saveCurrentSelection();
     restoreSelection();
 
     const selection = window.getSelection();
@@ -693,7 +695,11 @@ export default function CanvasStage({
       targetBlank: anchor?.getAttribute("target") === "_blank",
       nofollow: (anchor?.getAttribute("rel") ?? "").includes("nofollow"),
     });
-  }, [editingTextId, restoreSelection]);
+
+    requestAnimationFrame(() => {
+      linkModalRef.current?.focus();
+    });
+  }, [editingTextId, restoreSelection, saveCurrentSelection]);
 
   const confirmLinkModal = useCallback(() => {
     if (!linkModal.layerId) return;
@@ -819,11 +825,18 @@ export default function CanvasStage({
                 left: toolbarPos.x,
                 top: toolbarPos.y,
               }}
-              onMouseDown={(e) => e.stopPropagation()}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
             >
               <div className="flex items-center gap-1">
                 <button
                   type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
                   onClick={() => applyCommand("bold")}
                   className="h-9 min-w-[36px] rounded-lg px-3 text-sm font-bold text-white hover:bg-white/10"
                   title="Gras"
@@ -832,6 +845,10 @@ export default function CanvasStage({
                 </button>
                 <button
                   type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
                   onClick={() => applyCommand("italic")}
                   className="h-9 min-w-[36px] rounded-lg px-3 text-sm italic text-white hover:bg-white/10"
                   title="Italique"
@@ -840,6 +857,10 @@ export default function CanvasStage({
                 </button>
                 <button
                   type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
                   onClick={() => applyCommand("underline")}
                   className="h-9 min-w-[36px] rounded-lg px-3 text-sm underline text-white hover:bg-white/10"
                   title="Souligné"
@@ -848,6 +869,11 @@ export default function CanvasStage({
                 </button>
                 <button
                   type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    saveCurrentSelection();
+                  }}
                   onClick={openLinkModal}
                   className="h-9 min-w-[36px] rounded-lg px-3 text-sm text-white hover:bg-white/10"
                   title="Ajouter un lien"
