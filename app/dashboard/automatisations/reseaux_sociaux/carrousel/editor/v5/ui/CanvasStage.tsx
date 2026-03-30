@@ -387,6 +387,8 @@ export default function CanvasStage({
     (layerId: string) => {
       setEditingTextId(layerId);
       setSelected(layerId);
+      hideToolbar();
+
       setTimeout(() => {
         const editor = editorRefs.current[layerId];
         if (!editor) return;
@@ -1129,7 +1131,7 @@ export default function CanvasStage({
                     }}
                     onInput={() => {
                       if (isEditing) {
-                        updateToolbarFromSelection();
+                        saveCurrentSelection();
                       }
                     }}
                     onMouseDown={(e) => {
@@ -1180,7 +1182,6 @@ export default function CanvasStage({
                     onKeyUp={() => {
                       if (isEditing) {
                         saveCurrentSelection();
-                        updateToolbarFromSelection();
                       }
                     }}
                     onPaste={(e) => {
@@ -1189,7 +1190,6 @@ export default function CanvasStage({
                       const pasted = e.clipboardData.getData("text/plain");
                       document.execCommand("insertText", false, pasted);
                       saveCurrentSelection();
-                      updateToolbarFromSelection();
                     }}
                     onClick={(e) => {
                       if (isEditing) {
@@ -1200,6 +1200,9 @@ export default function CanvasStage({
                     }}
                     style={{
                       width: "100%",
+                      minHeight: "1em",
+                      whiteSpace: "pre-wrap",
+                      wordBreak: "break-word",
                       outline: "none",
                       cursor: isEditing ? "text" : "inherit",
                       userSelect: "text",
