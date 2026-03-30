@@ -1153,7 +1153,11 @@ export default function CanvasStage({
                             targetBlank ? "noopener,noreferrer" : undefined
                           );
                         }
+                        return;
                       }
+
+                      // Allow double-click directly on visible text without the outer drag box
+                      e.stopPropagation();
                     }}
                     onBlur={(e) => {
                       const nextTarget = e.relatedTarget as HTMLElement | null;
