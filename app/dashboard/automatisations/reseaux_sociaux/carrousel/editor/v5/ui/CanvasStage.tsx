@@ -107,8 +107,6 @@ export default function CanvasStage({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const editorRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const savedRangeRef = useRef<Range | null>(null);
-  const toolbarRef = useRef<HTMLDivElement | null>(null);
-  const linkModalRef = useRef<HTMLDivElement | null>(null);
 
   const [drag, setDrag] = useState<DragState>(null);
   const [resize, setResize] = useState<ResizeState>(null);
@@ -341,28 +339,13 @@ export default function CanvasStage({
   };
 
   const hideToolbar = useCallback(() => {
-    if (linkModal.open) return;
     setToolbarPos((prev) => ({ ...prev, visible: false }));
-  }, [linkModal.open]);
+  }, []);
 
   const updateToolbarFromSelection = useCallback(() => {
-    if (linkModal.open) return;
     if (typeof window === "undefined") return;
     const selection = window.getSelection();
-    const activeEl = document.activeElement as HTMLElement | null;
-
-    if (!selection || selection.rangeCount === 0) {
-      return;
-    }
-
-    // Important:
-    // when the caret is collapsed inside the live contentEditable,
-    // we must NOT hide/show the toolbar on every key press,
-    // otherwise React rerenders and breaks typing.
-    if (selection.isCollapsed) {
-      if (activeEl?.closest?.('[contenteditable="true"]')) {
-        return;
-      }
+    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
       hideToolbar();
       return;
     }
@@ -381,7 +364,7 @@ export default function CanvasStage({
       x: rect.left - stageRect.left + rect.width / 2,
       y: rect.top - stageRect.top - 14,
     });
-  }, [hideToolbar, linkModal.open]);
+  }, [hideToolbar]);
 
   const persistInlineHtml = useCallback(
     (layerId: string) => {
@@ -400,22 +383,9 @@ export default function CanvasStage({
     (layerId: string) => {
       setEditingTextId(layerId);
       setSelected(layerId);
-      hideToolbar();
-
       setTimeout(() => {
         const editor = editorRefs.current[layerId];
         if (!editor) return;
-
-        const currentLayer = (orderedLayers as any[]).find((l: any) => l.id === layerId);
-        const currentHtml =
-          typeof currentLayer?.html === "string" && currentLayer.html.trim()
-            ? currentLayer.html
-            : textToHtml(currentLayer?.text ?? "");
-
-        if (editor.innerHTML !== currentHtml) {
-          editor.innerHTML = currentHtml;
-        }
-
         editor.focus();
 
         const range = document.createRange();
@@ -427,37 +397,11 @@ export default function CanvasStage({
         sel?.addRange(range);
       }, 0);
     },
-    [setSelected, hideToolbar, orderedLayers]
+    [setSelected]
   );
-  useEffect(() => {
-    for (const layer of orderedLayers as any[]) {
-      if (layer?.type !== "text") continue;
-
-      const editor = editorRefs.current[layer.id];
-      if (!editor) continue;
-
-      const layerHtml =
-        typeof layer.html === "string" && layer.html.trim()
-          ? layer.html
-          : textToHtml(layer.text ?? "");
-
-      // Never overwrite the DOM of the text currently being edited.
-      if (editingTextId === layer.id) continue;
-
-      if (editor.innerHTML !== layerHtml) {
-        editor.innerHTML = layerHtml;
-      }
-    }
-  }, [orderedLayers, editingTextId]);
 
   const onMouseDownLayer = (e: React.MouseEvent, layer: LayerData) => {
     if (editingTextId && editingTextId === (layer as any).id) return;
-
-    if (editingTextId && editingTextId !== (layer as any).id) {
-      persistInlineHtml(editingTextId);
-      hideToolbar();
-      setEditingTextId(null);
-    }
 
     e.preventDefault();
     e.stopPropagation();
@@ -518,11 +462,7 @@ export default function CanvasStage({
     layer: any,
     corner: "tl" | "tr" | "bl" | "br"
   ) => {
-    if (editingTextId) {
-      persistInlineHtml(editingTextId);
-      hideToolbar();
-      setEditingTextId(null);
-    }
+    if (editingTextId) return;
 
     e.preventDefault();
     e.stopPropagation();
@@ -551,11 +491,7 @@ export default function CanvasStage({
     layer: any,
     corner: "tl" | "tr" | "bl" | "br"
   ) => {
-    if (editingTextId) {
-      persistInlineHtml(editingTextId);
-      hideToolbar();
-      setEditingTextId(null);
-    }
+    if (editingTextId) return;
 
     e.preventDefault();
     e.stopPropagation();
@@ -586,6 +522,7 @@ export default function CanvasStage({
 
   const handlePointerMove = useCallback(
     (clientX: number, clientY: number) => {
+      if (editingTextId) return;
       if (!drag && !resize) return;
 
       const p = getLocalPoint(clientX, clientY);
@@ -695,7 +632,6 @@ export default function CanvasStage({
     };
   }, [editingTextId, updateToolbarFromSelection]);
 
-
   const restoreSelection = useCallback(() => {
     if (!savedRangeRef.current) return;
     const selection = window.getSelection();
@@ -714,27 +650,16 @@ export default function CanvasStage({
   const applyCommand = useCallback(
     (command: "bold" | "italic" | "underline") => {
       if (!editingTextId) return;
-
-      const editor = editorRefs.current[editingTextId];
-      editor?.focus();
-
       restoreSelection();
       document.execCommand(command, false);
-
       persistInlineHtml(editingTextId);
-
-      requestAnimationFrame(() => {
-        editor?.focus();
-        updateToolbarFromSelection();
-      });
+      updateToolbarFromSelection();
     },
     [editingTextId, persistInlineHtml, restoreSelection, updateToolbarFromSelection]
   );
 
   const openLinkModal = useCallback(() => {
     if (!editingTextId) return;
-
-    saveCurrentSelection();
     restoreSelection();
 
     const selection = window.getSelection();
@@ -749,11 +674,7 @@ export default function CanvasStage({
       targetBlank: anchor?.getAttribute("target") === "_blank",
       nofollow: (anchor?.getAttribute("rel") ?? "").includes("nofollow"),
     });
-
-    requestAnimationFrame(() => {
-      linkModalRef.current?.focus();
-    });
-  }, [editingTextId, restoreSelection, saveCurrentSelection]);
+  }, [editingTextId, restoreSelection]);
 
   const confirmLinkModal = useCallback(() => {
     if (!linkModal.layerId) return;
@@ -795,16 +716,10 @@ export default function CanvasStage({
       targetBlank: true,
       nofollow: false,
     });
-
-    requestAnimationFrame(() => {
-      const editor = editorRefs.current[linkModal.layerId!];
-      editor?.focus();
-      updateToolbarFromSelection();
-    });
+    updateToolbarFromSelection();
   }, [linkModal, persistInlineHtml, restoreSelection, updateToolbarFromSelection]);
 
   const cancelLinkModal = useCallback(() => {
-    const currentLayerId = linkModal.layerId;
     setLinkModal({
       open: false,
       layerId: null,
@@ -812,46 +727,7 @@ export default function CanvasStage({
       targetBlank: true,
       nofollow: false,
     });
-
-    requestAnimationFrame(() => {
-      if (!currentLayerId) return;
-      const editor = editorRefs.current[currentLayerId];
-      editor?.focus();
-      restoreSelection();
-      updateToolbarFromSelection();
-    });
-  }, [linkModal.layerId, restoreSelection, updateToolbarFromSelection]);
-
-  useEffect(() => {
-    if (!linkModal.open) return;
-
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        cancelLinkModal();
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [linkModal.open, cancelLinkModal]);
-
-
-  useEffect(() => {
-    const handleWindowBlur = () => {
-      if (!editingTextId) return;
-      persistInlineHtml(editingTextId);
-      hideToolbar();
-      setEditingTextId(null);
-    };
-
-    window.addEventListener("blur", handleWindowBlur);
-    return () => {
-      window.removeEventListener("blur", handleWindowBlur);
-    };
-  }, [editingTextId, persistInlineHtml, hideToolbar]);
+  }, []);
 
   const canvasCursor = useMemo(() => {
     if (editingTextId) return "text";
@@ -874,11 +750,7 @@ export default function CanvasStage({
           cursor: canvasCursor,
         }}
         onMouseDown={() => {
-          if (editingTextId) {
-            persistInlineHtml(editingTextId);
-            hideToolbar();
-            setEditingTextId(null);
-          }
+          if (editingTextId) return;
           setSelected(null);
           setGuides({ x: null, y: null });
           setHud(null);
@@ -923,24 +795,16 @@ export default function CanvasStage({
 
           {toolbarPos.visible && editingTextId && (
             <div
-              ref={toolbarRef}
-              className="lgd-inline-toolbar absolute z-[99999] -translate-x-1/2 -translate-y-full rounded-2xl border border-yellow-500/20 bg-[#111] p-2 shadow-2xl"
+              className="absolute z-[99999] -translate-x-1/2 -translate-y-full rounded-2xl border border-yellow-500/20 bg-[#111] p-2 shadow-2xl"
               style={{
                 left: toolbarPos.x,
                 top: toolbarPos.y,
               }}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-              }}
+              onMouseDown={(e) => e.stopPropagation()}
             >
               <div className="flex items-center gap-1">
                 <button
                   type="button"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                  }}
                   onClick={() => applyCommand("bold")}
                   className="h-9 min-w-[36px] rounded-lg px-3 text-sm font-bold text-white hover:bg-white/10"
                   title="Gras"
@@ -949,10 +813,6 @@ export default function CanvasStage({
                 </button>
                 <button
                   type="button"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                  }}
                   onClick={() => applyCommand("italic")}
                   className="h-9 min-w-[36px] rounded-lg px-3 text-sm italic text-white hover:bg-white/10"
                   title="Italique"
@@ -961,10 +821,6 @@ export default function CanvasStage({
                 </button>
                 <button
                   type="button"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                  }}
                   onClick={() => applyCommand("underline")}
                   className="h-9 min-w-[36px] rounded-lg px-3 text-sm underline text-white hover:bg-white/10"
                   title="Souligné"
@@ -973,11 +829,6 @@ export default function CanvasStage({
                 </button>
                 <button
                   type="button"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    saveCurrentSelection();
-                  }}
                   onClick={openLinkModal}
                   className="h-9 min-w-[36px] rounded-lg px-3 text-sm text-white hover:bg-white/10"
                   title="Ajouter un lien"
@@ -1116,7 +967,7 @@ export default function CanvasStage({
               return (
                 <div
                   key={layer.id}
-                  className={`absolute whitespace-pre-wrap break-words ${isEditing ? "select-text" : "select-none"}`}
+                  className="absolute whitespace-pre-wrap break-words select-none"
                   style={{
                     left: x,
                     top: y,
@@ -1131,10 +982,6 @@ export default function CanvasStage({
                     textDecoration,
                     lineHeight: layer.style?.lineHeight ?? 1.35,
                     textAlign,
-                    direction: "ltr",
-                    unicodeBidi: "normal",
-                    writingMode: "horizontal-tb",
-                    transform: "none",
                     cursor: isEditing ? "text" : "move",
                     boxShadow: "none",
                     padding: 6,
@@ -1165,10 +1012,43 @@ export default function CanvasStage({
                     spellCheck={false}
                     dir="ltr"
                     tabIndex={isEditing ? 0 : -1}
+                    onMouseDown={(e) => {
+                      if (isEditing) {
+                        e.stopPropagation();
+                        const editor = editorRefs.current[layer.id];
+                        editor?.focus();
+                        return;
+                      }
+
+                      const target = e.target as HTMLElement | null;
+                      const anchor = target?.closest?.("a") as HTMLAnchorElement | null;
+
+                      if (anchor) {
+                        e.preventDefault();
+                        e.stopPropagation();
+
+                        persistInlineHtml(layer.id);
+                        hideToolbar();
+                        setEditingTextId(null);
+
+                        const href = anchor.getAttribute("href");
+                        const targetBlank = anchor.getAttribute("target") === "_blank";
+
+                        if (href) {
+                          window.open(
+                            href,
+                            targetBlank ? "_blank" : "_self",
+                            targetBlank ? "noopener,noreferrer" : undefined
+                          );
+                        }
+                      }
+                    }}
                     onBlur={(e) => {
                       const nextTarget = e.relatedTarget as HTMLElement | null;
                       const activeEl =
-                        typeof document !== "undefined" ? (document.activeElement as HTMLElement | null) : null;
+                        typeof document !== "undefined"
+                          ? (document.activeElement as HTMLElement | null)
+                          : null;
 
                       if (
                         linkModal.open ||
@@ -1192,13 +1072,6 @@ export default function CanvasStage({
                     onInput={() => {
                       if (isEditing) {
                         saveCurrentSelection();
-                      }
-                    }}
-                    onMouseDown={(e) => {
-                      if (isEditing) {
-                        e.stopPropagation();
-                        const editor = editorRefs.current[layer.id];
-                        editor?.focus();
                       }
                     }}
                     onMouseUp={() => {
@@ -1236,7 +1109,6 @@ export default function CanvasStage({
                         persistInlineHtml(layer.id);
                         hideToolbar();
                         setEditingTextId(null);
-                        return;
                       }
                     }}
                     onKeyUp={() => {
@@ -1272,27 +1144,6 @@ export default function CanvasStage({
                       textAlign,
                     }}
                     dangerouslySetInnerHTML={isEditing ? undefined : { __html: html }}
-                    onMouseDown={(e) => {
-                      if (isEditing) {
-                        if (isEditing) {
-                          e.stopPropagation();
-                          const editor = editorRefs.current[layer.id];
-                          editor?.focus();
-                        }
-                        return;
-                      }
-
-                      const target = e.target as HTMLElement | null;
-                      const anchor = target?.closest?.("a") as HTMLAnchorElement | null;
-
-                      if (anchor) {
-                        e.stopPropagation();
-                        const href = anchor.getAttribute("href");
-                        if (href) {
-                          window.open(href, "_blank", "noopener,noreferrer");
-                        }
-                      }
-                    }}
                   />
 
                   {isSelected &&
@@ -1324,22 +1175,8 @@ export default function CanvasStage({
       </div>
 
       {linkModal.open && (
-        <div
-          className="absolute inset-0 z-[100000] flex items-center justify-center bg-black/55"
-          onMouseDown={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-          }}
-        >
-          <div
-            ref={linkModalRef}
-            tabIndex={-1}
-            className="lgd-link-modal w-[520px] max-w-[92vw] rounded-[24px] border border-white/10 bg-[#f5f5f5] p-0 text-black shadow-2xl"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-            }}
-          >
+        <div className="absolute inset-0 z-[100000] flex items-center justify-center bg-black/55">
+          <div className="w-[520px] max-w-[92vw] rounded-[24px] border border-white/10 bg-[#f5f5f5] p-0 text-black shadow-2xl">
             <div className="border-b border-black/10 px-6 py-5">
               <div className="flex items-center gap-6 text-[15px]">
                 <label className="flex items-center gap-2">
@@ -1366,13 +1203,6 @@ export default function CanvasStage({
               <div className="flex overflow-hidden rounded-xl border border-black/15 bg-white">
                 <input
                   type="text"
-                  autoFocus
-                  onMouseDown={(e) => {
-                    e.stopPropagation();
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                  }}
                   value={linkModal.url}
                   onChange={(e) =>
                     setLinkModal((prev) => ({
@@ -1425,10 +1255,6 @@ export default function CanvasStage({
             <div className="flex justify-end gap-3 border-t border-black/10 px-6 py-4">
               <button
                 type="button"
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                }}
                 onClick={cancelLinkModal}
                 className="rounded-xl border border-black/15 bg-white px-5 py-2.5 text-[15px] text-[#0b8bf1]"
               >
@@ -1436,10 +1262,6 @@ export default function CanvasStage({
               </button>
               <button
                 type="button"
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                }}
                 onClick={confirmLinkModal}
                 className="rounded-xl bg-[#0b8bf1] px-5 py-2.5 text-[15px] font-semibold text-white"
               >
