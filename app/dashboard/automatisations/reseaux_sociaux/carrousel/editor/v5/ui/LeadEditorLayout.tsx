@@ -17,7 +17,7 @@ type BackgroundMode = "color" | "gradient" | "image";
 type OverlayType = "color" | "gradient";
 type CopilotTone = "premium" | "coach" | "urgent" | "story" | "sio";
 type CopilotGoal = "leads" | "cta" | "clarity" | "premium";
-type CopilotAction = "title" | "cta" | "rewrite" | "landing" | null;
+type CopilotAction = "title" | "cta" | "rewrite" | "landing";
 
 type EditorUIState = {
   formatKey: CanvasFormatKey;
@@ -271,16 +271,8 @@ export default function EditorLayout({
 
   const [copilotTone, setCopilotTone] = useState<CopilotTone>("premium");
   const [copilotGoal, setCopilotGoal] = useState<CopilotGoal>("leads");
-  const [copilotAction, setCopilotAction] = useState<CopilotAction>(null);
   const [copilotDraft, setCopilotDraft] = useState("");
-
-  const [expertAnalysis, setExpertAnalysis] = useState("");
-  const [expertReasoning, setExpertReasoning] = useState("");
-  const [expertScores, setExpertScores] = useState({
-    hook: 7,
-    cta: 5,
-    conversion: 6,
-  });
+  const [copilotAction, setCopilotAction] = useState<CopilotAction | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const bgImageInputRef = useRef<HTMLInputElement | null>(null);
@@ -776,130 +768,6 @@ export default function EditorLayout({
     });
   }, [bgColor]);
 
-  const copilotSelectedLabel = useMemo(() => {
-    if (!selectedLayer) return "Aucun bloc sélectionné";
-    if (selectedLayer.type !== "text") return "Sélectionne un bloc texte";
-    return selectedLayer.id || "Bloc texte";
-  }, [selectedLayer]);
-
-  const buildCopilotSuggestion = useCallback(
-    (action: Exclude<CopilotAction, null>) => {
-      const targetText =
-        selectedLayer?.type === "text" ? String(selectedLayer.text ?? "").trim() : "";
-
-      if (!targetText && action !== "landing") {
-        setCopilotAction(action);
-        setCopilotDraft("Sélectionne un bloc texte pour générer une proposition IA.");
-        setExpertAnalysis("Aucun bloc texte sélectionné.");
-        setExpertReasoning("Le mode expert travaille bloc par bloc pour optimiser le hook, le CTA ou la promesse.");
-        setExpertScores({ hook: 0, cta: 0, conversion: 0 });
-        return;
-      }
-
-      const clean = targetText.replace(/\s+/g, " ").trim();
-
-      if (action === "title") {
-        setExpertScores({ hook: 9, cta: 5, conversion: 8 });
-        setExpertAnalysis("Hook trop générique • bénéfice pas assez tangible • promesse à renforcer");
-        setExpertReasoning(
-          "La version proposée rend le résultat plus concret, plus premium et plus désirable, ce qui augmente l’attention dès les premières secondes."
-        );
-
-        const next =
-          copilotTone === "urgent"
-            ? `Découvre comment ${clean.toLowerCase()} en moins de 7 jours sans perdre de temps`
-            : copilotTone === "coach"
-            ? `Passe à l'action : ${clean} avec une méthode claire et concrète`
-            : copilotTone === "story"
-            ? `Et si ${clean.toLowerCase()} devenait enfin simple, fluide et rentable ?`
-            : copilotTone === "sio"
-            ? `${clean} — la structure funnel pensée pour capter plus de leads`
-            : `${clean} avec une approche premium qui attire des prospects plus qualifiés`;
-
-        setCopilotAction(action);
-        setCopilotDraft(next);
-        return;
-      }
-
-      if (action === "cta") {
-        setExpertScores({ hook: 6, cta: 9, conversion: 8 });
-        setExpertAnalysis("CTA trop neutre • manque d'urgence • bénéfice peu visible");
-        setExpertReasoning(
-          "La nouvelle version pousse davantage à l’action en mettant en avant le bénéfice immédiat et une intention plus claire de clic."
-        );
-
-        const next =
-          copilotTone === "urgent"
-            ? "Je veux accéder à la méthode maintenant"
-            : copilotTone === "coach"
-            ? "Je passe à l'action dès maintenant"
-            : copilotTone === "story"
-            ? "Je découvre la méthode complète"
-            : copilotTone === "sio"
-            ? "Accéder au funnel maintenant"
-            : "Recevoir la méthode premium";
-
-        setCopilotAction(action);
-        setCopilotDraft(next);
-        return;
-      }
-
-      if (action === "rewrite") {
-        setExpertScores({ hook: 8, cta: 7, conversion: 8 });
-        setExpertAnalysis("Clarté perfectible • bénéfice à densifier • structure à rendre plus persuasive");
-        setExpertReasoning(
-          "La réécriture premium améliore la lisibilité, le niveau de désirabilité et la cohérence business du message."
-        );
-
-        setCopilotAction(action);
-        setCopilotDraft(
-          `${clean}\n\nVersion premium optimisée pour ${copilotGoal === "leads" ? "générer plus de leads" : copilotGoal === "cta" ? "augmenter le clic CTA" : copilotGoal === "clarity" ? "clarifier la promesse" : "renforcer le niveau perçu premium"}.`
-        );
-        return;
-      }
-
-      if (action === "landing") {
-        setExpertScores({ hook: 9, cta: 8, conversion: 9 });
-        setExpertAnalysis("Structure funnel à clarifier • promesse à hiérarchiser • CTA final à renforcer");
-        setExpertReasoning(
-          "Cette proposition pose une structure plus proche d’une landing premium orientée conversion, avec hook, bénéfices et CTA mieux articulés."
-        );
-
-        const next = [
-          "SECTION HERO",
-          "Découvrez comment attirer plus de prospects qualifiés avec une landing premium pensée pour convertir.",
-          "",
-          "SOUS-TITRE",
-          "Une structure claire, persuasive et immédiatement exploitable pour capter plus de leads sans complexifier ton funnel.",
-          "",
-          "CTA",
-          "Je veux ma landing premium maintenant",
-          "",
-          "BÉNÉFICES",
-          "• Clarifie ta promesse en quelques secondes",
-          "• Renforce la perception premium de ton offre",
-          "• Augmente l'intention de clic sur ton CTA",
-          "",
-          "CLOSING",
-          "Passe d’une simple page à une vraie machine de conversion, prête à être modifiée dans l’éditeur."
-        ].join("\n");
-
-        setCopilotAction(action);
-        setCopilotDraft(next);
-      }
-    },
-    [selectedLayer, copilotTone, copilotGoal]
-  );
-
-  const applyCopilotDraft = useCallback(() => {
-    if (!selectedLayer || selectedLayer.type !== "text") return;
-    if (!copilotDraft.trim()) return;
-
-    updateLayer(selectedLayer.id, {
-      text: copilotDraft,
-    } as any);
-  }, [selectedLayer, copilotDraft, updateLayer]);
-
   function bumpCanvasHeight(delta: number) {
     const next = Math.max(1200, Math.min(5000, canvasHeight + delta));
     onCanvasHeightChange?.(next);
@@ -956,68 +824,6 @@ export default function EditorLayout({
             >
               🖼️ Importer un visuel
             </button>
-
-            <div className="pt-4 border-t border-yellow-500/15">
-              <div className="text-yellow-300 font-semibold text-sm mb-2">✨ Copilote IA</div>
-              <div className="text-[11px] text-white/45 mb-3">Bloc ciblé : {copilotSelectedLabel}</div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => buildCopilotSuggestion("title")}
-                  className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-200"
-                >
-                  Titre
-                </button>
-                <button
-                  type="button"
-                  onClick={() => buildCopilotSuggestion("cta")}
-                  className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-200"
-                >
-                  CTA
-                </button>
-                <button
-                  type="button"
-                  onClick={() => buildCopilotSuggestion("rewrite")}
-                  className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-200"
-                >
-                  Réécrire
-                </button>
-                <button
-                  type="button"
-                  onClick={() => buildCopilotSuggestion("landing")}
-                  className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-200"
-                >
-                  Landing
-                </button>
-              </div>
-
-              <textarea
-                value={copilotDraft}
-                onChange={(e) => setCopilotDraft(e.target.value)}
-                placeholder="Proposition du copilote"
-                className="mt-3 min-h-[120px] w-full rounded-xl border border-yellow-500/15 bg-black/40 px-3 py-3 text-sm text-white/85 outline-none placeholder:text-white/25"
-              />
-
-              <div className="mt-3 flex gap-2">
-                <button
-                  type="button"
-                  onClick={applyCopilotDraft}
-                  className="flex-1 rounded-xl bg-[#ffb800] px-4 py-2.5 text-black font-semibold"
-                >
-                  Appliquer
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (copilotAction) buildCopilotSuggestion(copilotAction);
-                  }}
-                  className="flex-1 rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-2.5 text-yellow-200"
-                >
-                  Régénérer
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       )}
@@ -1157,100 +963,6 @@ export default function EditorLayout({
                 </div>
               )}
             </div>
-
-
-            <div className="mt-6 border-t border-yellow-500/15 pt-4">
-              <div className="flex items-center justify-between mb-2">
-                <label className="block text-yellow-400 text-sm">Overlay</label>
-
-                <button
-                  onClick={() => setOverlayEnabled((v) => !v)}
-                  className={`rounded-lg px-3 py-1 text-xs border ${
-                    overlayEnabled
-                      ? "bg-[#ffb800] text-black border-[#ffb800]"
-                      : "border-yellow-500/20 text-yellow-200"
-                  }`}
-                >
-                  {overlayEnabled ? "Activé" : "Désactivé"}
-                </button>
-              </div>
-
-              <p className="text-xs text-yellow-100/60 mb-3">
-                Assombrit / améliore la lisibilité du texte au-dessus d’une image.
-              </p>
-
-              <div className={`space-y-3 ${overlayEnabled ? "" : "opacity-50 pointer-events-none"}`}>
-                <div className="flex gap-2">
-                  {(["color", "gradient"] as OverlayType[]).map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => setOverlayType(t)}
-                      className={`flex-1 rounded-lg py-2 text-sm border ${
-                        overlayType === t
-                          ? "bg-[#ffb800] text-black"
-                          : "border-yellow-500/20 text-yellow-200"
-                      }`}
-                    >
-                      {t === "color" ? "Couleur" : "Gradient"}
-                    </button>
-                  ))}
-                </div>
-
-                {overlayType === "color" && (
-                  <div>
-                    <label className="block text-yellow-400 text-xs mb-2">Couleur overlay</label>
-                    <input
-                      type="color"
-                      value={overlayColor1}
-                      onChange={(e) => setOverlayColor1(e.target.value)}
-                      className="w-full h-10 rounded-lg bg-black/40 border border-yellow-500/20"
-                    />
-                  </div>
-                )}
-
-                {overlayType === "gradient" && (
-                  <div>
-                    <label className="block text-yellow-400 text-xs mb-2">Gradient overlay</label>
-                    <div
-                      className="w-full h-10 rounded-lg border border-yellow-500/20 mb-3"
-                      style={{
-                        background: `linear-gradient(135deg, ${overlayColor1}, ${overlayColor2})`,
-                      }}
-                    />
-                    <div className="flex gap-2">
-                      <input
-                        type="color"
-                        value={overlayColor1}
-                        onChange={(e) => setOverlayColor1(e.target.value)}
-                        className="w-16 h-10 rounded-lg border border-yellow-500/20 bg-black/30"
-                      />
-                      <input
-                        type="color"
-                        value={overlayColor2}
-                        onChange={(e) => setOverlayColor2(e.target.value)}
-                        className="w-16 h-10 rounded-lg border border-yellow-500/20 bg-black/30"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-yellow-400 text-xs mb-2">
-                    Opacité ({Math.round(overlayOpacity * 100)}%)
-                  </label>
-                  <input
-                    type="range"
-                    min={0}
-                    max={1}
-                    step={0.01}
-                    value={overlayOpacity}
-                    onChange={(e) => setOverlayOpacity(Number(e.target.value))}
-                    className="w-full"
-                  />
-                </div>
-              </div>
-            </div>
-
             <div className="mt-6 border-t border-yellow-500/15 pt-4">
               <div className="mb-3 flex items-start justify-between gap-3">
                 <div>
@@ -1274,7 +986,7 @@ export default function EditorLayout({
 
               <div className="space-y-3">
                 <div>
-                  <label className="block text-yellow-400 text-xs mb-2">Ton / style</label>
+                  <label className="block text-yellow-400 text-xs mb-2">Ton</label>
                   <select
                     value={copilotTone}
                     onChange={(e) => setCopilotTone(e.target.value as CopilotTone)}
@@ -1303,67 +1015,41 @@ export default function EditorLayout({
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => buildCopilotSuggestion("title")}
-                    className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-200"
-                  >
-                    Booster le titre
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => buildCopilotSuggestion("cta")}
-                    className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-200"
-                  >
-                    Booster le CTA
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => buildCopilotSuggestion("rewrite")}
-                    className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-200"
-                  >
-                    Réécrire le bloc
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => buildCopilotSuggestion("landing")}
-                    className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-200"
-                  >
-                    Optimiser la landing
-                  </button>
+                  <button onClick={() => buildCopilotSuggestion("title")} className="rounded-xl border border-yellow-500/25 bg-yellow-500/10 text-yellow-200 py-2 text-sm">Booster le titre</button>
+                  <button onClick={() => buildCopilotSuggestion("cta")} className="rounded-xl border border-yellow-500/25 bg-yellow-500/10 text-yellow-200 py-2 text-sm">Booster le CTA</button>
+                  <button onClick={() => buildCopilotSuggestion("rewrite")} className="rounded-xl border border-yellow-500/25 bg-yellow-500/10 text-yellow-200 py-2 text-sm">Réécrire le bloc</button>
+                  <button onClick={() => buildCopilotSuggestion("landing")} className="rounded-xl border border-yellow-500/25 bg-yellow-500/10 text-yellow-200 py-2 text-sm">Optimiser la landing</button>
                 </div>
 
-                <div>
-                  <label className="block text-yellow-400 text-xs mb-2">Proposition copilote</label>
+                <div className="rounded-2xl border border-yellow-500/15 bg-black/30 p-3">
+                  <div className="mb-2 text-yellow-400 text-xs">Proposition copilote</div>
                   <textarea
                     value={copilotDraft}
                     onChange={(e) => setCopilotDraft(e.target.value)}
-                    placeholder="Le copilote propose ici une version optimisée du texte sélectionné."
-                    className="min-h-[128px] w-full rounded-xl border border-yellow-500/15 bg-black/40 px-3 py-3 text-sm text-white/85 outline-none placeholder:text-white/25"
+                    placeholder="Le copilote proposera ici une version optimisée du texte sélectionné."
+                    className="min-h-[180px] w-full rounded-xl border border-yellow-500/15 bg-black/40 px-3 py-3 text-sm text-white/85 outline-none placeholder:text-white/25"
                   />
-                </div>
-
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={applyCopilotDraft}
-                    className="flex-1 rounded-xl bg-[#ffb800] px-4 py-2.5 text-black font-semibold"
-                  >
-                    Appliquer au bloc
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (copilotAction) buildCopilotSuggestion(copilotAction);
-                    }}
-                    className="flex-1 rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-2.5 text-yellow-200"
-                  >
-                    Régénérer
-                  </button>
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={applyCopilotDraft}
+                      className="flex-1 rounded-xl bg-[#ffb800] text-black font-semibold py-2.5"
+                    >
+                      Appliquer au bloc
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (copilotAction) buildCopilotSuggestion(copilotAction);
+                      }}
+                      className="flex-1 rounded-xl border border-yellow-500/25 bg-yellow-500/10 text-yellow-200 py-2.5"
+                    >
+                      Régénérer
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
-
           </aside>
 
           <main className="rounded-2xl border border-white/10 bg-black/25 p-5 relative flex items-start justify-center">
@@ -1438,4 +1124,3 @@ export default function EditorLayout({
     </div>
   );
 }
-
