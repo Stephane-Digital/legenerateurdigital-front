@@ -274,6 +274,14 @@ export default function EditorLayout({
   const [copilotAction, setCopilotAction] = useState<CopilotAction>(null);
   const [copilotDraft, setCopilotDraft] = useState("");
 
+  const [expertAnalysis, setExpertAnalysis] = useState("");
+  const [expertReasoning, setExpertReasoning] = useState("");
+  const [expertScores, setExpertScores] = useState({
+    hook: 7,
+    cta: 5,
+    conversion: 6,
+  });
+
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const bgImageInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -779,65 +787,106 @@ export default function EditorLayout({
       const targetText =
         selectedLayer?.type === "text" ? String(selectedLayer.text ?? "").trim() : "";
 
-      if (!targetText) {
+      if (!targetText && action !== "landing") {
         setCopilotAction(action);
         setCopilotDraft("Sélectionne un bloc texte pour générer une proposition IA.");
+        setExpertAnalysis("Aucun bloc texte sélectionné.");
+        setExpertReasoning("Le mode expert travaille bloc par bloc pour optimiser le hook, le CTA ou la promesse.");
+        setExpertScores({ hook: 0, cta: 0, conversion: 0 });
         return;
       }
 
-      const toneLabel =
-        copilotTone === "premium"
-          ? "premium expert"
-          : copilotTone === "coach"
-          ? "coach direct"
-          : copilotTone === "urgent"
-          ? "urgence vente"
-          : copilotTone === "story"
-          ? "storytelling"
-          : "SIO funnel";
-
-      const goalLabel =
-        copilotGoal === "leads"
-          ? "générer plus de leads"
-          : copilotGoal === "cta"
-          ? "augmenter le clic CTA"
-          : copilotGoal === "clarity"
-          ? "clarifier la promesse"
-          : "rendre la landing plus premium";
-
       const clean = targetText.replace(/\s+/g, " ").trim();
-      let next = clean;
 
       if (action === "title") {
-        next =
+        setExpertScores({ hook: 9, cta: 5, conversion: 8 });
+        setExpertAnalysis("Hook trop générique • bénéfice pas assez tangible • promesse à renforcer");
+        setExpertReasoning(
+          "La version proposée rend le résultat plus concret, plus premium et plus désirable, ce qui augmente l’attention dès les premières secondes."
+        );
+
+        const next =
           copilotTone === "urgent"
-            ? `Découvre comment ${clean.toLowerCase()} sans perdre de temps`
+            ? `Découvre comment ${clean.toLowerCase()} en moins de 7 jours sans perdre de temps`
             : copilotTone === "coach"
-            ? `Passe à l'action : ${clean}`
+            ? `Passe à l'action : ${clean} avec une méthode claire et concrète`
             : copilotTone === "story"
-            ? `Et si ${clean.toLowerCase()} devenait enfin simple ?`
+            ? `Et si ${clean.toLowerCase()} devenait enfin simple, fluide et rentable ?`
             : copilotTone === "sio"
-            ? `${clean} — méthode claire pour capturer plus de leads`
-            : `${clean} avec une approche premium qui convertit mieux`;
-      } else if (action === "cta") {
-        next =
+            ? `${clean} — la structure funnel pensée pour capter plus de leads`
+            : `${clean} avec une approche premium qui attire des prospects plus qualifiés`;
+
+        setCopilotAction(action);
+        setCopilotDraft(next);
+        return;
+      }
+
+      if (action === "cta") {
+        setExpertScores({ hook: 6, cta: 9, conversion: 8 });
+        setExpertAnalysis("CTA trop neutre • manque d'urgence • bénéfice peu visible");
+        setExpertReasoning(
+          "La nouvelle version pousse davantage à l’action en mettant en avant le bénéfice immédiat et une intention plus claire de clic."
+        );
+
+        const next =
           copilotTone === "urgent"
-            ? "Je veux accéder à l'offre maintenant"
+            ? "Je veux accéder à la méthode maintenant"
             : copilotTone === "coach"
-            ? "Je passe à l'action maintenant"
+            ? "Je passe à l'action dès maintenant"
             : copilotTone === "story"
             ? "Je découvre la méthode complète"
             : copilotTone === "sio"
-            ? "Accéder au formulaire maintenant"
+            ? "Accéder au funnel maintenant"
             : "Recevoir la méthode premium";
-      } else if (action === "rewrite") {
-        next = `${clean}\n\nVersion optimisée en ton ${toneLabel}, orientée ${goalLabel}.`;
-      } else if (action === "landing") {
-        next = `${clean}\n\nVersion optimisée pour ${goalLabel}, avec un angle ${toneLabel}, plus claire, plus directe et plus convaincante.`;
+
+        setCopilotAction(action);
+        setCopilotDraft(next);
+        return;
       }
 
-      setCopilotAction(action);
-      setCopilotDraft(next);
+      if (action === "rewrite") {
+        setExpertScores({ hook: 8, cta: 7, conversion: 8 });
+        setExpertAnalysis("Clarté perfectible • bénéfice à densifier • structure à rendre plus persuasive");
+        setExpertReasoning(
+          "La réécriture premium améliore la lisibilité, le niveau de désirabilité et la cohérence business du message."
+        );
+
+        setCopilotAction(action);
+        setCopilotDraft(
+          `${clean}\n\nVersion premium optimisée pour ${copilotGoal === "leads" ? "générer plus de leads" : copilotGoal === "cta" ? "augmenter le clic CTA" : copilotGoal === "clarity" ? "clarifier la promesse" : "renforcer le niveau perçu premium"}.`
+        );
+        return;
+      }
+
+      if (action === "landing") {
+        setExpertScores({ hook: 9, cta: 8, conversion: 9 });
+        setExpertAnalysis("Structure funnel à clarifier • promesse à hiérarchiser • CTA final à renforcer");
+        setExpertReasoning(
+          "Cette proposition pose une structure plus proche d’une landing premium orientée conversion, avec hook, bénéfices et CTA mieux articulés."
+        );
+
+        const next = [
+          "SECTION HERO",
+          "Découvrez comment attirer plus de prospects qualifiés avec une landing premium pensée pour convertir.",
+          "",
+          "SOUS-TITRE",
+          "Une structure claire, persuasive et immédiatement exploitable pour capter plus de leads sans complexifier ton funnel.",
+          "",
+          "CTA",
+          "Je veux ma landing premium maintenant",
+          "",
+          "BÉNÉFICES",
+          "• Clarifie ta promesse en quelques secondes",
+          "• Renforce la perception premium de ton offre",
+          "• Augmente l'intention de clic sur ton CTA",
+          "",
+          "CLOSING",
+          "Passe d’une simple page à une vraie machine de conversion, prête à être modifiée dans l’éditeur."
+        ].join("\n");
+
+        setCopilotAction(action);
+        setCopilotDraft(next);
+      }
     },
     [selectedLayer, copilotTone, copilotGoal]
   );
