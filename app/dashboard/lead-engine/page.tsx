@@ -290,7 +290,7 @@ export default function LeadEnginePage() {
 
               <div className="inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-4 py-1 text-[12px] text-white/75">
                 <FaMagic className="text-yellow-300" />
-                Lead Builder V4.2.5 — Manual Height
+                Lead Builder V4.6.1 — Top Copilote
               </div>
             </div>
 
@@ -298,7 +298,7 @@ export default function LeadEnginePage() {
               Lead Engine branché sur la vraie structure éditeur
             </h1>
             <p className="mt-2 max-w-3xl text-white/65">
-              Hauteur du canvas désormais gérée manuellement pour éviter tout collage du texte en bas.
+              Copilote Lead Engine Expert rétractable en haut, génération de blocs IA et injection directe dans le canvas.
             </p>
           </div>
 
@@ -323,62 +323,6 @@ export default function LeadEnginePage() {
           </div>
         </div>
 
-        <div className="mb-6 rounded-[28px] border border-yellow-600/20 bg-[#0b0b0b] p-5">
-          <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr_0.85fr]">
-            <div>
-              <div className="mb-2 text-sm font-semibold text-yellow-300">
-                Champ CTA Systeme.io
-              </div>
-              <div className="text-sm text-white/55">
-                Ce champ pilote le lien du bouton exporté. Flux : champ ⇒ bouton HTML ⇒ page ou formulaire Systeme.io.
-              </div>
-
-              <input
-                type="text"
-                value={ctaUrl}
-                onChange={(e) => setCtaUrl(e.target.value)}
-                placeholder="https://ton-lien-systeme.io/ton-formulaire"
-                className="mt-4 w-full rounded-2xl border border-yellow-600/20 bg-[#111] px-4 py-4 text-sm text-white/85 outline-none placeholder:text-white/30"
-              />
-            </div>
-
-            <div className="rounded-2xl border border-yellow-600/20 bg-[#111] p-4">
-              <div className="text-sm font-semibold text-yellow-300">
-                Hauteur manuelle
-              </div>
-
-              <div className="mt-2 text-sm text-white/60">
-                Le canvas ne s’agrandit plus automatiquement. Hauteur pilotée par boutons dans Propriétés.
-              </div>
-
-              <div className="mt-4 text-sm text-white/80">
-                Hauteur actuelle : <span className="font-bold text-yellow-300">{canvasHeight}px</span>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-yellow-600/20 bg-[#111] p-4">
-              <div className="text-sm font-semibold text-yellow-300">
-                Vérification
-              </div>
-
-              <div className="mt-3 space-y-2 text-sm text-white/70">
-                <div>
-                  <span className="font-semibold text-white/90">Dernière synchro :</span>{" "}
-                  {lastSavedAt || "en attente d’une modification"}
-                </div>
-                <div>
-                  <span className="font-semibold text-white/90">Texte du bouton :</span>{" "}
-                  layer <code className="text-yellow-300">lead-cta</code>
-                </div>
-                <div>
-                  <span className="font-semibold text-white/90">Mode :</span>{" "}
-                  manuel stable
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
         <div className="rounded-[28px] border border-yellow-600/20 bg-[#0b0b0b] p-4 sm:p-5">
           {hydrated ? (
             <LeadEditorLayout
@@ -387,6 +331,8 @@ export default function LeadEnginePage() {
               initialLayersKey={`lead-engine-${editorKey}`}
               canvasHeight={canvasHeight}
               onCanvasHeightChange={handleCanvasHeightChange}
+              ctaUrl={ctaUrl}
+              onCtaUrlChange={setCtaUrl}
               onChange={handleLayersChange}
             />
           ) : (
