@@ -15,9 +15,14 @@ const BACKGROUND_LAYER_ID = "background-post";
 
 type BackgroundMode = "color" | "gradient" | "image";
 type OverlayType = "color" | "gradient";
-type CopilotTone = "premium" | "coach" | "urgent" | "story" | "sio";
-type CopilotGoal = "leads" | "cta" | "clarity" | "premium";
-type CopilotAction = "title" | "cta" | "rewrite" | "landing" | null;
+type CopilotAction = "hooks" | "cta" | "benefits" | "variants" | "landing";
+
+type GeneratedItem = {
+  id: string;
+  kind: "hook" | "subtitle" | "cta" | "benefit" | "closing";
+  label: string;
+  text: string;
+};
 
 type EditorUIState = {
   formatKey: CanvasFormatKey;
@@ -44,6 +49,8 @@ interface Props {
   onCloseMobileTools?: () => void;
   canvasHeight?: number;
   onCanvasHeightChange?: (nextHeight: number) => void;
+  ctaUrl?: string;
+  onCtaUrlChange?: (nextValue: string) => void;
 }
 
 const GRADIENT_PRESETS = [
@@ -236,6 +243,8 @@ export default function EditorLayout({
   onCloseMobileTools,
   canvasHeight = 1800,
   onCanvasHeightChange,
+  ctaUrl = "",
+  onCtaUrlChange,
 }: Props) {
   const [formatKey, setFormatKey] = useState<CanvasFormatKey>(
     initialUI?.formatKey ?? "instagram_post"
@@ -269,17 +278,16 @@ export default function EditorLayout({
   const [overlayColor2, setOverlayColor2] = useState(initialUI?.overlayColor2 ?? "#000000");
   const [overlayOpacity, setOverlayOpacity] = useState(initialUI?.overlayOpacity ?? 0.35);
 
-  const [copilotTone, setCopilotTone] = useState<CopilotTone>("premium");
-  const [copilotGoal, setCopilotGoal] = useState<CopilotGoal>("leads");
-  const [copilotAction, setCopilotAction] = useState<CopilotAction>(null);
-  const [copilotDraft, setCopilotDraft] = useState("");
-  const [expertAnalysis, setExpertAnalysis] = useState("");
-  const [expertReasoning, setExpertReasoning] = useState("");
-  const [expertScores, setExpertScores] = useState({
-    hook: 7,
-    cta: 5,
-    conversion: 6,
-  });
+  const [copilotOpen, setCopilotOpen] = useState(true);
+  const [briefOffer, setBriefOffer] = useState("");
+  const [briefGoal, setBriefGoal] = useState("leads");
+  const [briefAngle, setBriefAngle] = useState("lead-magnet");
+  const [briefAudience, setBriefAudience] = useState("entrepreneurs");
+  const [briefTone, setBriefTone] = useState("premium");
+  const [briefLength, setBriefLength] = useState(120);
+  const [generatedItems, setGeneratedItems] = useState<GeneratedItem[]>([]);
+  const [copilotStatus, setCopilotStatus] = useState("");
+  const [lastAction, setLastAction] = useState<CopilotAction | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const bgImageInputRef = useRef<HTMLInputElement | null>(null);
@@ -775,139 +783,194 @@ export default function EditorLayout({
     });
   }, [bgColor]);
 
-  const copilotSelectedLabel = useMemo(() => {
-    if (!selectedLayer) return "Aucun bloc sélectionné";
-    if (selectedLayer.type !== "text") return "Sélectionne un bloc texte";
-    return selectedLayer.id || "Bloc texte";
-  }, [selectedLayer]);
+  const currentBottomY = useMemo(() => {
+    const content = layers.filter((l: any) => l.id !== BACKGROUND_LAYER_ID);
+    if (!content.length) return 80;
+    return content.reduce((maxY: number, l: any) => {
+      const h = typeof l.height === "number" ? l.height : l.type === "text" ? 120 : 300;
+      return Math.max(maxY, (l.y ?? 0) + h);
+    }, 0);
+  }, [layers]);
 
-  const buildCopilotSuggestion = useCallback(
-    (action: Exclude<CopilotAction, null>) => {
-      const targetText =
-        selectedLayer?.type === "text" ? String(selectedLayer.text ?? "").trim() : "";
+  const makeTextLayer = useCallback(
+    (kind: GeneratedItem["kind"], label: string, textValue: string, x: number, y: number, zIndex: number): LayerData => {
+      const styleByKind: Record<GeneratedItem["kind"], any> = {
+        hook: { fontSize: 58, fontFamily: "Inter", color: "#ffffff", fontWeight: 800, lineHeight: 1.05 },
+        subtitle: { fontSize: 24, fontFamily: "Inter", color: "#e4e4e7", fontWeight: 500, lineHeight: 1.4 },
+        cta: { fontSize: 22, fontFamily: "Inter", color: "#111111", fontWeight: 800, lineHeight: 1.2, backgroundColor: "#ffb800" },
+        benefit: { fontSize: 20, fontFamily: "Inter", color: "#ffffff", fontWeight: 600, lineHeight: 1.32 },
+        closing: { fontSize: 22, fontFamily: "Inter", color: "#f4f4f5", fontWeight: 600, lineHeight: 1.35 },
+      };
 
-      if (!targetText && action !== "landing") {
-        setCopilotAction(action);
-        setCopilotDraft("Sélectionne un bloc texte pour générer une proposition IA.");
-        setExpertAnalysis("Aucun bloc texte sélectionné.");
-        setExpertReasoning(
-          "Le mode expert travaille bloc par bloc pour optimiser le hook, le CTA ou la promesse."
-        );
-        setExpertScores({ hook: 0, cta: 0, conversion: 0 });
-        return;
-      }
+      const sizeByKind: Record<GeneratedItem["kind"], { width: number; height: number }> = {
+        hook: { width: 620, height: 210 },
+        subtitle: { width: 560, height: 130 },
+        cta: { width: 360, height: 74 },
+        benefit: { width: 560, height: 64 },
+        closing: { width: 560, height: 120 },
+      };
 
-      const clean = targetText.replace(/\s+/g, " ").trim();
-
-      if (action === "title") {
-        setExpertScores({ hook: 9, cta: 5, conversion: 8 });
-        setExpertAnalysis("Hook trop générique • bénéfice pas assez tangible • promesse à renforcer");
-        setExpertReasoning(
-          "La version proposée rend le résultat plus concret, plus premium et plus désirable, ce qui augmente l’attention dès les premières secondes."
-        );
-
-        const next =
-          copilotTone === "urgent"
-            ? `Découvre comment ${clean.toLowerCase()} en moins de 7 jours sans perdre de temps`
-            : copilotTone === "coach"
-            ? `Passe à l'action : ${clean} avec une méthode claire et concrète`
-            : copilotTone === "story"
-            ? `Et si ${clean.toLowerCase()} devenait enfin simple, fluide et rentable ?`
-            : copilotTone === "sio"
-            ? `${clean} — la structure funnel pensée pour capter plus de leads`
-            : `${clean} avec une approche premium qui attire des prospects plus qualifiés`;
-
-        setCopilotAction(action);
-        setCopilotDraft(next);
-        return;
-      }
-
-      if (action === "cta") {
-        setExpertScores({ hook: 6, cta: 9, conversion: 8 });
-        setExpertAnalysis("CTA trop neutre • manque d'urgence • bénéfice peu visible");
-        setExpertReasoning(
-          "La nouvelle version pousse davantage à l’action en mettant en avant le bénéfice immédiat et une intention plus claire de clic."
-        );
-
-        const next =
-          copilotTone === "urgent"
-            ? "Je veux accéder à la méthode maintenant"
-            : copilotTone === "coach"
-            ? "Je passe à l'action dès maintenant"
-            : copilotTone === "story"
-            ? "Je découvre la méthode complète"
-            : copilotTone === "sio"
-            ? "Accéder au funnel maintenant"
-            : "Recevoir la méthode premium";
-
-        setCopilotAction(action);
-        setCopilotDraft(next);
-        return;
-      }
-
-      if (action === "rewrite") {
-        setExpertScores({ hook: 8, cta: 7, conversion: 8 });
-        setExpertAnalysis("Clarté perfectible • bénéfice à densifier • structure à rendre plus persuasive");
-        setExpertReasoning(
-          "La réécriture premium améliore la lisibilité, le niveau de désirabilité et la cohérence business du message."
-        );
-
-        setCopilotAction(action);
-        setCopilotDraft(
-          `${clean}\n\nVersion premium optimisée pour ${
-            copilotGoal === "leads"
-              ? "générer plus de leads"
-              : copilotGoal === "cta"
-              ? "augmenter le clic CTA"
-              : copilotGoal === "clarity"
-              ? "clarifier la promesse"
-              : "renforcer le niveau perçu premium"
-          }.`
-        );
-        return;
-      }
-
-      if (action === "landing") {
-        setExpertScores({ hook: 9, cta: 8, conversion: 9 });
-        setExpertAnalysis("Structure funnel à clarifier • promesse à hiérarchiser • CTA final à renforcer");
-        setExpertReasoning(
-          "Cette proposition pose une structure plus proche d’une landing premium orientée conversion, avec hook, bénéfices et CTA mieux articulés."
-        );
-
-        const next = [
-          "SECTION HERO",
-          "Découvrez comment attirer plus de prospects qualifiés avec une landing premium pensée pour convertir.",
-          "",
-          "SOUS-TITRE",
-          "Une structure claire, persuasive et immédiatement exploitable pour capter plus de leads sans complexifier ton funnel.",
-          "",
-          "CTA",
-          "Je veux ma landing premium maintenant",
-          "",
-          "BÉNÉFICES",
-          "• Clarifie ta promesse en quelques secondes",
-          "• Renforce la perception premium de ton offre",
-          "• Augmente l'intention de clic sur ton CTA",
-          "",
-          "CLOSING",
-          "Passe d’une simple page à une vraie machine de conversion, prête à être modifiée dans l’éditeur."
-        ].join("\n");
-
-        setCopilotAction(action);
-        setCopilotDraft(next);
-      }
+      return {
+        id: `ai-${kind}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+        type: "text",
+        x,
+        y,
+        width: sizeByKind[kind].width,
+        height: sizeByKind[kind].height,
+        visible: true,
+        selected: false,
+        zIndex,
+        text: textValue,
+        style: styleByKind[kind],
+      } as LayerData;
     },
-    [selectedLayer, copilotTone, copilotGoal]
+    []
   );
 
-  const applyCopilotDraft = useCallback(() => {
-    if (!selectedLayer || selectedLayer.type !== "text") return;
-    if (!copilotDraft.trim()) return;
+  const buildHooks = useCallback(() => {
+    const offer = briefOffer.trim() || "ton offre";
+    const audience = briefAudience === "coachs" ? "tes futurs clients" : "des prospects qualifiés";
+    const prefix =
+      briefTone === "urgent"
+        ? "Découvre comment"
+        : briefTone === "coach"
+        ? "Passe à l'action et apprends à"
+        : briefTone === "story"
+        ? "Et si tu pouvais enfin"
+        : briefTone === "sio"
+        ? "Voici la structure pour"
+        : "Découvre comment";
+    return Array.from({ length: 5 }).map((_, i) => ({
+      id: `hook-${i}`,
+      kind: "hook" as const,
+      label: `Hook ${i + 1}`,
+      text: `${prefix} ${offer.toLowerCase()} et attirer ${audience} avec une landing premium qui convertit.`,
+    }));
+  }, [briefOffer, briefAudience, briefTone]);
 
-    updateLayer(selectedLayer.id, {
-      text: copilotDraft,
-    } as any);
-  }, [selectedLayer, copilotDraft, updateLayer]);
+  const buildBenefits = useCallback(() => {
+    const offer = briefOffer.trim() || "ton offre";
+    return [
+      { id: "benefit-1", kind: "benefit" as const, label: "Bénéfice 1", text: `• Clarifie la valeur de ${offer} en quelques secondes.` },
+      { id: "benefit-2", kind: "benefit" as const, label: "Bénéfice 2", text: "• Renforce la perception premium de ta page." },
+      { id: "benefit-3", kind: "benefit" as const, label: "Bénéfice 3", text: "• Augmente l’intention de clic sur ton CTA." },
+    ];
+  }, [briefOffer]);
+
+  const buildCtas = useCallback(() => {
+    const goalText =
+      briefGoal === "leads"
+        ? "Recevoir la méthode maintenant"
+        : briefGoal === "call"
+        ? "Réserver mon appel maintenant"
+        : briefGoal === "sale"
+        ? "Accéder à l’offre premium"
+        : "Télécharger le guide maintenant";
+    return [
+      { id: "cta-1", kind: "cta" as const, label: "CTA principal", text: goalText },
+      { id: "cta-2", kind: "cta" as const, label: "CTA alternatif", text: "Je veux passer à l’action maintenant" },
+    ];
+  }, [briefGoal]);
+
+  const buildLanding = useCallback(() => {
+    const offer = briefOffer.trim() || "ton offre";
+    const hooks = buildHooks();
+    const benefits = buildBenefits();
+    const ctas = buildCtas();
+
+    return [
+      hooks[0],
+      {
+        id: "subtitle-main",
+        kind: "subtitle" as const,
+        label: "Sous-titre",
+        text: `Une landing prête à copier ou modifier pour transformer ${offer.toLowerCase()} en machine à leads plus claire, plus premium et plus convaincante.`,
+      },
+      ctas[0],
+      ...benefits,
+      {
+        id: "closing-main",
+        kind: "closing" as const,
+        label: "Closing",
+        text: "Passe d’une simple page à une landing optimisée pour capter des leads puis laisse l’éditeur te permettre de tout ajuster librement.",
+      },
+    ];
+  }, [briefOffer, buildHooks, buildBenefits, buildCtas]);
+
+  const handleGenerate = useCallback(
+    (action: CopilotAction) => {
+      setLastAction(action);
+      if (action === "hooks") {
+        setGeneratedItems(buildHooks());
+        setCopilotStatus("Hooks experts générés. Tu peux les injecter un par un dans le canvas.");
+        return;
+      }
+      if (action === "cta") {
+        setGeneratedItems(buildCtas());
+        setCopilotStatus("CTA générés. Injecte celui qui correspond le mieux à ton funnel.");
+        return;
+      }
+      if (action === "benefits") {
+        setGeneratedItems(buildBenefits());
+        setCopilotStatus("Bénéfices générés. Chaque bloc peut être injecté séparément.");
+        return;
+      }
+      if (action === "variants") {
+        setGeneratedItems([
+          ...buildHooks().slice(0, 2),
+          ...buildCtas().slice(0, 1),
+        ]);
+        setCopilotStatus("Variantes A/B générées pour tester plusieurs angles.");
+        return;
+      }
+      setGeneratedItems(buildLanding());
+      setCopilotStatus("Landing complète générée. Tu peux injecter un bloc ou toute la landing.");
+    },
+    [buildBenefits, buildCtas, buildHooks, buildLanding]
+  );
+
+  const injectGeneratedItem = useCallback(
+    (item: GeneratedItem) => {
+      const baseY = Math.max(80, currentBottomY + 28);
+      const baseX = item.kind === "benefit" ? 78 : 74;
+      const zBase = layers.length + 10;
+      const layer = makeTextLayer(item.kind, item.label, item.text, baseX, baseY, zBase);
+
+      setLayers((prev: any[]) => [
+        ...prev.map((l: any) => ({ ...l, selected: false })),
+        { ...layer, selected: true },
+      ]);
+      setShowProps(true);
+    },
+    [currentBottomY, layers.length, makeTextLayer]
+  );
+
+  const injectFullLanding = useCallback(() => {
+    const items = lastAction === "landing" && generatedItems.length ? generatedItems : buildLanding();
+    const background = layers.find((l: any) => l.id === BACKGROUND_LAYER_ID) as any;
+    const newLayers: LayerData[] = [];
+
+    let y = 86;
+    const zStart = 10;
+    items.forEach((item, index) => {
+      const x = item.kind === "benefit" ? 78 : 74;
+      const layer = makeTextLayer(item.kind, item.label, item.text, x, y, zStart + index);
+      newLayers.push(layer);
+      const step =
+        item.kind === "hook" ? 180 :
+        item.kind === "subtitle" ? 120 :
+        item.kind === "cta" ? 130 :
+        item.kind === "benefit" ? 72 : 130;
+      y += step;
+    });
+
+    setLayers([
+      ...(background ? [{ ...background, selected: false }] : []),
+      ...newLayers.map((l, idx) => ({ ...l, selected: idx === 0 })),
+    ] as any);
+    setShowProps(true);
+    setCopilotStatus("Landing injectée dans le canvas. Tu peux maintenant modifier et repositionner chaque bloc.");
+  }, [lastAction, generatedItems, buildLanding, layers, makeTextLayer]);
 
   function bumpCanvasHeight(delta: number) {
     const next = Math.max(1200, Math.min(5000, canvasHeight + delta));
@@ -966,34 +1029,194 @@ export default function EditorLayout({
               🖼️ Importer un visuel
             </button>
 
-            <div className="pt-4 border-t border-yellow-500/15">
-              <div className="text-yellow-300 font-semibold text-sm mb-2">✨ Claude Funnel Expert</div>
-              <div className="text-[11px] text-white/45 mb-3">Bloc ciblé : {copilotSelectedLabel}</div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <button type="button" onClick={() => buildCopilotSuggestion("title")} className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-200">Hook</button>
-                <button type="button" onClick={() => buildCopilotSuggestion("cta")} className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-200">CTA</button>
-                <button type="button" onClick={() => buildCopilotSuggestion("rewrite")} className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-200">Premium</button>
-                <button type="button" onClick={() => buildCopilotSuggestion("landing")} className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-200">Landing</button>
-              </div>
-
-              <textarea
-                value={copilotDraft}
-                onChange={(e) => setCopilotDraft(e.target.value)}
-                placeholder="Proposition experte"
-                className="mt-3 min-h-[120px] w-full rounded-xl border border-yellow-500/15 bg-black/40 px-3 py-3 text-sm text-white/85 outline-none placeholder:text-white/25"
+            <div className="rounded-2xl border border-yellow-500/15 bg-black/30 p-3">
+              <div className="text-yellow-300 font-semibold text-sm mb-2">CTA Systeme.io</div>
+              <input
+                type="text"
+                value={ctaUrl}
+                onChange={(e) => onCtaUrlChange?.(e.target.value)}
+                placeholder="https://ton-lien-systeme.io/ton-formulaire"
+                className="w-full rounded-xl border border-yellow-500/15 bg-black/40 px-3 py-3 text-sm text-white/85 outline-none placeholder:text-white/25"
               />
-
-              <div className="mt-3 flex gap-2">
-                <button type="button" onClick={applyCopilotDraft} className="flex-1 rounded-xl bg-[#ffb800] px-4 py-2.5 text-black font-semibold">Appliquer</button>
-                <button type="button" onClick={() => { if (copilotAction) buildCopilotSuggestion(copilotAction); }} className="flex-1 rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-2.5 text-yellow-200">Régénérer</button>
-              </div>
             </div>
           </div>
         </div>
       )}
 
       <div className="mx-auto w-full max-w-[1800px] px-6 pb-10">
+        <div className="mb-6 rounded-3xl border border-yellow-500/15 bg-black/30 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="text-yellow-300 font-semibold text-sm">✨ Copilote IA — Lead Engine Expert</div>
+              <div className="mt-1 text-sm text-white/55">
+                Génère hooks, CTA, bénéfices et landings prêtes à injecter dans le canvas, puis modifie-les librement.
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setCopilotOpen((v) => !v)}
+              className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-2 text-sm font-semibold text-yellow-200"
+            >
+              {copilotOpen ? "Réduire le copilote" : "Ouvrir le copilote"}
+            </button>
+          </div>
+
+          {copilotOpen && (
+            <div className="mt-4 grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
+              <div className="rounded-2xl border border-yellow-500/15 bg-black/30 p-4">
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  <div className="xl:col-span-2">
+                    <label className="mb-2 block text-xs font-semibold text-yellow-300">Sujet / offre</label>
+                    <input
+                      type="text"
+                      value={briefOffer}
+                      onChange={(e) => setBriefOffer(e.target.value)}
+                      placeholder="Ex : vendre une formation MRR ou générer plus de leads pour un coach"
+                      className="w-full rounded-2xl border border-yellow-500/15 bg-black/40 px-4 py-3 text-sm text-white/85 outline-none placeholder:text-white/25"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-xs font-semibold text-yellow-300">Longueur max</label>
+                    <input
+                      type="number"
+                      min={40}
+                      max={400}
+                      value={briefLength}
+                      onChange={(e) => setBriefLength(Number(e.target.value) || 120)}
+                      className="w-full rounded-2xl border border-yellow-500/15 bg-black/40 px-4 py-3 text-sm text-white/85 outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-xs font-semibold text-yellow-300">Objectif</label>
+                    <select
+                      value={briefGoal}
+                      onChange={(e) => setBriefGoal(e.target.value)}
+                      className="w-full rounded-2xl border border-yellow-500/15 bg-black/40 px-4 py-3 text-sm text-white/85 outline-none"
+                    >
+                      <option value="leads">Générer des leads</option>
+                      <option value="sale">Vendre une offre</option>
+                      <option value="call">Réserver un appel</option>
+                      <option value="optin">Capturer un email</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-xs font-semibold text-yellow-300">Angle</label>
+                    <select
+                      value={briefAngle}
+                      onChange={(e) => setBriefAngle(e.target.value)}
+                      className="w-full rounded-2xl border border-yellow-500/15 bg-black/40 px-4 py-3 text-sm text-white/85 outline-none"
+                    >
+                      <option value="lead-magnet">Lead magnet</option>
+                      <option value="coaching">Coaching</option>
+                      <option value="audit">Audit</option>
+                      <option value="premium">Funnel premium</option>
+                      <option value="mrr">Offre MRR</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-xs font-semibold text-yellow-300">Audience</label>
+                    <select
+                      value={briefAudience}
+                      onChange={(e) => setBriefAudience(e.target.value)}
+                      className="w-full rounded-2xl border border-yellow-500/15 bg-black/40 px-4 py-3 text-sm text-white/85 outline-none"
+                    >
+                      <option value="entrepreneurs">Entrepreneurs</option>
+                      <option value="freelances">Freelances</option>
+                      <option value="coachs">Coachs</option>
+                      <option value="debutants">Débutants</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-xs font-semibold text-yellow-300">Ton / style</label>
+                    <select
+                      value={briefTone}
+                      onChange={(e) => setBriefTone(e.target.value)}
+                      className="w-full rounded-2xl border border-yellow-500/15 bg-black/40 px-4 py-3 text-sm text-white/85 outline-none"
+                    >
+                      <option value="premium">Premium expert</option>
+                      <option value="coach">Coach direct</option>
+                      <option value="urgent">Conversion agressive</option>
+                      <option value="story">Storytelling</option>
+                      <option value="sio">Funnel SIO</option>
+                    </select>
+                  </div>
+
+                  <div className="md:col-span-2 xl:col-span-3">
+                    <label className="mb-2 block text-xs font-semibold text-yellow-300">URL CTA</label>
+                    <input
+                      type="text"
+                      value={ctaUrl}
+                      onChange={(e) => onCtaUrlChange?.(e.target.value)}
+                      placeholder="https://ton-lien-systeme.io/ton-formulaire"
+                      className="w-full rounded-2xl border border-yellow-500/15 bg-black/40 px-4 py-3 text-sm text-white/85 outline-none placeholder:text-white/25"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-2 xl:grid-cols-5">
+                  <button type="button" onClick={() => handleGenerate("hooks")} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-200">Hook x10</button>
+                  <button type="button" onClick={() => handleGenerate("cta")} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-200">CTA</button>
+                  <button type="button" onClick={() => handleGenerate("benefits")} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-200">Bénéfices</button>
+                  <button type="button" onClick={() => handleGenerate("variants")} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-200">Variantes A/B</button>
+                  <button type="button" onClick={() => handleGenerate("landing")} className="rounded-2xl bg-[#ffb800] px-4 py-3 text-sm font-bold text-black">Landing complète</button>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-yellow-500/15 bg-black/30 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-yellow-300 font-semibold text-sm">Résultats générés</div>
+                    <div className="mt-1 text-xs text-white/50">{copilotStatus || "Génère des hooks, CTA, bénéfices ou une landing complète."}</div>
+                  </div>
+
+                  {generatedItems.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={injectFullLanding}
+                      className="rounded-2xl border border-yellow-500/20 bg-[#ffb800] px-4 py-2 text-sm font-bold text-black"
+                    >
+                      Injecter toute la landing
+                    </button>
+                  )}
+                </div>
+
+                <div className="mt-4 max-h-[420px] space-y-3 overflow-y-auto pr-1">
+                  {generatedItems.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-yellow-500/15 bg-black/20 px-4 py-6 text-sm text-white/45">
+                      Les résultats IA apparaîtront ici, prêts à être injectés bloc par bloc dans le canvas.
+                    </div>
+                  ) : (
+                    generatedItems.map((item) => (
+                      <div key={item.id} className="rounded-2xl border border-yellow-500/15 bg-black/25 p-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="text-sm font-semibold text-yellow-300">{item.label}</div>
+                          <button
+                            type="button"
+                            onClick={() => injectGeneratedItem(item)}
+                            className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-xs font-semibold text-yellow-200"
+                          >
+                            Injecter dans le canvas
+                          </button>
+                        </div>
+
+                        <div className="mt-2 text-sm leading-6 text-white/80 whitespace-pre-wrap">
+                          {item.text.length > briefLength ? `${item.text.slice(0, briefLength)}…` : item.text}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
         <div className="grid grid-cols-1 min-[900px]:grid-cols-[280px_1fr_360px] gap-6">
           <aside className="hidden min-[900px]:block rounded-2xl border border-yellow-500/15 bg-black/30 p-4">
             <button
@@ -1128,6 +1351,7 @@ export default function EditorLayout({
                 </div>
               )}
             </div>
+
             <div className="mt-6 border-t border-yellow-500/15 pt-4">
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-yellow-400 text-sm">Overlay</label>
@@ -1143,10 +1367,6 @@ export default function EditorLayout({
                   {overlayEnabled ? "Activé" : "Désactivé"}
                 </button>
               </div>
-
-              <p className="text-xs text-yellow-100/60 mb-3">
-                Assombrit / améliore la lisibilité du texte au-dessus d’une image.
-              </p>
 
               <div className={`space-y-3 ${overlayEnabled ? "" : "opacity-50 pointer-events-none"}`}>
                 <div className="flex gap-2">
@@ -1166,39 +1386,25 @@ export default function EditorLayout({
                 </div>
 
                 {overlayType === "color" && (
-                  <div>
-                    <label className="block text-yellow-400 text-xs mb-2">Couleur overlay</label>
-                    <input
-                      type="color"
-                      value={overlayColor1}
-                      onChange={(e) => setOverlayColor1(e.target.value)}
-                      className="w-full h-10 rounded-lg bg-black/40 border border-yellow-500/20"
-                    />
-                  </div>
+                  <input
+                    type="color"
+                    value={overlayColor1}
+                    onChange={(e) => setOverlayColor1(e.target.value)}
+                    className="w-full h-10 rounded-lg bg-black/40 border border-yellow-500/20"
+                  />
                 )}
 
                 {overlayType === "gradient" && (
-                  <div>
-                    <label className="block text-yellow-400 text-xs mb-2">Gradient overlay</label>
+                  <>
                     <div
-                      className="w-full h-10 rounded-lg border border-yellow-500/20 mb-3"
+                      className="w-full h-10 rounded-lg border border-yellow-500/20"
                       style={{ background: `linear-gradient(135deg, ${overlayColor1}, ${overlayColor2})` }}
                     />
                     <div className="flex gap-2">
-                      <input
-                        type="color"
-                        value={overlayColor1}
-                        onChange={(e) => setOverlayColor1(e.target.value)}
-                        className="w-16 h-10 rounded-lg border border-yellow-500/20 bg-black/30"
-                      />
-                      <input
-                        type="color"
-                        value={overlayColor2}
-                        onChange={(e) => setOverlayColor2(e.target.value)}
-                        className="w-16 h-10 rounded-lg border border-yellow-500/20 bg-black/30"
-                      />
+                      <input type="color" value={overlayColor1} onChange={(e) => setOverlayColor1(e.target.value)} className="w-16 h-10 rounded-lg border border-yellow-500/20 bg-black/30" />
+                      <input type="color" value={overlayColor2} onChange={(e) => setOverlayColor2(e.target.value)} className="w-16 h-10 rounded-lg border border-yellow-500/20 bg-black/30" />
                     </div>
-                  </div>
+                  </>
                 )}
 
                 <div>
@@ -1219,109 +1425,17 @@ export default function EditorLayout({
             </div>
 
             <div className="mt-6 border-t border-yellow-500/15 pt-4">
-              <div className="mb-3 flex items-start justify-between gap-3">
-                <div>
-                  <div className="text-yellow-300 font-semibold text-sm">✨ Claude Funnel Expert</div>
-                  <div className="text-[11px] text-white/45 mt-1">
-                    Bloc ciblé : {copilotSelectedLabel}
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCopilotDraft("");
-                    setCopilotAction(null);
-                    setExpertAnalysis("");
-                    setExpertReasoning("");
-                    setExpertScores({ hook: 7, cta: 5, conversion: 6 });
-                  }}
-                  className="rounded-lg border border-yellow-500/20 px-3 py-1 text-[11px] text-yellow-200"
-                >
-                  Reset
-                </button>
+              <label className="block text-yellow-400 text-sm mb-2">CTA Systeme.io</label>
+              <div className="text-xs text-white/55 mb-3">
+                Lien utilisé pour l’export HTML et les CTA générés par le copilote.
               </div>
-
-              <div className="rounded-xl border border-yellow-500/15 bg-black/30 p-3 mb-3">
-                <div className="text-yellow-300 text-xs font-semibold mb-2">Analyse IA</div>
-                <div className="grid grid-cols-3 gap-2 text-[11px]">
-                  <div className="rounded-lg border border-yellow-500/15 bg-black/30 px-2 py-2 text-center text-white/80">
-                    Hook<br /><span className="text-yellow-300 font-bold">{expertScores.hook}/10</span>
-                  </div>
-                  <div className="rounded-lg border border-yellow-500/15 bg-black/30 px-2 py-2 text-center text-white/80">
-                    CTA<br /><span className="text-yellow-300 font-bold">{expertScores.cta}/10</span>
-                  </div>
-                  <div className="rounded-lg border border-yellow-500/15 bg-black/30 px-2 py-2 text-center text-white/80">
-                    Conversion<br /><span className="text-yellow-300 font-bold">{expertScores.conversion}/10</span>
-                  </div>
-                </div>
-
-                <div className="mt-3 rounded-lg border border-yellow-500/10 bg-black/20 px-3 py-2 text-[12px] text-white/70">
-                  {expertAnalysis || "Le mode expert analysera ici le hook, la friction et la force de conversion du bloc ou de la landing."}
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-yellow-400 text-xs mb-2">Ton / style</label>
-                  <select
-                    value={copilotTone}
-                    onChange={(e) => setCopilotTone(e.target.value as CopilotTone)}
-                    className="w-full rounded-xl bg-black/40 border border-yellow-500/20 px-3 py-2 text-yellow-100"
-                  >
-                    <option value="premium">Premium expert</option>
-                    <option value="coach">Coach direct</option>
-                    <option value="urgent">Urgence vente</option>
-                    <option value="story">Storytelling</option>
-                    <option value="sio">SIO funnel</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-yellow-400 text-xs mb-2">Objectif</label>
-                  <select
-                    value={copilotGoal}
-                    onChange={(e) => setCopilotGoal(e.target.value as CopilotGoal)}
-                    className="w-full rounded-xl bg-black/40 border border-yellow-500/20 px-3 py-2 text-yellow-100"
-                  >
-                    <option value="leads">Générer plus de leads</option>
-                    <option value="cta">Augmenter le clic CTA</option>
-                    <option value="clarity">Clarifier la promesse</option>
-                    <option value="premium">Rendre la landing plus premium</option>
-                  </select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <button type="button" onClick={() => buildCopilotSuggestion("title")} className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-200">Hook Expert</button>
-                  <button type="button" onClick={() => buildCopilotSuggestion("cta")} className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-200">CTA Expert</button>
-                  <button type="button" onClick={() => buildCopilotSuggestion("rewrite")} className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-200">Réécriture Premium</button>
-                  <button type="button" onClick={() => buildCopilotSuggestion("landing")} className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-200">Landing complète</button>
-                </div>
-
-                <div>
-                  <label className="block text-yellow-400 text-xs mb-2">Proposition experte</label>
-                  <textarea
-                    value={copilotDraft}
-                    onChange={(e) => setCopilotDraft(e.target.value)}
-                    placeholder="La proposition experte s’affiche ici."
-                    className="min-h-[128px] w-full rounded-xl border border-yellow-500/15 bg-black/40 px-3 py-3 text-sm text-white/85 outline-none placeholder:text-white/25"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-yellow-400 text-xs mb-2">Pourquoi ça convertit mieux</label>
-                  <textarea
-                    value={expertReasoning}
-                    readOnly
-                    className="min-h-[96px] w-full rounded-xl border border-yellow-500/15 bg-black/30 px-3 py-3 text-sm text-white/70 outline-none"
-                  />
-                </div>
-
-                <div className="flex gap-2">
-                  <button type="button" onClick={applyCopilotDraft} className="flex-1 rounded-xl bg-[#ffb800] px-4 py-2.5 text-black font-semibold">Appliquer au bloc</button>
-                  <button type="button" onClick={() => { if (copilotAction) buildCopilotSuggestion(copilotAction); }} className="flex-1 rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-2.5 text-yellow-200">Régénérer</button>
-                </div>
-              </div>
+              <input
+                type="text"
+                value={ctaUrl}
+                onChange={(e) => onCtaUrlChange?.(e.target.value)}
+                placeholder="https://ton-lien-systeme.io/ton-formulaire"
+                className="w-full rounded-xl border border-yellow-500/15 bg-black/40 px-3 py-3 text-sm text-white/85 outline-none placeholder:text-white/25"
+              />
             </div>
           </aside>
 
