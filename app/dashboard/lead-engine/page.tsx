@@ -22,6 +22,19 @@ type SavedArchive = {
   canvasHeight: number;
 };
 
+function normalizeLayersSnapshot(raw: LayerData[] | null | undefined): LayerData[] {
+  if (!Array.isArray(raw)) return [];
+
+  try {
+    const cloned = JSON.parse(JSON.stringify(raw));
+    return Array.isArray(cloned)
+      ? cloned.filter((item) => !!item && typeof item === "object")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
 function buildLeadPreset(): LayerData[] {
   return [
     {
@@ -165,7 +178,8 @@ function safeParseLayers(raw: string | null): LayerData[] | null {
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as LayerData[]) : null;
+    const normalized = normalizeLayersSnapshot(Array.isArray(parsed) ? (parsed as LayerData[]) : null);
+    return normalized.length > 0 ? normalized : null;
   } catch {
     return null;
   }
@@ -181,7 +195,25 @@ function safeParseArchives(raw: string | null): SavedArchive[] {
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as SavedArchive[]) : [];
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed
+      .map((item) => {
+        if (!item || typeof item !== "object") return null;
+
+        const layers = normalizeLayersSnapshot((item as SavedArchive).layers);
+        if (layers.length === 0) return null;
+
+        return {
+          id: String((item as SavedArchive).id || `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`),
+          name: String((item as SavedArchive).name || "Archive sans nom"),
+          createdAt: String((item as SavedArchive).createdAt || new Date().toISOString()),
+          layers,
+          ctaUrl: String((item as SavedArchive).ctaUrl || ""),
+          canvasHeight: safeParseHeight(String((item as SavedArchive).canvasHeight ?? "")) ?? 1800,
+        } as SavedArchive;
+      })
+      .filter(Boolean) as SavedArchive[];
   } catch {
     return [];
   }
@@ -346,18 +378,24 @@ export default function LeadEnginePage() {
   }
 
   function persistLayers(nextLayers: LayerData[]) {
+    const snapshot = normalizeLayersSnapshot(nextLayers);
+    if (snapshot.length === 0) return;
+
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextLayers));
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
     } catch {
       // noop
     }
   }
 
   function handleLayersChange(nextLayers: LayerData[]) {
-    setLayers(nextLayers);
-    setInitialLayers(nextLayers);
+    const snapshot = normalizeLayersSnapshot(nextLayers);
+    if (snapshot.length === 0) return;
+
+    setLayers(snapshot);
+    setInitialLayers(snapshot);
     setLastSavedAt(new Date().toLocaleTimeString());
-    persistLayers(nextLayers);
+    persistLayers(snapshot);
   }
 
   function resetPreset() {
@@ -393,11 +431,18 @@ export default function LeadEnginePage() {
       archiveName.trim() ||
       `Archive ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`;
 
+    const snapshot =
+      normalizeLayersSnapshot(layers).length > 0
+        ? normalizeLayersSnapshot(layers)
+        : normalizeLayersSnapshot(initialLayers);
+
+    if (snapshot.length === 0) return;
+
     const next: SavedArchive = {
       id: `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
       name,
       createdAt: new Date().toISOString(),
-      layers,
+      layers: snapshot,
       ctaUrl,
       canvasHeight,
     };
@@ -410,14 +455,17 @@ export default function LeadEnginePage() {
     const found = archives.find((item) => item.id === archiveId);
     if (!found) return;
 
-    setInitialLayers(found.layers);
-    setLayers(found.layers);
+    const snapshot = normalizeLayersSnapshot(found.layers);
+    if (snapshot.length === 0) return;
+
+    setInitialLayers(snapshot);
+    setLayers(snapshot);
     setCtaUrl(found.ctaUrl);
     setCanvasHeight(found.canvasHeight);
     setEditorKey((value) => value + 1);
     setLastSavedAt(new Date().toLocaleTimeString());
 
-    persistLayers(found.layers);
+    persistLayers(snapshot);
 
     try {
       window.localStorage.setItem(STORAGE_CANVAS_HEIGHT_KEY, String(found.canvasHeight));
