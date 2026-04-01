@@ -219,21 +219,33 @@ function safeParseArchives(raw: string | null): SavedArchive[] {
   }
 }
 
-function getVisibleCanvasFromTarget(node: HTMLElement): HTMLCanvasElement | null {
+function getBestExportCanvasFromTarget(node: HTMLElement): HTMLCanvasElement | null {
   const canvases = Array.from(node.querySelectorAll("canvas")) as HTMLCanvasElement[];
-  return (
-    canvases.find((canvas) => {
-      const style = window.getComputedStyle(canvas);
-      return style.display !== "none" && style.visibility !== "hidden";
-    }) ?? null
-  );
+  const visible = canvases.filter((canvas) => {
+    const style = window.getComputedStyle(canvas);
+    const rect = canvas.getBoundingClientRect();
+    return (
+      style.display !== "none" &&
+      style.visibility !== "hidden" &&
+      rect.width > 0 &&
+      rect.height > 0
+    );
+  });
+
+  if (visible.length === 0) return null;
+
+  return visible.sort((a, b) => {
+    const areaA = Math.max(a.width, a.clientWidth, 0) * Math.max(a.height, a.clientHeight, 0);
+    const areaB = Math.max(b.width, b.clientWidth, 0) * Math.max(b.height, b.clientHeight, 0);
+    return areaB - areaA;
+  })[0] ?? null;
 }
 
-function canvasToRasterDataUrl(
+function exportCanvasToBlob(
   sourceCanvas: HTMLCanvasElement,
   type: "png" | "jpeg",
   quality = 0.95
-): string {
+): Promise<Blob> {
   const width = Math.max(1, sourceCanvas.width || Math.round(sourceCanvas.clientWidth) || 1);
   const height = Math.max(1, sourceCanvas.height || Math.round(sourceCanvas.clientHeight) || 1);
 
@@ -241,7 +253,7 @@ function canvasToRasterDataUrl(
   exportCanvas.width = width;
   exportCanvas.height = height;
 
-  const ctx = exportCanvas.getContext("2d");
+  const ctx = exportCanvas.getContext("2d", { willReadFrequently: true });
   if (!ctx) throw new Error("Canvas 2D indisponible.");
 
   if (type === "jpeg") {
@@ -250,7 +262,20 @@ function canvasToRasterDataUrl(
   }
 
   ctx.drawImage(sourceCanvas, 0, 0, width, height);
-  return exportCanvas.toDataURL(type === "png" ? "image/png" : "image/jpeg", quality);
+
+  return new Promise<Blob>((resolve, reject) => {
+    exportCanvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          reject(new Error("Blob export indisponible."));
+          return;
+        }
+        resolve(blob);
+      },
+      type === "png" ? "image/png" : "image/jpeg",
+      quality
+    );
+  });
 }
 
 async function elementToRasterDataUrl(
@@ -258,9 +283,22 @@ async function elementToRasterDataUrl(
   type: "png" | "jpeg",
   quality = 0.95
 ): Promise<string> {
-  const liveCanvas = getVisibleCanvasFromTarget(node);
+  const liveCanvas = getBestExportCanvasFromTarget(node);
   if (liveCanvas) {
-    return canvasToRasterDataUrl(liveCanvas, type, quality);
+    const blob = await exportCanvasToBlob(liveCanvas, type, quality);
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = typeof reader.result === "string" ? reader.result : "";
+        if (!result) {
+          reject(new Error("Lecture Blob impossible."));
+          return;
+        }
+        resolve(result);
+      };
+      reader.onerror = () => reject(new Error("Lecture Blob impossible."));
+      reader.readAsDataURL(blob);
+    });
   }
 
   const rect = node.getBoundingClientRect();
