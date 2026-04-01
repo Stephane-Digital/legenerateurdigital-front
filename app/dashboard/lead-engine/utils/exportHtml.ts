@@ -7,10 +7,11 @@ type BuildLeadHtmlExportInput = {
 
 const DEFAULT_CANVAS_WIDTH = 1080;
 const MIN_CANVAS_HEIGHT = 1200;
+const DEFAULT_CTA_URL = "https://legenerateurdigital.systeme.io/lgd";
 
 function normalizeUrl(url: string) {
   const value = String(url || "").trim();
-  if (!value) return "#sio-formulaire";
+  if (!value) return DEFAULT_CTA_URL;
 
   if (
     value.startsWith("http://") ||
