@@ -30,54 +30,6 @@ function clampFloat(n: number, a: number, b: number) {
   return Math.max(a, Math.min(b, v));
 }
 
-function apiBase() {
-  return (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
-}
-
-function getAuthHeaders() {
-  if (typeof window === "undefined") return {};
-  const token =
-    window.localStorage.getItem("access_token") ||
-    window.localStorage.getItem("token") ||
-    window.localStorage.getItem("jwt") ||
-    "";
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
-async function aiRewriteText(args: { text: string; tone?: string; max_length?: number }) {
-  const base = apiBase();
-  if (!base) throw new Error("NEXT_PUBLIC_API_URL manquant");
-
-  const res = await fetch(`${base}/ai/text/rewrite`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeaders(),
-    },
-    credentials: "include",
-    body: JSON.stringify({
-      text: args.text,
-      tone: args.tone || undefined,
-      max_length: args.max_length && args.max_length > 0 ? args.max_length : undefined,
-    }),
-  });
-
-  if (!res.ok) {
-    let detail = "";
-    try {
-      const j = await res.json();
-      detail = j?.detail || j?.message || "";
-    } catch {
-      // ignore
-    }
-    throw new Error(detail || `IA indisponible (HTTP ${res.status})`);
-  }
-
-  const data = await res.json().catch(() => ({} as any));
-  const out = data?.result ?? data?.text ?? data?.output ?? "";
-  if (!out || typeof out !== "string") throw new Error("Réponse IA invalide");
-  return out;
-}
 
 function normalizeHex(input: string) {
   let v = (input || "").trim();
@@ -156,16 +108,7 @@ export default function PropertiesDrawer({ open, layer, onClose, onChange }: Pro
 
   const style = ((layer as any)?.style ?? {}) as any;
 
-  const [aiTone, setAiTone] = useState<string>("coach direct, clair, concret, orienté résultats");
-  const [aiMaxLen, setAiMaxLen] = useState<number>(0);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
   const [textDraft, setTextDraft] = useState<string>(String((layer as any)?.text ?? ""));
-
-  useEffect(() => {
-    setAiError(null);
-    setAiLoading(false);
-  }, [layer?.id]);
 
   useEffect(() => {
     if (!layer || !isText) return;
@@ -347,75 +290,6 @@ export default function PropertiesDrawer({ open, layer, onClose, onChange }: Pro
             />
           </div>
 
-          <div className="mt-2 rounded-2xl border border-yellow-500/20 bg-black/30 p-3">
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-xs font-semibold text-yellow-200">Assistant IA</div>
-              <div className="text-[11px] text-white/45">Spécial marketing digital • MRR</div>
-            </div>
-
-            <div className="mt-3 grid grid-cols-1 gap-3">
-              <div>
-                <label className="block text-yellow-400 text-xs mb-2">Ton / Style</label>
-                <input
-                  value={aiTone}
-                  onChange={(e) => setAiTone(e.target.value)}
-                  placeholder="ex: coach direct, storytelling, expert..."
-                  className="w-full rounded-xl bg-black/40 border border-yellow-500/20 px-3 py-2 text-yellow-100 outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-yellow-400 text-xs mb-2">Longueur max (caractères)</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={aiMaxLen}
-                    onChange={(e) => setAiMaxLen(Number(e.target.value || 0))}
-                    className="w-full rounded-xl bg-black/40 border border-yellow-500/20 px-3 py-2 text-yellow-100 outline-none"
-                  />
-                </div>
-
-                <div className="flex items-end">
-                  <button
-                    onClick={async () => {
-                      if (layer.type !== "text") return;
-                      const current = String(textDraft || "").trim();
-                      if (!current) {
-                        setAiError("Ajoute du texte avant de demander une réécriture.");
-                        return;
-                      }
-                      setAiError(null);
-                      setAiLoading(true);
-                      try {
-                        const out = await aiRewriteText({
-                          text: current,
-                          tone: aiTone?.trim() ? aiTone.trim() : undefined,
-                          max_length: aiMaxLen > 0 ? aiMaxLen : undefined,
-                        });
-                        setTextDraft(out);
-                        updateTextPatch(out);
-                      } catch (err: any) {
-                        setAiError(err?.message || "Erreur IA");
-                      } finally {
-                        setAiLoading(false);
-                      }
-                    }}
-                    disabled={aiLoading || !String(textDraft || "").trim()}
-                    className="w-full rounded-xl bg-[#ffb800] px-3 py-2 text-sm font-semibold text-black hover:brightness-110 disabled:opacity-60"
-                  >
-                    {aiLoading ? "Réécriture..." : "Réécrire avec IA"}
-                  </button>
-                </div>
-              </div>
-
-              {aiError ? (
-                <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-[12px] text-red-200">
-                  {aiError}
-                </div>
-              ) : null}
-            </div>
-          </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
