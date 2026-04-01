@@ -1,9 +1,8 @@
-
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { FaArrowLeft, FaCopy, FaMagic, FaRedo } from "react-icons/fa";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { FaArrowLeft, FaCopy, FaDownload, FaImage, FaMagic, FaRedo, FaSave, FaTrash } from "react-icons/fa";
 
 import type { LayerData } from "@/dashboard/automatisations/reseaux_sociaux/carrousel/editor/v5/types/layers";
 import LeadEditorLayout from "@/dashboard/automatisations/reseaux_sociaux/carrousel/editor/v5/ui/LeadEditorLayout";
@@ -12,6 +11,16 @@ import { buildLeadHtmlExport } from "@/dashboard/lead-engine/utils/exportHtml";
 const STORAGE_KEY = "lgd_lead_engine_builder_v4";
 const STORAGE_CTA_KEY = "lgd_lead_engine_builder_v4_cta_url";
 const STORAGE_CANVAS_HEIGHT_KEY = "lgd_lead_engine_builder_v4_canvas_height_manual";
+const STORAGE_ARCHIVES_KEY = "lgd_lead_engine_builder_v4_archives";
+
+type SavedArchive = {
+  id: string;
+  name: string;
+  createdAt: string;
+  layers: LayerData[];
+  ctaUrl: string;
+  canvasHeight: number;
+};
 
 function buildLeadPreset(): LayerData[] {
   return [
@@ -168,6 +177,103 @@ function safeParseHeight(raw: string | null): number | null {
   return Math.max(1200, Math.min(5000, Math.round(n)));
 }
 
+function safeParseArchives(raw: string | null): SavedArchive[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as SavedArchive[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+async function elementToRasterDataUrl(
+  node: HTMLElement,
+  type: "png" | "jpeg",
+  quality = 0.95
+): Promise<string> {
+  const rect = node.getBoundingClientRect();
+  const clone = node.cloneNode(true) as HTMLElement;
+
+  clone.setAttribute("xmlns", "http://www.w3.org/1999/xhtml");
+  clone.style.margin = "0";
+  clone.style.transform = "none";
+  clone.style.transformOrigin = "top left";
+  clone.style.boxSizing = "border-box";
+
+  const html = `
+    <html xmlns="http://www.w3.org/1999/xhtml">
+      <head>
+        <meta charset="utf-8" />
+        <style>
+          html, body {
+            margin: 0;
+            padding: 0;
+            background: transparent;
+          }
+          body {
+            width: ${Math.ceil(rect.width)}px;
+            height: ${Math.ceil(rect.height)}px;
+            overflow: hidden;
+          }
+          * {
+            box-sizing: border-box;
+          }
+        </style>
+      </head>
+      <body>${clone.outerHTML}</body>
+    </html>
+  `;
+
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="${Math.ceil(rect.width)}" height="${Math.ceil(rect.height)}">
+      <foreignObject width="100%" height="100%">${html}</foreignObject>
+    </svg>
+  `;
+
+  const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+
+  try {
+    const img = new Image();
+    img.decoding = "async";
+    img.crossOrigin = "anonymous";
+
+    const loaded = new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error("Impossible de charger l’image exportée."));
+    });
+
+    img.src = url;
+    await loaded;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.ceil(rect.width);
+    canvas.height = Math.ceil(rect.height);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Canvas 2D indisponible.");
+
+    if (type === "jpeg") {
+      ctx.fillStyle = "#0a0a0a";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL(type === "png" ? "image/png" : "image/jpeg", quality);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+function downloadDataUrl(dataUrl: string, filename: string) {
+  const a = document.createElement("a");
+  a.href = dataUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
 export default function LeadEnginePage() {
   const [editorKey, setEditorKey] = useState(0);
   const [hydrated, setHydrated] = useState(false);
@@ -177,6 +283,10 @@ export default function LeadEnginePage() {
   const [copied, setCopied] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState("");
   const [canvasHeight, setCanvasHeight] = useState(1800);
+  const [archiveName, setArchiveName] = useState("");
+  const [archives, setArchives] = useState<SavedArchive[]>([]);
+  const [exporting, setExporting] = useState<"" | "png" | "jpeg">("");
+  const rootRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     try {
@@ -185,6 +295,7 @@ export default function LeadEnginePage() {
       const savedCanvasHeight = safeParseHeight(
         window.localStorage.getItem(STORAGE_CANVAS_HEIGHT_KEY)
       );
+      const savedArchives = safeParseArchives(window.localStorage.getItem(STORAGE_ARCHIVES_KEY));
 
       const nextLayers =
         savedLayers && savedLayers.length > 0 ? savedLayers : buildLeadPreset();
@@ -193,12 +304,14 @@ export default function LeadEnginePage() {
       setLayers(nextLayers);
       setCtaUrl(savedCta);
       setCanvasHeight(savedCanvasHeight ?? 1800);
+      setArchives(savedArchives);
     } catch {
       const preset = buildLeadPreset();
       setInitialLayers(preset);
       setLayers(preset);
       setCtaUrl("");
       setCanvasHeight(1800);
+      setArchives([]);
     } finally {
       setHydrated(true);
     }
@@ -209,10 +322,11 @@ export default function LeadEnginePage() {
     try {
       window.localStorage.setItem(STORAGE_CTA_KEY, ctaUrl);
       window.localStorage.setItem(STORAGE_CANVAS_HEIGHT_KEY, String(canvasHeight));
+      window.localStorage.setItem(STORAGE_ARCHIVES_KEY, JSON.stringify(archives));
     } catch {
       // noop
     }
-  }, [ctaUrl, canvasHeight, hydrated]);
+  }, [ctaUrl, canvasHeight, archives, hydrated]);
 
   const htmlExport = useMemo(() => {
     return buildLeadHtmlExport({
@@ -274,6 +388,71 @@ export default function LeadEnginePage() {
     }
   }
 
+  function saveArchive() {
+    const name =
+      archiveName.trim() ||
+      `Archive ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`;
+
+    const next: SavedArchive = {
+      id: `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+      name,
+      createdAt: new Date().toISOString(),
+      layers,
+      ctaUrl,
+      canvasHeight,
+    };
+
+    setArchives((prev) => [next, ...prev].slice(0, 30));
+    setArchiveName("");
+  }
+
+  function loadArchive(archiveId: string) {
+    const found = archives.find((item) => item.id === archiveId);
+    if (!found) return;
+
+    setInitialLayers(found.layers);
+    setLayers(found.layers);
+    setCtaUrl(found.ctaUrl);
+    setCanvasHeight(found.canvasHeight);
+    setEditorKey((value) => value + 1);
+    setLastSavedAt(new Date().toLocaleTimeString());
+
+    persistLayers(found.layers);
+
+    try {
+      window.localStorage.setItem(STORAGE_CANVAS_HEIGHT_KEY, String(found.canvasHeight));
+      window.localStorage.setItem(STORAGE_CTA_KEY, found.ctaUrl);
+    } catch {
+      // noop
+    }
+  }
+
+  function deleteArchive(archiveId: string) {
+    setArchives((prev) => prev.filter((item) => item.id !== archiveId));
+  }
+
+  async function exportRaster(type: "png" | "jpeg") {
+    if (!rootRef.current) return;
+
+    const target = rootRef.current.querySelector(
+      '[data-lead-engine-canvas-export="true"]'
+    ) as HTMLElement | null;
+
+    if (!target) return;
+
+    try {
+      setExporting(type);
+      const dataUrl = await elementToRasterDataUrl(target, type, 0.95);
+      const filename = `lgd-lead-engine-${new Date()
+        .toISOString()
+        .slice(0, 19)
+        .replace(/[:T]/g, "-")}.${type === "png" ? "png" : "jpg"}`;
+      downloadDataUrl(dataUrl, filename);
+    } finally {
+      setExporting("");
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
       <div className="mx-auto max-w-[1800px] px-6 pb-10 pt-[110px]">
@@ -290,7 +469,7 @@ export default function LeadEnginePage() {
 
               <div className="inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-4 py-1 text-[12px] text-white/75">
                 <FaMagic className="text-yellow-300" />
-                Lead Builder V4.6.1 — Top Copilote
+                Lead Builder V4.6.2.1 — Page Export Final
               </div>
             </div>
 
@@ -298,7 +477,7 @@ export default function LeadEnginePage() {
               Lead Engine branché sur la vraie structure éditeur
             </h1>
             <p className="mt-2 max-w-3xl text-white/65">
-              Copilote Lead Engine Expert rétractable en haut, génération de blocs IA et injection directe dans le canvas.
+              Export HTML SIO, export PNG / JPEG et archives locales sans toucher au moteur de l’éditeur.
             </p>
           </div>
 
@@ -314,6 +493,26 @@ export default function LeadEnginePage() {
 
             <button
               type="button"
+              onClick={() => exportRaster("png")}
+              disabled={!!exporting}
+              className="inline-flex items-center gap-2 rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-5 py-3 font-semibold text-white/85 disabled:opacity-50"
+            >
+              <FaImage className="text-yellow-300" />
+              {exporting === "png" ? "Export PNG..." : "Exporter PNG"}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => exportRaster("jpeg")}
+              disabled={!!exporting}
+              className="inline-flex items-center gap-2 rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-5 py-3 font-semibold text-white/85 disabled:opacity-50"
+            >
+              <FaDownload className="text-yellow-300" />
+              {exporting === "jpeg" ? "Export JPEG..." : "Exporter JPEG"}
+            </button>
+
+            <button
+              type="button"
               onClick={resetPreset}
               className="inline-flex items-center gap-2 rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-5 py-3 font-semibold text-white/85"
             >
@@ -323,7 +522,83 @@ export default function LeadEnginePage() {
           </div>
         </div>
 
-        <div className="rounded-[28px] border border-yellow-600/20 bg-[#0b0b0b] p-4 sm:p-5">
+        <div className="mb-6 rounded-[28px] border border-yellow-600/20 bg-[#0b0b0b] p-5">
+          <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+            <div>
+              <div className="mb-2 text-sm font-semibold text-yellow-300">
+                Archive de landing
+              </div>
+              <div className="text-sm text-white/55">
+                Sauvegarde des versions prêtes à rouvrir, dupliquer ou exporter plus tard.
+              </div>
+
+              <div className="mt-4 flex gap-2">
+                <input
+                  type="text"
+                  value={archiveName}
+                  onChange={(e) => setArchiveName(e.target.value)}
+                  placeholder="Nom de l’archive"
+                  className="flex-1 rounded-2xl border border-yellow-600/20 bg-[#111] px-4 py-4 text-sm text-white/85 outline-none placeholder:text-white/30"
+                />
+                <button
+                  type="button"
+                  onClick={saveArchive}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-[#ffb800] px-5 py-3 font-semibold text-black"
+                >
+                  <FaSave />
+                  Archiver
+                </button>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-yellow-600/20 bg-[#111] p-4">
+              <div className="text-sm font-semibold text-yellow-300">Archives récentes</div>
+
+              <div className="mt-3 max-h-[180px] space-y-2 overflow-y-auto pr-1">
+                {archives.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-yellow-600/20 bg-black/20 px-4 py-4 text-sm text-white/45">
+                    Aucune archive pour le moment.
+                  </div>
+                ) : (
+                  archives.map((archive) => (
+                    <div
+                      key={archive.id}
+                      className="flex items-center justify-between gap-3 rounded-xl border border-yellow-600/15 bg-black/20 px-3 py-3"
+                    >
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-semibold text-white/85">
+                          {archive.name}
+                        </div>
+                        <div className="text-[12px] text-white/45">
+                          {new Date(archive.createdAt).toLocaleString()}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => loadArchive(archive.id)}
+                          className="rounded-lg border border-yellow-600/20 bg-yellow-500/10 px-3 py-2 text-xs font-semibold text-yellow-200"
+                        >
+                          Charger
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => deleteArchive(archive.id)}
+                          className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-300"
+                        >
+                          <FaTrash />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div ref={rootRef} className="rounded-[28px] border border-yellow-600/20 bg-[#0b0b0b] p-4 sm:p-5">
           {hydrated ? (
             <LeadEditorLayout
               key={editorKey}
@@ -349,7 +624,7 @@ export default function LeadEnginePage() {
                 HTML SIO généré
               </div>
               <div className="mt-1 text-sm text-white/55">
-                Le bouton exporté reprend le texte du layer et le lien du champ CTA.
+                Le CTA principal utilise l’URL Systeme.io et l’export reste basé sur le fichier stable actuel.
               </div>
             </div>
 
@@ -368,6 +643,12 @@ export default function LeadEnginePage() {
             className="mt-4 min-h-[320px] w-full rounded-2xl border border-yellow-600/20 bg-[#111] px-4 py-4 text-sm text-white/80 outline-none"
           />
         </div>
+
+        {!!lastSavedAt && (
+          <div className="mt-4 text-right text-xs text-white/35">
+            Dernière synchro : {lastSavedAt}
+          </div>
+        )}
       </div>
     </div>
   );
