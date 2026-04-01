@@ -22,6 +22,19 @@ type SavedArchive = {
   canvasHeight: number;
 };
 
+function normalizeLayersSnapshot(raw: LayerData[] | null | undefined): LayerData[] {
+  if (!Array.isArray(raw)) return [];
+
+  try {
+    const cloned = JSON.parse(JSON.stringify(raw));
+    return Array.isArray(cloned)
+      ? cloned.filter((item) => !!item && typeof item === "object")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
 function buildLeadPreset(): LayerData[] {
   return [
     {
@@ -187,6 +200,51 @@ function safeParseArchives(raw: string | null): SavedArchive[] {
   }
 }
 
+const DEFAULT_CTA_URL = "https://legenerateurdigital.systeme.io/lgd";
+const EXPORT_CANVAS_WIDTH = 1080;
+
+function normalizeExportUrl(url: string) {
+  const value = String(url || "").trim();
+  if (!value) return DEFAULT_CTA_URL;
+  if (
+    value.startsWith("http://") ||
+    value.startsWith("https://") ||
+    value.startsWith("/") ||
+    value.startsWith("#")
+  ) {
+    return value;
+  }
+  return `https://${value}`;
+}
+
+function clamp(n: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, n));
+}
+
+function toNumber(value: unknown, fallback = 0) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function getLayerStyle(layer: any) {
+  return ((layer?.style ?? {}) as Record<string, any>) || {};
+}
+
+function getTextColor(style: Record<string, any>) {
+  return String(style.fill || style.color || style.textColor || "#ffffff");
+}
+
+function parseLinearGradient(input: string | undefined | null) {
+  const raw = String(input || "").trim();
+  const match = raw.match(/linear-gradient\(([-\d.]+)deg,\s*([^,]+),\s*([^\)]+)\)/i);
+  if (!match) return null;
+  return {
+    angle: Number(match[1] || 135),
+    color1: String(match[2] || "#000000").trim(),
+    color2: String(match[3] || "#000000").trim(),
+  };
+}
+
 function getBestExportNode(node: HTMLElement): HTMLElement {
   const dedicated = node.querySelector('[data-lead-engine-export-source="true"]') as HTMLElement | null;
   return dedicated ?? node;
@@ -305,10 +363,19 @@ export default function LeadEnginePage() {
   const [exporting, setExporting] = useState<"" | "png" | "jpeg">("");
   const rootRef = useRef<HTMLDivElement | null>(null);
 
+  function handleCtaUrlChange(nextValue: string) {
+    setCtaUrl(nextValue);
+    try {
+      window.localStorage.setItem(STORAGE_CTA_KEY, normalizeExportUrl(nextValue));
+    } catch {
+      // noop
+    }
+  }
+
   useEffect(() => {
     try {
       const savedLayers = safeParseLayers(window.localStorage.getItem(STORAGE_KEY));
-      const savedCta = window.localStorage.getItem(STORAGE_CTA_KEY) || "";
+      const savedCta = window.localStorage.getItem(STORAGE_CTA_KEY) || DEFAULT_CTA_URL;
       const savedCanvasHeight = safeParseHeight(
         window.localStorage.getItem(STORAGE_CANVAS_HEIGHT_KEY)
       );
@@ -326,7 +393,7 @@ export default function LeadEnginePage() {
       const preset = buildLeadPreset();
       setInitialLayers(preset);
       setLayers(preset);
-      setCtaUrl("");
+      setCtaUrl(DEFAULT_CTA_URL);
       setCanvasHeight(1800);
       setArchives([]);
     } finally {
@@ -337,7 +404,7 @@ export default function LeadEnginePage() {
   useEffect(() => {
     if (!hydrated) return;
     try {
-      window.localStorage.setItem(STORAGE_CTA_KEY, ctaUrl);
+      window.localStorage.setItem(STORAGE_CTA_KEY, normalizeExportUrl(ctaUrl));
       window.localStorage.setItem(STORAGE_CANVAS_HEIGHT_KEY, String(canvasHeight));
       window.localStorage.setItem(STORAGE_ARCHIVES_KEY, JSON.stringify(archives));
     } catch {
@@ -415,7 +482,7 @@ export default function LeadEnginePage() {
       name,
       createdAt: new Date().toISOString(),
       layers,
-      ctaUrl,
+      ctaUrl: normalizeExportUrl(ctaUrl),
       canvasHeight,
     };
 
@@ -427,9 +494,11 @@ export default function LeadEnginePage() {
     const found = archives.find((item) => item.id === archiveId);
     if (!found) return;
 
+    const nextCta = found.ctaUrl || window.localStorage.getItem(STORAGE_CTA_KEY) || DEFAULT_CTA_URL;
+
     setInitialLayers(found.layers);
     setLayers(found.layers);
-    setCtaUrl(found.ctaUrl);
+    setCtaUrl(nextCta);
     setCanvasHeight(found.canvasHeight);
     setEditorKey((value) => value + 1);
     setLastSavedAt(new Date().toLocaleTimeString());
@@ -438,7 +507,7 @@ export default function LeadEnginePage() {
 
     try {
       window.localStorage.setItem(STORAGE_CANVAS_HEIGHT_KEY, String(found.canvasHeight));
-      window.localStorage.setItem(STORAGE_CTA_KEY, found.ctaUrl);
+      window.localStorage.setItem(STORAGE_CTA_KEY, normalizeExportUrl(nextCta));
     } catch {
       // noop
     }
@@ -449,22 +518,220 @@ export default function LeadEnginePage() {
   }
 
   async function exportRaster(type: "png" | "jpeg") {
-    if (!rootRef.current) return;
+    const visibleLayers = normalizeLayersSnapshot(layers).filter(
+      (layer: any) => layer && layer.visible !== false && String(layer.id) !== "lead-canvas-height-marker"
+    );
 
-    const target = rootRef.current.querySelector(
-      '[data-lead-engine-canvas-export="true"]'
-    ) as HTMLElement | null;
-
-    if (!target) return;
+    if (visibleLayers.length === 0) {
+      window.alert("Export impossible : aucun layer visible.");
+      return;
+    }
 
     try {
       setExporting(type);
-      const dataUrl = await elementToRasterDataUrl(target, type, 0.95);
+
+      const canvas = document.createElement("canvas");
+      canvas.width = EXPORT_CANVAS_WIDTH;
+      canvas.height = Math.max(1200, Math.round(canvasHeight || 1800));
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas 2D indisponible.");
+
+      const loadImage = (src: string) =>
+        new Promise<HTMLImageElement>((resolve, reject) => {
+          const img = new Image();
+          img.decoding = "async";
+          img.onload = () => resolve(img);
+          img.onerror = () => reject(new Error("Chargement image impossible."));
+          img.src = src;
+        });
+
+      const drawCover = (img: HTMLImageElement, dx: number, dy: number, dw: number, dh: number) => {
+        const scale = Math.max(dw / img.width, dh / img.height);
+        const sw = dw / scale;
+        const sh = dh / scale;
+        const sx = (img.width - sw) / 2;
+        const sy = (img.height - sh) / 2;
+        ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
+      };
+
+      const drawContain = (img: HTMLImageElement, dx: number, dy: number, dw: number, dh: number) => {
+        const scale = Math.min(dw / img.width, dh / img.height);
+        const rw = img.width * scale;
+        const rh = img.height * scale;
+        const ox = dx + (dw - rw) / 2;
+        const oy = dy + (dh - rh) / 2;
+        ctx.drawImage(img, ox, oy, rw, rh);
+      };
+
+      const drawRoundedRect = (x: number, y: number, width: number, height: number, radius: number, fill: string) => {
+        const r = Math.min(radius, width / 2, height / 2);
+        ctx.save();
+        ctx.fillStyle = fill;
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + width - r, y);
+        ctx.quadraticCurveTo(x + width, y, x + width, y + r);
+        ctx.lineTo(x + width, y + height - r);
+        ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+        ctx.lineTo(x + r, y + height);
+        ctx.quadraticCurveTo(x, y + height, x, y + height - r);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      };
+
+      const drawTextLayer = (layer: any) => {
+        const style = getLayerStyle(layer);
+        const fontSize = Math.max(8, toNumber(style.fontSize, 32));
+        const fontWeight = String(style.fontWeight ?? 400);
+        const fontFamily = String(style.fontFamily || "Inter, Arial, sans-serif");
+        const lineHeight = Math.max(0.8, toNumber(style.lineHeight, 1.2));
+        const textAlign = ["left", "center", "right", "justify"].includes(String(style.textAlign))
+          ? String(style.textAlign)
+          : "left";
+        const color = getTextColor(style);
+        const backgroundColor = style.backgroundColor ? String(style.backgroundColor) : "";
+        const x = Math.round(toNumber(layer.x, 0));
+        const y = Math.round(toNumber(layer.y, 0));
+        const width = Math.max(20, Math.round(toNumber(layer.width, 320)));
+        const minHeight = Math.max(20, Math.round(toNumber(layer.height, 60)));
+        const paddingX = backgroundColor ? 22 : 0;
+        const paddingY = backgroundColor ? 16 : 0;
+        const innerWidth = Math.max(20, width - paddingX * 2);
+        const rawText = String(layer.text || "");
+
+        ctx.save();
+        ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+        ctx.textBaseline = "top";
+
+        const lines: string[] = [];
+        for (const paragraph of rawText.split("\n")) {
+          const words = String(paragraph || "").split(/\s+/).filter(Boolean);
+          if (!words.length) {
+            lines.push("");
+            continue;
+          }
+          let current = "";
+          for (const word of words) {
+            const test = current ? `${current} ${word}` : word;
+            if (ctx.measureText(test).width <= innerWidth || !current) {
+              current = test;
+            } else {
+              lines.push(current);
+              current = word;
+            }
+          }
+          if (current) lines.push(current);
+        }
+
+        const boxHeight = Math.max(minHeight, Math.ceil(lines.length * fontSize * lineHeight + paddingY * 2));
+        if (backgroundColor) {
+          drawRoundedRect(x, y, width, boxHeight, 18, backgroundColor);
+        }
+
+        ctx.fillStyle = color;
+        ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+        ctx.textAlign = textAlign as CanvasTextAlign;
+        let textX = x + paddingX;
+        if (textAlign === "center") textX = x + width / 2;
+        if (textAlign === "right") textX = x + width - paddingX;
+        let cursorY = y + paddingY;
+        for (const line of lines) {
+          ctx.fillText(line, textX, cursorY);
+          cursorY += fontSize * lineHeight;
+        }
+        ctx.restore();
+      };
+
+      if (type === "jpeg") {
+        ctx.fillStyle = "#0a0a0a";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+
+      const backgroundLayer = visibleLayers.find((layer: any) => String(layer.id) === "background-post") ?? null;
+      const bgStyle = getLayerStyle(backgroundLayer);
+      const bgColor = String(bgStyle.color || "#111111");
+      const bgGradient = parseLinearGradient(bgColor);
+      if (bgGradient) {
+        const angle = ((bgGradient.angle - 90) * Math.PI) / 180;
+        const x0 = canvas.width / 2 - Math.cos(angle) * canvas.width / 2;
+        const y0 = canvas.height / 2 - Math.sin(angle) * canvas.height / 2;
+        const x1 = canvas.width / 2 + Math.cos(angle) * canvas.width / 2;
+        const y1 = canvas.height / 2 + Math.sin(angle) * canvas.height / 2;
+        const grd = ctx.createLinearGradient(x0, y0, x1, y1);
+        grd.addColorStop(0, bgGradient.color1);
+        grd.addColorStop(1, bgGradient.color2);
+        ctx.fillStyle = grd;
+      } else {
+        ctx.fillStyle = bgColor;
+      }
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      if (backgroundLayer && backgroundLayer.type === "image" && typeof backgroundLayer.src === "string" && backgroundLayer.src) {
+        const bgImg = await loadImage(backgroundLayer.src);
+        drawCover(bgImg, 0, 0, canvas.width, canvas.height);
+      }
+
+      const overlay = (bgStyle as any).overlay;
+      if (overlay) {
+        ctx.save();
+        ctx.globalAlpha = clamp(Number(overlay.opacity ?? 0.35), 0, 1);
+        const overlayValue = String(overlay.value || overlay.color1 || "#000000");
+        const overlayGradient = parseLinearGradient(overlayValue);
+        if (overlayGradient) {
+          const angle = ((overlayGradient.angle - 90) * Math.PI) / 180;
+          const x0 = canvas.width / 2 - Math.cos(angle) * canvas.width / 2;
+          const y0 = canvas.height / 2 - Math.sin(angle) * canvas.height / 2;
+          const x1 = canvas.width / 2 + Math.cos(angle) * canvas.width / 2;
+          const y1 = canvas.height / 2 + Math.sin(angle) * canvas.height / 2;
+          const grd = ctx.createLinearGradient(x0, y0, x1, y1);
+          grd.addColorStop(0, overlayGradient.color1);
+          grd.addColorStop(1, overlayGradient.color2);
+          ctx.fillStyle = grd;
+        } else {
+          ctx.fillStyle = overlayValue;
+        }
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.restore();
+      }
+
+      const contentLayers = [...visibleLayers]
+        .filter((layer: any) => String(layer.id) !== "background-post")
+        .sort((a: any, b: any) => Number(a?.zIndex ?? 0) - Number(b?.zIndex ?? 0));
+
+      for (const layer of contentLayers as any[]) {
+        if (layer.type === "image" && typeof layer.src === "string" && layer.src) {
+          const img = await loadImage(layer.src);
+          drawContain(
+            img,
+            Math.round(toNumber(layer.x, 0)),
+            Math.round(toNumber(layer.y, 0)),
+            Math.max(20, Math.round(toNumber(layer.width, 300))),
+            Math.max(20, Math.round(toNumber(layer.height, 300)))
+          );
+          continue;
+        }
+
+        if (layer.type === "text") {
+          drawTextLayer(layer);
+        }
+      }
+
+      const dataUrl = canvas.toDataURL(type === "png" ? "image/png" : "image/jpeg", 0.95);
       const filename = `lgd-lead-engine-${new Date()
         .toISOString()
         .slice(0, 19)
         .replace(/[:T]/g, "-")}.${type === "png" ? "png" : "jpg"}`;
       downloadDataUrl(dataUrl, filename);
+    } catch (error) {
+      console.error("[LeadEngine exportRaster]", error);
+      window.alert(
+        type === "png"
+          ? "Export PNG impossible pour le moment."
+          : "Export JPEG impossible pour le moment."
+      );
     } finally {
       setExporting("");
     }
@@ -624,7 +891,7 @@ export default function LeadEnginePage() {
               canvasHeight={canvasHeight}
               onCanvasHeightChange={handleCanvasHeightChange}
               ctaUrl={ctaUrl}
-              onCtaUrlChange={setCtaUrl}
+              onCtaUrlChange={handleCtaUrlChange}
               onChange={handleLayersChange}
             />
           ) : (
