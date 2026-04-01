@@ -5,9 +5,8 @@ type BuildLeadHtmlExportInput = {
   ctaUrl: string;
 };
 
-function getText(layer: any) {
-  return typeof layer?.text === "string" ? layer.text : "";
-}
+const DEFAULT_CANVAS_WIDTH = 1080;
+const MIN_CANVAS_HEIGHT = 1200;
 
 function normalizeUrl(url: string) {
   const value = String(url || "").trim();
@@ -34,150 +33,177 @@ function escapeHtml(input: string) {
     .replaceAll("'", "&#39;");
 }
 
-function estimateHeroMinHeight(title: string, subtitle: string, cta: string) {
-  const total = (title.length * 1.4) + subtitle.length + (cta.length * 0.7);
-  return Math.max(420, Math.min(760, Math.round(total * 2.2)));
+function toNumber(value: unknown, fallback = 0) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
 }
 
-export function buildLeadHtmlExport({
-  layers,
-  ctaUrl,
-}: BuildLeadHtmlExportInput) {
-  const visible = [...layers]
-    .filter((layer: any) => layer?.visible !== false && String(layer?.id) !== "lead-canvas-height-marker")
-    .sort((a: any, b: any) => Number(a?.y ?? 0) - Number(b?.y ?? 0));
+function getLayerStyle(layer: any) {
+  return ((layer?.style ?? {}) as Record<string, any>) || {};
+}
 
-  const title =
-    getText(visible.find((l: any) => String(l.id).includes("lead-title"))) ||
-    "Titre du lead";
+function getTextColor(style: Record<string, any>) {
+  return String(style.fill || style.color || style.textColor || "#ffffff");
+}
 
-  const subtitle =
-    getText(visible.find((l: any) => String(l.id).includes("lead-subtitle"))) ||
-    "Sous-titre du lead";
+function getCanvasHeight(visible: any[]) {
+  const bgLayer = visible.find((layer) => String(layer?.id) === "background-post");
+  const bgHeight = Math.round(toNumber(bgLayer?.height, 0));
 
-  const cta =
-    getText(visible.find((l: any) => String(l.id).includes("lead-cta"))) ||
-    "Recevoir le lead";
+  const contentBottom = visible.reduce((max, layer) => {
+    const y = toNumber(layer?.y, 0);
+    const height = Math.max(
+      0,
+      toNumber(layer?.height, layer?.type === "text" ? 120 : layer?.type === "image" ? 300 : 0)
+    );
+    return Math.max(max, y + height);
+  }, 0);
 
-  const imageLayer = visible.find(
-    (l: any) => l?.type === "image" && typeof l?.src === "string"
-  );
-  const imageSrc = imageLayer?.src || "";
+  return Math.max(MIN_CANVAS_HEIGHT, bgHeight, Math.ceil(contentBottom + 80));
+}
 
-  const benefitTexts = visible
-    .filter((l: any) => String(l.id).includes("lead-benefit-"))
-    .map((l: any) => getText(l))
-    .filter(Boolean);
+function buildBackgroundHtml(layer: any, canvasHeight: number) {
+  const style = getLayerStyle(layer);
+  const overlay = style.overlay as any;
 
-  const proofTitle =
-    getText(visible.find((l: any) => String(l.id).includes("lead-proof-title"))) ||
-    "Preuve sociale";
+  const isImage = layer?.type === "image" && typeof layer?.src === "string" && layer.src;
+  const backgroundBase = isImage
+    ? `<img src="${escapeHtml(String(layer.src))}" alt="Background" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center center;display:block;" />`
+    : `<div style="position:absolute;inset:0;background:${escapeHtml(String(style.color || "#111111"))};"></div>`;
 
-  const proofBody =
-    getText(visible.find((l: any) => String(l.id).includes("lead-proof-body"))) || "";
-
-  const faqTitle =
-    getText(visible.find((l: any) => String(l.id).includes("lead-faq-title"))) ||
-    "FAQ";
-
-  const faqPairs = [
-    {
-      q: getText(visible.find((l: any) => String(l.id).includes("lead-faq-q1"))),
-      a: getText(visible.find((l: any) => String(l.id).includes("lead-faq-a1"))),
-    },
-    {
-      q: getText(visible.find((l: any) => String(l.id).includes("lead-faq-q2"))),
-      a: getText(visible.find((l: any) => String(l.id).includes("lead-faq-a2"))),
-    },
-  ].filter((item) => item.q || item.a);
-
-  const safeCtaUrl = escapeHtml(normalizeUrl(ctaUrl));
-  const heroMinHeight = estimateHeroMinHeight(title, subtitle, cta);
-
-  const benefitsHtml = benefitTexts
-    .map(
-      (text) =>
-        `<div style="padding:18px;border:1px solid rgba(255,184,0,0.18);border-radius:18px;background:#111111;color:#ffffff;font-size:18px;line-height:1.7;">${escapeHtml(
-          text
-        )}</div>`
-    )
-    .join("");
-
-  const faqHtml = faqPairs
-    .map(
-      (item) => `
-        <div style="padding:18px;border:1px solid rgba(255,184,0,0.18);border-radius:18px;background:#111111;">
-          <div style="font-size:20px;font-weight:800;color:#ffffff;">${escapeHtml(
-            item.q
-          )}</div>
-          <div style="margin-top:10px;font-size:17px;line-height:1.7;color:#d4d4d8;">${escapeHtml(
-            item.a
-          )}</div>
-        </div>
-      `
-    )
-    .join("");
+  const overlayHtml = overlay
+    ? `<div style="position:absolute;inset:0;background:${escapeHtml(String(overlay.value || overlay.color1 || "#000000"))};opacity:${Math.max(
+        0,
+        Math.min(1, Number(overlay.opacity ?? 0.35))
+      )};pointer-events:none;"></div>`
+    : "";
 
   return `
-<div style="max-width:1200px;margin:0 auto;background:linear-gradient(180deg,#120d02,#050505);color:#ffffff;font-family:Inter,Arial,sans-serif;border:1px solid rgba(255,184,0,0.18);border-radius:32px;overflow:hidden;">
-  <section style="display:grid;grid-template-columns:minmax(0,1.05fr) minmax(320px,0.95fr);gap:0;border-bottom:1px solid rgba(255,184,0,0.14);align-items:stretch;">
-    <div style="padding:56px;min-height:${heroMinHeight}px;display:flex;flex-direction:column;justify-content:center;">
-      <div style="display:inline-block;padding:8px 14px;border-radius:999px;border:1px solid rgba(255,184,0,0.22);background:#111111;color:#ffb800;font-size:11px;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;">Aimant à prospects</div>
-      <h1 style="margin:22px 0 0 0;font-size:58px;line-height:1.02;font-weight:800;color:#ffffff;">${escapeHtml(
-        title
-      )}</h1>
-      <p style="margin:24px 0 0 0;max-width:720px;font-size:22px;line-height:1.7;color:#d4d4d8;">${escapeHtml(
-        subtitle
-      )}</p>
-      <div style="margin-top:30px;">
-        <a href="${safeCtaUrl}" style="display:inline-block;padding:18px 24px;border-radius:18px;background:#ffb800;color:#111111;font-size:18px;font-weight:800;text-decoration:none;">${escapeHtml(
-    cta
-  )}</a>
-      </div>
+    <div style="position:absolute;left:0;top:0;width:${DEFAULT_CANVAS_WIDTH}px;height:${canvasHeight}px;overflow:hidden;z-index:0;">
+      ${backgroundBase}
+      ${overlayHtml}
     </div>
-    <div style="padding:28px;border-left:1px solid rgba(255,184,0,0.14);display:flex;">
-      <div style="width:100%;min-height:${heroMinHeight}px;border-radius:26px;overflow:hidden;border:1px solid rgba(255,184,0,0.16);background:#111111;display:flex;align-items:center;justify-content:center;">
-        ${
-          imageSrc
-            ? `<img src="${escapeHtml(
-                imageSrc
-              )}" alt="Visuel du lead" style="width:100%;height:100%;object-fit:contain;object-position:center center;background:#111111;" />`
-            : `<div style="padding:24px;color:#d4d4d8;">Ajoute un visuel hero depuis l’éditeur</div>`
-        }
-      </div>
-    </div>
-  </section>
+  `.trim();
+}
 
-  <section style="padding:44px;">
-    <div style="font-size:28px;font-weight:800;color:#ffb800;">Bénéfices</div>
-    <div style="margin-top:20px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;">${benefitsHtml}</div>
-  </section>
+function buildTextLayerHtml(layer: any, ctaUrl: string) {
+  const style = getLayerStyle(layer);
+  const fontSize = Math.max(8, toNumber(style.fontSize, 32));
+  const fontWeight = escapeHtml(String(style.fontWeight ?? 400));
+  const fontFamily = escapeHtml(String(style.fontFamily || "Inter, Arial, sans-serif"));
+  const lineHeight = Math.max(0.8, toNumber(style.lineHeight, 1.2));
+  const textAlign = ["left", "center", "right", "justify"].includes(String(style.textAlign))
+    ? String(style.textAlign)
+    : "left";
+  const fontStyle = escapeHtml(String(style.fontStyle || "normal"));
+  const textDecoration = escapeHtml(String(style.textDecoration || "none"));
+  const color = escapeHtml(getTextColor(style));
+  const backgroundColor = style.backgroundColor ? escapeHtml(String(style.backgroundColor)) : "";
+  const borderRadius = backgroundColor ? "18px" : "0";
+  const padding = backgroundColor ? "16px 22px" : "0";
+  const display = backgroundColor ? "flex" : "block";
+  const alignItems = backgroundColor ? "center" : "initial";
+  const justifyContent = backgroundColor
+    ? textAlign === "center"
+      ? "center"
+      : textAlign === "right"
+      ? "flex-end"
+      : "flex-start"
+    : "initial";
+  const boxShadow = backgroundColor ? "0 10px 30px rgba(0,0,0,0.18)" : "none";
+  const text = escapeHtml(String(layer?.text || "")).replace(/\n/g, "<br />");
+  const content = backgroundColor
+    ? `<span style="display:block;width:100%;">${text}</span>`
+    : text;
 
-  <section style="padding:0 44px 44px 44px;">
-    <div style="padding:28px;border:1px solid rgba(255,184,0,0.16);border-radius:28px;background:#0d0d0d;">
-      <div style="font-size:28px;font-weight:800;color:#ffb800;">${escapeHtml(
-        proofTitle
-      )}</div>
-      <div style="margin-top:16px;font-size:20px;line-height:1.8;color:#d4d4d8;">${escapeHtml(
-        proofBody
-      )}</div>
-    </div>
-  </section>
+  const commonStyle = [
+    `position:absolute`,
+    `left:${Math.round(toNumber(layer?.x, 0))}px`,
+    `top:${Math.round(toNumber(layer?.y, 0))}px`,
+    `width:${Math.max(20, Math.round(toNumber(layer?.width, 320)))}px`,
+    `min-height:${Math.max(20, Math.round(toNumber(layer?.height, 60)))}px`,
+    `z-index:${Math.round(toNumber(layer?.zIndex, 1)) + 20}`,
+    `color:${color}`,
+    `font-size:${fontSize}px`,
+    `font-family:${fontFamily}`,
+    `font-weight:${fontWeight}`,
+    `font-style:${fontStyle}`,
+    `line-height:${lineHeight}`,
+    `text-align:${textAlign}`,
+    `text-decoration:${textDecoration}`,
+    `white-space:normal`,
+    `word-break:break-word`,
+    `overflow-wrap:anywhere`,
+    `background:${backgroundColor || "transparent"}`,
+    `border-radius:${borderRadius}`,
+    `padding:${padding}`,
+    `display:${display}`,
+    `align-items:${alignItems}`,
+    `justify-content:${justifyContent}`,
+    `box-sizing:border-box`,
+    `box-shadow:${boxShadow}`,
+  ].join(";");
 
-  <section style="padding:0 44px 44px 44px;">
-    <div style="padding:28px;border:1px solid rgba(255,184,0,0.16);border-radius:28px;background:#0d0d0d;">
-      <div style="font-size:28px;font-weight:800;color:#ffb800;">${escapeHtml(
-        faqTitle
-      )}</div>
-      <div style="margin-top:20px;display:grid;gap:16px;">${faqHtml}</div>
-    </div>
-  </section>
+  const isCta = String(layer?.id || "").includes("lead-cta") || String(layer?.id || "").includes("cta");
 
-  <section id="sio-formulaire" style="padding:0 44px 44px 44px;">
-    <div style="padding:28px;border:1px dashed rgba(255,184,0,0.30);border-radius:28px;background:#111111;color:#ffb800;text-align:center;font-size:16px;line-height:1.8;">
-      👉 Ajoute ici ton formulaire natif Systeme.io juste après avoir collé ce HTML.
+  if (isCta) {
+    return `<a href="${escapeHtml(normalizeUrl(ctaUrl))}" style="${commonStyle};text-decoration:none;">${content}</a>`;
+  }
+
+  return `<div style="${commonStyle};">${content}</div>`;
+}
+
+function buildImageLayerHtml(layer: any) {
+  const x = Math.round(toNumber(layer?.x, 0));
+  const y = Math.round(toNumber(layer?.y, 0));
+  const width = Math.max(20, Math.round(toNumber(layer?.width, 300)));
+  const height = Math.max(20, Math.round(toNumber(layer?.height, 300)));
+  const zIndex = Math.round(toNumber(layer?.zIndex, 1)) + 10;
+  const src = escapeHtml(String(layer?.src || ""));
+
+  return `
+    <div style="position:absolute;left:${x}px;top:${y}px;width:${width}px;height:${height}px;z-index:${zIndex};overflow:hidden;box-sizing:border-box;">
+      <img src="${src}" alt="Visuel" style="display:block;width:100%;height:100%;object-fit:contain;object-position:center center;" />
     </div>
-  </section>
+  `.trim();
+}
+
+export function buildLeadHtmlExport({ layers, ctaUrl }: BuildLeadHtmlExportInput) {
+  const visible = [...(Array.isArray(layers) ? layers : [])]
+    .filter((layer: any) => layer && layer?.visible !== false && String(layer?.id) !== "lead-canvas-height-marker")
+    .sort((a: any, b: any) => Number(a?.zIndex ?? 0) - Number(b?.zIndex ?? 0));
+
+  const backgroundLayer =
+    visible.find((layer: any) => String(layer?.id) === "background-post") ??
+    visible.find((layer: any) => layer?.type === "background") ??
+    null;
+
+  const contentLayers = visible.filter((layer: any) => String(layer?.id) !== "background-post");
+  const canvasHeight = getCanvasHeight(visible);
+
+  const backgroundHtml = backgroundLayer
+    ? buildBackgroundHtml(backgroundLayer, canvasHeight)
+    : `<div style="position:absolute;inset:0;background:#111111;z-index:0;"></div>`;
+
+  const layerHtml = contentLayers
+    .map((layer: any) => {
+      if (layer?.type === "text") return buildTextLayerHtml(layer, ctaUrl);
+      if (layer?.type === "image" && typeof layer?.src === "string" && layer.src) {
+        return buildImageLayerHtml(layer);
+      }
+      return "";
+    })
+    .filter(Boolean)
+    .join("\n");
+
+  return `
+<div style="width:100%;padding:24px 0;background:#050505;">
+  <div style="max-width:${DEFAULT_CANVAS_WIDTH}px;margin:0 auto;">
+    <div style="position:relative;width:${DEFAULT_CANVAS_WIDTH}px;height:${canvasHeight}px;margin:0 auto;overflow:hidden;border-radius:32px;border:1px solid rgba(255,184,0,0.18);background:#111111;box-shadow:0 20px 70px rgba(0,0,0,0.35);font-family:Inter,Arial,sans-serif;">
+      ${backgroundHtml}
+      ${layerHtml}
+    </div>
+  </div>
 </div>
 `.trim();
 }
