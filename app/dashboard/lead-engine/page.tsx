@@ -13,6 +13,9 @@ const STORAGE_CTA_KEY = "lgd_lead_engine_builder_v4_cta_url";
 const STORAGE_CANVAS_HEIGHT_KEY = "lgd_lead_engine_builder_v4_canvas_height_manual";
 const STORAGE_ARCHIVES_KEY = "lgd_lead_engine_builder_v4_archives";
 
+const DEFAULT_CTA_URL = "https://legenerateurdigital.systeme.io/lgd";
+const EXPORT_CANVAS_WIDTH = 1080;
+
 type SavedArchive = {
   id: string;
   name: string;
@@ -178,7 +181,8 @@ function safeParseLayers(raw: string | null): LayerData[] | null {
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as LayerData[]) : null;
+    const normalized = normalizeLayersSnapshot(Array.isArray(parsed) ? (parsed as LayerData[]) : null);
+    return normalized.length > 0 ? normalized : null;
   } catch {
     return null;
   }
@@ -194,14 +198,29 @@ function safeParseArchives(raw: string | null): SavedArchive[] {
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as SavedArchive[]) : [];
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed
+      .map((item) => {
+        if (!item || typeof item !== "object") return null;
+
+        const layers = normalizeLayersSnapshot((item as SavedArchive).layers);
+        if (layers.length === 0) return null;
+
+        return {
+          id: String((item as SavedArchive).id || `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`),
+          name: String((item as SavedArchive).name || "Archive sans nom"),
+          createdAt: String((item as SavedArchive).createdAt || new Date().toISOString()),
+          layers,
+          ctaUrl: String((item as SavedArchive).ctaUrl || DEFAULT_CTA_URL),
+          canvasHeight: safeParseHeight(String((item as SavedArchive).canvasHeight ?? "")) ?? 1800,
+        } as SavedArchive;
+      })
+      .filter(Boolean) as SavedArchive[];
   } catch {
     return [];
   }
 }
-
-const DEFAULT_CTA_URL = "https://legenerateurdigital.systeme.io/lgd";
-const EXPORT_CANVAS_WIDTH = 1080;
 
 function normalizeExportUrl(url: string) {
   const value = String(url || "").trim();
@@ -245,101 +264,6 @@ function parseLinearGradient(input: string | undefined | null) {
   };
 }
 
-function getBestExportNode(node: HTMLElement): HTMLElement {
-  const dedicated = node.querySelector('[data-lead-engine-export-source="true"]') as HTMLElement | null;
-  return dedicated ?? node;
-}
-
-async function elementToRasterDataUrl(
-  node: HTMLElement,
-  type: "png" | "jpeg",
-  quality = 0.95
-): Promise<string> {
-  const exportNode = getBestExportNode(node);
-  const rect = exportNode.getBoundingClientRect();
-  const width = Math.max(1, Math.ceil(rect.width || exportNode.clientWidth || exportNode.scrollWidth || 1));
-  const height = Math.max(1, Math.ceil(rect.height || exportNode.clientHeight || exportNode.scrollHeight || 1));
-  const clone = exportNode.cloneNode(true) as HTMLElement;
-
-  clone.setAttribute("xmlns", "http://www.w3.org/1999/xhtml");
-  clone.style.margin = "0";
-  clone.style.transform = "none";
-  clone.style.transformOrigin = "top left";
-  clone.style.boxSizing = "border-box";
-  clone.style.position = "relative";
-  clone.style.left = "0";
-  clone.style.top = "0";
-  clone.style.width = `${width}px`;
-  clone.style.height = `${height}px`;
-  clone.style.maxWidth = "none";
-  clone.style.maxHeight = "none";
-  clone.style.overflow = "hidden";
-
-  const html = `
-    <html xmlns="http://www.w3.org/1999/xhtml">
-      <head>
-        <meta charset="utf-8" />
-        <style>
-          html, body {
-            margin: 0;
-            padding: 0;
-            background: ${type === "jpeg" ? "#0a0a0a" : "transparent"};
-            width: ${width}px;
-            height: ${height}px;
-            overflow: hidden;
-          }
-          * {
-            box-sizing: border-box;
-          }
-          img {
-            display: block;
-          }
-        </style>
-      </head>
-      <body>${clone.outerHTML}</body>
-    </html>
-  `;
-
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
-      <foreignObject width="100%" height="100%">${html}</foreignObject>
-    </svg>
-  `;
-
-  const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-
-  try {
-    const img = new Image();
-    img.decoding = "async";
-    img.crossOrigin = "anonymous";
-
-    const loaded = new Promise<void>((resolve, reject) => {
-      img.onload = () => resolve();
-      img.onerror = () => reject(new Error("Impossible de charger l’image exportée."));
-    });
-
-    img.src = url;
-    await loaded;
-
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("Canvas 2D indisponible.");
-
-    if (type === "jpeg") {
-      ctx.fillStyle = "#0a0a0a";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-    }
-
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    return canvas.toDataURL(type === "png" ? "image/png" : "image/jpeg", quality);
-  } finally {
-    URL.revokeObjectURL(url);
-  }
-}
-
 function downloadDataUrl(dataUrl: string, filename: string) {
   const a = document.createElement("a");
   a.href = dataUrl;
@@ -354,19 +278,24 @@ export default function LeadEnginePage() {
   const [hydrated, setHydrated] = useState(false);
   const [initialLayers, setInitialLayers] = useState<LayerData[]>(() => buildLeadPreset());
   const [layers, setLayers] = useState<LayerData[]>(() => buildLeadPreset());
-  const [ctaUrl, setCtaUrl] = useState("");
+  const [ctaUrl, setCtaUrl] = useState(DEFAULT_CTA_URL);
   const [copied, setCopied] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState("");
   const [canvasHeight, setCanvasHeight] = useState(1800);
   const [archiveName, setArchiveName] = useState("");
   const [archives, setArchives] = useState<SavedArchive[]>([]);
   const [exporting, setExporting] = useState<"" | "png" | "jpeg">("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiResult, setAiResult] = useState("");
+  const [aiBrief, setAiBrief] = useState("");
+  const [aiGoal, setAiGoal] = useState<"landing_complete" | "hooks" | "cta" | "benefits" | "variants">("landing_complete");
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   function handleCtaUrlChange(nextValue: string) {
-    setCtaUrl(nextValue);
+    const normalized = normalizeExportUrl(nextValue);
+    setCtaUrl(normalized);
     try {
-      window.localStorage.setItem(STORAGE_CTA_KEY, normalizeExportUrl(nextValue));
+      window.localStorage.setItem(STORAGE_CTA_KEY, normalized);
     } catch {
       // noop
     }
@@ -376,17 +305,14 @@ export default function LeadEnginePage() {
     try {
       const savedLayers = safeParseLayers(window.localStorage.getItem(STORAGE_KEY));
       const savedCta = window.localStorage.getItem(STORAGE_CTA_KEY) || DEFAULT_CTA_URL;
-      const savedCanvasHeight = safeParseHeight(
-        window.localStorage.getItem(STORAGE_CANVAS_HEIGHT_KEY)
-      );
+      const savedCanvasHeight = safeParseHeight(window.localStorage.getItem(STORAGE_CANVAS_HEIGHT_KEY));
       const savedArchives = safeParseArchives(window.localStorage.getItem(STORAGE_ARCHIVES_KEY));
 
-      const nextLayers =
-        savedLayers && savedLayers.length > 0 ? savedLayers : buildLeadPreset();
+      const nextLayers = savedLayers && savedLayers.length > 0 ? savedLayers : buildLeadPreset();
 
       setInitialLayers(nextLayers);
       setLayers(nextLayers);
-      setCtaUrl(savedCta);
+      setCtaUrl(normalizeExportUrl(savedCta));
       setCanvasHeight(savedCanvasHeight ?? 1800);
       setArchives(savedArchives);
     } catch {
@@ -412,10 +338,77 @@ export default function LeadEnginePage() {
     }
   }, [ctaUrl, canvasHeight, archives, hydrated]);
 
+  async function autoSaveMemory(content: string) {
+    const trimmed = String(content || "").trim();
+    if (!trimmed) return;
+
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/lead-engine/ai/save-memory`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          memory_type: "lead_brief",
+          content: trimmed,
+          emotional_profile: "human premium",
+          business_context: "lead-engine",
+        }),
+      });
+    } catch (error) {
+      console.error("[LeadEngine memory]", error);
+    }
+  }
+
+  useEffect(() => {
+    if (!aiBrief.trim()) return;
+
+    const timer = window.setTimeout(() => {
+      void autoSaveMemory(aiBrief);
+    }, 1200);
+
+    return () => window.clearTimeout(timer);
+  }, [aiBrief]);
+
+  async function generateWithAI(goal: string) {
+    try {
+      setAiLoading(true);
+      setAiResult("");
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/lead-engine/ai/generate`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          goal,
+          brief: aiBrief || "Créer une landing premium orientée conversion.",
+          emotional_style: "humain, authentique, expert, sincère, orienté conversion",
+          business_context: `lead generation premium | cta_url=${normalizeExportUrl(ctaUrl)}`,
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error((data as any)?.detail || "Erreur IA");
+      }
+
+      const content = String((data as any)?.content || "");
+      setAiResult(content);
+    } catch (error) {
+      console.error("[LeadEngine AI]", error);
+      window.alert("Génération IA impossible pour le moment.");
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
   const htmlExport = useMemo(() => {
     return buildLeadHtmlExport({
       layers,
-      ctaUrl,
+      ctaUrl: normalizeExportUrl(ctaUrl),
     });
   }, [layers, ctaUrl]);
 
@@ -430,18 +423,24 @@ export default function LeadEnginePage() {
   }
 
   function persistLayers(nextLayers: LayerData[]) {
+    const snapshot = normalizeLayersSnapshot(nextLayers);
+    if (snapshot.length === 0) return;
+
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextLayers));
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
     } catch {
       // noop
     }
   }
 
   function handleLayersChange(nextLayers: LayerData[]) {
-    setLayers(nextLayers);
-    setInitialLayers(nextLayers);
+    const snapshot = normalizeLayersSnapshot(nextLayers);
+    if (snapshot.length === 0) return;
+
+    setLayers(snapshot);
+    setInitialLayers(snapshot);
     setLastSavedAt(new Date().toLocaleTimeString());
-    persistLayers(nextLayers);
+    persistLayers(snapshot);
   }
 
   function resetPreset() {
@@ -455,9 +454,12 @@ export default function LeadEnginePage() {
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(preset));
       window.localStorage.setItem(STORAGE_CANVAS_HEIGHT_KEY, "1800");
+      window.localStorage.setItem(STORAGE_CTA_KEY, DEFAULT_CTA_URL);
     } catch {
       // noop
     }
+
+    setCtaUrl(DEFAULT_CTA_URL);
   }
 
   function handleCanvasHeightChange(nextHeight: number) {
@@ -473,6 +475,9 @@ export default function LeadEnginePage() {
   }
 
   function saveArchive() {
+    const snapshot = normalizeLayersSnapshot(layers);
+    if (snapshot.length === 0) return;
+
     const name =
       archiveName.trim() ||
       `Archive ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`;
@@ -481,7 +486,7 @@ export default function LeadEnginePage() {
       id: `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
       name,
       createdAt: new Date().toISOString(),
-      layers,
+      layers: snapshot,
       ctaUrl: normalizeExportUrl(ctaUrl),
       canvasHeight,
     };
@@ -494,20 +499,21 @@ export default function LeadEnginePage() {
     const found = archives.find((item) => item.id === archiveId);
     if (!found) return;
 
-    const nextCta = found.ctaUrl || window.localStorage.getItem(STORAGE_CTA_KEY) || DEFAULT_CTA_URL;
+    const snapshot = normalizeLayersSnapshot(found.layers);
+    if (snapshot.length === 0) return;
 
-    setInitialLayers(found.layers);
-    setLayers(found.layers);
-    setCtaUrl(nextCta);
+    setInitialLayers(snapshot);
+    setLayers(snapshot);
+    setCtaUrl(normalizeExportUrl(found.ctaUrl || DEFAULT_CTA_URL));
     setCanvasHeight(found.canvasHeight);
     setEditorKey((value) => value + 1);
     setLastSavedAt(new Date().toLocaleTimeString());
 
-    persistLayers(found.layers);
+    persistLayers(snapshot);
 
     try {
       window.localStorage.setItem(STORAGE_CANVAS_HEIGHT_KEY, String(found.canvasHeight));
-      window.localStorage.setItem(STORAGE_CTA_KEY, normalizeExportUrl(nextCta));
+      window.localStorage.setItem(STORAGE_CTA_KEY, normalizeExportUrl(found.ctaUrl || DEFAULT_CTA_URL));
     } catch {
       // noop
     }
@@ -540,6 +546,7 @@ export default function LeadEnginePage() {
         new Promise<HTMLImageElement>((resolve, reject) => {
           const img = new Image();
           img.decoding = "async";
+          img.crossOrigin = "anonymous";
           img.onload = () => resolve(img);
           img.onerror = () => reject(new Error("Chargement image impossible."));
           img.src = src;
@@ -613,6 +620,7 @@ export default function LeadEnginePage() {
             lines.push("");
             continue;
           }
+
           let current = "";
           for (const word of words) {
             const test = current ? `${current} ${word}` : word;
@@ -623,6 +631,7 @@ export default function LeadEnginePage() {
               current = word;
             }
           }
+
           if (current) lines.push(current);
         }
 
@@ -634,14 +643,17 @@ export default function LeadEnginePage() {
         ctx.fillStyle = color;
         ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
         ctx.textAlign = textAlign as CanvasTextAlign;
+
         let textX = x + paddingX;
         if (textAlign === "center") textX = x + width / 2;
         if (textAlign === "right") textX = x + width - paddingX;
+
         let cursorY = y + paddingY;
         for (const line of lines) {
           ctx.fillText(line, textX, cursorY);
           cursorY += fontSize * lineHeight;
         }
+
         ctx.restore();
       };
 
@@ -654,6 +666,7 @@ export default function LeadEnginePage() {
       const bgStyle = getLayerStyle(backgroundLayer);
       const bgColor = String(bgStyle.color || "#111111");
       const bgGradient = parseLinearGradient(bgColor);
+
       if (bgGradient) {
         const angle = ((bgGradient.angle - 90) * Math.PI) / 180;
         const x0 = canvas.width / 2 - Math.cos(angle) * canvas.width / 2;
@@ -727,11 +740,7 @@ export default function LeadEnginePage() {
       downloadDataUrl(dataUrl, filename);
     } catch (error) {
       console.error("[LeadEngine exportRaster]", error);
-      window.alert(
-        type === "png"
-          ? "Export PNG impossible pour le moment."
-          : "Export JPEG impossible pour le moment."
-      );
+      window.alert(type === "png" ? "Export PNG impossible pour le moment." : "Export JPEG impossible pour le moment.");
     } finally {
       setExporting("");
     }
@@ -753,7 +762,7 @@ export default function LeadEnginePage() {
 
               <div className="inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-4 py-1 text-[12px] text-white/75">
                 <FaMagic className="text-yellow-300" />
-                Lead Builder V4.6.2.1 — Page Export Final
+                Lead Builder V4.7.2 — Front IA Memory Connector
               </div>
             </div>
 
@@ -761,7 +770,7 @@ export default function LeadEnginePage() {
               Lead Engine branché sur la vraie structure éditeur
             </h1>
             <p className="mt-2 max-w-3xl text-white/65">
-              Export HTML SIO, export PNG / JPEG et archives locales sans toucher au moteur de l’éditeur.
+              Export HTML SIO, export PNG / JPEG, archives locales et copilote IA mémoire branché sur le backend.
             </p>
           </div>
 
@@ -809,9 +818,7 @@ export default function LeadEnginePage() {
         <div className="mb-6 rounded-[28px] border border-yellow-600/20 bg-[#0b0b0b] p-5">
           <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
             <div>
-              <div className="mb-2 text-sm font-semibold text-yellow-300">
-                Archive de landing
-              </div>
+              <div className="mb-2 text-sm font-semibold text-yellow-300">Archive de landing</div>
               <div className="text-sm text-white/55">
                 Sauvegarde des versions prêtes à rouvrir, dupliquer ou exporter plus tard.
               </div>
@@ -850,12 +857,8 @@ export default function LeadEnginePage() {
                       className="flex items-center justify-between gap-3 rounded-xl border border-yellow-600/15 bg-black/20 px-3 py-3"
                     >
                       <div className="min-w-0">
-                        <div className="truncate text-sm font-semibold text-white/85">
-                          {archive.name}
-                        </div>
-                        <div className="text-[12px] text-white/45">
-                          {new Date(archive.createdAt).toLocaleString()}
-                        </div>
+                        <div className="truncate text-sm font-semibold text-white/85">{archive.name}</div>
+                        <div className="text-[12px] text-white/45">{new Date(archive.createdAt).toLocaleString()}</div>
                       </div>
 
                       <div className="flex items-center gap-2">
@@ -882,6 +885,69 @@ export default function LeadEnginePage() {
           </div>
         </div>
 
+        <div className="mb-6 rounded-[28px] border border-yellow-600/20 bg-[#0b0b0b] p-5">
+          <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+            <div className="rounded-2xl border border-yellow-600/20 bg-[#111] p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm font-semibold text-yellow-300">IA Lead Engine Premium</div>
+                  <div className="mt-1 text-sm text-white/55">
+                    Chaque brief est mémorisé automatiquement pour enrichir les futures générations.
+                  </div>
+                </div>
+
+                <select
+                  value={aiGoal}
+                  onChange={(e) => setAiGoal(e.target.value as typeof aiGoal)}
+                  className="rounded-xl border border-yellow-600/20 bg-black/30 px-3 py-2 text-sm text-white outline-none"
+                >
+                  <option value="landing_complete">Landing complète</option>
+                  <option value="hooks">Hooks</option>
+                  <option value="cta">CTA</option>
+                  <option value="benefits">Bénéfices</option>
+                  <option value="variants">Variantes A/B</option>
+                </select>
+              </div>
+
+              <textarea
+                value={aiBrief}
+                onChange={(e) => setAiBrief(e.target.value)}
+                placeholder="Décris précisément l'offre, la cible, la transformation promise, les douleurs, le niveau d'émotion souhaité, le ton et le résultat attendu..."
+                className="mt-4 min-h-[180px] w-full rounded-2xl border border-yellow-600/20 bg-black/30 p-4 text-white outline-none placeholder:text-white/30"
+              />
+
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => generateWithAI(aiGoal)}
+                  disabled={aiLoading}
+                  className="rounded-2xl bg-[#ffb800] px-5 py-3 font-bold text-black disabled:opacity-60"
+                >
+                  {aiLoading ? "Génération..." : "Générer avec IA"}
+                </button>
+
+                <div className="text-xs text-white/45">
+                  Mémoire automatique active • Backend OpenAI branché
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-yellow-600/20 bg-[#111] p-4">
+              <div className="text-sm font-semibold text-yellow-300">Résultat IA</div>
+              <div className="mt-1 text-sm text-white/55">
+                Sortie humanisée, contextualisée et prête à être réinjectée dans le Lead Engine.
+              </div>
+
+              <textarea
+                readOnly
+                value={aiResult}
+                placeholder="Les résultats IA apparaîtront ici. Ils seront nourris par le brief, le contexte métier et la mémoire utilisateur."
+                className="mt-4 min-h-[260px] w-full rounded-2xl border border-yellow-600/20 bg-black/30 p-4 text-white/90 outline-none placeholder:text-white/25"
+              />
+            </div>
+          </div>
+        </div>
+
         <div ref={rootRef} className="rounded-[28px] border border-yellow-600/20 bg-[#0b0b0b] p-4 sm:p-5">
           {hydrated ? (
             <LeadEditorLayout
@@ -904,11 +970,9 @@ export default function LeadEnginePage() {
         <div className="mt-6 rounded-[28px] border border-yellow-600/20 bg-[#0b0b0b] p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <div className="text-sm font-semibold text-yellow-300">
-                HTML SIO généré
-              </div>
+              <div className="text-sm font-semibold text-yellow-300">HTML SIO généré</div>
               <div className="mt-1 text-sm text-white/55">
-                Le CTA principal utilise l’URL Systeme.io et l’export reste basé sur le fichier stable actuel.
+                Le CTA principal utilise l’URL Systeme.io et l’export reste aligné sur la structure actuelle du Lead Engine.
               </div>
             </div>
 
@@ -929,9 +993,7 @@ export default function LeadEnginePage() {
         </div>
 
         {!!lastSavedAt && (
-          <div className="mt-4 text-right text-xs text-white/35">
-            Dernière synchro : {lastSavedAt}
-          </div>
+          <div className="mt-4 text-right text-xs text-white/35">Dernière synchro : {lastSavedAt}</div>
         )}
       </div>
     </div>
