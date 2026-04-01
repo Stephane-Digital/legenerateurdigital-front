@@ -219,11 +219,50 @@ function safeParseArchives(raw: string | null): SavedArchive[] {
   }
 }
 
+function getVisibleCanvasFromTarget(node: HTMLElement): HTMLCanvasElement | null {
+  const canvases = Array.from(node.querySelectorAll("canvas")) as HTMLCanvasElement[];
+  return (
+    canvases.find((canvas) => {
+      const style = window.getComputedStyle(canvas);
+      return style.display !== "none" && style.visibility !== "hidden";
+    }) ?? null
+  );
+}
+
+function canvasToRasterDataUrl(
+  sourceCanvas: HTMLCanvasElement,
+  type: "png" | "jpeg",
+  quality = 0.95
+): string {
+  const width = Math.max(1, sourceCanvas.width || Math.round(sourceCanvas.clientWidth) || 1);
+  const height = Math.max(1, sourceCanvas.height || Math.round(sourceCanvas.clientHeight) || 1);
+
+  const exportCanvas = document.createElement("canvas");
+  exportCanvas.width = width;
+  exportCanvas.height = height;
+
+  const ctx = exportCanvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas 2D indisponible.");
+
+  if (type === "jpeg") {
+    ctx.fillStyle = "#0a0a0a";
+    ctx.fillRect(0, 0, width, height);
+  }
+
+  ctx.drawImage(sourceCanvas, 0, 0, width, height);
+  return exportCanvas.toDataURL(type === "png" ? "image/png" : "image/jpeg", quality);
+}
+
 async function elementToRasterDataUrl(
   node: HTMLElement,
   type: "png" | "jpeg",
   quality = 0.95
 ): Promise<string> {
+  const liveCanvas = getVisibleCanvasFromTarget(node);
+  if (liveCanvas) {
+    return canvasToRasterDataUrl(liveCanvas, type, quality);
+  }
+
   const rect = node.getBoundingClientRect();
   const clone = node.cloneNode(true) as HTMLElement;
 
@@ -486,7 +525,10 @@ export default function LeadEnginePage() {
       '[data-lead-engine-canvas-export="true"]'
     ) as HTMLElement | null;
 
-    if (!target) return;
+    if (!target) {
+      window.alert("Export impossible : canvas introuvable.");
+      return;
+    }
 
     try {
       setExporting(type);
@@ -496,6 +538,13 @@ export default function LeadEnginePage() {
         .slice(0, 19)
         .replace(/[:T]/g, "-")}.${type === "png" ? "png" : "jpg"}`;
       downloadDataUrl(dataUrl, filename);
+    } catch (error) {
+      console.error("[LeadEngine exportRaster]", error);
+      window.alert(
+        type === "png"
+          ? "Export PNG impossible pour le moment."
+          : "Export JPEG impossible pour le moment."
+      );
     } finally {
       setExporting("");
     }
