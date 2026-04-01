@@ -93,6 +93,18 @@ function stripHtmlToText(html: string) {
   return div.innerText;
 }
 
+function getTextLayerHtml(layer: any) {
+  if (typeof layer?.html === "string" && layer.html.trim()) return layer.html;
+  return textToHtml(String(layer?.text ?? ""));
+}
+
+function getLayerTextAlign(style: any): "left" | "center" | "right" | "justify" {
+  const value = String(style?.textAlign || "left");
+  if (value === "center" || value === "right" || value === "justify") return value;
+  return "left";
+}
+
+
 export default function CanvasStage({
   layers,
   setLayers,
@@ -812,6 +824,76 @@ export default function CanvasStage({
     };
   }, [orderedLayers, updateLayer]);
 
+
+  const exportLayers = useMemo(
+    () => orderedLayers.filter((layer: any) => layer && layer.visible !== false),
+    [orderedLayers]
+  );
+
+  const renderExportTextLayer = (layer: any) => {
+    const style = (layer?.style ?? {}) as any;
+    const width = typeof layer?.width === "number" ? layer.width : 320;
+    const minHeight = typeof layer?.height === "number" ? layer.height : 60;
+    const html = getTextLayerHtml(layer);
+    const textAlign = getLayerTextAlign(style);
+    const color = style.fill || style.color || style.textColor || "#ffffff";
+    const backgroundColor = style.backgroundColor ? String(style.backgroundColor) : "";
+    const isCta = String(layer?.id || "").includes("lead-cta") || String(layer?.id || "").includes("cta");
+    const layerHref = typeof layer?.href === "string" ? layer.href.trim() : "";
+    const tag = isCta || layerHref ? "a" : "div";
+    const styleObj: React.CSSProperties = {
+      position: "absolute",
+      left: Math.round(Number(layer?.x ?? 0)),
+      top: Math.round(Number(layer?.y ?? 0)),
+      width: Math.max(20, Math.round(Number(width))),
+      minHeight: Math.max(20, Math.round(Number(minHeight))),
+      zIndex: Math.round(Number(layer?.zIndex ?? 1)) + 20,
+      color,
+      fontSize: Math.max(8, Number(style.fontSize ?? 32)),
+      fontFamily: String(style.fontFamily || "Inter, Arial, sans-serif"),
+      fontWeight: style.fontWeight ?? 400,
+      fontStyle: String(style.fontStyle || "normal"),
+      lineHeight: Math.max(0.8, Number(style.lineHeight ?? 1.2)),
+      textAlign,
+      textDecoration: String(style.textDecoration || "none"),
+      whiteSpace: "normal",
+      wordBreak: "break-word",
+      overflowWrap: "anywhere",
+      boxSizing: "border-box",
+      overflow: "hidden",
+      background: backgroundColor || "transparent",
+      borderRadius: backgroundColor ? 18 : 0,
+      padding: backgroundColor ? "16px 22px" : 0,
+      display: backgroundColor ? "flex" : "block",
+      alignItems: backgroundColor ? "center" : undefined,
+      justifyContent: backgroundColor
+        ? textAlign === "center"
+          ? "center"
+          : textAlign === "right"
+          ? "flex-end"
+          : "flex-start"
+        : undefined,
+      boxShadow: backgroundColor ? "0 10px 30px rgba(0,0,0,0.18)" : undefined,
+      textTransform: style.textTransform ? String(style.textTransform) as any : undefined,
+      letterSpacing: typeof style.letterSpacing === "number" ? `${style.letterSpacing}px` : undefined,
+      opacity: typeof layer?.opacity === "number" ? layer.opacity : undefined,
+    };
+
+    const props: any = {
+      key: `export-${layer.id}`,
+      style: styleObj,
+      dangerouslySetInnerHTML: { __html: html },
+    };
+
+    if (tag === "a") {
+      props.href = layerHref || "#";
+      props.target = "_blank";
+      props.rel = "noopener noreferrer";
+    }
+
+    return React.createElement(tag, props);
+  };
+
   const canvasCursor = useMemo(() => {
     if (editingTextId) return "text";
     if (!resize && !drag) return "default";
@@ -1289,6 +1371,98 @@ export default function CanvasStage({
             return null;
           })}
         </EditorCanvasV5>
+      </div>
+
+      <div
+        aria-hidden="true"
+        data-lead-engine-export-source="true"
+        style={{
+          position: "absolute",
+          left: -20000,
+          top: 0,
+          width: format.w,
+          height: format.h,
+          overflow: "hidden",
+          pointerEvents: "none",
+          background: (backgroundLayer as any)?.style?.color ?? "#111111",
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: (backgroundLayer as any)?.style?.color ?? "#111111",
+            zIndex: 0,
+          }}
+        />
+
+        {(backgroundLayer as any)?.id === BACKGROUND_LAYER_ID &&
+          (backgroundLayer as any)?.type === "image" &&
+          (backgroundLayer as any)?.src && (
+            <img
+              src={(backgroundLayer as any).src}
+              alt=""
+              draggable={false}
+              style={{
+                position: "absolute",
+                inset: 0,
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                zIndex: 1,
+              }}
+            />
+          )}
+
+        {overlay && (
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: overlay.value,
+              opacity: overlay.opacity ?? 0.4,
+              zIndex: overlayZ,
+            }}
+          />
+        )}
+
+        {exportLayers.map((layer: any) => {
+          if (layer.type === "image") {
+            return (
+              <div
+                key={`export-${layer.id}`}
+                style={{
+                  position: "absolute",
+                  left: layer.x ?? 0,
+                  top: layer.y ?? 0,
+                  width: layer.width ?? 300,
+                  height: layer.height ?? 300,
+                  zIndex: layer.zIndex,
+                  overflow: "hidden",
+                  borderRadius: 8,
+                }}
+              >
+                <img
+                  src={layer.src}
+                  alt=""
+                  draggable={false}
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                  }}
+                />
+              </div>
+            );
+          }
+
+          if (layer.type === "text") {
+            return renderExportTextLayer(layer);
+          }
+
+          return null;
+        })}
       </div>
 
       {linkModal.open && (
