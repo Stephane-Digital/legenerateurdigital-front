@@ -46,6 +46,11 @@ function getTextColor(style: Record<string, any>) {
   return String(style.fill || style.color || style.textColor || "#ffffff");
 }
 
+function getLayerHtml(layer: any) {
+  if (typeof layer?.html === "string" && layer.html.trim()) return layer.html;
+  return escapeHtml(String(layer?.text || "")).replace(/\n/g, "<br />");
+}
+
 function getCanvasHeight(visible: any[]) {
   const bgLayer = visible.find((layer) => String(layer?.id) === "background-post");
   const bgHeight = Math.round(toNumber(bgLayer?.height, 0));
@@ -111,10 +116,9 @@ function buildTextLayerHtml(layer: any, ctaUrl: string) {
       : "flex-start"
     : "initial";
   const boxShadow = backgroundColor ? "0 10px 30px rgba(0,0,0,0.18)" : "none";
-  const text = escapeHtml(String(layer?.text || "")).replace(/\n/g, "<br />");
   const content = backgroundColor
-    ? `<span style="display:block;width:100%;">${text}</span>`
-    : text;
+    ? `<span style="display:block;width:100%;">${getLayerHtml(layer)}</span>`
+    : getLayerHtml(layer);
 
   const commonStyle = [
     `position:absolute`,
@@ -141,13 +145,14 @@ function buildTextLayerHtml(layer: any, ctaUrl: string) {
     `align-items:${alignItems}`,
     `justify-content:${justifyContent}`,
     `box-sizing:border-box`,
+    `overflow:hidden`,
     `box-shadow:${boxShadow}`,
   ].join(";");
 
   const isCta = String(layer?.id || "").includes("lead-cta") || String(layer?.id || "").includes("cta");
 
   if (isCta) {
-    return `<a href="${escapeHtml(normalizeUrl(ctaUrl))}" style="${commonStyle};text-decoration:none;">${content}</a>`;
+    return `<a href="${escapeHtml(normalizeUrl(ctaUrl))}" target="_blank" rel="noopener noreferrer" style="${commonStyle};text-decoration:none;">${content}</a>`;
   }
 
   return `<div style="${commonStyle};">${content}</div>`;
@@ -160,10 +165,12 @@ function buildImageLayerHtml(layer: any) {
   const height = Math.max(20, Math.round(toNumber(layer?.height, 300)));
   const zIndex = Math.round(toNumber(layer?.zIndex, 1)) + 10;
   const src = escapeHtml(String(layer?.src || ""));
+  const style = getLayerStyle(layer);
+  const borderRadius = Math.max(0, Math.round(toNumber(style.borderRadius, 8)));
 
   return `
-    <div style="position:absolute;left:${x}px;top:${y}px;width:${width}px;height:${height}px;z-index:${zIndex};overflow:hidden;box-sizing:border-box;">
-      <img src="${src}" alt="Visuel" style="display:block;width:100%;height:100%;object-fit:contain;object-position:center center;" />
+    <div style="position:absolute;left:${x}px;top:${y}px;width:${width}px;height:${height}px;z-index:${zIndex};overflow:hidden;box-sizing:border-box;border-radius:${borderRadius}px;">
+      <img src="${src}" alt="Visuel" style="display:block;width:100%;height:100%;object-fit:cover;object-position:center center;" />
     </div>
   `.trim();
 }
@@ -199,7 +206,7 @@ export function buildLeadHtmlExport({ layers, ctaUrl }: BuildLeadHtmlExportInput
   return `
 <div style="width:100%;padding:24px 0;background:#050505;">
   <div style="max-width:${DEFAULT_CANVAS_WIDTH}px;margin:0 auto;">
-    <div style="position:relative;width:${DEFAULT_CANVAS_WIDTH}px;height:${canvasHeight}px;margin:0 auto;overflow:hidden;border-radius:32px;border:1px solid rgba(255,184,0,0.18);background:#111111;box-shadow:0 20px 70px rgba(0,0,0,0.35);font-family:Inter,Arial,sans-serif;">
+    <div style="position:relative;width:${DEFAULT_CANVAS_WIDTH}px;height:${canvasHeight}px;margin:0 auto;overflow:hidden;border-radius:32px;border:1px solid rgba(255,184,0,0.18);background:#111111;font-family:Inter,Arial,sans-serif;">
       ${backgroundHtml}
       ${layerHtml}
     </div>
