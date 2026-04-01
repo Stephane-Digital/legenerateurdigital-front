@@ -22,19 +22,6 @@ type SavedArchive = {
   canvasHeight: number;
 };
 
-function normalizeLayersSnapshot(raw: LayerData[] | null | undefined): LayerData[] {
-  if (!Array.isArray(raw)) return [];
-
-  try {
-    const cloned = JSON.parse(JSON.stringify(raw));
-    return Array.isArray(cloned)
-      ? cloned.filter((item) => !!item && typeof item === "object")
-      : [];
-  } catch {
-    return [];
-  }
-}
-
 function buildLeadPreset(): LayerData[] {
   return [
     {
@@ -178,8 +165,7 @@ function safeParseLayers(raw: string | null): LayerData[] | null {
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw);
-    const normalized = normalizeLayersSnapshot(Array.isArray(parsed) ? (parsed as LayerData[]) : null);
-    return normalized.length > 0 ? normalized : null;
+    return Array.isArray(parsed) ? (parsed as LayerData[]) : null;
   } catch {
     return null;
   }
@@ -195,87 +181,15 @@ function safeParseArchives(raw: string | null): SavedArchive[] {
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-
-    return parsed
-      .map((item) => {
-        if (!item || typeof item !== "object") return null;
-
-        const layers = normalizeLayersSnapshot((item as SavedArchive).layers);
-        if (layers.length === 0) return null;
-
-        return {
-          id: String((item as SavedArchive).id || `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`),
-          name: String((item as SavedArchive).name || "Archive sans nom"),
-          createdAt: String((item as SavedArchive).createdAt || new Date().toISOString()),
-          layers,
-          ctaUrl: String((item as SavedArchive).ctaUrl || ""),
-          canvasHeight: safeParseHeight(String((item as SavedArchive).canvasHeight ?? "")) ?? 1800,
-        } as SavedArchive;
-      })
-      .filter(Boolean) as SavedArchive[];
+    return Array.isArray(parsed) ? (parsed as SavedArchive[]) : [];
   } catch {
     return [];
   }
 }
 
-function getBestExportCanvasFromTarget(node: HTMLElement): HTMLCanvasElement | null {
-  const canvases = Array.from(node.querySelectorAll("canvas")) as HTMLCanvasElement[];
-  const visible = canvases.filter((canvas) => {
-    const style = window.getComputedStyle(canvas);
-    const rect = canvas.getBoundingClientRect();
-    return (
-      style.display !== "none" &&
-      style.visibility !== "hidden" &&
-      rect.width > 0 &&
-      rect.height > 0
-    );
-  });
-
-  if (visible.length === 0) return null;
-
-  return visible.sort((a, b) => {
-    const areaA = Math.max(a.width, a.clientWidth, 0) * Math.max(a.height, a.clientHeight, 0);
-    const areaB = Math.max(b.width, b.clientWidth, 0) * Math.max(b.height, b.clientHeight, 0);
-    return areaB - areaA;
-  })[0] ?? null;
-}
-
-function exportCanvasToBlob(
-  sourceCanvas: HTMLCanvasElement,
-  type: "png" | "jpeg",
-  quality = 0.95
-): Promise<Blob> {
-  const width = Math.max(1, sourceCanvas.width || Math.round(sourceCanvas.clientWidth) || 1);
-  const height = Math.max(1, sourceCanvas.height || Math.round(sourceCanvas.clientHeight) || 1);
-
-  const exportCanvas = document.createElement("canvas");
-  exportCanvas.width = width;
-  exportCanvas.height = height;
-
-  const ctx = exportCanvas.getContext("2d", { willReadFrequently: true });
-  if (!ctx) throw new Error("Canvas 2D indisponible.");
-
-  if (type === "jpeg") {
-    ctx.fillStyle = "#0a0a0a";
-    ctx.fillRect(0, 0, width, height);
-  }
-
-  ctx.drawImage(sourceCanvas, 0, 0, width, height);
-
-  return new Promise<Blob>((resolve, reject) => {
-    exportCanvas.toBlob(
-      (blob) => {
-        if (!blob) {
-          reject(new Error("Blob export indisponible."));
-          return;
-        }
-        resolve(blob);
-      },
-      type === "png" ? "image/png" : "image/jpeg",
-      quality
-    );
-  });
+function getBestExportNode(node: HTMLElement): HTMLElement {
+  const dedicated = node.querySelector('[data-lead-engine-export-source="true"]') as HTMLElement | null;
+  return dedicated ?? node;
 }
 
 async function elementToRasterDataUrl(
@@ -283,32 +197,25 @@ async function elementToRasterDataUrl(
   type: "png" | "jpeg",
   quality = 0.95
 ): Promise<string> {
-  const liveCanvas = getBestExportCanvasFromTarget(node);
-  if (liveCanvas) {
-    const blob = await exportCanvasToBlob(liveCanvas, type, quality);
-    return await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const result = typeof reader.result === "string" ? reader.result : "";
-        if (!result) {
-          reject(new Error("Lecture Blob impossible."));
-          return;
-        }
-        resolve(result);
-      };
-      reader.onerror = () => reject(new Error("Lecture Blob impossible."));
-      reader.readAsDataURL(blob);
-    });
-  }
-
-  const rect = node.getBoundingClientRect();
-  const clone = node.cloneNode(true) as HTMLElement;
+  const exportNode = getBestExportNode(node);
+  const rect = exportNode.getBoundingClientRect();
+  const width = Math.max(1, Math.ceil(rect.width || exportNode.clientWidth || exportNode.scrollWidth || 1));
+  const height = Math.max(1, Math.ceil(rect.height || exportNode.clientHeight || exportNode.scrollHeight || 1));
+  const clone = exportNode.cloneNode(true) as HTMLElement;
 
   clone.setAttribute("xmlns", "http://www.w3.org/1999/xhtml");
   clone.style.margin = "0";
   clone.style.transform = "none";
   clone.style.transformOrigin = "top left";
   clone.style.boxSizing = "border-box";
+  clone.style.position = "relative";
+  clone.style.left = "0";
+  clone.style.top = "0";
+  clone.style.width = `${width}px`;
+  clone.style.height = `${height}px`;
+  clone.style.maxWidth = "none";
+  clone.style.maxHeight = "none";
+  clone.style.overflow = "hidden";
 
   const html = `
     <html xmlns="http://www.w3.org/1999/xhtml">
@@ -318,15 +225,16 @@ async function elementToRasterDataUrl(
           html, body {
             margin: 0;
             padding: 0;
-            background: transparent;
-          }
-          body {
-            width: ${Math.ceil(rect.width)}px;
-            height: ${Math.ceil(rect.height)}px;
+            background: ${type === "jpeg" ? "#0a0a0a" : "transparent"};
+            width: ${width}px;
+            height: ${height}px;
             overflow: hidden;
           }
           * {
             box-sizing: border-box;
+          }
+          img {
+            display: block;
           }
         </style>
       </head>
@@ -335,7 +243,7 @@ async function elementToRasterDataUrl(
   `;
 
   const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="${Math.ceil(rect.width)}" height="${Math.ceil(rect.height)}">
+    <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
       <foreignObject width="100%" height="100%">${html}</foreignObject>
     </svg>
   `;
@@ -357,8 +265,8 @@ async function elementToRasterDataUrl(
     await loaded;
 
     const canvas = document.createElement("canvas");
-    canvas.width = Math.ceil(rect.width);
-    canvas.height = Math.ceil(rect.height);
+    canvas.width = width;
+    canvas.height = height;
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("Canvas 2D indisponible.");
 
@@ -455,24 +363,18 @@ export default function LeadEnginePage() {
   }
 
   function persistLayers(nextLayers: LayerData[]) {
-    const snapshot = normalizeLayersSnapshot(nextLayers);
-    if (snapshot.length === 0) return;
-
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextLayers));
     } catch {
       // noop
     }
   }
 
   function handleLayersChange(nextLayers: LayerData[]) {
-    const snapshot = normalizeLayersSnapshot(nextLayers);
-    if (snapshot.length === 0) return;
-
-    setLayers(snapshot);
-    setInitialLayers(snapshot);
+    setLayers(nextLayers);
+    setInitialLayers(nextLayers);
     setLastSavedAt(new Date().toLocaleTimeString());
-    persistLayers(snapshot);
+    persistLayers(nextLayers);
   }
 
   function resetPreset() {
@@ -508,18 +410,11 @@ export default function LeadEnginePage() {
       archiveName.trim() ||
       `Archive ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`;
 
-    const snapshot =
-      normalizeLayersSnapshot(layers).length > 0
-        ? normalizeLayersSnapshot(layers)
-        : normalizeLayersSnapshot(initialLayers);
-
-    if (snapshot.length === 0) return;
-
     const next: SavedArchive = {
       id: `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
       name,
       createdAt: new Date().toISOString(),
-      layers: snapshot,
+      layers,
       ctaUrl,
       canvasHeight,
     };
@@ -532,17 +427,14 @@ export default function LeadEnginePage() {
     const found = archives.find((item) => item.id === archiveId);
     if (!found) return;
 
-    const snapshot = normalizeLayersSnapshot(found.layers);
-    if (snapshot.length === 0) return;
-
-    setInitialLayers(snapshot);
-    setLayers(snapshot);
+    setInitialLayers(found.layers);
+    setLayers(found.layers);
     setCtaUrl(found.ctaUrl);
     setCanvasHeight(found.canvasHeight);
     setEditorKey((value) => value + 1);
     setLastSavedAt(new Date().toLocaleTimeString());
 
-    persistLayers(snapshot);
+    persistLayers(found.layers);
 
     try {
       window.localStorage.setItem(STORAGE_CANVAS_HEIGHT_KEY, String(found.canvasHeight));
@@ -563,10 +455,7 @@ export default function LeadEnginePage() {
       '[data-lead-engine-canvas-export="true"]'
     ) as HTMLElement | null;
 
-    if (!target) {
-      window.alert("Export impossible : canvas introuvable.");
-      return;
-    }
+    if (!target) return;
 
     try {
       setExporting(type);
@@ -576,13 +465,6 @@ export default function LeadEnginePage() {
         .slice(0, 19)
         .replace(/[:T]/g, "-")}.${type === "png" ? "png" : "jpg"}`;
       downloadDataUrl(dataUrl, filename);
-    } catch (error) {
-      console.error("[LeadEngine exportRaster]", error);
-      window.alert(
-        type === "png"
-          ? "Export PNG impossible pour le moment."
-          : "Export JPEG impossible pour le moment."
-      );
     } finally {
       setExporting("");
     }
