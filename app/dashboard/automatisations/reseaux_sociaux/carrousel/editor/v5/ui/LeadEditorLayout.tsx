@@ -1441,6 +1441,7 @@ export default function EditorLayout({
 
           <main className="rounded-2xl border border-white/10 bg-black/25 p-5 relative flex items-start justify-center">
             <div
+              data-lead-engine-canvas-export="true"
               className="w-full rounded-2xl border border-yellow-500/20 overflow-hidden relative"
               style={{ height: `${canvasHeight}px` }}
             >
