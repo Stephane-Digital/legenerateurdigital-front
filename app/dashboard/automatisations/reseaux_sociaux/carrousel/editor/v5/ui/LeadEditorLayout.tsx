@@ -898,6 +898,114 @@ export default function EditorLayout({
     ];
   }, [briefOffer, buildHooks, buildBenefits, buildCtas]);
 
+
+  function shortenForCanvas(value: string, maxChars: number) {
+    const clean = String(value || "").replace(/\s+/g, " ").trim();
+    if (clean.length <= maxChars) return clean;
+    const sliced = clean.slice(0, maxChars);
+    const lastSpace = sliced.lastIndexOf(" ");
+    return `${(lastSpace > 80 ? sliced.slice(0, lastSpace) : sliced).trim()}…`;
+  }
+
+  function buildStructuredLandingItems(items: GeneratedItem[], visualLayers: LayerData[]) {
+    const imageLayers = visualLayers
+      .filter((layer: any) => layer?.type === "image" && layer?.id !== BACKGROUND_LAYER_ID)
+      .sort((a: any, b: any) => ((b?.width ?? 0) * (b?.height ?? 0)) - ((a?.width ?? 0) * (a?.height ?? 0)));
+
+    const primaryVisual = imageLayers[0] as any | undefined;
+    const textX = 74;
+    const defaultRightPadding = 56;
+    const visualGap = 28;
+
+    let availableTextWidth = 620;
+    if (primaryVisual && typeof primaryVisual.x === "number" && primaryVisual.x > format.w * 0.42) {
+      availableTextWidth = Math.max(320, Math.min(620, Math.round(primaryVisual.x - textX - visualGap)));
+    } else {
+      availableTextWidth = Math.max(360, Math.min(620, Math.round(format.w - textX - defaultRightPadding)));
+    }
+
+    const ctaWidth = Math.max(280, Math.min(360, availableTextWidth));
+    const normalized = items.map((item) => {
+      if (item.kind === "hook") return { ...item, text: shortenForCanvas(item.text, 150) };
+      if (item.kind === "subtitle") return { ...item, text: shortenForCanvas(item.text, 220) };
+      if (item.kind === "cta") return { ...item, text: shortenForCanvas(item.text, 70) };
+      if (item.kind === "benefit") return { ...item, text: shortenForCanvas(item.text, 95) };
+      return { ...item, text: shortenForCanvas(item.text, 170) };
+    });
+
+    const placed: LayerData[] = [];
+    let y = 86;
+    const zStart = 10;
+
+    normalized.forEach((item, index) => {
+      const x = item.kind === "benefit" ? 78 : textX;
+      const width =
+        item.kind === "cta"
+          ? ctaWidth
+          : item.kind === "benefit"
+            ? availableTextWidth
+            : availableTextWidth;
+
+      const base = makeTextLayer(item.kind, item.label, item.text, x, y, zStart + index) as any;
+      let patched = autoFitTextLayerSize(base, { width }) as any;
+
+      if (item.kind === "hook") {
+        const heroFontSize = width <= 420 ? 42 : width <= 500 ? 48 : 54;
+        patched = autoFitTextLayerSize(base, {
+          width,
+          style: { ...(base.style ?? {}), fontSize: heroFontSize, lineHeight: 1.04 },
+        }) as any;
+      }
+
+      if (item.kind === "subtitle") {
+        const subtitleFontSize = width <= 420 ? 21 : 24;
+        patched = autoFitTextLayerSize(base, {
+          width,
+          style: { ...(base.style ?? {}), fontSize: subtitleFontSize, lineHeight: 1.35 },
+        }) as any;
+      }
+
+      if (item.kind === "benefit") {
+        patched = autoFitTextLayerSize(base, {
+          width,
+          style: { ...(base.style ?? {}), fontSize: 18, lineHeight: 1.28 },
+        }) as any;
+      }
+
+      if (item.kind === "closing") {
+        patched = autoFitTextLayerSize(base, {
+          width,
+          style: { ...(base.style ?? {}), fontSize: width <= 420 ? 18 : 21, lineHeight: 1.32 },
+        }) as any;
+      }
+
+      const finalLayer = {
+        ...base,
+        ...patched,
+        x,
+        y,
+        zIndex: zStart + index,
+        selected: false,
+      } as LayerData;
+
+      placed.push(finalLayer);
+
+      const layerHeight = typeof (finalLayer as any).height === "number" ? (finalLayer as any).height : 80;
+      const spacing =
+        item.kind === "hook" ? 26 :
+        item.kind === "subtitle" ? 22 :
+        item.kind === "cta" ? 34 :
+        item.kind === "benefit" ? 16 : 28;
+
+      y += layerHeight + spacing;
+    });
+
+    return {
+      placed,
+      requiredHeight: y + 80,
+    };
+  }
+
   function buildCopilotBrief(action: CopilotAction) {
     const offer = briefOffer.trim() || "ton offre";
     const objectiveMap: Record<string, string> = {
@@ -1117,29 +1225,25 @@ export default function EditorLayout({
   const injectFullLanding = useCallback(() => {
     const items = lastAction === "landing" && generatedItems.length ? generatedItems : buildLanding();
     const background = layers.find((l: any) => l.id === BACKGROUND_LAYER_ID) as any;
-    const newLayers: LayerData[] = [];
+    const visualLayers = layers
+      .filter((l: any) => l.id !== BACKGROUND_LAYER_ID && l.type !== "text")
+      .map((l: any) => ({ ...l, selected: false })) as LayerData[];
 
-    let y = 86;
-    const zStart = 10;
-    items.forEach((item, index) => {
-      const x = item.kind === "benefit" ? 78 : 74;
-      const layer = makeTextLayer(item.kind, item.label, item.text, x, y, zStart + index);
-      newLayers.push(layer);
-      const step =
-        item.kind === "hook" ? 180 :
-        item.kind === "subtitle" ? 120 :
-        item.kind === "cta" ? 130 :
-        item.kind === "benefit" ? 72 : 130;
-      y += step;
-    });
+    const { placed, requiredHeight } = buildStructuredLandingItems(items, visualLayers);
+    const nextCanvasHeight = Math.max(canvasHeight, Math.min(5000, Math.ceil(requiredHeight / 100) * 100));
+
+    if (nextCanvasHeight !== canvasHeight) {
+      onCanvasHeightChange?.(nextCanvasHeight);
+    }
 
     setLayers([
       ...(background ? [{ ...background, selected: false }] : []),
-      ...newLayers.map((l, idx) => ({ ...l, selected: idx === 0 })),
+      ...visualLayers,
+      ...placed.map((l, idx) => ({ ...l, selected: idx === 0 })),
     ] as any);
     setShowProps(true);
-    setCopilotStatus("Landing injectée dans le canvas. Tu peux maintenant modifier et repositionner chaque bloc.");
-  }, [lastAction, generatedItems, buildLanding, layers, makeTextLayer]);
+    setCopilotStatus("Landing injectée proprement dans le canvas. La mise en page a été recalculée automatiquement.");
+  }, [lastAction, generatedItems, buildLanding, layers, makeTextLayer, canvasHeight, onCanvasHeightChange, format.w]);
 
   function bumpCanvasHeight(delta: number) {
     const next = Math.max(1200, Math.min(5000, canvasHeight + delta));
