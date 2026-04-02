@@ -50,6 +50,11 @@ interface Props {
   onCanvasHeightChange?: (nextHeight: number) => void;
   ctaUrl?: string;
   onCtaUrlChange?: (nextValue: string) => void;
+  aiQuotaRemaining?: number;
+  aiQuotaLimit?: number;
+  aiQuotaPlan?: string;
+  aiQuotaLoading?: boolean;
+  onAiQuotaSync?: (quota: { plan?: string; remaining?: number; tokens_used?: number; tokens_limit?: number }) => void;
 }
 
 const GRADIENT_PRESETS = [
@@ -244,6 +249,11 @@ export default function EditorLayout({
   onCanvasHeightChange,
   ctaUrl = "",
   onCtaUrlChange,
+  aiQuotaRemaining = 0,
+  aiQuotaLimit = 0,
+  aiQuotaPlan = "essentiel",
+  aiQuotaLoading = false,
+  onAiQuotaSync,
 }: Props) {
   const [formatKey, setFormatKey] = useState<CanvasFormatKey>(
     initialUI?.formatKey ?? "instagram_post"
@@ -298,6 +308,16 @@ export default function EditorLayout({
   const lastInitKeyRef = useRef<string | number | null>(null);
   const lastEmittedSigRef = useRef<string>("");
   const lastUiSigRef = useRef<string>("");
+
+  function syncCopilotQuota(raw: any) {
+    if (!raw || typeof raw !== "object") return;
+    onAiQuotaSync?.({
+      plan: String(raw.plan || aiQuotaPlan || "essentiel"),
+      remaining: Math.max(0, Number(raw.remaining ?? 0) || 0),
+      tokens_used: Math.max(0, Number(raw.tokens_used ?? 0) || 0),
+      tokens_limit: Math.max(0, Number(raw.tokens_limit ?? 0) || 0),
+    });
+  }
 
   useEffect(() => {
     if (!onUIChange) return;
@@ -1141,6 +1161,11 @@ export default function EditorLayout({
   const handleGenerate = useCallback(
     async (action: CopilotAction, mode: "generate" | "rewrite" = "generate") => {
       try {
+        if (aiQuotaRemaining <= 0) {
+          setCopilotStatus("Quota IA atteint pour le moment.");
+          return;
+        }
+
         setCopilotLoading(true);
         setLastAction(action);
         setCopilotStatus(mode === "rewrite" ? "Réécriture en cours..." : "Génération en cours...");
@@ -1167,9 +1192,13 @@ export default function EditorLayout({
 
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
-          throw new Error(data?.detail || "Erreur IA Lead Engine Copilot");
+          const detail = data?.detail;
+          const quota = detail?.quota || data?.quota;
+          if (quota) syncCopilotQuota(quota);
+          throw new Error(typeof detail === "string" ? detail : (detail?.message || data?.message || "Erreur IA Lead Engine Copilot"));
         }
 
+        if (data?.quota) syncCopilotQuota(data.quota);
         const content = String(data?.content || "").trim();
         const items = parseGeneratedItemsFromAI(action, content);
         setCopilotRawResult(content);
@@ -1203,7 +1232,7 @@ export default function EditorLayout({
         setCopilotLoading(false);
       }
     },
-    [briefOffer, briefGoal, briefAngle, briefAudience, briefTone, briefLength, ctaUrl]
+    [briefOffer, briefGoal, briefAngle, briefAudience, briefTone, briefLength, ctaUrl, aiQuotaRemaining, aiQuotaPlan, onAiQuotaSync]
   );
 
   const injectGeneratedItem = useCallback(
@@ -1432,19 +1461,28 @@ export default function EditorLayout({
                   </div>
                 </div>
 
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <div className="rounded-xl border border-yellow-500/15 bg-black/30 px-3 py-2 text-xs text-white/75">
+                    {aiQuotaLoading ? "Quota IA..." : `Quota IA : ${Number(aiQuotaRemaining || 0).toLocaleString()} / ${Number(aiQuotaLimit || 0).toLocaleString()} • Plan ${aiQuotaPlan}`}
+                  </div>
+                  {aiQuotaRemaining <= 0 && (
+                    <div className="text-xs text-red-300">Quota IA atteint • génération bloquée.</div>
+                  )}
+                </div>
+
                 <div className="mt-4 grid grid-cols-2 gap-2 xl:grid-cols-5">
-                  <button type="button" onClick={() => void handleGenerate("hooks")} disabled={copilotLoading} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-200 disabled:opacity-50">{copilotLoading && lastAction === "hooks" ? "Génération..." : "Hook x10"}</button>
-                  <button type="button" onClick={() => void handleGenerate("cta")} disabled={copilotLoading} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-200 disabled:opacity-50">{copilotLoading && lastAction === "cta" ? "Génération..." : "CTA"}</button>
-                  <button type="button" onClick={() => void handleGenerate("benefits")} disabled={copilotLoading} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-200 disabled:opacity-50">{copilotLoading && lastAction === "benefits" ? "Génération..." : "Bénéfices"}</button>
-                  <button type="button" onClick={() => void handleGenerate("variants")} disabled={copilotLoading} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-200 disabled:opacity-50">{copilotLoading && lastAction === "variants" ? "Génération..." : "Variantes A/B"}</button>
-                  <button type="button" onClick={() => void handleGenerate("landing")} disabled={copilotLoading} className="rounded-2xl bg-[#ffb800] px-4 py-3 text-sm font-bold text-black disabled:opacity-50">{copilotLoading && lastAction === "landing" ? "Génération..." : "Landing complète"}</button>
+                  <button type="button" onClick={() => void handleGenerate("hooks")} disabled={copilotLoading || aiQuotaRemaining <= 0} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-200 disabled:opacity-50">{copilotLoading && lastAction === "hooks" ? "Génération..." : "Hook x10"}</button>
+                  <button type="button" onClick={() => void handleGenerate("cta")} disabled={copilotLoading || aiQuotaRemaining <= 0} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-200 disabled:opacity-50">{copilotLoading && lastAction === "cta" ? "Génération..." : "CTA"}</button>
+                  <button type="button" onClick={() => void handleGenerate("benefits")} disabled={copilotLoading || aiQuotaRemaining <= 0} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-200 disabled:opacity-50">{copilotLoading && lastAction === "benefits" ? "Génération..." : "Bénéfices"}</button>
+                  <button type="button" onClick={() => void handleGenerate("variants")} disabled={copilotLoading || aiQuotaRemaining <= 0} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-200 disabled:opacity-50">{copilotLoading && lastAction === "variants" ? "Génération..." : "Variantes A/B"}</button>
+                  <button type="button" onClick={() => void handleGenerate("landing")} disabled={copilotLoading || aiQuotaRemaining <= 0} className="rounded-2xl bg-[#ffb800] px-4 py-3 text-sm font-bold text-black disabled:opacity-50">{copilotLoading && lastAction === "landing" ? "Génération..." : "Landing complète"}</button>
                 </div>
 
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <button
                     type="button"
                     onClick={() => void handleGenerate(lastAction ?? "landing", "rewrite")}
-                    disabled={copilotLoading || !briefOffer.trim()}
+                    disabled={copilotLoading || !briefOffer.trim() || aiQuotaRemaining <= 0}
                     className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-200 disabled:opacity-50"
                   >
                     {copilotLoading ? "Réécriture..." : "Réécrire"}
