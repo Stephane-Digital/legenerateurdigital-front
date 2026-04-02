@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -167,8 +166,8 @@ function autoFitTextLayerSize(layer: LayerData, patch: Partial<LayerData>) {
     typeof patch.width === "number"
       ? patch.width
       : typeof (layer as any).width === "number"
-      ? (layer as any).width
-      : Math.min(820, Math.max(260, nextText.includes("\n") || nextText.length > 22 ? 420 : 320));
+        ? (layer as any).width
+        : Math.min(820, Math.max(260, nextText.includes("\n") || nextText.length > 22 ? 420 : 320));
 
   const nextHeight = estimateWrappedTextHeight({
     text: nextText,
@@ -836,12 +835,12 @@ export default function EditorLayout({
       briefTone === "urgent"
         ? "Découvre comment"
         : briefTone === "coach"
-        ? "Passe à l'action et apprends à"
-        : briefTone === "story"
-        ? "Et si tu pouvais enfin"
-        : briefTone === "sio"
-        ? "Voici la structure pour"
-        : "Découvre comment";
+          ? "Passe à l'action et apprends à"
+          : briefTone === "story"
+            ? "Et si tu pouvais enfin"
+            : briefTone === "sio"
+              ? "Voici la structure pour"
+              : "Découvre comment";
     return Array.from({ length: 5 }).map((_, i) => ({
       id: `hook-${i}`,
       kind: "hook" as const,
@@ -864,10 +863,10 @@ export default function EditorLayout({
       briefGoal === "leads"
         ? "Recevoir la méthode maintenant"
         : briefGoal === "call"
-        ? "Réserver mon appel maintenant"
-        : briefGoal === "sale"
-        ? "Accéder à l’offre premium"
-        : "Télécharger le guide maintenant";
+          ? "Réserver mon appel maintenant"
+          : briefGoal === "sale"
+            ? "Accéder à l’offre premium"
+            : "Télécharger le guide maintenant";
     return [
       { id: "cta-1", kind: "cta" as const, label: "CTA principal", text: goalText },
       { id: "cta-2", kind: "cta" as const, label: "CTA alternatif", text: "Je veux passer à l’action maintenant" },
@@ -1330,11 +1329,11 @@ export default function EditorLayout({
                 </div>
 
                 <div className="mt-4 grid grid-cols-2 gap-2 xl:grid-cols-5">
-                  <button type="button" onClick={() => void handleGenerate("hooks")} disabled={copilotLoading} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-200 disabled:opacity-50">Hook x10</button>
-                  <button type="button" onClick={() => void handleGenerate("cta")} disabled={copilotLoading} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-200 disabled:opacity-50">CTA</button>
-                  <button type="button" onClick={() => void handleGenerate("benefits")} disabled={copilotLoading} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-200 disabled:opacity-50">Bénéfices</button>
-                  <button type="button" onClick={() => void handleGenerate("variants")} disabled={copilotLoading} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-200 disabled:opacity-50">Variantes A/B</button>
-                  <button type="button" onClick={() => void handleGenerate("landing")} disabled={copilotLoading} className="rounded-2xl bg-[#ffb800] px-4 py-3 text-sm font-bold text-black disabled:opacity-50">Landing complète</button>
+                  <button type="button" onClick={() => void handleGenerate("hooks")} disabled={copilotLoading} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-200 disabled:opacity-50">{copilotLoading && lastAction === "hooks" ? "Génération..." : "Hook x10"}</button>
+                  <button type="button" onClick={() => void handleGenerate("cta")} disabled={copilotLoading} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-200 disabled:opacity-50">{copilotLoading && lastAction === "cta" ? "Génération..." : "CTA"}</button>
+                  <button type="button" onClick={() => void handleGenerate("benefits")} disabled={copilotLoading} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-200 disabled:opacity-50">{copilotLoading && lastAction === "benefits" ? "Génération..." : "Bénéfices"}</button>
+                  <button type="button" onClick={() => void handleGenerate("variants")} disabled={copilotLoading} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-200 disabled:opacity-50">{copilotLoading && lastAction === "variants" ? "Génération..." : "Variantes A/B"}</button>
+                  <button type="button" onClick={() => void handleGenerate("landing")} disabled={copilotLoading} className="rounded-2xl bg-[#ffb800] px-4 py-3 text-sm font-bold text-black disabled:opacity-50">{copilotLoading && lastAction === "landing" ? "Génération..." : "Landing complète"}</button>
                 </div>
 
                 <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -1368,7 +1367,7 @@ export default function EditorLayout({
                     <div className="mt-1 text-xs text-white/50">{copilotLoading ? "Connexion au moteur IA premium..." : copilotStatus || "Génère des hooks, CTA, bénéfices ou une landing complète."}</div>
                   </div>
 
-                  {generatedItems.length > 0 && (
+                  {generatedItems.length > 0 && !copilotLoading && (
                     <button
                       type="button"
                       onClick={injectFullLanding}
@@ -1380,7 +1379,17 @@ export default function EditorLayout({
                 </div>
 
                 <div className="mt-4 max-h-[420px] space-y-3 overflow-y-auto pr-1">
-                  {generatedItems.length === 0 ? (
+                  {copilotLoading ? (
+                    <div className="rounded-2xl border border-yellow-500/15 bg-black/25 px-4 py-8">
+                      <div className="flex flex-col items-center justify-center gap-4">
+                        <div className="h-8 w-8 animate-spin rounded-full border-2 border-yellow-400 border-t-transparent" />
+                        <div className="text-sm text-white/70">Analyse en cours...</div>
+                        <div className="text-xs text-white/45 text-center">
+                          LGD prépare une réponse premium à injecter dans le canvas.
+                        </div>
+                      </div>
+                    </div>
+                  ) : generatedItems.length === 0 ? (
                     copilotRawResult.trim() ? (
                       <div className="rounded-2xl border border-yellow-500/15 bg-black/25 p-4 text-sm leading-6 text-white/80 whitespace-pre-wrap">
                         {copilotRawResult}
