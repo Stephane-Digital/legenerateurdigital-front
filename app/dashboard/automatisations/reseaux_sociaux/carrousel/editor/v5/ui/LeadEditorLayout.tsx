@@ -288,6 +288,8 @@ export default function EditorLayout({
   const [generatedItems, setGeneratedItems] = useState<GeneratedItem[]>([]);
   const [copilotStatus, setCopilotStatus] = useState("");
   const [lastAction, setLastAction] = useState<CopilotAction | null>(null);
+  const [copilotLoading, setCopilotLoading] = useState(false);
+  const [copilotRawResult, setCopilotRawResult] = useState("");
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const bgImageInputRef = useRef<HTMLInputElement | null>(null);
@@ -897,36 +899,204 @@ export default function EditorLayout({
     ];
   }, [briefOffer, buildHooks, buildBenefits, buildCtas]);
 
+  function buildCopilotBrief(action: CopilotAction) {
+    const offer = briefOffer.trim() || "ton offre";
+    const objectiveMap: Record<string, string> = {
+      leads: "générer des leads qualifiés",
+      sale: "vendre une offre",
+      call: "réserver un appel",
+      optin: "capturer un email",
+    };
+
+    return [
+      `Offre / sujet : ${offer}`,
+      `Objectif : ${objectiveMap[briefGoal] || briefGoal}`,
+      `Angle : ${briefAngle}`,
+      `Audience : ${briefAudience}`,
+      `Ton : ${briefTone}`,
+      `Longueur max cible : ${briefLength}`,
+      `URL CTA : ${ctaUrl || "non précisée"}`,
+      `Action demandée : ${action}`,
+    ].join("\n");
+  }
+
+  function buildCopilotBusinessContext(action: CopilotAction) {
+    const base = `lead-engine-copilot | action=${action} | audience=${briefAudience} | angle=${briefAngle} | tone=${briefTone} | cta_url=${ctaUrl || ""}`;
+
+    if (action === "hooks") {
+      return `${base} | Retourne exactement 10 hooks puissants en français, un par ligne, sans introduction.`;
+    }
+    if (action === "cta") {
+      return `${base} | Retourne exactement 6 CTA en français, un par ligne, orientés conversion.`;
+    }
+    if (action === "benefits") {
+      return `${base} | Retourne exactement 6 bénéfices en français, un par ligne, concrets et orientés valeur.`;
+    }
+    if (action === "variants") {
+      return `${base} | Retourne exactement 4 variantes marketing en français, une par ligne, avec des angles nettement différents.`;
+    }
+    return `${base} | Retourne une landing structurée avec les lignes préfixées exactement ainsi : HERO:, SUBTITLE:, CTA:, BENEFIT:, BENEFIT:, BENEFIT:, CLOSING:.`;
+  }
+
+  async function saveCopilotMemory(action: CopilotAction) {
+    const payload = {
+      memory_type: "lead_copilot_brief",
+      goal: action,
+      content: buildCopilotBrief(action),
+      emotional_profile: briefTone,
+      business_context: buildCopilotBusinessContext(action),
+      metadata_json: JSON.stringify({
+        action,
+        audience: briefAudience,
+        angle: briefAngle,
+        tone: briefTone,
+        cta_url: ctaUrl,
+      }),
+    };
+
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/lead-engine/ai/save-memory`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+    } catch (error) {
+      console.error("[LeadEngine Copilot memory]", error);
+    }
+  }
+
+  function normalizeListLines(content: string) {
+    return String(content || "")
+      .split(/\n+/)
+      .map((line) => line.trim())
+      .map((line) => line.replace(/^[-•\d.\)\s]+/, "").trim())
+      .filter(Boolean);
+  }
+
+  function parseGeneratedItemsFromAI(action: CopilotAction, content: string): GeneratedItem[] {
+    const text = String(content || "").trim();
+    if (!text) return [];
+
+    if (action === "landing") {
+      const lines = text.split(/\n+/).map((line) => line.trim()).filter(Boolean);
+      const items: GeneratedItem[] = [];
+      let benefitIndex = 1;
+
+      for (const line of lines) {
+        if (/^HERO\s*:/i.test(line)) {
+          items.push({ id: `ai-hero-${benefitIndex}`, kind: "hook", label: "Hero", text: line.replace(/^HERO\s*:/i, "").trim() });
+          continue;
+        }
+        if (/^SUBTITLE\s*:/i.test(line)) {
+          items.push({ id: `ai-subtitle-${benefitIndex}`, kind: "subtitle", label: "Sous-titre", text: line.replace(/^SUBTITLE\s*:/i, "").trim() });
+          continue;
+        }
+        if (/^CTA\s*:/i.test(line)) {
+          items.push({ id: `ai-cta-${benefitIndex}`, kind: "cta", label: "CTA principal", text: line.replace(/^CTA\s*:/i, "").trim() });
+          continue;
+        }
+        if (/^BENEFIT\s*:/i.test(line)) {
+          items.push({ id: `ai-benefit-${benefitIndex}`, kind: "benefit", label: `Bénéfice ${benefitIndex}`, text: line.replace(/^BENEFIT\s*:/i, "").trim() });
+          benefitIndex += 1;
+          continue;
+        }
+        if (/^CLOSING\s*:/i.test(line)) {
+          items.push({ id: `ai-closing-${benefitIndex}`, kind: "closing", label: "Closing", text: line.replace(/^CLOSING\s*:/i, "").trim() });
+        }
+      }
+
+      if (items.length > 0) return items;
+      return [{ id: "ai-landing-fallback", kind: "closing", label: "Landing complète", text }];
+    }
+
+    const lines = normalizeListLines(text);
+    const kind: GeneratedItem["kind"] =
+      action === "cta" ? "cta" :
+      action === "benefits" ? "benefit" :
+      action === "variants" ? "subtitle" :
+      "hook";
+
+    return lines.map((line, index) => ({
+      id: `ai-${action}-${index + 1}`,
+      kind,
+      label:
+        action === "cta" ? `CTA ${index + 1}` :
+        action === "benefits" ? `Bénéfice ${index + 1}` :
+        action === "variants" ? `Variante ${index + 1}` :
+        `Hook ${index + 1}`,
+      text: line,
+    }));
+  }
+
   const handleGenerate = useCallback(
-    (action: CopilotAction) => {
-      setLastAction(action);
-      if (action === "hooks") {
-        setGeneratedItems(buildHooks());
-        setCopilotStatus("Hooks experts générés. Tu peux les injecter un par un dans le canvas.");
-        return;
+    async (action: CopilotAction, mode: "generate" | "rewrite" = "generate") => {
+      try {
+        setCopilotLoading(true);
+        setLastAction(action);
+        setCopilotStatus(mode === "rewrite" ? "Réécriture en cours..." : "Génération en cours...");
+        setGeneratedItems([]);
+        setCopilotRawResult("");
+
+        const brief = buildCopilotBrief(action);
+        await saveCopilotMemory(action);
+
+        const goal = action === "landing" ? "landing_complete" : action;
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/lead-engine/ai/generate`, {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            goal,
+            brief,
+            emotional_style: `${briefTone}, humain, premium, sincère, expert marketing digital`,
+            business_context: buildCopilotBusinessContext(action),
+          }),
+        });
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(data?.detail || "Erreur IA Lead Engine Copilot");
+        }
+
+        const content = String(data?.content || "").trim();
+        const items = parseGeneratedItemsFromAI(action, content);
+        setCopilotRawResult(content);
+        setGeneratedItems(items);
+
+        if (action === "landing") {
+          setCopilotStatus(mode === "rewrite"
+            ? "Landing réécrite. Tu peux injecter un bloc ou toute la landing."
+            : "Landing complète générée. Tu peux injecter un bloc ou toute la landing.");
+        } else if (action === "cta") {
+          setCopilotStatus(mode === "rewrite"
+            ? "CTA réécrits. Choisis la variante la plus forte."
+            : "CTA générés. Injecte celui qui correspond le mieux à ton funnel.");
+        } else if (action === "benefits") {
+          setCopilotStatus(mode === "rewrite"
+            ? "Bénéfices réécrits. Chaque bloc peut être injecté séparément."
+            : "Bénéfices générés. Chaque bloc peut être injecté séparément.");
+        } else if (action === "variants") {
+          setCopilotStatus(mode === "rewrite"
+            ? "Variantes A/B réécrites pour tester plusieurs angles."
+            : "Variantes A/B générées pour tester plusieurs angles.");
+        } else {
+          setCopilotStatus(mode === "rewrite"
+            ? "Hooks réécrits. Tu peux les injecter un par un dans le canvas."
+            : "Hooks experts générés. Tu peux les injecter un par un dans le canvas.");
+        }
+      } catch (error) {
+        console.error("[LeadEngine Copilot AI]", error);
+        setCopilotStatus("Génération IA impossible pour le moment.");
+      } finally {
+        setCopilotLoading(false);
       }
-      if (action === "cta") {
-        setGeneratedItems(buildCtas());
-        setCopilotStatus("CTA générés. Injecte celui qui correspond le mieux à ton funnel.");
-        return;
-      }
-      if (action === "benefits") {
-        setGeneratedItems(buildBenefits());
-        setCopilotStatus("Bénéfices générés. Chaque bloc peut être injecté séparément.");
-        return;
-      }
-      if (action === "variants") {
-        setGeneratedItems([
-          ...buildHooks().slice(0, 2),
-          ...buildCtas().slice(0, 1),
-        ]);
-        setCopilotStatus("Variantes A/B générées pour tester plusieurs angles.");
-        return;
-      }
-      setGeneratedItems(buildLanding());
-      setCopilotStatus("Landing complète générée. Tu peux injecter un bloc ou toute la landing.");
     },
-    [buildBenefits, buildCtas, buildHooks, buildLanding]
+    [briefOffer, briefGoal, briefAngle, briefAudience, briefTone, briefLength, ctaUrl]
   );
 
   const injectGeneratedItem = useCallback(
@@ -1160,11 +1330,34 @@ export default function EditorLayout({
                 </div>
 
                 <div className="mt-4 grid grid-cols-2 gap-2 xl:grid-cols-5">
-                  <button type="button" onClick={() => handleGenerate("hooks")} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-200">Hook x10</button>
-                  <button type="button" onClick={() => handleGenerate("cta")} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-200">CTA</button>
-                  <button type="button" onClick={() => handleGenerate("benefits")} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-200">Bénéfices</button>
-                  <button type="button" onClick={() => handleGenerate("variants")} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-200">Variantes A/B</button>
-                  <button type="button" onClick={() => handleGenerate("landing")} className="rounded-2xl bg-[#ffb800] px-4 py-3 text-sm font-bold text-black">Landing complète</button>
+                  <button type="button" onClick={() => void handleGenerate("hooks")} disabled={copilotLoading} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-200 disabled:opacity-50">Hook x10</button>
+                  <button type="button" onClick={() => void handleGenerate("cta")} disabled={copilotLoading} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-200 disabled:opacity-50">CTA</button>
+                  <button type="button" onClick={() => void handleGenerate("benefits")} disabled={copilotLoading} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-200 disabled:opacity-50">Bénéfices</button>
+                  <button type="button" onClick={() => void handleGenerate("variants")} disabled={copilotLoading} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-200 disabled:opacity-50">Variantes A/B</button>
+                  <button type="button" onClick={() => void handleGenerate("landing")} disabled={copilotLoading} className="rounded-2xl bg-[#ffb800] px-4 py-3 text-sm font-bold text-black disabled:opacity-50">Landing complète</button>
+                </div>
+
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void handleGenerate(lastAction ?? "landing", "rewrite")}
+                    disabled={copilotLoading || !briefOffer.trim()}
+                    className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-200 disabled:opacity-50"
+                  >
+                    {copilotLoading ? "Réécriture..." : "Réécrire"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setGeneratedItems([]);
+                      setCopilotRawResult("");
+                      setCopilotStatus("");
+                    }}
+                    disabled={copilotLoading || (generatedItems.length === 0 && !copilotRawResult.trim())}
+                    className="rounded-2xl border border-yellow-500/20 bg-black/30 px-4 py-3 text-sm font-semibold text-white/80 disabled:opacity-50"
+                  >
+                    Effacer le résultat
+                  </button>
                 </div>
               </div>
 
@@ -1172,7 +1365,7 @@ export default function EditorLayout({
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <div className="text-yellow-300 font-semibold text-sm">Résultats générés</div>
-                    <div className="mt-1 text-xs text-white/50">{copilotStatus || "Génère des hooks, CTA, bénéfices ou une landing complète."}</div>
+                    <div className="mt-1 text-xs text-white/50">{copilotLoading ? "Connexion au moteur IA premium..." : copilotStatus || "Génère des hooks, CTA, bénéfices ou une landing complète."}</div>
                   </div>
 
                   {generatedItems.length > 0 && (
@@ -1188,9 +1381,15 @@ export default function EditorLayout({
 
                 <div className="mt-4 max-h-[420px] space-y-3 overflow-y-auto pr-1">
                   {generatedItems.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-yellow-500/15 bg-black/20 px-4 py-6 text-sm text-white/45">
-                      Les résultats IA apparaîtront ici, prêts à être injectés bloc par bloc dans le canvas.
-                    </div>
+                    copilotRawResult.trim() ? (
+                      <div className="rounded-2xl border border-yellow-500/15 bg-black/25 p-4 text-sm leading-6 text-white/80 whitespace-pre-wrap">
+                        {copilotRawResult}
+                      </div>
+                    ) : (
+                      <div className="rounded-2xl border border-dashed border-yellow-500/15 bg-black/20 px-4 py-6 text-sm text-white/45">
+                        Les résultats IA apparaîtront ici, prêts à être injectés bloc par bloc dans le canvas.
+                      </div>
+                    )
                   ) : (
                     generatedItems.map((item) => (
                       <div key={item.id} className="rounded-2xl border border-yellow-500/15 bg-black/25 p-3">
