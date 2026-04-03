@@ -1,7 +1,7 @@
 "use client";
 
-import CardLuxe from "@/components/ui/CardLuxe";
 import { motion } from "framer-motion";
+import CardLuxe from "@/components/ui/CardLuxe";
 import AffiliationSubnav from "../components/AffiliationSubnav";
 import CopyBlock from "../components/CopyBlock";
 import CopyField from "../components/CopyField";
@@ -184,26 +184,26 @@ function SectionHeader({
 }) {
   return (
     <div className="mb-5">
-      <h2 className="text-xl sm:text-2xl font-semibold text-[#ffb800]">{title}</h2>
-      <p className="mt-2 text-sm sm:text-base text-gray-300 leading-relaxed">{description}</p>
+      <h2 className="text-xl font-semibold text-[#ffb800] sm:text-2xl">{title}</h2>
+      <p className="mt-2 text-sm text-gray-300 leading-relaxed sm:text-base">{description}</p>
     </div>
   );
 }
 
 export default function AffiliationKitPage() {
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white pt-[120px] pb-12">
-      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#0a0a0a] pb-12 pt-[120px] text-white">
+      <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8">
         <motion.div
           initial={{ opacity: 0, y: -18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55 }}
-          className="max-w-4xl mx-auto text-center mb-6"
+          className="mx-auto mb-6 max-w-4xl text-center"
         >
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-yellow-400 mb-3">
+          <h1 className="mb-3 text-3xl font-bold text-yellow-400 sm:text-4xl lg:text-5xl">
             Kit Marketing Affiliation LGD
           </h1>
-          <p className="text-gray-300 max-w-3xl mx-auto leading-relaxed text-sm sm:text-base">
+          <p className="mx-auto max-w-3xl text-sm text-gray-300 leading-relaxed sm:text-base">
             Tout pour promouvoir LGD et convertir vite : lien affilié officiel, scripts prêts,
             emails, posts réseaux sociaux, hooks, CTA, visuels Canva et scripts Reels.
           </p>
@@ -217,21 +217,21 @@ export default function AffiliationKitPage() {
           transition={{ delay: 0.12, duration: 0.45 }}
           className="space-y-8"
         >
-          <CardLuxe className="w-full px-5 sm:px-8 pt-8 pb-8 text-center">
-            <div className="max-w-4xl mx-auto">
-              <p className="text-xs uppercase tracking-[0.28em] text-yellow-300/80 mb-3">
+          <CardLuxe className="w-full px-5 pb-8 pt-8 text-center sm:px-8">
+            <div className="mx-auto max-w-4xl">
+              <p className="mb-3 text-xs uppercase tracking-[0.28em] text-yellow-300/80">
                 Affiliate Conversion Hub
               </p>
-              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#ffb800] leading-tight">
+              <h2 className="text-2xl font-bold leading-tight text-[#ffb800] sm:text-3xl lg:text-4xl">
                 Prends un angle, copie un script, envoie ton lien, convertis.
               </h2>
-              <p className="mt-4 text-sm sm:text-base text-gray-300 leading-relaxed max-w-3xl mx-auto">
+              <p className="mx-auto mt-4 max-w-3xl text-sm text-gray-300 leading-relaxed sm:text-base">
                 Ce kit a été pensé pour permettre à un affilié de promouvoir LGD en moins de
                 5 minutes, même sans expérience marketing avancée.
               </p>
             </div>
 
-            <div className="mt-8 flex flex-col lg:flex-row items-center justify-center gap-4">
+            <div className="mt-8 flex flex-col items-center justify-center gap-4 lg:flex-row">
               <a href="#lien-affilie" className={buttonPrimary}>
                 Copier mon lien affilié
               </a>
@@ -246,7 +246,7 @@ export default function AffiliationKitPage() {
             </div>
           </CardLuxe>
 
-          <div className="grid grid-cols-1 xl:grid-cols-[1.25fr_0.95fr] gap-8 items-start">
+          <div className="grid items-start gap-8 xl:grid-cols-[1.25fr_0.95fr]">
             <div id="lien-affilie">
               <CardLuxe className={sectionCardClass}>
                 <SectionHeader
@@ -270,7 +270,7 @@ export default function AffiliationKitPage() {
                   )}
                 </div>
 
-                <div className="mt-6 flex flex-col sm:flex-row gap-4">
+                <div className="mt-6 flex flex-col gap-4 sm:flex-row">
                   <a
                     href={AFFILIATE_LINK}
                     target="_blank"
@@ -289,13 +289,13 @@ export default function AffiliationKitPage() {
                 description="Le chemin le plus simple pour commencer à promouvoir LGD tout de suite."
               />
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {quickStartSteps.map((step) => (
                   <div
                     key={step.title}
                     className="rounded-2xl border border-yellow-600/15 bg-[#0b0b0b] px-4 py-5"
                   >
-                    <p className="text-yellow-200 font-semibold text-sm">{step.title}</p>
+                    <p className="text-sm font-semibold text-yellow-200">{step.title}</p>
                     <p className="mt-2 text-sm text-gray-300 leading-relaxed">{step.text}</p>
                   </div>
                 ))}
@@ -389,7 +389,7 @@ export default function AffiliationKitPage() {
                 className="mb-5"
               />
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+              <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {[
                   {
                     title: "Stories Instagram",
@@ -412,13 +412,13 @@ export default function AffiliationKitPage() {
                     key={item.title}
                     className="rounded-2xl border border-yellow-600/15 bg-[#0b0b0b] px-4 py-4"
                   >
-                    <p className="text-yellow-200 font-semibold text-sm">{item.title}</p>
+                    <p className="text-sm font-semibold text-yellow-200">{item.title}</p>
                     <p className="mt-2 text-sm text-gray-300 leading-relaxed">{item.text}</p>
                   </div>
                 ))}
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex flex-col gap-4 sm:flex-row">
                 <a
                   href={LINKS.canvaKit}
                   target="_blank"
@@ -454,7 +454,7 @@ export default function AffiliationKitPage() {
               description="Un tunnel simple, clair et rentable pour transformer ton trafic en commissions récurrentes."
             />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
               {[
                 "Post / Reel",
                 "DM / message",
@@ -466,14 +466,14 @@ export default function AffiliationKitPage() {
                   key={item}
                   className="rounded-2xl border border-yellow-600/15 bg-[#0b0b0b] px-4 py-5 text-center"
                 >
-                  <p className="text-yellow-200 font-semibold text-sm">Étape {index + 1}</p>
+                  <p className="text-sm font-semibold text-yellow-200">Étape {index + 1}</p>
                   <p className="mt-2 text-sm text-gray-300 leading-relaxed">{item}</p>
                 </div>
               ))}
             </div>
 
             <div className="mt-5 rounded-2xl border border-yellow-600/15 bg-[#0b0b0b] px-4 py-4">
-              <p className="text-sm sm:text-base text-gray-300 leading-relaxed">
+              <p className="text-sm text-gray-300 leading-relaxed sm:text-base">
                 Tunnel simple conseillé : 1 post ou 1 Reel → 1 DM ou relance → clic sur ton lien
                 affilié → inscription LGD → commission récurrente tant que l’abonné reste actif.
               </p>
