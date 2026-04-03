@@ -307,6 +307,7 @@ export default function LeadEnginePage() {
   const [aiQuota, setAiQuota] = useState<AIQuotaState>(DEFAULT_AI_QUOTA);
   const [aiQuotaLoading, setAiQuotaLoading] = useState(false);
   const [aiQuotaMessage, setAiQuotaMessage] = useState("");
+  const [premiumOpen, setPremiumOpen] = useState(true);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
 
@@ -958,16 +959,32 @@ export default function LeadEnginePage() {
         </div>
 
         <div className="mb-6 rounded-[28px] border border-yellow-600/20 bg-[#0b0b0b] p-5">
-          <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
-            <div className="rounded-2xl border border-yellow-600/20 bg-[#111] p-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <div className="text-sm font-semibold text-yellow-300">IA Lead Engine Premium</div>
-                  <div className="mt-1 text-sm text-white/55">
-                    Chaque brief est mémorisé automatiquement pour enrichir les futures générations.
-                  </div>
-                </div>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold text-yellow-300">IA Lead Engine Premium</div>
+              <div className="mt-1 text-sm text-white/55">
+                Chaque brief est mémorisé automatiquement pour enrichir les futures générations.
+              </div>
+            </div>
 
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="rounded-xl border border-yellow-600/20 bg-black/30 px-3 py-2 text-xs text-white/75">
+                {aiQuotaLoading ? "Quota IA..." : `Quota IA : ${aiQuota.remaining.toLocaleString()} / ${aiQuota.tokens_limit.toLocaleString()} • Plan ${aiQuota.plan}`}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setPremiumOpen((value) => !value)}
+                className="rounded-2xl border border-yellow-600/20 bg-yellow-500/10 px-4 py-2 text-sm font-semibold text-yellow-200"
+              >
+                {premiumOpen ? "Réduire" : "Déplier"}
+              </button>
+            </div>
+          </div>
+
+          {premiumOpen && (
+            <div className="mt-4 grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+              <div className="rounded-2xl border border-yellow-600/20 bg-[#111] p-4">
                 <select
                   value={aiGoal}
                   onChange={(e) => setAiGoal(e.target.value as typeof aiGoal)}
@@ -979,66 +996,63 @@ export default function LeadEnginePage() {
                   <option value="benefits">Bénéfices</option>
                   <option value="variants">Variantes A/B</option>
                 </select>
-              </div>
 
-              <textarea
-                value={aiBrief}
-                onChange={(e) => setAiBrief(e.target.value)}
-                placeholder="Décris précisément l'offre, la cible, la transformation promise, les douleurs, le niveau d'émotion souhaité, le ton et le résultat attendu..."
-                className="mt-4 min-h-[180px] w-full rounded-2xl border border-yellow-600/20 bg-black/30 p-4 text-white outline-none placeholder:text-white/30"
-              />
+                <textarea
+                  value={aiBrief}
+                  onChange={(e) => setAiBrief(e.target.value)}
+                  placeholder="Décris précisément l'offre, la cible, la transformation promise, les douleurs, le niveau d'émotion souhaité, le ton et le résultat attendu..."
+                  className="mt-4 min-h-[180px] w-full rounded-2xl border border-yellow-600/20 bg-black/30 p-4 text-white outline-none placeholder:text-white/30"
+                />
 
-              <div className="mt-4 flex flex-wrap items-center gap-3">
-                <div className="rounded-xl border border-yellow-600/20 bg-black/30 px-3 py-2 text-xs text-white/75">
-                  {aiQuotaLoading ? "Quota IA..." : `Quota IA : ${aiQuota.remaining.toLocaleString()} / ${aiQuota.tokens_limit.toLocaleString()} • Plan ${aiQuota.plan}`}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => generateWithAI(aiGoal)}
-                  disabled={aiLoading || aiQuota.remaining <= 0}
-                  className="rounded-2xl bg-[#ffb800] px-5 py-3 font-bold text-black disabled:opacity-60"
-                >
-                  {aiLoading ? "Génération..." : "Générer avec IA"}
-                </button>
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => generateWithAI(aiGoal)}
+                    disabled={aiLoading || aiQuota.remaining <= 0}
+                    className="rounded-2xl bg-[#ffb800] px-5 py-3 font-bold text-black disabled:opacity-60"
+                  >
+                    {aiLoading ? "Génération..." : "Générer avec IA"}
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={rewritePremiumResult}
-                  disabled={aiLoading || !aiBrief.trim() || aiQuota.remaining <= 0}
-                  className="rounded-2xl border border-yellow-600/20 bg-yellow-500/10 px-5 py-3 font-semibold text-yellow-200 disabled:opacity-50"
-                >
-                  Réécrire
-                </button>
+                  <button
+                    type="button"
+                    onClick={rewritePremiumResult}
+                    disabled={aiLoading || !aiBrief.trim() || aiQuota.remaining <= 0}
+                    className="rounded-2xl border border-yellow-600/20 bg-yellow-500/10 px-5 py-3 font-semibold text-yellow-200 disabled:opacity-50"
+                  >
+                    Réécrire
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={clearPremiumResult}
-                  disabled={aiLoading || !aiResult.trim()}
-                  className="rounded-2xl border border-yellow-600/20 bg-black/30 px-5 py-3 font-semibold text-white/80 disabled:opacity-50"
-                >
-                  Effacer le résultat
-                </button>
+                  <button
+                    type="button"
+                    onClick={clearPremiumResult}
+                    disabled={aiLoading || !aiResult.trim()}
+                    className="rounded-2xl border border-yellow-600/20 bg-black/30 px-5 py-3 font-semibold text-white/80 disabled:opacity-50"
+                  >
+                    Effacer le résultat
+                  </button>
 
-                <div className="text-xs text-white/45">
-                  {aiQuota.remaining <= 0 ? (aiQuotaMessage || "Quota IA atteint • génération temporairement bloquée") : "Mémoire automatique active • Backend OpenAI branché • IA-quotas reliés"}
+                  <div className="text-xs text-white/45">
+                    {aiQuota.remaining <= 0 ? (aiQuotaMessage || "Quota IA atteint • génération temporairement bloquée") : "Mémoire automatique active • Backend OpenAI branché • IA-quotas reliés"}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="rounded-2xl border border-yellow-600/20 bg-[#111] p-4">
-              <div className="text-sm font-semibold text-yellow-300">Résultat IA</div>
-              <div className="mt-1 text-sm text-white/55">
-                Sortie humanisée, contextualisée et prête à être réinjectée dans le Lead Engine.
+              <div className="rounded-2xl border border-yellow-600/20 bg-[#111] p-4">
+                <div className="text-sm font-semibold text-yellow-300">Résultat IA</div>
+                <div className="mt-1 text-sm text-white/55">
+                  Sortie humanisée, contextualisée et prête à être réinjectée dans le Lead Engine.
+                </div>
+
+                <textarea
+                  readOnly
+                  value={aiResult}
+                  placeholder="Les résultats IA apparaîtront ici. Ils seront nourris par le brief, le contexte métier et la mémoire utilisateur."
+                  className="mt-4 min-h-[260px] w-full rounded-2xl border border-yellow-600/20 bg-black/30 p-4 text-white/90 outline-none placeholder:text-white/25"
+                />
               </div>
-
-              <textarea
-                readOnly
-                value={aiResult}
-                placeholder="Les résultats IA apparaîtront ici. Ils seront nourris par le brief, le contexte métier et la mémoire utilisateur."
-                className="mt-4 min-h-[260px] w-full rounded-2xl border border-yellow-600/20 bg-black/30 p-4 text-white/90 outline-none placeholder:text-white/25"
-              />
             </div>
-          </div>
+          )}
         </div>
 
         <div ref={rootRef} className="rounded-[28px] border border-yellow-600/20 bg-[#0b0b0b] p-4 sm:p-5">
