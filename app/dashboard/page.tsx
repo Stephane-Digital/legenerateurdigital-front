@@ -575,7 +575,7 @@ export default function DashboardPage() {
               </div>
             </CardLuxe>
 
-            <LeadEngineBlock onDiscover={() => accessOrExplain("lead_engine")} />
+           <LeadEngineBlock onDiscover={() => go("/dashboard/lead-engine")} />
           </div>
         </motion.div>
 
