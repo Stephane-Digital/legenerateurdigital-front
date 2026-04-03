@@ -52,6 +52,3 @@ export default function CopyField({ label, value, helper, className = "" }: Prop
   );
 }
 
-
-
-
