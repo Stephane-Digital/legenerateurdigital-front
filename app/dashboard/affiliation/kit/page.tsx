@@ -228,7 +228,7 @@ export default function AffiliationKitPage() {
         </CardLuxe>
 
         <div id="lien-affilie">
-  <CardLuxe className="w-full px-6 pt-6 pb-7 text-left">
+        <CardLuxe className="w-full px-6 pt-6 pb-7 text-left">
           <div className="flex flex-col gap-6">
             <div>
               <h2 className="text-xl font-semibold text-[#ffb800] mb-2">
@@ -272,8 +272,8 @@ export default function AffiliationKitPage() {
               </a>
             </div>
           </div>
-          </CardLuxe>
-</div>
+        </CardLuxe>
+      </div>
 
         <CardLuxe className="w-full px-6 pt-6 pb-7 text-left">
           <h2 className="text-xl font-semibold text-[#ffb800] mb-4">Quick Start — 5 minutes</h2>
