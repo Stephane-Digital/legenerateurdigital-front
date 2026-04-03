@@ -310,6 +310,7 @@ export default function LeadEnginePage() {
   const [premiumOpen, setPremiumOpen] = useState(true);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
+
   function syncQuotaFromPayload(raw: any) {
     if (!raw || typeof raw !== "object") return;
     setAiQuota({
@@ -1089,6 +1090,7 @@ export default function LeadEnginePage() {
             </div>
           )}
         </div>
+
 
 
         {!!lastSavedAt && (
