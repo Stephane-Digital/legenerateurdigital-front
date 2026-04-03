@@ -1044,12 +1044,24 @@ export default function LeadEnginePage() {
                   Sortie humanisée, contextualisée et prête à être réinjectée dans le Lead Engine.
                 </div>
 
-                <textarea
-                  readOnly
-                  value={aiResult}
-                  placeholder="Les résultats IA apparaîtront ici. Ils seront nourris par le brief, le contexte métier et la mémoire utilisateur."
-                  className="mt-4 min-h-[260px] w-full rounded-2xl border border-yellow-600/20 bg-black/30 p-4 text-white/90 outline-none placeholder:text-white/25"
-                />
+                {aiLoading ? (
+                  <div className="mt-4 min-h-[260px] w-full rounded-2xl border border-yellow-600/20 bg-black/30 p-4 flex flex-col items-center justify-center text-white/70">
+                    <div className="h-8 w-8 animate-spin rounded-full border-2 border-yellow-500 border-t-transparent" />
+                    <div className="mt-4 text-sm font-medium text-yellow-200">
+                      Analyse en cours...
+                    </div>
+                    <div className="mt-2 text-xs text-white/40">
+                      LGD prépare une réponse premium.
+                    </div>
+                  </div>
+                ) : (
+                  <textarea
+                    readOnly
+                    value={aiResult}
+                    placeholder="Les résultats IA apparaîtront ici. Ils seront nourris par le brief, le contexte métier et la mémoire utilisateur."
+                    className="mt-4 min-h-[260px] w-full rounded-2xl border border-yellow-600/20 bg-black/30 p-4 text-white/90 outline-none placeholder:text-white/25"
+                  />
+                )}
               </div>
             </div>
           )}
