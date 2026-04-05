@@ -262,7 +262,6 @@ export default function EditorLayout({
 
   const [layers, setLayers] = useState<LayerData[]>([]);
   const [showProps, setShowProps] = useState(false);
-  const [localMobileToolsOpen, setLocalMobileToolsOpen] = useState(false);
 
   /* ================= BACKGROUND STATE ================= */
   const [bgMode, setBgMode] = useState<BackgroundMode>(initialUI?.bgMode ?? "color");
@@ -852,13 +851,6 @@ export default function EditorLayout({
     return { x, y, w, h, left, top, right, bottom };
   }, [selectedLayer, format.w, format.h]);
 
-  const effectiveMobileToolsOpen = mobileToolsOpen || localMobileToolsOpen;
-
-  const closeMobileToolsPanel = useCallback(() => {
-    setLocalMobileToolsOpen(false);
-    onCloseMobileTools?.();
-  }, [onCloseMobileTools]);
-
   /* ================= RENDER ================= */
   return (
     <div className="w-full h-full relative">
@@ -888,13 +880,17 @@ export default function EditorLayout({
       />
 
       {/* ================= MOBILE/TABLET TOOLS (overlay over canvas) ================= */}
-      {effectiveMobileToolsOpen && (
-        <div className="min-[1280px]:hidden absolute inset-x-0 top-0 z-50 px-3 sm:px-6">
-          <div className="w-full max-w-[720px] mx-auto mt-3 rounded-2xl border border-yellow-500/20 bg-black/85 backdrop-blur p-4 sm:p-5 space-y-4 shadow-2xl max-h-[78vh] overflow-y-auto">
-            <div className="flex items-center justify-between">
+      {mobileToolsOpen && (
+        <div className="min-[1200px]:hidden fixed inset-0 z-[80] bg-black/55 backdrop-blur-[2px]" onClick={() => onCloseMobileTools?.()}>
+          <div
+            className="absolute inset-x-3 top-20 bottom-4 rounded-2xl border border-yellow-500/20 bg-black/95 p-4 space-y-4 shadow-2xl overflow-y-auto"
+            style={{ WebkitOverflowScrolling: "touch" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 z-10 -mx-4 -mt-4 mb-2 flex items-center justify-between border-b border-yellow-500/15 bg-black/95 px-4 py-3">
               <div className="text-yellow-300 font-semibold text-sm">Outils de l’éditeur</div>
               <button
-                onClick={closeMobileToolsPanel}
+                onClick={() => onCloseMobileTools?.()}
                 className="text-yellow-200/80 hover:text-yellow-200 text-sm"
               >
                 ✖
@@ -1156,33 +1152,37 @@ export default function EditorLayout({
         </div>
       )}
 
-      <div className="min-[1280px]:hidden sticky bottom-3 z-40 mt-3 px-3 sm:px-6">
-        <div className="mx-auto flex w-full max-w-[720px] items-center justify-center gap-2 rounded-2xl border border-yellow-500/20 bg-black/85 p-2 shadow-2xl backdrop-blur">
+      <div className="min-[1200px]:hidden fixed inset-x-0 bottom-0 z-[70] border-t border-yellow-500/15 bg-black/95 px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
+        <div className="grid grid-cols-3 gap-2">
           <button
             onClick={addText}
-            className="flex-1 rounded-xl bg-[#ffb800] px-3 py-3 text-sm font-semibold text-black"
+            className="rounded-xl bg-[#ffb800] px-3 py-3 text-sm font-semibold text-black"
           >
             + Texte
           </button>
+
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="flex-1 rounded-xl border border-yellow-500/25 bg-yellow-500/10 px-3 py-3 text-sm text-yellow-200"
+            className="rounded-xl border border-yellow-500/25 bg-yellow-500/10 px-3 py-3 text-sm text-yellow-200"
           >
             Image
           </button>
+
           <button
-            onClick={() => setLocalMobileToolsOpen(true)}
-            className="flex-1 rounded-xl border border-yellow-500/25 bg-yellow-500/10 px-3 py-3 text-sm text-yellow-200"
+            onClick={() => {
+              if (mobileToolsOpen) onCloseMobileTools?.();
+            }}
+            className="rounded-xl border border-yellow-500/25 bg-yellow-500/10 px-3 py-3 text-sm text-yellow-200"
           >
-            Outils
+            {mobileToolsOpen ? "Fermer" : "Outils"}
           </button>
         </div>
       </div>
 
-      <div className="mx-auto w-full max-w-[1800px] px-3 sm:px-6 pb-10">
-        <div className="grid grid-cols-1 min-[1280px]:grid-cols-[280px_minmax(0,1fr)_360px] gap-6">
+      <div className="mx-auto w-full max-w-[1800px] px-2 min-[640px]:px-4 min-[900px]:px-6 pb-28 min-[900px]:pb-10">
+        <div className="grid grid-cols-1 min-[1200px]:grid-cols-[280px_1fr_360px] gap-4 min-[900px]:gap-6">
           {/* LEFT (desktop only) */}
-          <aside className="hidden min-[1280px]:block rounded-2xl border border-yellow-500/15 bg-black/30 p-4">
+          <aside className="hidden min-[1200px]:block rounded-2xl border border-yellow-500/15 bg-black/30 p-4">
             <button
               onClick={addText}
               className="w-full rounded-xl bg-[#ffb800] text-black font-semibold py-3"
@@ -1417,10 +1417,10 @@ export default function EditorLayout({
           </aside>
 
           {/* CENTER */}
-          <main className="rounded-2xl border border-white/10 bg-black/25 p-3 sm:p-4 lg:p-5 relative flex items-start justify-center min-w-0">
+          <main className="rounded-2xl border border-white/10 bg-black/25 p-2 min-[640px]:p-3 min-[900px]:p-4 min-[1200px]:p-5 relative flex items-start justify-center">
             <div
               ref={stageWrapRef}
-              className="w-full h-[52vh] sm:h-[58vh] lg:h-[68vh] xl:h-[72vh] rounded-2xl border border-yellow-500/20 overflow-hidden relative"
+              className="w-full h-[56vh] min-[640px]:h-[62vh] min-[900px]:h-[68vh] min-[1200px]:h-[72vh] rounded-2xl border border-yellow-500/20 overflow-hidden relative"
             >
               {/* CANVA center guides (light) */}
               <div
@@ -1458,7 +1458,7 @@ export default function EditorLayout({
           </main>
 
           {/* RIGHT (desktop only) */}
-          <aside className="hidden min-[1280px]:block rounded-2xl border border-yellow-500/15 bg-black/30 p-4">
+          <aside className="hidden min-[1200px]:block rounded-2xl border border-yellow-500/15 bg-black/30 p-4">
             <LayersPanelV5
               layers={layers.filter((l: any) => l.id !== BACKGROUND_LAYER_ID)}
               selectedLayerId={selectedLayer?.id ?? null}
@@ -1483,4 +1483,5 @@ export default function EditorLayout({
     </div>
   );
 }
+
 
