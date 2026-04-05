@@ -292,6 +292,7 @@ export default function EditorLayout({
 
   /* ================= CANVA-LIKE GUIDES (HTML overlay) ================= */
   const stageWrapRef = useRef<HTMLDivElement | null>(null);
+  const [mobileToolsLocalOpen, setMobileToolsLocalOpen] = useState(false);
   const [stagePx, setStagePx] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
 
   useEffect(() => {
@@ -880,17 +881,26 @@ export default function EditorLayout({
       />
 
       {/* ================= MOBILE/TABLET TOOLS (overlay over canvas) ================= */}
-      {mobileToolsOpen && (
-        <div className="min-[1200px]:hidden fixed inset-0 z-[80] bg-black/55 backdrop-blur-[2px]" onClick={() => onCloseMobileTools?.()}>
+      {mobileToolsVisible && (
+        <div
+          className="min-[1200px]:hidden fixed inset-0 z-[80] bg-black/60 backdrop-blur-[2px]"
+          onClick={() => {
+            setMobileToolsLocalOpen(false);
+            onCloseMobileTools?.();
+          }}
+        >
           <div
-            className="absolute inset-x-3 top-20 bottom-4 rounded-2xl border border-yellow-500/20 bg-black/95 p-4 space-y-4 shadow-2xl overflow-y-auto"
+            className="absolute inset-x-2 top-20 bottom-24 rounded-2xl border border-yellow-500/20 bg-black/95 p-4 space-y-4 shadow-2xl overflow-y-auto"
             style={{ WebkitOverflowScrolling: "touch" }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="sticky top-0 z-10 -mx-4 -mt-4 mb-2 flex items-center justify-between border-b border-yellow-500/15 bg-black/95 px-4 py-3">
               <div className="text-yellow-300 font-semibold text-sm">Outils de l’éditeur</div>
               <button
-                onClick={() => onCloseMobileTools?.()}
+                onClick={() => {
+                  setMobileToolsLocalOpen(false);
+                  onCloseMobileTools?.();
+                }}
                 className="text-yellow-200/80 hover:text-yellow-200 text-sm"
               >
                 ✖
@@ -1156,30 +1166,28 @@ export default function EditorLayout({
         <div className="grid grid-cols-3 gap-2">
           <button
             onClick={addText}
-            className="rounded-xl bg-[#ffb800] px-3 py-3 text-sm font-semibold text-black"
+            className="rounded-xl bg-[#ffb800] px-3 py-3 text-base font-semibold text-black"
           >
             + Texte
           </button>
 
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="rounded-xl border border-yellow-500/25 bg-yellow-500/10 px-3 py-3 text-sm text-yellow-200"
+            className="rounded-xl border border-yellow-500/25 bg-yellow-500/10 px-3 py-3 text-base text-yellow-200"
           >
             Image
           </button>
 
           <button
-            onClick={() => {
-              if (mobileToolsOpen) onCloseMobileTools?.();
-            }}
-            className="rounded-xl border border-yellow-500/25 bg-yellow-500/10 px-3 py-3 text-sm text-yellow-200"
+            onClick={() => setMobileToolsLocalOpen((v) => !v)}
+            className="rounded-xl border border-yellow-500/25 bg-yellow-500/10 px-3 py-3 text-base text-yellow-200"
           >
-            {mobileToolsOpen ? "Fermer" : "Outils"}
+            {mobileToolsVisible ? "Fermer" : "Outils"}
           </button>
         </div>
       </div>
 
-      <div className="mx-auto w-full max-w-[1800px] px-2 min-[640px]:px-4 min-[900px]:px-6 pb-28 min-[900px]:pb-10">
+      <div className="mx-auto w-full max-w-[1800px] px-2 min-[640px]:px-4 min-[900px]:px-6 pb-28 min-[1200px]:pb-10">
         <div className="grid grid-cols-1 min-[1200px]:grid-cols-[280px_1fr_360px] gap-4 min-[900px]:gap-6">
           {/* LEFT (desktop only) */}
           <aside className="hidden min-[1200px]:block rounded-2xl border border-yellow-500/15 bg-black/30 p-4">
@@ -1420,7 +1428,12 @@ export default function EditorLayout({
           <main className="rounded-2xl border border-white/10 bg-black/25 p-2 min-[640px]:p-3 min-[900px]:p-4 min-[1200px]:p-5 relative flex items-start justify-center">
             <div
               ref={stageWrapRef}
-              className="w-full h-[56vh] min-[640px]:h-[62vh] min-[900px]:h-[68vh] min-[1200px]:h-[72vh] rounded-2xl border border-yellow-500/20 overflow-hidden relative"
+              className="w-full rounded-2xl border border-yellow-500/20 overflow-hidden relative min-[1200px]:h-[72vh]"
+              style={{
+                aspectRatio: `${format.w} / ${format.h}`,
+                minHeight: "360px",
+                maxHeight: "72vh",
+              }}
             >
               {/* CANVA center guides (light) */}
               <div
@@ -1483,6 +1496,4 @@ export default function EditorLayout({
     </div>
   );
 }
-
-
 
