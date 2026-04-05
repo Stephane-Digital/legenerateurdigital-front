@@ -320,6 +320,7 @@ export default function EditorLayout({
 
   const centerX = useMemo(() => (format.w * scale) / 2, [format.w, scale]);
   const centerY = useMemo(() => (format.h * scale) / 2, [format.h, scale]);
+  const isMobileToolsVisible = Boolean(mobileToolsOpen) || Boolean(mobileToolsLocalOpen);
 
   useEffect(() => {
     onUIChangeRef.current = onUIChange;
@@ -881,7 +882,7 @@ export default function EditorLayout({
       />
 
       {/* ================= MOBILE/TABLET TOOLS (overlay over canvas) ================= */}
-      {mobileToolsVisible && (
+      {isMobileToolsVisible && (
         <div
           className="min-[1200px]:hidden fixed inset-0 z-[80] bg-black/60 backdrop-blur-[2px]"
           onClick={() => {
@@ -1182,7 +1183,7 @@ export default function EditorLayout({
             onClick={() => setMobileToolsLocalOpen((v) => !v)}
             className="rounded-xl border border-yellow-500/25 bg-yellow-500/10 px-3 py-3 text-base text-yellow-200"
           >
-            {mobileToolsVisible ? "Fermer" : "Outils"}
+            {isMobileToolsVisible ? "Fermer" : "Outils"}
           </button>
         </div>
       </div>
