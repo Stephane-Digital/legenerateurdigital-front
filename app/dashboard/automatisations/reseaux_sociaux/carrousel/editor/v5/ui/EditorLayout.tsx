@@ -842,6 +842,14 @@ export default function EditorLayout({
     });
   }, [bgColor]);
 
+  const onImportMobileCompanion = useCallback(
+    async (files: FileList | null) => {
+      if (!files || !files.length) return;
+      await onImportImages(files);
+    },
+    [onImportImages]
+  );
+
   /* ================= CANVA-LIKE MEASURES (selected layer distances) ================= */
   const selectedMetrics = useMemo(() => {
     if (!selectedLayer) return null;
@@ -865,6 +873,7 @@ export default function EditorLayout({
         ref={fileInputRef}
         type="file"
         accept="image/*"
+        capture="environment"
         multiple
         hidden
         onChange={(e) => {
@@ -886,10 +895,60 @@ export default function EditorLayout({
         }}
       />
 
+      {/* ================= MOBILE COMPANION MODE (<640px only) ================= */}
+      <div className="min-[640px]:hidden px-3 pb-24 pt-4">
+        <div className="rounded-[24px] border border-yellow-500/15 bg-black/40 p-5 shadow-2xl">
+          <div className="mb-3 inline-flex rounded-full border border-yellow-500/20 bg-yellow-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-yellow-200">
+            📱 Mode mobile LGD
+          </div>
+
+          <h2 className="text-[22px] font-bold leading-[1.15] text-yellow-300">
+            Capture rapide pour vos archives
+          </h2>
+
+          <p className="mt-3 text-sm leading-6 text-yellow-50/80">
+            Sur mobile, LGD passe en mode compagnon : prenez une photo ou importez un visuel,
+            puis retrouvez-le dans vos archives pour le réutiliser sur ordinateur ou tablette.
+          </p>
+
+          <div className="mt-5 grid grid-cols-1 gap-3">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full rounded-2xl bg-[#ffb800] px-4 py-4 text-base font-semibold text-black"
+            >
+              📸 Prendre une photo / importer
+            </button>
+
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full rounded-2xl border border-yellow-500/25 bg-yellow-500/10 px-4 py-4 text-sm font-medium text-yellow-200"
+            >
+              🖼️ Ajouter depuis la galerie
+            </button>
+          </div>
+
+          <div className="mt-5 rounded-2xl border border-yellow-500/15 bg-black/30 p-4">
+            <div className="text-sm font-semibold text-yellow-300">Comment ça marche</div>
+            <ul className="mt-3 space-y-2 text-sm leading-6 text-yellow-50/80">
+              <li>• prenez une photo ou importez un visuel</li>
+              <li>• LGD l’ajoute à votre bibliothèque de travail</li>
+              <li>• retrouvez-le ensuite dans vos archives sur ordinateur</li>
+            </ul>
+          </div>
+
+          <p className="mt-4 text-xs leading-5 text-yellow-100/60">
+            L’édition avancée reste optimisée pour tablette et ordinateur afin de garantir une
+            expérience de création premium.
+          </p>
+        </div>
+      </div>
+
       {/* ================= MOBILE/TABLET TOOLS (overlay over canvas) ================= */}
       {mobileToolsSheetOpen && (
         <div
-          className="min-[1200px]:hidden fixed inset-0 z-[80] bg-black/60 backdrop-blur-[2px]"
+          className="hidden min-[640px]:block min-[1200px]:hidden fixed inset-0 z-[80] bg-black/60 backdrop-blur-[2px]"
           onClick={() => {
             setMobileToolsLocalOpen(false);
             onCloseMobileTools?.();
@@ -1168,7 +1227,7 @@ export default function EditorLayout({
         </div>
       )}
 
-      <div className="min-[1200px]:hidden fixed inset-x-0 bottom-0 z-[70] border-t border-yellow-500/15 bg-black/95 px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
+      <div className="hidden min-[640px]:block min-[1200px]:hidden fixed inset-x-0 bottom-0 z-[70] border-t border-yellow-500/15 bg-black/95 px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
         <div className="grid grid-cols-3 gap-2">
           <button
             onClick={addText}
@@ -1201,7 +1260,7 @@ export default function EditorLayout({
         </div>
       </div>
 
-      <div className="relative left-1/2 w-screen -translate-x-1/2 min-[1200px]:left-auto min-[1200px]:w-full min-[1200px]:translate-x-0 mx-auto max-w-none min-[1200px]:max-w-[1800px] px-0 min-[640px]:px-2 min-[900px]:px-4 min-[1200px]:px-6 pb-28 min-[1200px]:pb-10">
+      <div className="hidden min-[640px]:block relative left-1/2 w-screen -translate-x-1/2 min-[1200px]:left-auto min-[1200px]:w-full min-[1200px]:translate-x-0 mx-auto max-w-none min-[1200px]:max-w-[1800px] px-0 min-[640px]:px-2 min-[900px]:px-4 min-[1200px]:px-6 pb-28 min-[1200px]:pb-10">
         <div className="grid min-w-0 grid-cols-1 min-[1200px]:grid-cols-[280px_minmax(0,1fr)_360px] gap-4 min-[900px]:gap-6">
           {/* LEFT (desktop only) */}
           <aside className="hidden min-w-0 min-[1200px]:block rounded-2xl border border-yellow-500/15 bg-black/30 p-4">
