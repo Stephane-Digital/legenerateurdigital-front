@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import CarrouselEditor from "./CarrouselEditor";
 import PostEditor from "./PostEditor";
@@ -77,6 +77,7 @@ function getAuthHeaders() {
   const token =
     window.localStorage.getItem("access_token") ||
     window.localStorage.getItem("token") ||
+    window.localStorage.getItem("lgd_token") ||
     window.localStorage.getItem("jwt") ||
     "";
   return token ? { Authorization: `Bearer ${token}` } : {};
@@ -192,39 +193,12 @@ async function prepareDraftForLibrary(draft: any): Promise<any> {
   return replaceBlobUrls(draft, replaceMap);
 }
 
-
-async function uploadPhotoToLibrary(file: File) {
-  const base = apiBase();
-  if (!base) throw new Error("NEXT_PUBLIC_API_URL manquant.");
-
-  const form = new FormData();
-  form.append("file", file);
-  form.append("title", `Photo mobile — ${formatNowForTitle()}`);
-  form.append("description", "Capture mobile LGD");
-
-  const res = await fetch(`${base}/library/upload`, {
-    method: "POST",
-    headers: {
-      ...getAuthHeaders(),
-    },
-    credentials: "include",
-    body: form,
-  });
-
-  if (!res.ok) {
-    let detail = "";
-    try {
-      const j = await res.json();
-      detail = j?.detail || j?.message || "";
-    } catch {}
-    throw new Error(detail || `Erreur upload (HTTP ${res.status})`);
-  }
-
-  return res.json();
-}
-
 export default function EditorModeRouter() {
   const [mode, setMode] = useState<Mode>("post");
+  const mobileFileInputRef = useRef<HTMLInputElement | null>(null);
+  const [isPhone, setIsPhone] = useState(false);
+  const [mobileArchiveMsg, setMobileArchiveMsg] = useState("");
+  const [mobileUploading, setMobileUploading] = useState(false);
   const [brief, setBrief] = useState<string>("");
 
   const [archiving, setArchiving] = useState(false);
@@ -232,24 +206,10 @@ export default function EditorModeRouter() {
 
   const [downloading, setDownloading] = useState(false);
   const [downloadMsg, setDownloadMsg] = useState<string>("");
-  const [isMobilePhone, setIsMobilePhone] = useState(false);
-  const [mobileUploadMsg, setMobileUploadMsg] = useState<string>("");
-  const [mobileUploading, setMobileUploading] = useState(false);
-  const cameraInputRef = useRef<HTMLInputElement | null>(null);
-  const galleryInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     const saved = typeof window !== "undefined" ? window.localStorage.getItem("lgd_editor_mode") : null;
     if (saved === "post" || saved === "carrousel") setMode(saved);
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const apply = () => setIsMobilePhone(window.innerWidth < 640);
-    apply();
-    window.addEventListener("resize", apply);
-    return () => window.removeEventListener("resize", apply);
   }, []);
 
   useEffect(() => {
@@ -337,11 +297,60 @@ export default function EditorModeRouter() {
     if (typeof window !== "undefined") window.localStorage.setItem("lgd_editor_mode", mode);
   }, [mode]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const apply = () => setIsPhone(window.innerWidth < 640);
+    apply();
+    window.addEventListener("resize", apply);
+    return () => window.removeEventListener("resize", apply);
+  }, []);
+
   const getDraft = () => {
     if (typeof window === "undefined") return null;
     const key = mode === "post" ? LS_POST : LS_CARROUSEL;
     return safeJsonParse(window.localStorage.getItem(key));
   };
+
+  async function archiveMobilePhoto(file: File) {
+    if (typeof window === "undefined") return;
+    const base = apiBase();
+    if (!base) {
+      setMobileArchiveMsg("NEXT_PUBLIC_API_URL manquant.");
+      return;
+    }
+
+    setMobileUploading(true);
+    setMobileArchiveMsg("");
+
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("title", `Photo mobile — ${formatNowForTitle()}`);
+
+      const res = await fetch(`${base}/library/upload`, {
+        method: "POST",
+        headers: { ...getAuthHeaders() },
+        credentials: "include",
+        body: fd,
+      });
+
+      if (!res.ok) {
+        let detail = "";
+        try {
+          const j = await res.json();
+          detail = j?.detail || j?.message || "";
+        } catch {}
+        throw new Error(detail || `Erreur archive (HTTP ${res.status})`);
+      }
+
+      setMobileArchiveMsg("✅ Photo archivée dans LGD.");
+    } catch (e: any) {
+      setMobileArchiveMsg(`❌ ${e?.message || "Erreur archive photo"}`);
+    } finally {
+      setMobileUploading(false);
+      window.setTimeout(() => setMobileArchiveMsg(""), 3500);
+    }
+  }
 
   async function archiveToLibrary() {
     if (typeof window === "undefined") return;
@@ -433,100 +442,70 @@ export default function EditorModeRouter() {
     }
   }
 
-  async function handleMobileCompanionPick(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.currentTarget.files?.[0] ?? null;
-    e.currentTarget.value = "";
-    if (!file) return;
-
-    setMobileUploadMsg("");
-    setMobileUploading(true);
-    try {
-      await uploadPhotoToLibrary(file);
-      setMobileUploadMsg("✅ Photo archivée dans LGD.");
-    } catch (err: any) {
-      setMobileUploadMsg(`❌ ${err?.message || "Erreur archivage photo"}`);
-    } finally {
-      setMobileUploading(false);
-      if (typeof window !== "undefined") {
-        window.setTimeout(() => setMobileUploadMsg(""), 4000);
-      }
-    }
-  }
-
   const modeLabel = useMemo(() => (mode === "post" ? "POSTS" : "CARROUSEL"), [mode]);
 
-  if (isMobilePhone) {
+  if (isPhone) {
     return (
-      <div className="min-h-screen bg-black text-white pt-20 pb-24">
+      <div className="min-h-screen bg-black text-white">
         <input
-          ref={cameraInputRef}
+          ref={mobileFileInputRef}
           type="file"
           accept="image/*"
           capture="environment"
           hidden
-          onChange={handleMobileCompanionPick}
+          onChange={async (e) => {
+            const file = e.currentTarget.files?.[0];
+            e.currentTarget.value = "";
+            if (!file) return;
+            await archiveMobilePhoto(file);
+          }}
         />
 
-        <input
-          ref={galleryInputRef}
-          type="file"
-          accept="image/*"
-          hidden
-          onChange={handleMobileCompanionPick}
-        />
-
-        <div className="mx-auto w-full max-w-[720px] px-4">
-          <div className="rounded-[28px] border border-yellow-500/15 bg-[#111111] p-5 shadow-2xl">
-            <div className="inline-flex rounded-full border border-yellow-500/20 bg-yellow-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-yellow-200">
+        <div className="mx-auto w-full max-w-[640px] px-4 pb-10 pt-24">
+          <div className="rounded-[28px] border border-yellow-500/15 bg-black/40 p-5 shadow-2xl">
+            <div className="mb-3 inline-flex rounded-full border border-yellow-500/20 bg-yellow-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-yellow-200">
               📱 Mode mobile LGD
             </div>
 
-            <h1 className="mt-4 text-3xl font-extrabold leading-tight text-[#ffb800]">
+            <h1 className="text-[24px] font-extrabold leading-[1.12] text-[#ffb800]">
               Capture rapide pour vos archives
             </h1>
 
-            <p className="mt-3 text-sm leading-6 text-white/80">
-              Sur smartphone, l’éditeur complet est volontairement désactivé pour garder une expérience premium.
-              Ici, vous pouvez capturer une photo ou importer un visuel, puis le retrouver dans LGD sur ordinateur ou tablette.
+            <p className="mt-3 text-sm leading-6 text-white/75">
+              Sur mobile, LGD passe en mode compagnon. Prenez une photo ou importez un visuel,
+              puis retrouvez-le dans vos archives pour le réutiliser sur ordinateur ou tablette.
             </p>
 
-            <div className="mt-5 grid grid-cols-1 gap-3">
+            <div className="mt-5 grid gap-3">
               <button
                 type="button"
-                onClick={() => cameraInputRef.current?.click()}
+                onClick={() => mobileFileInputRef.current?.click()}
                 disabled={mobileUploading}
                 className="w-full rounded-2xl bg-[#ffb800] px-4 py-4 text-base font-semibold text-black disabled:opacity-60"
               >
-                {mobileUploading ? "Archivage…" : "📸 Prendre une photo"}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => galleryInputRef.current?.click()}
-                disabled={mobileUploading}
-                className="w-full rounded-2xl border border-yellow-500/25 bg-yellow-500/10 px-4 py-4 text-sm font-medium text-yellow-200 disabled:opacity-60"
-              >
-                🖼️ Importer depuis la galerie
+                {mobileUploading ? "Archivage…" : "📸 Prendre une photo / importer"}
               </button>
 
               <Link
                 href="/dashboard/library"
-                className="w-full rounded-2xl border border-yellow-500/25 bg-black/30 px-4 py-4 text-center text-sm font-medium text-yellow-200"
+                className="w-full rounded-2xl border border-yellow-500/25 bg-yellow-500/10 px-4 py-4 text-center text-sm font-medium text-yellow-200"
               >
                 📂 Ouvrir mes archives
               </Link>
             </div>
 
+            {mobileArchiveMsg ? (
+              <div className="mt-4 text-sm text-white/80">{mobileArchiveMsg}</div>
+            ) : null}
+
             <div className="mt-5 rounded-2xl border border-yellow-500/15 bg-black/30 p-4">
-              <div className="text-sm font-semibold text-yellow-300">Utilisation recommandée</div>
-              <ul className="mt-3 space-y-2 text-sm leading-6 text-white/75">
-                <li>• prenez une photo ou importez un visuel</li>
-                <li>• LGD l’archive automatiquement dans votre bibliothèque</li>
-                <li>• retrouvez-le ensuite sur ordinateur ou tablette</li>
+              <div className="text-sm font-semibold text-yellow-300">Comment ça marche</div>
+              <ul className="mt-3 space-y-2 text-sm leading-6 text-white/70">
+                <li>• prenez une photo ou choisissez un visuel</li>
+                <li>• LGD l’archive dans votre bibliothèque</li>
+                <li>• ouvrez ensuite l’image sur ordinateur pour l’utiliser dans l’éditeur</li>
               </ul>
             </div>
-
-            {mobileUploadMsg ? <div className="mt-4 text-sm text-white/80">{mobileUploadMsg}</div> : null}
           </div>
         </div>
       </div>
