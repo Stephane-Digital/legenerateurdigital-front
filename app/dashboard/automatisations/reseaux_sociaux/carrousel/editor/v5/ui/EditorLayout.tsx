@@ -320,7 +320,12 @@ export default function EditorLayout({
 
   const centerX = useMemo(() => (format.w * scale) / 2, [format.w, scale]);
   const centerY = useMemo(() => (format.h * scale) / 2, [format.h, scale]);
-  const isMobileToolsVisible = Boolean(mobileToolsOpen) || Boolean(mobileToolsLocalOpen);
+  useEffect(() => {
+    if (mobileToolsOpen) setMobileToolsLocalOpen(true);
+  }, [mobileToolsOpen]);
+
+  const mobileToolsSheetOpen =
+    Boolean(mobileToolsOpen) || Boolean(mobileToolsLocalOpen);
 
   useEffect(() => {
     onUIChangeRef.current = onUIChange;
@@ -855,7 +860,7 @@ export default function EditorLayout({
 
   /* ================= RENDER ================= */
   return (
-    <div className="w-full h-full relative">
+    <div className="w-full h-full relative overflow-x-hidden">
       <input
         ref={fileInputRef}
         type="file"
@@ -882,9 +887,9 @@ export default function EditorLayout({
       />
 
       {/* ================= MOBILE/TABLET TOOLS (overlay over canvas) ================= */}
-      {isMobileToolsVisible && (
+      {mobileToolsSheetOpen && (
         <div
-          className="min-1200px]:hidden fixed inset-0 z-[80] bg-black/60 backdrop-blur-[2px]"
+          className="min-[1200px]:hidden fixed inset-0 z-[80] bg-black/60 backdrop-blur-[2px]"
           onClick={() => {
             setMobileToolsLocalOpen(false);
             onCloseMobileTools?.();
@@ -1180,18 +1185,26 @@ export default function EditorLayout({
           </button>
 
           <button
-            onClick={() => setMobileToolsLocalOpen((v) => !v)}
+            type="button"
+            onClick={() => {
+              if (mobileToolsSheetOpen) {
+                setMobileToolsLocalOpen(false);
+                onCloseMobileTools?.();
+              } else {
+                setMobileToolsLocalOpen(true);
+              }
+            }}
             className="rounded-xl border border-yellow-500/25 bg-yellow-500/10 px-3 py-3 text-base text-yellow-200"
           >
-            {isMobileToolsVisible ? "Fermer" : "Outils"}
+            {mobileToolsSheetOpen ? "Fermer" : "Outils"}
           </button>
         </div>
       </div>
 
       <div className="mx-auto w-full max-w-[1800px] px-2 min-[640px]:px-4 min-[900px]:px-6 pb-28 min-[1200px]:pb-10">
-        <div className="grid grid-cols-1 min-[1200px]:grid-cols-[280px_1fr_360px] gap-4 min-[900px]:gap-6">
+        <div className="grid min-w-0 grid-cols-1 min-[1200px]:grid-cols-[280px_minmax(0,1fr)_360px] gap-4 min-[900px]:gap-6">
           {/* LEFT (desktop only) */}
-          <aside className="hidden min-[1200px]:block rounded-2xl border border-yellow-500/15 bg-black/30 p-4">
+          <aside className="hidden min-w-0 min-[1200px]:block rounded-2xl border border-yellow-500/15 bg-black/30 p-4">
             <button
               onClick={addText}
               className="w-full rounded-xl bg-[#ffb800] text-black font-semibold py-3"
@@ -1426,7 +1439,7 @@ export default function EditorLayout({
           </aside>
 
           {/* CENTER */}
-          <main className="rounded-2xl border border-white/10 bg-black/25 p-2 min-[640px]:p-3 min-[900px]:p-4 min-[1200px]:p-5 relative flex items-start justify-center">
+          <main className="min-w-0 rounded-2xl border border-white/10 bg-black/25 p-2 min-[640px]:p-3 min-[900px]:p-4 min-[1200px]:p-5 relative flex items-start justify-center overflow-x-hidden">
             <div
               ref={stageWrapRef}
               className="w-full rounded-2xl border border-yellow-500/20 overflow-hidden relative min-[1200px]:h-[72vh]"
@@ -1472,7 +1485,7 @@ export default function EditorLayout({
           </main>
 
           {/* RIGHT (desktop only) */}
-          <aside className="hidden min-[1200px]:block rounded-2xl border border-yellow-500/15 bg-black/30 p-4">
+          <aside className="hidden min-w-0 min-[1200px]:block rounded-2xl border border-yellow-500/15 bg-black/30 p-4">
             <LayersPanelV5
               layers={layers.filter((l: any) => l.id !== BACKGROUND_LAYER_ID)}
               selectedLayerId={selectedLayer?.id ?? null}
