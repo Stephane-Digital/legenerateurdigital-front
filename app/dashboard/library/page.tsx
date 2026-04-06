@@ -27,6 +27,7 @@ type LibraryItem = {
   raw_url?: string | null;
   file_url?: string | null;
   preview_url?: string | null;
+  download_url?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
   updatedAt?: string | null;
@@ -571,7 +572,7 @@ export default function LibraryPage() {
       return;
     }
 
-    if (it.file_url) window.open(normalizeUrl(it.file_url), "_blank");
+    if (it.file_url) window.open(normalizeUrl(it.preview_url || it.file_url || ""), "_blank");
   }
 
   async function deleteSelected() {
