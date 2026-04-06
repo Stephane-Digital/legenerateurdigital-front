@@ -10,6 +10,7 @@ function getAuthHeaders() {
   const token =
     window.localStorage.getItem("access_token") ||
     window.localStorage.getItem("token") ||
+    window.localStorage.getItem("lgd_token") ||
     window.localStorage.getItem("jwt") ||
     "";
 
@@ -27,7 +28,6 @@ type LibraryItem = {
   raw_url?: string | null;
   file_url?: string | null;
   preview_url?: string | null;
-  download_url?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
   updatedAt?: string | null;
@@ -71,6 +71,21 @@ async function fetchFirstOk(urls: string[]) {
     }
   }
   throw lastErr || new Error("fetch failed");
+}
+
+async function protectedUrlToDataUrl(url: string) {
+  const res = await fetch(normalizeUrl(url), {
+    credentials: "include",
+    headers: { ...getAuthHeaders() },
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const blob = await res.blob();
+  return await new Promise<string>((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(String(fr.result || ""));
+    fr.onerror = () => reject(new Error("FileReader error"));
+    fr.readAsDataURL(blob);
+  });
 }
 
 function formatFR(iso?: string | null) {
@@ -557,22 +572,67 @@ export default function LibraryPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function openInEditor(it: LibraryItem) {
+  async function openInEditor(it: LibraryItem) {
     const wrap = wrappers[it.id] || null;
     const kind = detectEditorKind(it, wrap);
 
     if (kind === "post") {
+      try {
+        window.localStorage.setItem(LS_EDITOR_MODE, "post");
+      } catch {}
       router.push(`/dashboard/automatisations/reseaux_sociaux/editor-intelligent?openLibrary=1&kind=post&id=${it.id}`);
       return;
     }
+
     if (kind === "carrousel") {
+      try {
+        window.localStorage.setItem(LS_EDITOR_MODE, "carrousel");
+      } catch {}
       router.push(
         `/dashboard/automatisations/reseaux_sociaux/editor-intelligent?openLibrary=1&kind=carrousel&id=${it.id}`
       );
       return;
     }
 
-    if (it.file_url) window.open(normalizeUrl(it.preview_url || it.file_url || ""), "_blank");
+    const isImage = String(it.mime_type || "").startsWith("image/");
+    if (isImage && (it.preview_url || it.file_url)) {
+      try {
+        const src = await protectedUrlToDataUrl(it.preview_url || it.file_url || "");
+        const draft = {
+          ui: {
+            formatKey: "instagram_post",
+            bgMode: "image",
+            bgImage: src,
+            overlayEnabled: false,
+          },
+          layers: [
+            {
+              id: "background-post",
+              type: "image",
+              src,
+              x: 0,
+              y: 0,
+              width: 1080,
+              height: 1080,
+              zIndex: -1000,
+              visible: true,
+              selected: false,
+              style: {},
+            },
+          ],
+        };
+        window.localStorage.setItem(LS_EDITOR_MODE, "post");
+        window.localStorage.setItem(LS_POST, JSON.stringify(draft));
+        router.push(`/dashboard/automatisations/reseaux_sociaux/editor-intelligent?fromLibrary=1&kind=image&id=${it.id}`);
+        return;
+      } catch (e) {
+        console.error("open image in editor failed", e);
+      }
+    }
+
+    if (it.preview_url || it.file_url) {
+      window.open(normalizeUrl(it.preview_url || it.file_url || ""), "_blank");
+    }
   }
 
   async function deleteSelected() {
