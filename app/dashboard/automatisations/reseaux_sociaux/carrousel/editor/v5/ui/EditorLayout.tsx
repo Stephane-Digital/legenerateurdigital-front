@@ -1260,7 +1260,7 @@ export default function EditorLayout({
         </div>
       </div>
 
-      <div className="hidden min-[640px]:block relative left-1/2 w-screen -translate-x-1/2 min-[1200px]:left-auto min-[1200px]:w-full min-[1200px]:translate-x-0 mx-auto max-w-none min-[1200px]:max-w-[1800px] px-0 min-[640px]:px-2 min-[900px]:px-4 min-[1200px]:px-6 pb-28 min-[1200px]:pb-10">
+      <div className="hidden min-[640px]:block w-full max-w-none min-[1200px]:max-w-[1800px] mx-auto px-0 min-[640px]:px-2 min-[900px]:px-4 min-[1200px]:px-6 pb-28 min-[1200px]:pb-10">
         <div className="grid min-w-0 grid-cols-1 min-[1200px]:grid-cols-[280px_minmax(0,1fr)_360px] gap-4 min-[900px]:gap-6">
           {/* LEFT (desktop only) */}
           <aside className="hidden min-w-0 min-[1200px]:block rounded-2xl border border-yellow-500/15 bg-black/30 p-4">
@@ -1570,5 +1570,6 @@ export default function EditorLayout({
     </div>
   );
 }
+
 
 
