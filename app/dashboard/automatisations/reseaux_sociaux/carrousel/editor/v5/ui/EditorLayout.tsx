@@ -860,7 +860,7 @@ export default function EditorLayout({
 
   /* ================= RENDER ================= */
   return (
-    <div className="w-full h-full relative overflow-x-hidden">
+    <div className="w-full h-full relative overflow-x-hidden text-[14px] min-[640px]:text-[15px] min-[1200px]:text-base">
       <input
         ref={fileInputRef}
         type="file"
@@ -1172,14 +1172,14 @@ export default function EditorLayout({
         <div className="grid grid-cols-3 gap-2">
           <button
             onClick={addText}
-            className="rounded-xl bg-[#ffb800] px-3 py-3 text-base font-semibold text-black"
+            className="rounded-xl bg-[#ffb800] px-3 py-3 text-sm min-[640px]:text-base font-semibold text-black"
           >
             + Texte
           </button>
 
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="rounded-xl border border-yellow-500/25 bg-yellow-500/10 px-3 py-3 text-base text-yellow-200"
+            className="rounded-xl border border-yellow-500/25 bg-yellow-500/10 px-3 py-3 text-sm min-[640px]:text-base text-yellow-200"
           >
             Image
           </button>
@@ -1194,14 +1194,14 @@ export default function EditorLayout({
                 setMobileToolsLocalOpen(true);
               }
             }}
-            className="rounded-xl border border-yellow-500/25 bg-yellow-500/10 px-3 py-3 text-base text-yellow-200"
+            className="rounded-xl border border-yellow-500/25 bg-yellow-500/10 px-3 py-3 text-sm min-[640px]:text-base text-yellow-200"
           >
             {mobileToolsSheetOpen ? "Fermer" : "Outils"}
           </button>
         </div>
       </div>
 
-      <div className="mx-auto w-full max-w-[1800px] px-2 min-[640px]:px-4 min-[900px]:px-6 pb-28 min-[1200px]:pb-10">
+      <div className="relative left-1/2 w-screen -translate-x-1/2 min-[1200px]:left-auto min-[1200px]:w-full min-[1200px]:translate-x-0 mx-auto max-w-none min-[1200px]:max-w-[1800px] px-0 min-[640px]:px-2 min-[900px]:px-4 min-[1200px]:px-6 pb-28 min-[1200px]:pb-10">
         <div className="grid min-w-0 grid-cols-1 min-[1200px]:grid-cols-[280px_minmax(0,1fr)_360px] gap-4 min-[900px]:gap-6">
           {/* LEFT (desktop only) */}
           <aside className="hidden min-w-0 min-[1200px]:block rounded-2xl border border-yellow-500/15 bg-black/30 p-4">
@@ -1439,14 +1439,15 @@ export default function EditorLayout({
           </aside>
 
           {/* CENTER */}
-          <main className="min-w-0 rounded-2xl border border-white/10 bg-black/25 p-2 min-[640px]:p-3 min-[900px]:p-4 min-[1200px]:p-5 relative flex items-start justify-center overflow-x-hidden">
+          <main className="min-w-0 rounded-none min-[640px]:rounded-2xl border-0 min-[640px]:border border-white/10 bg-black/25 p-0 min-[640px]:p-2 min-[900px]:p-4 min-[1200px]:p-5 relative flex items-start justify-center overflow-x-hidden">
             <div
               ref={stageWrapRef}
-              className="w-full rounded-2xl border border-yellow-500/20 overflow-hidden relative min-[1200px]:h-[72vh]"
+              className="w-full max-w-none rounded-none min-[640px]:rounded-2xl border-0 min-[640px]:border border-yellow-500/20 overflow-hidden relative min-[1200px]:h-[72vh]"
               style={{
                 aspectRatio: `${format.w} / ${format.h}`,
-                minHeight: "360px",
-                maxHeight: "72vh",
+                width: "100%",
+                minHeight: "240px",
+                maxWidth: "100%",
               }}
             >
               {/* CANVA center guides (light) */}
@@ -1510,4 +1511,5 @@ export default function EditorLayout({
     </div>
   );
 }
+
 
