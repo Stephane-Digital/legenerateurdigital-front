@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -58,58 +59,6 @@ function normalizeUrl(path: string) {
   return `${base}/${path}`;
 }
 
-async function responseToDataUrl(res: Response): Promise<string> {
-  const blob = await res.blob();
-  return await new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = () => reject(new Error("Impossible de lire le fichier image"));
-    reader.readAsDataURL(blob);
-  });
-}
-
-function buildImagePostDraft(src: string, title?: string) {
-  return {
-    ui: {
-      formatKey: "instagram_post",
-      bgMode: "color",
-      bgColor: "#111111",
-      bgColor1: "#ffb800",
-      bgColor2: "#00ffcc",
-      bgAngle: 135,
-      bgImage: null,
-      overlayEnabled: false,
-      overlayType: "color",
-      overlayColor1: "#000000",
-      overlayColor2: "#000000",
-      overlayOpacity: 0.35,
-    },
-    layers: [
-      {
-        id: "background-post",
-        type: "background",
-        visible: true,
-        selected: false,
-        zIndex: -1000,
-        style: { color: "#111111" },
-      },
-      {
-        id: `image-${Date.now()}`,
-        type: "image",
-        src,
-        x: 140,
-        y: 140,
-        width: 800,
-        height: 800,
-        zIndex: 10,
-        visible: true,
-        selected: true,
-        name: title || "Photo archive",
-      },
-    ],
-  };
-}
-
 async function fetchFirstOk(urls: string[]) {
   let lastErr: any = null;
   for (const u of urls) {
@@ -124,6 +73,35 @@ async function fetchFirstOk(urls: string[]) {
   throw lastErr || new Error("fetch failed");
 }
 
+
+
+function getImageSizeFromUrl(src: string): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve({ width: img.naturalWidth || 1080, height: img.naturalHeight || 1080 });
+    img.onerror = () => reject(new Error("image load failed"));
+    img.src = src;
+  });
+}
+
+function fitInsideBox(
+  srcW: number,
+  srcH: number,
+  boxW: number,
+  boxH: number
+): { x: number; y: number; width: number; height: number } {
+  const sw = Math.max(1, srcW);
+  const sh = Math.max(1, srcH);
+  const scale = Math.min(boxW / sw, boxH / sh);
+  const width = Math.round(sw * scale);
+  const height = Math.round(sh * scale);
+  return {
+    x: Math.round((boxW - width) / 2),
+    y: Math.round((boxH - height) / 2),
+    width,
+    height,
+  };
+}
 function formatFR(iso?: string | null) {
   if (!iso) return "";
   const d = new Date(iso);
@@ -608,7 +586,7 @@ export default function LibraryPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function openInEditor(it: LibraryItem) {
+  function openInEditor(it: LibraryItem) {
     const wrap = wrappers[it.id] || null;
     const kind = detectEditorKind(it, wrap);
 
@@ -616,6 +594,7 @@ export default function LibraryPage() {
       router.push(`/dashboard/automatisations/reseaux_sociaux/editor-intelligent?openLibrary=1&kind=post&id=${it.id}`);
       return;
     }
+
     if (kind === "carrousel") {
       router.push(
         `/dashboard/automatisations/reseaux_sociaux/editor-intelligent?openLibrary=1&kind=carrousel&id=${it.id}`
@@ -623,26 +602,60 @@ export default function LibraryPage() {
       return;
     }
 
-    const preview = normalizeUrl(it.preview_url || "");
-    const file = normalizeUrl(it.file_url || "");
-    const urls = [preview, file].filter(Boolean);
-    if (!urls.length) return;
+    const preview = it.preview_url ? normalizeUrl(it.preview_url) : "";
+    const file = it.file_url ? normalizeUrl(it.file_url) : "";
+    const imageUrl = preview || file;
 
-    try {
-      const res = await fetchFirstOk(urls);
-      const dataUrl = await responseToDataUrl(res);
-      const draft = buildImagePostDraft(dataUrl, it.title || "Photo archive");
-
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem(LS_EDITOR_MODE, "post");
-        window.localStorage.setItem(LS_POST, JSON.stringify(draft));
-      }
-
-      router.push(`/dashboard/automatisations/reseaux_sociaux/editor-intelligent?fromLibrary=1&kind=file&id=${it.id}`);
-    } catch (e) {
-      console.error("openInEditor image failed", e);
-      alert("Impossible d’ouvrir cette image dans l’éditeur.");
+    if (!imageUrl) {
+      alert("Impossible d'ouvrir cette image dans l'éditeur.");
+      return;
     }
+
+    getImageSizeFromUrl(imageUrl)
+      .then((imgSize) => {
+        const canvasW = 1080;
+        const canvasH = 1080;
+        const placed = fitInsideBox(imgSize.width, imgSize.height, canvasW, canvasH);
+
+        const draft = {
+          layers: [
+            {
+              id: "background-post",
+              type: "background",
+              visible: true,
+              selected: false,
+              zIndex: -1000,
+              style: { color: "#111111" },
+            },
+            {
+              id: `image-${Date.now()}`,
+              type: "image",
+              src: imageUrl,
+              x: placed.x,
+              y: placed.y,
+              width: placed.width,
+              height: placed.height,
+              zIndex: 10,
+              visible: true,
+              selected: true,
+            },
+          ],
+        };
+
+        try {
+          window.localStorage.removeItem(LS_CARROUSEL);
+          window.localStorage.setItem(LS_EDITOR_MODE, "post");
+          window.localStorage.setItem(LS_POST, JSON.stringify(draft));
+          router.push(`/dashboard/automatisations/reseaux_sociaux/editor-intelligent?mode=post&fromLibrary=1&imageId=${it.id}`);
+        } catch (e) {
+          console.error("openInEditor lightweight draft failed", e);
+          alert("Impossible d'ouvrir cette image dans l'éditeur.");
+        }
+      })
+      .catch((e) => {
+        console.error("openInEditor image load failed", e);
+        alert("Impossible d'ouvrir cette image dans l'éditeur.");
+      });
   }
 
   async function deleteSelected() {
@@ -696,12 +709,18 @@ export default function LibraryPage() {
             <button
               onClick={() => {
                 const firstId = selectedIds[0];
-                const target = items.find((it) => it.id === firstId) || filtered[0] || null;
-                if (!target) return;
-                void openInEditor(target);
+                if (!firstId) {
+                  alert("Sélectionne d’abord un élément.");
+                  return;
+                }
+                const it = items.find((x) => x.id === firstId);
+                if (!it) {
+                  alert("Élément introuvable.");
+                  return;
+                }
+                openInEditor(it);
               }}
-              disabled={!selectedIds.length}
-              className="h-10 inline-flex items-center rounded-xl bg-[#ffb800] px-4 text-sm font-semibold text-black hover:brightness-110 transition disabled:opacity-40"
+              className="h-10 inline-flex items-center rounded-xl bg-[#ffb800] px-4 text-sm font-semibold text-black hover:brightness-110 transition"
             >
               Ouvrir l’éditeur
             </button>
