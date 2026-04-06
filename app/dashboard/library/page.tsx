@@ -8,9 +8,9 @@ function getAuthHeaders() {
 
   const token =
     window.localStorage.getItem("access_token") ||
-    window.localStorage.getItem("lgd_token") ||
     window.localStorage.getItem("token") ||
     window.localStorage.getItem("jwt") ||
+    window.localStorage.getItem("lgd_token") ||
     "";
 
   return token ? { Authorization: `Bearer ${token}` } : {};
@@ -58,6 +58,58 @@ function normalizeUrl(path: string) {
   return `${base}/${path}`;
 }
 
+async function responseToDataUrl(res: Response): Promise<string> {
+  const blob = await res.blob();
+  return await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("Impossible de lire le fichier image"));
+    reader.readAsDataURL(blob);
+  });
+}
+
+function buildImagePostDraft(src: string, title?: string) {
+  return {
+    ui: {
+      formatKey: "instagram_post",
+      bgMode: "color",
+      bgColor: "#111111",
+      bgColor1: "#ffb800",
+      bgColor2: "#00ffcc",
+      bgAngle: 135,
+      bgImage: null,
+      overlayEnabled: false,
+      overlayType: "color",
+      overlayColor1: "#000000",
+      overlayColor2: "#000000",
+      overlayOpacity: 0.35,
+    },
+    layers: [
+      {
+        id: "background-post",
+        type: "background",
+        visible: true,
+        selected: false,
+        zIndex: -1000,
+        style: { color: "#111111" },
+      },
+      {
+        id: `image-${Date.now()}`,
+        type: "image",
+        src,
+        x: 140,
+        y: 140,
+        width: 800,
+        height: 800,
+        zIndex: 10,
+        visible: true,
+        selected: true,
+        name: title || "Photo archive",
+      },
+    ],
+  };
+}
+
 async function fetchFirstOk(urls: string[]) {
   let lastErr: any = null;
   for (const u of urls) {
@@ -70,47 +122,6 @@ async function fetchFirstOk(urls: string[]) {
     }
   }
   throw lastErr || new Error("fetch failed");
-}
-
-async function blobToDataUrl(blob: Blob): Promise<string> {
-  return await new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
-}
-
-async function fetchImageAsDataUrl(urls: string[]) {
-  const res = await fetchFirstOk(urls);
-  const blob = await res.blob();
-  return await blobToDataUrl(blob);
-}
-
-async function getImageSize(dataUrl: string): Promise<{ width: number; height: number }> {
-  return await new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => resolve({
-      width: Number((img as any).naturalWidth || img.width || 1080),
-      height: Number((img as any).naturalHeight || img.height || 1080),
-    });
-    img.onerror = () => resolve({ width: 1080, height: 1080 });
-    img.src = dataUrl;
-  });
-}
-
-function fitInsideBox(
-  srcW: number,
-  srcH: number,
-  boxW: number,
-  boxH: number
-): { x: number; y: number; width: number; height: number } {
-  const ratio = Math.min(boxW / Math.max(1, srcW), boxH / Math.max(1, srcH));
-  const width = Math.round(srcW * ratio);
-  const height = Math.round(srcH * ratio);
-  const x = Math.round((boxW - width) / 2);
-  const y = Math.round((boxH - height) / 2);
-  return { x, y, width, height };
 }
 
 function formatFR(iso?: string | null) {
@@ -605,7 +616,6 @@ export default function LibraryPage() {
       router.push(`/dashboard/automatisations/reseaux_sociaux/editor-intelligent?openLibrary=1&kind=post&id=${it.id}`);
       return;
     }
-
     if (kind === "carrousel") {
       router.push(
         `/dashboard/automatisations/reseaux_sociaux/editor-intelligent?openLibrary=1&kind=carrousel&id=${it.id}`
@@ -613,52 +623,25 @@ export default function LibraryPage() {
       return;
     }
 
+    const preview = normalizeUrl(it.preview_url || "");
+    const file = normalizeUrl(it.file_url || "");
+    const urls = [preview, file].filter(Boolean);
+    if (!urls.length) return;
+
     try {
-      const preview = it.preview_url ? normalizeUrl(it.preview_url) : "";
-      const file = it.file_url ? normalizeUrl(it.file_url) : "";
-      const dataUrl = await fetchImageAsDataUrl([preview, file].filter(Boolean));
-      const imgSize = await getImageSize(dataUrl);
+      const res = await fetchFirstOk(urls);
+      const dataUrl = await responseToDataUrl(res);
+      const draft = buildImagePostDraft(dataUrl, it.title || "Photo archive");
 
-      const canvasW = 1080;
-      const canvasH = 1080;
-      const placed = fitInsideBox(imgSize.width, imgSize.height, canvasW, canvasH);
-
-      const draft = {
-        layers: [
-          {
-            id: "background-post",
-            type: "background",
-            visible: true,
-            selected: false,
-            zIndex: -1000,
-            style: { color: "#111111" },
-          },
-          {
-            id: `image-${Date.now()}`,
-            type: "image",
-            src: dataUrl,
-            x: placed.x,
-            y: placed.y,
-            width: placed.width,
-            height: placed.height,
-            zIndex: 10,
-            visible: true,
-            selected: true,
-          },
-        ],
-      };
-
-      window.localStorage.setItem(LS_EDITOR_MODE, "post");
-      window.localStorage.setItem(LS_POST, JSON.stringify(draft));
-      router.push(`/dashboard/automatisations/reseaux_sociaux/editor-intelligent?mode=post&fromLibrary=1&imageId=${it.id}`);
-    } catch {
-      if (it.preview_url) {
-        window.open(normalizeUrl(it.preview_url), "_blank");
-        return;
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(LS_EDITOR_MODE, "post");
+        window.localStorage.setItem(LS_POST, JSON.stringify(draft));
       }
-      if (it.file_url) {
-        window.open(normalizeUrl(it.file_url), "_blank");
-      }
+
+      router.push(`/dashboard/automatisations/reseaux_sociaux/editor-intelligent?fromLibrary=1&kind=file&id=${it.id}`);
+    } catch (e) {
+      console.error("openInEditor image failed", e);
+      alert("Impossible d’ouvrir cette image dans l’éditeur.");
     }
   }
 
@@ -712,19 +695,13 @@ export default function LibraryPage() {
 
             <button
               onClick={() => {
-                const id = selectedIds[0];
-                if (!id) {
-                  alert("Sélectionne un élément dans l’archive.");
-                  return;
-                }
-                const item = items.find((it) => it.id === id);
-                if (!item) {
-                  alert("Élément introuvable.");
-                  return;
-                }
-                void openInEditor(item);
+                const firstId = selectedIds[0];
+                const target = items.find((it) => it.id === firstId) || filtered[0] || null;
+                if (!target) return;
+                void openInEditor(target);
               }}
-              className="h-10 inline-flex items-center rounded-xl bg-[#ffb800] px-4 text-sm font-semibold text-black hover:brightness-110 transition"
+              disabled={!selectedIds.length}
+              className="h-10 inline-flex items-center rounded-xl bg-[#ffb800] px-4 text-sm font-semibold text-black hover:brightness-110 transition disabled:opacity-40"
             >
               Ouvrir l’éditeur
             </button>
