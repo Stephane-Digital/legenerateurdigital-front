@@ -884,7 +884,7 @@ export default function EditorLayout({
       {/* ================= MOBILE/TABLET TOOLS (overlay over canvas) ================= */}
       {isMobileToolsVisible && (
         <div
-          className="min-[900px]:hidden fixed inset-0 z-[80] bg-black/60 backdrop-blur-[2px]"
+          className="min-1200px]:hidden fixed inset-0 z-[80] bg-black/60 backdrop-blur-[2px]"
           onClick={() => {
             setMobileToolsLocalOpen(false);
             onCloseMobileTools?.();
