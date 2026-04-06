@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -9,9 +8,9 @@ function getAuthHeaders() {
 
   const token =
     window.localStorage.getItem("access_token") ||
+    window.localStorage.getItem("lgd_token") ||
     window.localStorage.getItem("token") ||
     window.localStorage.getItem("jwt") ||
-    window.localStorage.getItem("lgd_token") ||
     "";
 
   return token ? { Authorization: `Bearer ${token}` } : {};
@@ -77,82 +76,42 @@ async function blobToDataUrl(blob: Blob): Promise<string> {
   return await new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = () => reject(new Error("FileReader error"));
+    reader.onerror = reject;
     reader.readAsDataURL(blob);
   });
 }
 
-async function dataUrlImageSize(src: string): Promise<{ w: number; h: number }> {
+async function fetchImageAsDataUrl(urls: string[]) {
+  const res = await fetchFirstOk(urls);
+  const blob = await res.blob();
+  return await blobToDataUrl(blob);
+}
+
+async function getImageSize(dataUrl: string): Promise<{ width: number; height: number }> {
   return await new Promise((resolve) => {
     const img = new Image();
-    img.onload = () =>
-      resolve({
-        w: Math.max(1, img.naturalWidth || 1080),
-        h: Math.max(1, img.naturalHeight || 1080),
-      });
-    img.onerror = () => resolve({ w: 1080, h: 1080 });
-    img.src = src;
+    img.onload = () => resolve({
+      width: Number((img as any).naturalWidth || img.width || 1080),
+      height: Number((img as any).naturalHeight || img.height || 1080),
+    });
+    img.onerror = () => resolve({ width: 1080, height: 1080 });
+    img.src = dataUrl;
   });
 }
 
-async function libraryImageToPostDraft(item: LibraryItem) {
-  const candidates = [item.preview_url, item.file_url]
-    .filter(Boolean)
-    .map((u) => normalizeUrl(String(u)));
-
-  const res = await fetchFirstOk(candidates);
-  const blob = await res.blob();
-  const dataUrl = await blobToDataUrl(blob);
-  const natural = await dataUrlImageSize(dataUrl);
-
-  const canvasW = 1080;
-  const canvasH = 1080;
-  const scale = Math.min(canvasW / natural.w, canvasH / natural.h);
-  const width = Math.round(natural.w * scale);
-  const height = Math.round(natural.h * scale);
-  const x = Math.round((canvasW - width) / 2);
-  const y = Math.round((canvasH - height) / 2);
-
-  return {
-    ui: {
-      formatKey: "instagram_post",
-      bgMode: "color",
-      bgColor: "#111111",
-      bgColor1: "#ffb800",
-      bgColor2: "#00ffcc",
-      bgAngle: 135,
-      bgImage: null,
-      overlayEnabled: false,
-      overlayType: "color",
-      overlayColor1: "#000000",
-      overlayColor2: "#000000",
-      overlayOpacity: 0.35,
-    },
-    layers: [
-      {
-        id: "background-post",
-        type: "background",
-        visible: true,
-        selected: false,
-        zIndex: -1000,
-        style: { color: "#111111" },
-      },
-      {
-        id: `image-${Date.now()}`,
-        type: "image",
-        src: dataUrl,
-        x,
-        y,
-        width,
-        height,
-        zIndex: 10,
-        visible: true,
-        selected: true,
-      },
-    ],
-  };
+function fitInsideBox(
+  srcW: number,
+  srcH: number,
+  boxW: number,
+  boxH: number
+): { x: number; y: number; width: number; height: number } {
+  const ratio = Math.min(boxW / Math.max(1, srcW), boxH / Math.max(1, srcH));
+  const width = Math.round(srcW * ratio);
+  const height = Math.round(srcH * ratio);
+  const x = Math.round((boxW - width) / 2);
+  const y = Math.round((boxH - height) / 2);
+  return { x, y, width, height };
 }
-
 
 function formatFR(iso?: string | null) {
   if (!iso) return "";
@@ -646,6 +605,7 @@ export default function LibraryPage() {
       router.push(`/dashboard/automatisations/reseaux_sociaux/editor-intelligent?openLibrary=1&kind=post&id=${it.id}`);
       return;
     }
+
     if (kind === "carrousel") {
       router.push(
         `/dashboard/automatisations/reseaux_sociaux/editor-intelligent?openLibrary=1&kind=carrousel&id=${it.id}`
@@ -654,33 +614,52 @@ export default function LibraryPage() {
     }
 
     try {
-      const draft = await libraryImageToPostDraft(it);
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem(LS_EDITOR_MODE, "post");
-        window.localStorage.setItem(LS_POST, JSON.stringify(draft));
-      }
-      router.push(`/dashboard/automatisations/reseaux_sociaux/editor-intelligent?fromLibraryImage=1&ts=${Date.now()}`);
+      const preview = it.preview_url ? normalizeUrl(it.preview_url) : "";
+      const file = it.file_url ? normalizeUrl(it.file_url) : "";
+      const dataUrl = await fetchImageAsDataUrl([preview, file].filter(Boolean));
+      const imgSize = await getImageSize(dataUrl);
+
+      const canvasW = 1080;
+      const canvasH = 1080;
+      const placed = fitInsideBox(imgSize.width, imgSize.height, canvasW, canvasH);
+
+      const draft = {
+        layers: [
+          {
+            id: "background-post",
+            type: "background",
+            visible: true,
+            selected: false,
+            zIndex: -1000,
+            style: { color: "#111111" },
+          },
+          {
+            id: `image-${Date.now()}`,
+            type: "image",
+            src: dataUrl,
+            x: placed.x,
+            y: placed.y,
+            width: placed.width,
+            height: placed.height,
+            zIndex: 10,
+            visible: true,
+            selected: true,
+          },
+        ],
+      };
+
+      window.localStorage.setItem(LS_EDITOR_MODE, "post");
+      window.localStorage.setItem(LS_POST, JSON.stringify(draft));
+      router.push(`/dashboard/automatisations/reseaux_sociaux/editor-intelligent?mode=post&fromLibrary=1&imageId=${it.id}`);
     } catch {
       if (it.preview_url) {
         window.open(normalizeUrl(it.preview_url), "_blank");
         return;
       }
-      if (it.file_url) window.open(normalizeUrl(it.file_url), "_blank");
+      if (it.file_url) {
+        window.open(normalizeUrl(it.file_url), "_blank");
+      }
     }
-  }
-
-  async function openSelectedInEditor() {
-    const firstId = selectedIds[0];
-    if (!firstId) {
-      router.push("/dashboard/automatisations/reseaux_sociaux/editor-intelligent");
-      return;
-    }
-    const selectedItem = items.find((it) => it.id === firstId);
-    if (!selectedItem) {
-      router.push("/dashboard/automatisations/reseaux_sociaux/editor-intelligent");
-      return;
-    }
-    await openInEditor(selectedItem);
   }
 
   async function deleteSelected() {
@@ -732,7 +711,19 @@ export default function LibraryPage() {
             </button>
 
             <button
-              onClick={openSelectedInEditor}
+              onClick={() => {
+                const id = selectedIds[0];
+                if (!id) {
+                  alert("Sélectionne un élément dans l’archive.");
+                  return;
+                }
+                const item = items.find((it) => it.id === id);
+                if (!item) {
+                  alert("Élément introuvable.");
+                  return;
+                }
+                void openInEditor(item);
+              }}
               className="h-10 inline-flex items-center rounded-xl bg-[#ffb800] px-4 text-sm font-semibold text-black hover:brightness-110 transition"
             >
               Ouvrir l’éditeur
