@@ -10,8 +10,8 @@ function getAuthHeaders() {
   const token =
     window.localStorage.getItem("access_token") ||
     window.localStorage.getItem("token") ||
-    window.localStorage.getItem("lgd_token") ||
     window.localStorage.getItem("jwt") ||
+    window.localStorage.getItem("lgd_token") ||
     "";
 
   return token ? { Authorization: `Bearer ${token}` } : {};
@@ -73,20 +73,86 @@ async function fetchFirstOk(urls: string[]) {
   throw lastErr || new Error("fetch failed");
 }
 
-async function protectedUrlToDataUrl(url: string) {
-  const res = await fetch(normalizeUrl(url), {
-    credentials: "include",
-    headers: { ...getAuthHeaders() },
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const blob = await res.blob();
-  return await new Promise<string>((resolve, reject) => {
-    const fr = new FileReader();
-    fr.onload = () => resolve(String(fr.result || ""));
-    fr.onerror = () => reject(new Error("FileReader error"));
-    fr.readAsDataURL(blob);
+async function blobToDataUrl(blob: Blob): Promise<string> {
+  return await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("FileReader error"));
+    reader.readAsDataURL(blob);
   });
 }
+
+async function dataUrlImageSize(src: string): Promise<{ w: number; h: number }> {
+  return await new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () =>
+      resolve({
+        w: Math.max(1, img.naturalWidth || 1080),
+        h: Math.max(1, img.naturalHeight || 1080),
+      });
+    img.onerror = () => resolve({ w: 1080, h: 1080 });
+    img.src = src;
+  });
+}
+
+async function libraryImageToPostDraft(item: LibraryItem) {
+  const candidates = [item.preview_url, item.file_url]
+    .filter(Boolean)
+    .map((u) => normalizeUrl(String(u)));
+
+  const res = await fetchFirstOk(candidates);
+  const blob = await res.blob();
+  const dataUrl = await blobToDataUrl(blob);
+  const natural = await dataUrlImageSize(dataUrl);
+
+  const canvasW = 1080;
+  const canvasH = 1080;
+  const scale = Math.min(canvasW / natural.w, canvasH / natural.h);
+  const width = Math.round(natural.w * scale);
+  const height = Math.round(natural.h * scale);
+  const x = Math.round((canvasW - width) / 2);
+  const y = Math.round((canvasH - height) / 2);
+
+  return {
+    ui: {
+      formatKey: "instagram_post",
+      bgMode: "color",
+      bgColor: "#111111",
+      bgColor1: "#ffb800",
+      bgColor2: "#00ffcc",
+      bgAngle: 135,
+      bgImage: null,
+      overlayEnabled: false,
+      overlayType: "color",
+      overlayColor1: "#000000",
+      overlayColor2: "#000000",
+      overlayOpacity: 0.35,
+    },
+    layers: [
+      {
+        id: "background-post",
+        type: "background",
+        visible: true,
+        selected: false,
+        zIndex: -1000,
+        style: { color: "#111111" },
+      },
+      {
+        id: `image-${Date.now()}`,
+        type: "image",
+        src: dataUrl,
+        x,
+        y,
+        width,
+        height,
+        zIndex: 10,
+        visible: true,
+        selected: true,
+      },
+    ],
+  };
+}
+
 
 function formatFR(iso?: string | null) {
   if (!iso) return "";
@@ -577,62 +643,44 @@ export default function LibraryPage() {
     const kind = detectEditorKind(it, wrap);
 
     if (kind === "post") {
-      try {
-        window.localStorage.setItem(LS_EDITOR_MODE, "post");
-      } catch {}
       router.push(`/dashboard/automatisations/reseaux_sociaux/editor-intelligent?openLibrary=1&kind=post&id=${it.id}`);
       return;
     }
-
     if (kind === "carrousel") {
-      try {
-        window.localStorage.setItem(LS_EDITOR_MODE, "carrousel");
-      } catch {}
       router.push(
         `/dashboard/automatisations/reseaux_sociaux/editor-intelligent?openLibrary=1&kind=carrousel&id=${it.id}`
       );
       return;
     }
 
-    const isImage = String(it.mime_type || "").startsWith("image/");
-    if (isImage && (it.preview_url || it.file_url)) {
-      try {
-        const src = await protectedUrlToDataUrl(it.preview_url || it.file_url || "");
-        const draft = {
-          ui: {
-            formatKey: "instagram_post",
-            bgMode: "image",
-            bgImage: src,
-            overlayEnabled: false,
-          },
-          layers: [
-            {
-              id: "background-post",
-              type: "image",
-              src,
-              x: 0,
-              y: 0,
-              width: 1080,
-              height: 1080,
-              zIndex: -1000,
-              visible: true,
-              selected: false,
-              style: {},
-            },
-          ],
-        };
+    try {
+      const draft = await libraryImageToPostDraft(it);
+      if (typeof window !== "undefined") {
         window.localStorage.setItem(LS_EDITOR_MODE, "post");
         window.localStorage.setItem(LS_POST, JSON.stringify(draft));
-        router.push(`/dashboard/automatisations/reseaux_sociaux/editor-intelligent?fromLibrary=1&kind=image&id=${it.id}`);
-        return;
-      } catch (e) {
-        console.error("open image in editor failed", e);
       }
+      router.push(`/dashboard/automatisations/reseaux_sociaux/editor-intelligent?fromLibraryImage=1&ts=${Date.now()}`);
+    } catch {
+      if (it.preview_url) {
+        window.open(normalizeUrl(it.preview_url), "_blank");
+        return;
+      }
+      if (it.file_url) window.open(normalizeUrl(it.file_url), "_blank");
     }
+  }
 
-    if (it.preview_url || it.file_url) {
-      window.open(normalizeUrl(it.preview_url || it.file_url || ""), "_blank");
+  async function openSelectedInEditor() {
+    const firstId = selectedIds[0];
+    if (!firstId) {
+      router.push("/dashboard/automatisations/reseaux_sociaux/editor-intelligent");
+      return;
     }
+    const selectedItem = items.find((it) => it.id === firstId);
+    if (!selectedItem) {
+      router.push("/dashboard/automatisations/reseaux_sociaux/editor-intelligent");
+      return;
+    }
+    await openInEditor(selectedItem);
   }
 
   async function deleteSelected() {
@@ -683,12 +731,12 @@ export default function LibraryPage() {
               Supprimer
             </button>
 
-            <Link
-              href="/dashboard/automatisations/reseaux_sociaux/editor-intelligent"
+            <button
+              onClick={openSelectedInEditor}
               className="h-10 inline-flex items-center rounded-xl bg-[#ffb800] px-4 text-sm font-semibold text-black hover:brightness-110 transition"
             >
               Ouvrir l’éditeur
-            </Link>
+            </button>
           </div>
         </div>
 
