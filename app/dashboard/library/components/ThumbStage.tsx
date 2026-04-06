@@ -268,3 +268,4 @@ export default function ThumbStage({
     </div>
   );
 }
+
