@@ -11,7 +11,6 @@ const icons: Record<string, JSX.Element> = {
   linkedin: <div className="w-2 h-2 rounded bg-blue-400" />,
   tiktok: <div className="w-2 h-2 rounded bg-white" />,
   youtube: <div className="w-2 h-2 rounded bg-red-500" />,
-  pinterest: <div className="w-2 h-2 rounded bg-red-600" />,
 };
 
 interface Props {
@@ -74,7 +73,7 @@ function networkBadge(n: string) {
   const v = String(n || "").toLowerCase();
   if (v === "instagram") return { label: "IG", cls: "border-pink-400/20 bg-pink-500/10 text-pink-200" };
   if (v === "facebook") return { label: "FB", cls: "border-blue-400/20 bg-blue-500/10 text-blue-200" };
-  if (v === "pinterest") return { label: "PIN", cls: "border-red-400/20 bg-red-500/10 text-red-200" };
+  if (v === "linkedin") return { label: "IN", cls: "border-blue-400/20 bg-blue-500/10 text-blue-200" };
   return { label: (v || "—").slice(0, 3).toUpperCase(), cls: "border-white/10 bg-white/5 text-white/70" };
 }
 
@@ -192,3 +191,4 @@ export default function WeekView({ currentDate, onSelectDate }: Props) {
     </div>
   );
 }
+
