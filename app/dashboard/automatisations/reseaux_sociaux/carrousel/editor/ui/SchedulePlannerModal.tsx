@@ -115,7 +115,7 @@ export default function SchedulePlannerModal({ open, defaultTitle, loading, onCl
             >
               <option value="instagram">Instagram</option>
               <option value="facebook">Facebook</option>
-              <option value="pinterest">Pinterest</option>
+              <option value="linkedin">LinkedIn</option>
             </select>
           </div>
 
@@ -165,3 +165,4 @@ export default function SchedulePlannerModal({ open, defaultTitle, loading, onCl
     </div>
   );
 }
+
