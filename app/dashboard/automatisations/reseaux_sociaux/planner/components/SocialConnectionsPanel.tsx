@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-type NetworkKey = "instagram" | "facebook" | "pinterest";
+type NetworkKey = "instagram" | "facebook" | "linkedin";
 
 type NetworkState = {
   connected: boolean;
@@ -206,9 +206,9 @@ export default function SocialConnectionsPanel() {
         soon: false,
       },
       {
-        key: "pinterest" as const,
-        title: "Pinterest",
-        description: "Connexion à venir. (stub / bientôt)",
+        key: "linkedin" as const,
+        title: "LinkedIn",
+        description: "Connexion LinkedIn prévue via Make. Le branchement direct sera activé après configuration du scénario.",
         soon: true,
       },
     ],
@@ -218,8 +218,8 @@ export default function SocialConnectionsPanel() {
   async function handleConnect(network: NetworkKey) {
     setBanner("");
 
-    if (network === "pinterest") {
-      setBanner("Pinterest n'est pas encore branché.");
+    if (network === "linkedin") {
+      setBanner("LinkedIn sera branché dans LGD via Make après configuration du scénario.");
       return;
     }
 
@@ -340,7 +340,7 @@ export default function SocialConnectionsPanel() {
         <div>
           <h2 className="text-yellow-400 font-semibold text-xl">Branchement Réseaux sociaux</h2>
           <p className="text-sm text-gray-300 mt-1">
-            Connecte tes comptes pour publier automatiquement (Instagram / Facebook / Pinterest).
+            Connecte tes comptes pour publier automatiquement (Instagram / Facebook / LinkedIn).
           </p>
         </div>
         <p className="text-xs text-gray-500 text-right">Statut en temps réel (backend)</p>
@@ -409,7 +409,7 @@ export default function SocialConnectionsPanel() {
                 </p>
               ) : null}
 
-              {card.soon ? <p className="mt-3 text-xs text-gray-500">(Mode dev / stub possible)</p> : null}
+              {card.soon ? <p className="mt-3 text-xs text-gray-500">(Bientôt via Make)</p> : null}
             </div>
           );
         })}
@@ -422,3 +422,4 @@ export default function SocialConnectionsPanel() {
     </section>
   );
 }
+
