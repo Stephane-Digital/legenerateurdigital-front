@@ -7,9 +7,10 @@ import {
   ExternalLink,
   Image as ImageIcon,
   Send,
+  Sparkles,
   Undo2,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 type ManualStatus = "published" | "scheduled";
 
@@ -17,7 +18,10 @@ type Props = {
   open: boolean;
   post: any | null;
   onClose: () => void;
-  onMarkStatus: (postId: number | string, status: ManualStatus) => Promise<void>;
+  onMarkStatus: (
+    postId: number | string,
+    status: ManualStatus
+  ) => Promise<void>;
 };
 
 type PreviewLayer = {
@@ -65,15 +69,12 @@ function firstNonEmptyString(...values: any[]) {
 function uniqueStrings(values: string[]) {
   const seen = new Set<string>();
   const out: string[] = [];
-
   for (const value of values) {
     const v = String(value || "").trim();
-    if (!v) continue;
-    if (seen.has(v)) continue;
+    if (!v || seen.has(v)) continue;
     seen.add(v);
     out.push(v);
   }
-
   return out;
 }
 
@@ -113,8 +114,6 @@ function getImageFromLayer(layer: any) {
     layer?.image,
     layer?.imageUrl,
     layer?.image_url,
-    layer?.imageUrl,
-    layer?.image_url,
     layer?.media_url,
     layer?.mediaUrl,
     layer?.preview_url,
@@ -123,22 +122,25 @@ function getImageFromLayer(layer: any) {
     layer?.thumbnailUrl,
     layer?.background,
     layer?.backgroundUrl,
-    layer?.background_url,
-    layer?.imageUrl,
-    layer?.image_url
+    layer?.background_url
   );
 }
 
 function normalizeLayer(raw: any, index: number): PreviewLayer | null {
   if (!raw || typeof raw !== "object") return null;
 
-  const typeRaw = String(raw?.type || raw?.kind || raw?.layerType || "").toLowerCase();
-  const type: PreviewLayer["type"] =
-    typeRaw.includes("background")
-      ? "background"
-      : typeRaw.includes("image") || raw?.src || raw?.imageUrl || raw?.image_url
-      ? "image"
-      : "text";
+  const typeRaw = String(
+    raw?.type || raw?.kind || raw?.layerType || ""
+  ).toLowerCase();
+
+  const type: PreviewLayer["type"] = typeRaw.includes("background")
+    ? "background"
+    : typeRaw.includes("image") ||
+      raw?.src ||
+      raw?.imageUrl ||
+      raw?.image_url
+    ? "image"
+    : "text";
 
   const text = getTextFromLayer(raw);
   const src = getImageFromLayer(raw);
@@ -183,8 +185,12 @@ function getCanvasMeta(parsed: any, post: any) {
   ];
 
   for (const c of candidates) {
-    const width = Number(c?.width ?? c?.w ?? c?.canvasWidth ?? c?.formatWidth ?? 0);
-    const height = Number(c?.height ?? c?.h ?? c?.canvasHeight ?? c?.formatHeight ?? 0);
+    const width = Number(
+      c?.width ?? c?.w ?? c?.canvasWidth ?? c?.formatWidth ?? 0
+    );
+    const height = Number(
+      c?.height ?? c?.h ?? c?.canvasHeight ?? c?.formatHeight ?? 0
+    );
     if (width > 0 && height > 0) return { width, height };
   }
 
@@ -219,38 +225,73 @@ function snapToCommonFormat(width: number, height: number) {
   return { width, height };
 }
 
-function inferCanvasSize(layers: PreviewLayer[], parsed: any, post: any) {
+function inferCanvasSize(
+  layers: PreviewLayer[],
+  parsed: any,
+  post: any
+) {
   const fromMeta = getCanvasMeta(parsed, post);
-  if (fromMeta.width > 0 && fromMeta.height > 0) return snapToCommonFormat(fromMeta.width, fromMeta.height);
+  if (fromMeta.width > 0 && fromMeta.height > 0) {
+    return snapToCommonFormat(fromMeta.width, fromMeta.height);
+  }
 
   let maxX = 0;
   let maxY = 0;
 
   for (const layer of layers) {
-    const w = typeof layer.width === "number" ? layer.width : layer.type === "text" ? 420 : 0;
-    const h = typeof layer.height === "number" ? layer.height : layer.type === "text" ? 160 : 0;
+    const w =
+      typeof layer.width === "number"
+        ? layer.width
+        : layer.type === "text"
+        ? 420
+        : 0;
+    const h =
+      typeof layer.height === "number"
+        ? layer.height
+        : layer.type === "text"
+        ? 160
+        : 0;
     maxX = Math.max(maxX, (layer.x || 0) + w);
     maxY = Math.max(maxY, (layer.y || 0) + h);
   }
 
-  return snapToCommonFormat(Math.max(300, Math.round(maxX)), Math.max(300, Math.round(maxY)));
+  return snapToCommonFormat(
+    Math.max(300, Math.round(maxX)),
+    Math.max(300, Math.round(maxY))
+  );
 }
 
-function extractPreviewCanvas(post: any, parsed: any): PreviewCanvas | null {
+function extractPreviewCanvas(
+  post: any,
+  parsed: any
+): PreviewCanvas | null {
   const directLayerSources = [
     { source: "parsed.layers", layers: extractLayers(parsed?.layers) },
     { source: "parsed.elements", layers: extractLayers(parsed?.elements) },
     { source: "parsed.objects", layers: extractLayers(parsed?.objects) },
-    { source: "parsed.contenu.layers", layers: extractLayers(parsed?.contenu?.layers) },
-    { source: "parsed.content.layers", layers: extractLayers(parsed?.content?.layers) },
+    {
+      source: "parsed.contenu.layers",
+      layers: extractLayers(parsed?.contenu?.layers),
+    },
+    {
+      source: "parsed.content.layers",
+      layers: extractLayers(parsed?.content?.layers),
+    },
   ];
 
   for (const item of directLayerSources) {
     if (!item.layers.length) continue;
-    const layers = item.layers.map(normalizeLayer).filter(Boolean) as PreviewLayer[];
+    const layers = item.layers
+      .map(normalizeLayer)
+      .filter(Boolean) as PreviewLayer[];
     if (!layers.length) continue;
     const size = inferCanvasSize(layers, parsed, post);
-    return { width: size.width, height: size.height, layers, source: item.source };
+    return {
+      width: size.width,
+      height: size.height,
+      layers,
+      source: item.source,
+    };
   }
 
   const slides = extractSlides(parsed?.slides);
@@ -258,17 +299,33 @@ function extractPreviewCanvas(post: any, parsed: any): PreviewCanvas | null {
     for (let i = 0; i < slides.length; i += 1) {
       const slide = slides[i];
       const sourceLayers = [
-        { source: `parsed.slides[${i}].layers`, layers: extractLayers(slide?.layers) },
-        { source: `parsed.slides[${i}].elements`, layers: extractLayers(slide?.elements) },
-        { source: `parsed.slides[${i}].objects`, layers: extractLayers(slide?.objects) },
+        {
+          source: `parsed.slides[${i}].layers`,
+          layers: extractLayers(slide?.layers),
+        },
+        {
+          source: `parsed.slides[${i}].elements`,
+          layers: extractLayers(slide?.elements),
+        },
+        {
+          source: `parsed.slides[${i}].objects`,
+          layers: extractLayers(slide?.objects),
+        },
       ];
 
       for (const item of sourceLayers) {
         if (!item.layers.length) continue;
-        const layers = item.layers.map(normalizeLayer).filter(Boolean) as PreviewLayer[];
+        const layers = item.layers
+          .map(normalizeLayer)
+          .filter(Boolean) as PreviewLayer[];
         if (!layers.length) continue;
         const size = inferCanvasSize(layers, slide ?? parsed, post);
-        return { width: size.width, height: size.height, layers, source: item.source };
+        return {
+          width: size.width,
+          height: size.height,
+          layers,
+          source: item.source,
+        };
       }
     }
   }
@@ -321,8 +378,14 @@ function flattenPossibleTextSources(post: any, parsed: any) {
       post?.generated_caption,
       post?.generated_text,
       post?.generatedText,
-      typeof post?.contenu === "string" && post.contenu.trim().startsWith("{") ? "" : post?.contenu,
-      typeof post?.content === "string" && post.content.trim().startsWith("{") ? "" : post?.content
+      typeof post?.contenu === "string" &&
+        post.contenu.trim().startsWith("{")
+        ? ""
+        : post?.contenu,
+      typeof post?.content === "string" &&
+        post.content.trim().startsWith("{")
+        ? ""
+        : post?.content
     ),
     firstNonEmptyString(
       parsed?.caption,
@@ -350,11 +413,8 @@ function extractCaption(post: any, parsed: any) {
     .filter(Boolean);
 
   if (!candidates.length) return "";
-
   const longEnough = candidates.find((text) => text.length >= 24);
-  if (longEnough) return longEnough;
-
-  return candidates[0] || "";
+  return longEnough || candidates[0] || "";
 }
 
 function flattenPossibleMediaSources(post: any, parsed: any) {
@@ -474,9 +534,91 @@ function buildNetworkUrl(network: string) {
 }
 
 function getStatus(post: any, parsed: any) {
-  return String(post?.statut ?? post?.status ?? parsed?.statut ?? parsed?.status ?? "scheduled")
+  return String(
+    post?.statut ??
+      post?.status ??
+      parsed?.statut ??
+      parsed?.status ??
+      "scheduled"
+  )
     .toLowerCase()
     .trim();
+}
+
+function buildHashtagsFromCaption(caption: string) {
+  const words = String(caption || "")
+    .toLowerCase()
+    .replace(/[^a-zàâäéèêëîïôöùûüç0-9\s]/gi, " ")
+    .split(/\s+/)
+    .filter((w) => w.length >= 4);
+
+  const common = [
+    "marketingdigital",
+    "businessenligne",
+    "entrepreneur",
+    "creationdecontenu",
+    "ia",
+    "socialmedia",
+  ];
+
+  const dynamic = Array.from(new Set(words))
+    .slice(0, 4)
+    .map((w) => `#${w}`);
+  const base = common.slice(0, 4).map((w) => `#${w}`);
+  return Array.from(new Set([...dynamic, ...base])).join(" ");
+}
+
+function buildCTAFromCaption(_caption: string) {
+  return "👉 Enregistre ce post, partage-le et passe à l’action avec LGD.";
+}
+
+function buildMockCaption(input: {
+  source: string;
+  network: string;
+  tone: string;
+  objective: string;
+  title: string;
+}) {
+  const { source, network, tone, objective, title } = input;
+
+  const intro =
+    tone === "premium"
+      ? "🚀 Passe à un niveau supérieur avec une communication plus claire et plus rentable."
+      : tone === "expert"
+      ? "Voici une approche plus structurée pour transformer une idée en contenu utile."
+      : tone === "inspirant"
+      ? "Chaque publication peut devenir un vrai levier de croissance quand elle est bien pensée."
+      : "Publier mieux, plus vite et avec plus d’impact, c’est possible.";
+
+  const body =
+    network === "linkedin"
+      ? "Sur LinkedIn, la clarté, la structure et l’angle stratégique font toute la différence."
+      : network === "facebook"
+      ? "Sur Facebook, il faut capter l’attention vite et donner envie d’interagir."
+      : "Sur Instagram, l’impact visuel doit être soutenu par une légende claire et engageante.";
+
+  const goal =
+    objective === "conversion"
+      ? "L’objectif ici est simple : attirer l’attention, créer la confiance et pousser à l’action."
+      : objective === "engagement"
+      ? "L’objectif ici est de stimuler les réactions, les partages et les enregistrements."
+      : objective === "lead"
+      ? "L’objectif ici est de transformer l’intérêt en prospect qualifié."
+      : "L’objectif ici est de renforcer ta visibilité avec un message mieux structuré.";
+
+  const safeTitle = title?.trim() || source?.trim() || "ton contenu";
+
+  return `${intro}
+
+${body}
+
+À partir de "${safeTitle}", LGD peut t’aider à mieux structurer ton message et accélérer ta publication.
+
+${goal}
+
+${buildCTAFromCaption(source)}
+
+${buildHashtagsFromCaption(source)}`;
 }
 
 function PreviewCanvasView({ canvas }: { canvas: PreviewCanvas }) {
@@ -488,7 +630,9 @@ function PreviewCanvasView({ canvas }: { canvas: PreviewCanvas }) {
     <div className="rounded-2xl border border-yellow-500/20 bg-black/30 p-3">
       <div className="mb-3 flex items-center justify-between gap-3">
         <div>
-          <p className="text-xs uppercase tracking-[0.18em] text-yellow-300/80">Aperçu réel</p>
+          <p className="text-xs uppercase tracking-[0.18em] text-yellow-300/80">
+            Aperçu réel
+          </p>
           <p className="mt-1 text-[11px] text-white/45">
             Format détecté : {canvas.width} × {canvas.height}
           </p>
@@ -550,17 +694,17 @@ function PreviewCanvasView({ canvas }: { canvas: PreviewCanvas }) {
               );
             }
 
-            if (layer.type === "image" && layer.src && looksLikeImageUrl(layer.src)) {
+            if (
+              layer.type === "image" &&
+              layer.src &&
+              looksLikeImageUrl(layer.src)
+            ) {
               return (
                 <img
                   key={layer.id}
                   src={layer.src}
                   alt="preview"
-                  style={{
-                    ...baseStyle,
-                    objectFit: "cover",
-                    borderRadius: 12,
-                  }}
+                  style={{ ...baseStyle, objectFit: "cover", borderRadius: 12 }}
                 />
               );
             }
@@ -574,10 +718,14 @@ function PreviewCanvasView({ canvas }: { canvas: PreviewCanvas }) {
                     ...baseStyle,
                     color: String(layer.style?.color || "#ffffff"),
                     fontSize: `${(fontSize / canvas.height) * 100}cqh`,
-                    fontFamily: String(layer.style?.fontFamily || "inherit"),
+                    fontFamily: String(
+                      layer.style?.fontFamily || "inherit"
+                    ),
                     fontWeight: Number(layer.style?.fontWeight || 700),
                     fontStyle: layer.style?.italic ? "italic" : "normal",
-                    textDecoration: layer.style?.underline ? "underline" : "none",
+                    textDecoration: layer.style?.underline
+                      ? "underline"
+                      : "none",
                     textAlign: (layer.style?.align as any) || "left",
                     whiteSpace: "pre-wrap",
                     lineHeight: 1.1,
@@ -598,31 +746,64 @@ function PreviewCanvasView({ canvas }: { canvas: PreviewCanvas }) {
   );
 }
 
-export default function AssistedPublishModal({ open, post, onClose, onMarkStatus }: Props) {
+export default function AssistedPublishModal({
+  open,
+  post,
+  onClose,
+  onMarkStatus,
+}: Props) {
   const [copied, setCopied] = useState<"" | "caption" | "media">("");
   const [saving, setSaving] = useState<"" | ManualStatus>("");
+  const [editableCaption, setEditableCaption] = useState("");
+  const [captionLoading, setCaptionLoading] = useState(false);
+  const [quotaRemaining, setQuotaRemaining] = useState(84);
+  const [tone, setTone] = useState("premium");
+  const [objective, setObjective] = useState("conversion");
 
-  const parsed = useMemo(() => safeParseJSON(post?.contenu ?? post?.content ?? null), [post]);
-
+  const parsed = useMemo(
+    () => safeParseJSON(post?.contenu ?? post?.content ?? null),
+    [post]
+  );
   const title = useMemo(() => extractTitle(post, parsed), [post, parsed]);
   const caption = useMemo(() => extractCaption(post, parsed), [post, parsed]);
   const mediaUrl = useMemo(() => extractMediaUrl(post, parsed), [post, parsed]);
-  const mediaUrls = useMemo(() => extractAllMediaUrls(post, parsed), [post, parsed]);
+  const mediaUrls = useMemo(
+    () => extractAllMediaUrls(post, parsed),
+    [post, parsed]
+  );
   const slides = useMemo(() => extractSlides(parsed?.slides), [parsed]);
-  const previewCanvas = useMemo(() => extractPreviewCanvas(post, parsed), [post, parsed]);
+  const previewCanvas = useMemo(
+    () => extractPreviewCanvas(post, parsed),
+    [post, parsed]
+  );
   const network = useMemo(
     () =>
-      String(post?.reseau ?? post?.network ?? parsed?.reseau ?? parsed?.network ?? "").toLowerCase(),
+      String(
+        post?.reseau ??
+          post?.network ??
+          parsed?.reseau ??
+          parsed?.network ??
+          ""
+      ).toLowerCase(),
     [post, parsed]
   );
   const networkUrl = useMemo(() => buildNetworkUrl(network), [network]);
   const status = useMemo(() => getStatus(post, parsed), [post, parsed]);
   const isPublished =
-    status.includes("published") || status.includes("envoy") || status.includes("success");
+    status.includes("published") ||
+    status.includes("envoy") ||
+    status.includes("success");
+
+  useEffect(() => {
+    setEditableCaption(caption || "");
+  }, [caption, post?.id]);
 
   if (!open || !post) return null;
 
-  const copyValue = async (value: string, type: "caption" | "media") => {
+  const copyValue = async (
+    value: string,
+    type: "caption" | "media"
+  ) => {
     if (!value) return;
     try {
       await navigator.clipboard.writeText(value);
@@ -644,15 +825,80 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
     }
   };
 
+  const handleGenerateCaption = async () => {
+    if (captionLoading || quotaRemaining <= 0) return;
+    setCaptionLoading(true);
+    try {
+      const generated = buildMockCaption({
+        source: editableCaption || caption || title,
+        network,
+        tone,
+        objective,
+        title,
+      });
+      await new Promise((resolve) => window.setTimeout(resolve, 900));
+      setEditableCaption(generated);
+      setQuotaRemaining((prev) => Math.max(prev - 1, 0));
+    } finally {
+      setCaptionLoading(false);
+    }
+  };
+
+  const handleRegenerateCaption = async () => {
+    if (captionLoading || quotaRemaining <= 0) return;
+    setCaptionLoading(true);
+    try {
+      const generated = `${buildMockCaption({
+        source: editableCaption || caption || title,
+        network,
+        tone,
+        objective,
+        title,
+      })}
+
+Version optimisée : ${
+        network === "linkedin"
+          ? "mets en avant ton expertise."
+          : "rends ton message encore plus engageant."
+      }`;
+      await new Promise((resolve) => window.setTimeout(resolve, 900));
+      setEditableCaption(generated);
+      setQuotaRemaining((prev) => Math.max(prev - 1, 0));
+    } finally {
+      setCaptionLoading(false);
+    }
+  };
+
+  const handleAddHashtags = () => {
+    if (captionLoading) return;
+    const hashtags = buildHashtagsFromCaption(
+      editableCaption || caption || title
+    );
+    if (!hashtags) return;
+    setEditableCaption((prev) => `${prev}\n\n${hashtags}`.trim());
+  };
+
+  const handleAddCTA = () => {
+    if (captionLoading) return;
+    const cta = buildCTAFromCaption(editableCaption || caption || title);
+    if (!cta) return;
+    setEditableCaption((prev) => `${prev}\n\n${cta}`.trim());
+  };
+
   return (
     <div className="fixed inset-0 z-[90] overflow-y-auto bg-black/80 px-4 py-6 backdrop-blur-sm">
       <div className="mx-auto mt-10 w-full max-w-5xl rounded-[28px] border border-[#2a2a2a] bg-[#0b0b0b] shadow-[0_24px_80px_rgba(0,0,0,0.55)]">
         <div className="flex items-center justify-between border-b border-white/10 px-6 py-5 md:px-8">
           <div>
-            <p className="text-xs uppercase tracking-[0.25em] text-yellow-500/80">Publication assistée</p>
-            <h3 className="mt-2 text-xl font-semibold text-white md:text-2xl">{title}</h3>
+            <p className="text-xs uppercase tracking-[0.25em] text-yellow-500/80">
+              Publication assistée
+            </p>
+            <h3 className="mt-2 text-xl font-semibold text-white md:text-2xl">
+              {title}
+            </h3>
             <p className="mt-2 text-sm text-white/55">
-              Ouvre le réseau, colle la légende, ajoute le visuel et garde le suivi directement dans le Planner.
+              Ouvre le réseau, colle la légende, ajoute le visuel et garde le
+              suivi directement dans le Planner.
             </p>
           </div>
 
@@ -668,36 +914,126 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
         <div className="grid gap-6 px-6 py-6 md:grid-cols-[1.3fr_0.7fr] md:px-8 md:py-8">
           <div className="space-y-6">
             <div className="rounded-2xl border border-white/10 bg-[#121212] p-5">
-              <div className="flex items-center justify-between gap-4">
+              <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.22em] text-white/40">Légende prête</p>
+                  <p className="text-xs uppercase tracking-[0.22em] text-yellow-300/80">
+                    IA Caption Generator
+                  </p>
                   <p className="mt-2 text-sm text-white/70">
-                    Utilise ce texte tel quel ou adapte-le avant de publier.
+                    Génère une légende optimisée selon le réseau, le ton et
+                    l’objectif.
+                  </p>
+                  <p className="mt-2 text-xs text-white/50">
+                    Quota IA restant :{" "}
+                    <span className="font-semibold text-yellow-300">
+                      {quotaRemaining} / 100
+                    </span>
                   </p>
                 </div>
 
+                <div className="flex flex-wrap gap-2">
+                  <select
+                    value={tone}
+                    onChange={(e) => setTone(e.target.value)}
+                    className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none"
+                  >
+                    <option value="premium">Premium</option>
+                    <option value="expert">Expert</option>
+                    <option value="inspirant">Inspirant</option>
+                    <option value="direct">Direct</option>
+                  </select>
+
+                  <select
+                    value={objective}
+                    onChange={(e) => setObjective(e.target.value)}
+                    className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none"
+                  >
+                    <option value="conversion">Conversion</option>
+                    <option value="engagement">Engagement</option>
+                    <option value="visibility">Visibilité</option>
+                    <option value="lead">Lead</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="mt-4 flex flex-wrap gap-2">
                 <button
                   type="button"
-                  onClick={() => copyValue(caption, "caption")}
-                  disabled={!caption}
+                  onClick={handleGenerateCaption}
+                  disabled={captionLoading || quotaRemaining <= 0}
                   className="inline-flex items-center gap-2 rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-2 text-sm font-semibold text-yellow-300 disabled:opacity-40"
                 >
-                  {copied === "caption" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  <Sparkles className="h-4 w-4" />
+                  Générer IA
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleRegenerateCaption}
+                  disabled={captionLoading || quotaRemaining <= 0}
+                  className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 disabled:opacity-40"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  Régénérer
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => copyValue(editableCaption, "caption")}
+                  disabled={!editableCaption}
+                  className="inline-flex items-center gap-2 rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-2 text-sm font-semibold text-yellow-300 disabled:opacity-40"
+                >
+                  {copied === "caption" ? (
+                    <Check className="h-4 w-4" />
+                  ) : (
+                    <Copy className="h-4 w-4" />
+                  )}
                   Copier
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleAddHashtags}
+                  className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/80"
+                >
+                  Ajouter hashtags
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleAddCTA}
+                  className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/80"
+                >
+                  Ajouter CTA
                 </button>
               </div>
 
-              <div className="mt-4 max-h-[240px] overflow-auto whitespace-pre-wrap rounded-2xl border border-white/10 bg-black/20 p-4 text-sm leading-6 text-white/85">
-                {caption || "Aucune légende détectée. Ouvre l’éditeur pour enrichir le contenu avant publication."}
-              </div>
+              {captionLoading && (
+                <div className="mt-4 rounded-2xl border border-yellow-500/20 bg-yellow-500/5 px-4 py-3 text-sm text-yellow-200">
+                  <div className="flex items-center gap-3">
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-yellow-400 border-t-transparent" />
+                    LGD génère une légende optimisée…
+                  </div>
+                </div>
+              )}
+
+              <textarea
+                value={editableCaption}
+                onChange={(e) => setEditableCaption(e.target.value)}
+                className="mt-4 min-h-[220px] w-full rounded-2xl border border-white/10 bg-black/20 p-4 text-sm leading-6 text-white/85 outline-none focus:border-yellow-500/40"
+                placeholder="La légende IA apparaîtra ici..."
+              />
             </div>
 
             <div className="rounded-2xl border border-white/10 bg-[#121212] p-5">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.22em] text-white/40">Visuel / média</p>
+                  <p className="text-xs uppercase tracking-[0.22em] text-white/40">
+                    Visuel / média
+                  </p>
                   <p className="mt-2 text-sm text-white/70">
-                    LGD essaie d’afficher le rendu final réel en respectant le format du design.
+                    LGD essaie d’afficher le rendu final réel en respectant le
+                    format du design.
                   </p>
                 </div>
 
@@ -708,7 +1044,11 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
                     disabled={!mediaUrl}
                     className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 disabled:opacity-40"
                   >
-                    {copied === "media" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                    {copied === "media" ? (
+                      <Check className="h-4 w-4" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
                     Copier le lien
                   </button>
 
@@ -746,7 +1086,8 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
                   </div>
                 ) : (
                   <p>
-                    Aucun média détecté automatiquement. Utilise l’éditeur intelligent ou la bibliothèque pour récupérer le visuel.
+                    Aucun média détecté automatiquement. Utilise l’éditeur
+                    intelligent ou la bibliothèque pour récupérer le visuel.
                   </p>
                 )}
 
@@ -770,7 +1111,8 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
 
                 {slides.length > 1 && (
                   <p className="text-xs text-yellow-300/90">
-                    Ce carrousel contient {slides.length} slides. LGD affiche ici la première composition exploitable détectée.
+                    Ce carrousel contient {slides.length} slides. LGD affiche
+                    ici la première composition exploitable détectée.
                   </p>
                 )}
               </div>
@@ -779,12 +1121,20 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
 
           <div className="space-y-6">
             <div className="rounded-2xl border border-yellow-500/20 bg-gradient-to-br from-yellow-500/10 to-transparent p-5">
-              <p className="text-xs uppercase tracking-[0.22em] text-yellow-300/85">Flux recommandé</p>
+              <p className="text-xs uppercase tracking-[0.22em] text-yellow-300/85">
+                Flux recommandé
+              </p>
               <ol className="mt-4 space-y-3 text-sm text-white/80">
                 <li>1. Copie la légende LGD.</li>
                 <li>2. Ouvre {network || "le réseau"} dans un nouvel onglet.</li>
-                <li>3. Vérifie l’aperçu réel du format puis ajoute le média préparé.</li>
-                <li>4. Publie manuellement et reviens marquer la publication comme envoyée.</li>
+                <li>
+                  3. Vérifie l’aperçu réel du format puis ajoute le média
+                  préparé.
+                </li>
+                <li>
+                  4. Publie manuellement et reviens marquer la publication comme
+                  envoyée.
+                </li>
               </ol>
 
               {networkUrl && (
@@ -801,7 +1151,9 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
             </div>
 
             <div className="rounded-2xl border border-white/10 bg-[#121212] p-5">
-              <p className="text-xs uppercase tracking-[0.22em] text-white/40">Suivi Planner</p>
+              <p className="text-xs uppercase tracking-[0.22em] text-white/40">
+                Suivi Planner
+              </p>
               <p className="mt-3 text-sm text-white/70">
                 Garde ton calendrier propre même sans auto-publication Meta.
               </p>
@@ -828,14 +1180,21 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
                   className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white/80 hover:border-yellow-500/30 disabled:opacity-60"
                 >
                   <Undo2 className="h-4 w-4" />
-                  {saving === "scheduled" ? "Mise à jour..." : "Remettre en planifié"}
+                  {saving === "scheduled"
+                    ? "Mise à jour..."
+                    : "Remettre en planifié"}
                 </button>
               </div>
 
               <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4 text-xs leading-6 text-white/55">
-                Statut actuel : <span className="text-white/80">{isPublished ? "Publié" : "Planifié"}</span>
+                Statut actuel :{" "}
+                <span className="text-white/80">
+                  {isPublished ? "Publié" : "Planifié"}
+                </span>
                 <br />
-                Publication assistée = LGD prépare le contenu, l’horaire et le suivi. L’utilisateur garde le contrôle final sur le clic publier.
+                Publication assistée = LGD prépare le contenu, l’horaire et le
+                suivi. L’utilisateur garde le contrôle final sur le clic
+                publier.
               </div>
             </div>
           </div>
