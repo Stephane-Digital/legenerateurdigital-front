@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { LayerData } from "../v5/types/layers";
 import EditorLayout from "../v5/ui/EditorLayout";
+import SchedulePlannerModal from "../ui/SchedulePlannerModal";
+import useSchedulePlanner from "../v5/hooks/useSchedulePlanner";
 
 interface Props {
   mobileToolsOpen?: boolean;
@@ -525,6 +527,8 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
 
   const [aiOutput, setAiOutput] = useState<string>("");
   const [aiHooks, setAiHooks] = useState<string[]>([]);
+  const { schedule, loading: scheduleLoading } = useSchedulePlanner();
+  const [scheduleOpen, setScheduleOpen] = useState(false);
 
   const userTouchedIdeaRef = useRef(false);
   const userTouchedObjectiveRef = useRef(false);
@@ -779,6 +783,34 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
     setAuditError(null);
     lastAuditSigRef.current = "";
   }, []);
+
+  const plannerTitle = useMemo(() => {
+    const slideTexts = slides
+      .flatMap((slide) => (slide.layers || []).map((layer: any) => String(layer?.text || "").trim()).filter(Boolean));
+    return clip(slideTexts[0] || idea || brief || "Carrousel intelligent LGD", 72);
+  }, [slides, idea, brief]);
+
+  const handleScheduleConfirm = useCallback(
+    async ({ reseau, date_programmee, titre }: { reseau: string; date_programmee: string; titre?: string }) => {
+      await schedule({
+        reseau,
+        date_programmee,
+        titre: titre || plannerTitle,
+        format: "carrousel",
+        slides: slides.map((slide) => ({ id: slide.id, layers: slide.layers })),
+        contenu: {
+          title: titre || plannerTitle,
+          type: "carrousel",
+          slides: slides.map((slide) => ({ id: slide.id, layers: slide.layers })),
+          ui: draftUI,
+          brief: brief || "",
+        },
+      });
+      setScheduleOpen(false);
+      if (typeof window !== "undefined") window.alert("✅ Ajouté au Planner !");
+    },
+    [schedule, plannerTitle, slides, draftUI, brief]
+  );
 
   return (
     <div className="w-full flex justify-center">
@@ -1079,7 +1111,17 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
                           </div>
                         ) : null}
 
-                        {aiHooks.length > 0 ? (
+                        {aiLoading ? (
+                          <div className="mt-3 rounded-2xl border border-yellow-500/15 bg-black/25 px-4 py-8">
+                            <div className="flex flex-col items-center justify-center gap-4">
+                              <div className="h-8 w-8 animate-spin rounded-full border-2 border-yellow-400 border-t-transparent" />
+                              <div className="text-sm text-white/70">Génération IA en cours...</div>
+                              <div className="text-xs text-white/45 text-center">
+                                LGD prépare une proposition premium à injecter dans ton carrousel.
+                              </div>
+                            </div>
+                          </div>
+                        ) : aiHooks.length > 0 ? (
                           <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
                             {aiHooks.map((h, idx) => (
                               <button
@@ -1117,6 +1159,17 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
               ) : null}
             </div>
 
+            <div className="mb-4 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setScheduleOpen(true)}
+                disabled={scheduleLoading}
+                className="rounded-xl border border-yellow-500/25 bg-[#ffb800] px-4 py-2 text-sm font-semibold text-black hover:brightness-110 disabled:opacity-60"
+              >
+                {scheduleLoading ? "Planification" : "Planifier"}
+              </button>
+            </div>
+
             <EditorLayout
               key={`${activeSlideId}-${editorRefreshKey}`}
               initialLayers={activeSlide?.layers ?? []}
@@ -1126,6 +1179,14 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
               onChange={updateLayers}
               mobileToolsOpen={mobileToolsOpen}
               onCloseMobileTools={onCloseMobileTools}
+            />
+
+            <SchedulePlannerModal
+              open={scheduleOpen}
+              loading={scheduleLoading}
+              defaultTitle={plannerTitle}
+              onClose={() => setScheduleOpen(false)}
+              onConfirm={handleScheduleConfirm}
             />
 
             <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
