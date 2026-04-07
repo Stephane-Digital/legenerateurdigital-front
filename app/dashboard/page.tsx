@@ -11,6 +11,7 @@ import LeadEngineBlock from "./components/LeadEngineBlock";
 import {
   FaBolt,
   FaBook,
+  FaCalendarAlt,
   FaCheckCircle,
   FaCircle,
   FaCrown,
@@ -575,7 +576,34 @@ export default function DashboardPage() {
               </div>
             </CardLuxe>
 
-           <LeadEngineBlock onDiscover={() => go("/dashboard/lead-engine")} />
+            <LeadEngineBlock onDiscover={() => go("/dashboard/lead-engine")} />
+
+            <CardLuxe className="min-h-[230px] flex flex-col items-center justify-between px-6 py-6 text-center md:col-span-2">
+              <div className="flex flex-col items-center">
+                <FaCalendarAlt className={iconGlow} />
+                <h3 className="mt-3 text-xl font-bold text-[#ffb800]">
+                  Planner Réseaux Sociaux
+                </h3>
+                <p className="mt-2 text-white/70 max-w-[620px]">
+                  Planifie, vérifie et pilote tes publications Instagram, Facebook et LinkedIn avant diffusion automatique.
+                </p>
+                {!hasPaidAccess ? <div className="mt-3"><LockBadge /></div> : null}
+              </div>
+
+              <div className="w-full mt-6 max-w-md">
+                <SecondaryButton
+                  onClick={() => {
+                    if (hasPaidAccess) {
+                      go("/dashboard/automatisations/reseaux_sociaux/planner");
+                      return;
+                    }
+                    openSystemeioPlans();
+                  }}
+                >
+                  {hasPaidAccess ? "Accéder au Planner" : "Découvrir"}
+                </SecondaryButton>
+              </div>
+            </CardLuxe>
           </div>
         </motion.div>
 
