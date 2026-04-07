@@ -13,7 +13,6 @@ const icons: Record<string, JSX.Element> = {
   linkedin: <div className="w-2 h-2 rounded bg-blue-400" />,
   tiktok: <div className="w-2 h-2 rounded bg-white" />,
   youtube: <div className="w-2 h-2 rounded bg-red-500" />,
-  pinterest: <div className="w-2 h-2 rounded bg-red-600" />,
   snapchat: <div className="w-2 h-2 rounded bg-yellow-300" />,
 };
 
@@ -354,3 +353,4 @@ export default function DayView({ currentDate }: Props) {
     </>
   );
 }
+
