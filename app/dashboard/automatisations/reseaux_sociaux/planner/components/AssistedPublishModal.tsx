@@ -1,5 +1,6 @@
 "use client";
 
+import api from "@/lib/api";
 import {
   Check,
   Copy,
@@ -706,24 +707,37 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
     }
   };
 
-  const handleGenerateCaption = async () => {
-    if (captionLoading || quotaRemaining <= 0) return;
-    setCaptionLoading(true);
-    try {
-      const generated = buildMockCaption({
-        source: editableCaption || caption || title,
-        network,
-        tone,
-        objective,
-        title,
-      });
-      await new Promise((resolve) => window.setTimeout(resolve, 900));
+const handleGenerateCaption = async () => {
+  if (captionLoading || quotaRemaining <= 0) return;
+
+  setCaptionLoading(true);
+
+  try {
+    const res = await api.post("/ai/text/rewrite", {
+      text: editableCaption || caption || title,
+      tone,
+      max_length: 1200,
+    });
+
+    const generated =
+      typeof res?.data === "string"
+        ? res.data
+        : res?.data?.text ||
+          res?.data?.content ||
+          res?.data?.result ||
+          "";
+
+    if (generated) {
       setEditableCaption(generated);
       setQuotaRemaining((prev) => Math.max(prev - 1, 0));
-    } finally {
-      setCaptionLoading(false);
     }
-  };
+  } catch (error) {
+    console.error("LGD IA ERROR:", error);
+    alert("Erreur IA : génération impossible.");
+  } finally {
+    setCaptionLoading(false);
+  }
+};
 
   const handleRegenerateCaption = async () => {
     if (captionLoading || quotaRemaining <= 0) return;
@@ -1035,5 +1049,3 @@ Version optimisée : ${network === "linkedin" ? "mets en avant ton expertise." :
     </div>
   );
 }
-
-
