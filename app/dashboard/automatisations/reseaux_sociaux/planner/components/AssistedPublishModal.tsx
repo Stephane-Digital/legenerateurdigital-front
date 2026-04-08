@@ -660,7 +660,9 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
   const [saving, setSaving] = useState<"" | ManualStatus>("");
   const [editableCaption, setEditableCaption] = useState("");
   const [captionLoading, setCaptionLoading] = useState(false);
-  const [quotaRemaining, setQuotaRemaining] = useState(84);
+  const [quotaRemaining, setQuotaRemaining] = useState<number | null>(null);
+  const [quotaLoading, setQuotaLoading] = useState(true);
+  const [quotaMessage, setQuotaMessage] = useState("");
   const [tone, setTone] = useState("premium");
   const [objective, setObjective] = useState("conversion");
 
@@ -682,6 +684,47 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
   useEffect(() => {
     setEditableCaption(caption || "");
   }, [caption, post?.id]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadQuota = async () => {
+      try {
+        setQuotaLoading(true);
+        const res = await api.get("/ai-quota/global");
+        const data = res?.data ?? {};
+        const remainingRaw =
+          data?.remaining ??
+          data?.remaining_tokens ??
+          data?.quota_remaining ??
+          data?.restant ??
+          data?.quota?.remaining ??
+          0;
+        const remaining = Number(remainingRaw);
+
+        if (mounted) {
+          setQuotaRemaining(Number.isFinite(remaining) ? remaining : 0);
+        }
+      } catch (error) {
+        console.error("LGD QUOTA LOAD ERROR:", error);
+        if (mounted) {
+          setQuotaRemaining(0);
+        }
+      } finally {
+        if (mounted) {
+          setQuotaLoading(false);
+        }
+      }
+    };
+
+    if (open) {
+      loadQuota();
+    }
+
+    return () => {
+      mounted = false;
+    };
+  }, [open]);
 
   if (!open || !post) return null;
 
@@ -707,57 +750,63 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
     }
   };
 
-const handleGenerateCaption = async () => {
-  if (captionLoading || quotaRemaining <= 0) return;
-
-  setCaptionLoading(true);
-
-  try {
-    const res = await api.post("/ai/text/rewrite", {
-      text: editableCaption || caption || title,
-      tone,
-      max_length: 1200,
-    });
-
-    const generated =
-      typeof res?.data === "string"
-        ? res.data
-        : res?.data?.text ||
-          res?.data?.content ||
-          res?.data?.result ||
-          "";
-
-    if (generated) {
-      setEditableCaption(generated);
-      setQuotaRemaining((prev) => Math.max(prev - 1, 0));
-    }
-  } catch (error) {
-    console.error("LGD IA ERROR:", error);
-    alert("Erreur IA : génération impossible.");
-  } finally {
-    setCaptionLoading(false);
-  }
-};
-
-  const handleRegenerateCaption = async () => {
-    if (captionLoading || quotaRemaining <= 0) return;
-    setCaptionLoading(true);
+  const refreshQuota = async () => {
     try {
-      const generated = `${buildMockCaption({
-        source: editableCaption || caption || title,
-        network,
-        tone,
-        objective,
-        title,
-      })}
+      const quotaRes = await api.get("/ai-quota/global");
+      const quotaData = quotaRes?.data ?? {};
+      const remainingRaw =
+        quotaData?.remaining ??
+        quotaData?.remaining_tokens ??
+        quotaData?.quota_remaining ??
+        quotaData?.restant ??
+        quotaData?.quota?.remaining ??
+        quotaRemaining ??
+        0;
+      const remaining = Number(remainingRaw);
+      setQuotaRemaining(Number.isFinite(remaining) ? remaining : 0);
+    } catch (error) {
+      console.error("LGD QUOTA REFRESH ERROR:", error);
+    }
+  };
 
-Version optimisée : ${network === "linkedin" ? "mets en avant ton expertise." : "rends ton message encore plus engageant."}`;
-      await new Promise((resolve) => window.setTimeout(resolve, 900));
-      setEditableCaption(generated);
-      setQuotaRemaining((prev) => Math.max(prev - 1, 0));
+  const handleGenerateCaption = async () => {
+    if (captionLoading || quotaLoading || (quotaRemaining ?? 0) <= 0) return;
+
+    setCaptionLoading(true);
+    setQuotaMessage("");
+
+    try {
+      const res = await api.post("/ai/text/rewrite", {
+        text: editableCaption || caption || title,
+        tone,
+        max_length: 1200,
+      });
+
+      const generated =
+        typeof res?.data === "string"
+          ? res.data
+          : res?.data?.text ||
+            res?.data?.content ||
+            res?.data?.result ||
+            "";
+
+      if (generated) {
+        setEditableCaption(generated);
+      } else {
+        setQuotaMessage("Aucune légende exploitable n’a été renvoyée par l’IA.");
+      }
+
+      await refreshQuota();
+    } catch (error) {
+      console.error("LGD IA ERROR:", error);
+      setQuotaMessage("Erreur IA : génération impossible.");
     } finally {
       setCaptionLoading(false);
     }
+  };
+
+  const handleRegenerateCaption = async () => {
+    await handleGenerateCaption();
   };
 
   const handleAddHashtags = () => {
@@ -805,7 +854,7 @@ Version optimisée : ${network === "linkedin" ? "mets en avant ton expertise." :
                     Génère une légende optimisée selon le réseau, le ton et l’objectif.
                   </p>
                   <p className="mt-2 text-xs text-white/50">
-                    Quota IA restant : <span className="font-semibold text-yellow-300">{quotaRemaining} / 100</span>
+                    Quota IA restant : <span className="font-semibold text-yellow-300">{quotaLoading ? "..." : quotaRemaining ?? 0}</span>
                   </p>
                 </div>
 
@@ -838,7 +887,7 @@ Version optimisée : ${network === "linkedin" ? "mets en avant ton expertise." :
                 <button
                   type="button"
                   onClick={handleGenerateCaption}
-                  disabled={captionLoading || quotaRemaining <= 0}
+                  disabled={captionLoading || quotaLoading || (quotaRemaining ?? 0) <= 0}
                   className="inline-flex items-center gap-2 rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-2 text-sm font-semibold text-yellow-300 disabled:opacity-40"
                 >
                   <Sparkles className="h-4 w-4" />
@@ -848,7 +897,7 @@ Version optimisée : ${network === "linkedin" ? "mets en avant ton expertise." :
                 <button
                   type="button"
                   onClick={handleRegenerateCaption}
-                  disabled={captionLoading || quotaRemaining <= 0}
+                  disabled={captionLoading || quotaLoading || (quotaRemaining ?? 0) <= 0}
                   className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 disabled:opacity-40"
                 >
                   <Sparkles className="h-4 w-4" />
@@ -888,6 +937,12 @@ Version optimisée : ${network === "linkedin" ? "mets en avant ton expertise." :
                     <div className="h-4 w-4 animate-spin rounded-full border-2 border-yellow-400 border-t-transparent" />
                     LGD génère une légende optimisée…
                   </div>
+                </div>
+              )}
+
+              {quotaMessage && (
+                <div className="mt-4 rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-300">
+                  {quotaMessage}
                 </div>
               )}
 
