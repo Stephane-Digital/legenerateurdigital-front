@@ -776,7 +776,7 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
     setQuotaMessage("");
 
     try {
-      const res = await api.post("/ai/text/rewrite", {
+      const res = await api.post("/ai-caption/generate", {
         text: editableCaption || caption || title,
         tone,
         max_length: 1200,
