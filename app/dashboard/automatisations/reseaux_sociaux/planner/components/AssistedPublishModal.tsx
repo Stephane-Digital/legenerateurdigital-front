@@ -472,46 +472,14 @@ function getStatus(post: any, parsed: any) {
     .trim();
 }
 
-function buildHashtagsFromCaption(caption: string) {
-  const words = String(caption || "")
-    .toLowerCase()
-    .replace(/[^a-zàâäéèêëîïôöùûüç0-9\s#]/gi, " ")
-    .split(/\s+/)
-    .filter((w) => w.length >= 4 && !w.startsWith("#"));
-
-  const common = [
-    "marketingdigital",
-    "businessenligne",
-    "entrepreneur",
-    "creationdecontenu",
-    "ia",
-    "socialmedia",
-  ];
-
-  const dynamic = Array.from(new Set(words)).slice(0, 4).map((w) => `#${w}`);
-  const base = common.slice(0, 4).map((w) => `#${w}`);
-  return Array.from(new Set([...dynamic, ...base])).join(" ");
-}
-
-function buildCTAFromCaption(_caption: string) {
-  return "👉 Enregistre ce post, partage-le et passe à l’action avec LGD.";
-}
-
 function mergeUniqueParagraphs(baseText: string, appendedText: string) {
   const base = String(baseText || "").trim();
   const append = String(appendedText || "").trim();
 
   if (!append) return base;
 
-  const baseParts = base
-    .split(/\n{2,}/)
-    .map((part) => part.trim())
-    .filter(Boolean);
-
-  const appendParts = append
-    .split(/\n{2,}/)
-    .map((part) => part.trim())
-    .filter(Boolean);
+  const baseParts = base.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
+  const appendParts = append.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
 
   const seen = new Set(baseParts.map((part) => part.toLowerCase()));
   const merged = [...baseParts];
@@ -531,46 +499,6 @@ function extractOnlyHashtags(text: string) {
     String(text || "").match(/#[A-Za-zÀ-ÖØ-öø-ÿ0-9_-]+/g) || [];
   const unique = Array.from(new Set(matches.map((tag) => tag.trim())));
   return unique.join(" ");
-}
-
-function extractOnlyCta(text: string) {
-  const raw = String(text || "").trim();
-  if (!raw) return "";
-
-  const emojiMatch = raw.match(/👉[^\n\r]*/);
-  if (emojiMatch?.[0]?.trim()) {
-    return emojiMatch[0].trim();
-  }
-
-  const blocks = raw
-    .split(/\n{2,}/)
-    .map((part) => part.trim())
-    .filter(Boolean);
-
-  const ctaBlock = blocks.find((part) => {
-    const lower = part.toLowerCase();
-    return (
-      lower.startsWith("👉") ||
-      lower.includes("passe à l’action") ||
-      lower.includes("passe a l'action") ||
-      lower.includes("dis-moi en commentaire") ||
-      lower.includes("donne-moi ton avis") ||
-      lower.includes("écris-moi en message privé") ||
-      lower.includes("ecris-moi en message privé") ||
-      lower.includes("enregistre cette publication") ||
-      lower.includes("partage-la") ||
-      lower.includes("transforme cette idée en résultat")
-    );
-  });
-
-  if (ctaBlock) return ctaBlock;
-
-  const lastBlock = blocks[blocks.length - 1] || "";
-  if (lastBlock && lastBlock.length <= 220) {
-    return lastBlock;
-  }
-
-  return "";
 }
 
 function buildCaptionPayload(params: {
@@ -838,6 +766,21 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
     return res?.data ?? {};
   };
 
+  const applyRemaining = async (data: any) => {
+    const remainingRaw =
+      data?.quota?.remaining ??
+      data?.remaining ??
+      data?.remaining_tokens ??
+      null;
+
+    if (remainingRaw !== null && remainingRaw !== undefined) {
+      const remaining = Number(remainingRaw);
+      setQuotaRemaining(Number.isFinite(remaining) ? remaining : quotaRemaining);
+    } else {
+      await refreshQuota();
+    }
+  };
+
   const handleGenerateCaption = async () => {
     if (captionLoading || quotaLoading || (quotaRemaining ?? 0) <= 0) return;
 
@@ -850,11 +793,7 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
       const generated =
         typeof data === "string"
           ? data
-          : data?.caption ||
-            data?.text ||
-            data?.content ||
-            data?.result ||
-            "";
+          : data?.caption || data?.text || data?.content || data?.result || "";
 
       if (generated) {
         setEditableCaption(generated);
@@ -862,18 +801,7 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
         setQuotaMessage("Aucune légende exploitable n’a été renvoyée par l’IA.");
       }
 
-      const remainingRaw =
-        data?.quota?.remaining ??
-        data?.remaining ??
-        data?.remaining_tokens ??
-        null;
-
-      if (remainingRaw !== null && remainingRaw !== undefined) {
-        const remaining = Number(remainingRaw);
-        setQuotaRemaining(Number.isFinite(remaining) ? remaining : quotaRemaining);
-      } else {
-        await refreshQuota();
-      }
+      await applyRemaining(data);
     } catch (error: any) {
       console.error("LGD IA ERROR:", error);
       const detail = error?.response?.data?.detail;
@@ -901,34 +829,15 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
 
     try {
       const data = await requestCaption({ includeHashtags: true });
-      const generated =
-        typeof data === "string"
-          ? data
-          : data?.caption ||
-            data?.text ||
-            data?.content ||
-            data?.result ||
-            "";
+      const hashtags = firstNonEmptyString(data?.hashtags, extractOnlyHashtags(data?.caption || ""));
 
-      const hashtags = extractOnlyHashtags(generated);
       if (hashtags) {
         setEditableCaption((prev) => mergeUniqueParagraphs(prev, hashtags));
       } else {
         setQuotaMessage("Aucun hashtag exploitable n’a été renvoyé par l’IA.");
       }
 
-      const remainingRaw =
-        data?.quota?.remaining ??
-        data?.remaining ??
-        data?.remaining_tokens ??
-        null;
-
-      if (remainingRaw !== null && remainingRaw !== undefined) {
-        const remaining = Number(remainingRaw);
-        setQuotaRemaining(Number.isFinite(remaining) ? remaining : quotaRemaining);
-      } else {
-        await refreshQuota();
-      }
+      await applyRemaining(data);
     } catch (error: any) {
       console.error("LGD HASHTAGS ERROR:", error);
       const detail = error?.response?.data?.detail;
@@ -950,34 +859,15 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
 
     try {
       const data = await requestCaption({ includeCta: true });
-      const generated =
-        typeof data === "string"
-          ? data
-          : data?.caption ||
-            data?.text ||
-            data?.content ||
-            data?.result ||
-            "";
+      const cta = firstNonEmptyString(data?.cta);
 
-      const cta = extractOnlyCta(generated);
       if (cta) {
         setEditableCaption((prev) => mergeUniqueParagraphs(prev, cta));
       } else {
         setQuotaMessage("Aucun CTA exploitable n’a été renvoyé par l’IA.");
       }
 
-      const remainingRaw =
-        data?.quota?.remaining ??
-        data?.remaining ??
-        data?.remaining_tokens ??
-        null;
-
-      if (remainingRaw !== null && remainingRaw !== undefined) {
-        const remaining = Number(remainingRaw);
-        setQuotaRemaining(Number.isFinite(remaining) ? remaining : quotaRemaining);
-      } else {
-        await refreshQuota();
-      }
+      await applyRemaining(data);
     } catch (error: any) {
       console.error("LGD CTA ERROR:", error);
       const detail = error?.response?.data?.detail;
