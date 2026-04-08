@@ -769,21 +769,58 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
     }
   };
 
-  const handleGenerateCaption = async () => {
+  const applyQuotaFromResponse = (data: any) => {
+    const remaining = Number(
+      data?.quota?.remaining ??
+        data?.quota?.remaining_tokens ??
+        data?.remaining ??
+        data?.remaining_tokens ??
+        quotaRemaining ??
+        0,
+    );
+
+    if (Number.isFinite(remaining)) {
+      setQuotaRemaining(remaining);
+    }
+  };
+
+  const handleAiCaptionRequest = async (options?: {
+    include_hashtags?: boolean;
+    include_cta?: boolean;
+    mode?: "generate" | "regenerate" | "hashtags" | "cta";
+  }) => {
     if (captionLoading || quotaLoading || (quotaRemaining ?? 0) <= 0) return;
+
+    const mode = options?.mode || "generate";
+    const currentBase = String(editableCaption || caption || "").trim();
+    const sourceBase = String(title || caption || editableCaption || "").trim();
 
     setCaptionLoading(true);
     setQuotaMessage("");
 
     try {
       const res = await api.post("/ai-caption/generate", {
-        prompt: editableCaption || caption || title,
+        prompt: sourceBase || currentBase || "Créer une légende performante",
+        brief: post?.brief ?? parsed?.brief ?? parsed?.prompt ?? undefined,
         network,
         tone,
         objective,
+        brand_name: parsed?.brand_name ?? parsed?.brandName ?? undefined,
+        offer_name: parsed?.offer_name ?? parsed?.offerName ?? undefined,
         language: "fr",
-        include_hashtags: false,
-        include_cta: false,
+        media_type: parsed?.media_type ?? parsed?.mediaType ?? undefined,
+        post_type: parsed?.post_type ?? parsed?.postType ?? undefined,
+        context:
+          mode === "hashtags"
+            ? "Ajoute uniquement une série de hashtags pertinents à la fin de la légende existante, sans dupliquer les hashtags déjà présents."
+            : mode === "cta"
+              ? "Ajoute uniquement un CTA naturel, premium et orienté action à la fin de la légende existante, sans dupliquer un CTA déjà présent."
+              : mode === "regenerate"
+                ? "Régénère une meilleure légende complète, premium, claire et orientée résultat."
+                : "Génère une légende complète, premium, claire et orientée résultat.",
+        existing_caption: currentBase || undefined,
+        include_hashtags: Boolean(options?.include_hashtags),
+        include_cta: Boolean(options?.include_cta),
       });
 
       const data = res?.data ?? {};
@@ -795,16 +832,7 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
         setQuotaMessage("Aucune légende exploitable n’a été renvoyée par l’IA.");
       }
 
-      const remaining = Number(
-        data?.quota?.remaining ??
-          data?.quota?.remaining_tokens ??
-          quotaRemaining ??
-          0,
-      );
-
-      if (Number.isFinite(remaining)) {
-        setQuotaRemaining(remaining);
-      }
+      applyQuotaFromResponse(data);
     } catch (error: any) {
       console.error("LGD IA CAPTION V2 ERROR:", error);
 
@@ -812,7 +840,7 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
 
       if (apiError?.code === "QUOTA_REACHED") {
         setQuotaMessage(apiError?.message || "Quota IA atteint.");
-        setQuotaRemaining(apiError?.quota?.remaining ?? 0);
+        setQuotaRemaining(Number(apiError?.quota?.remaining ?? 0));
       } else {
         setQuotaMessage("Erreur IA : génération impossible.");
       }
@@ -821,22 +849,42 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
     }
   };
 
+  const handleGenerateCaption = async () => {
+    await handleAiCaptionRequest({
+      include_hashtags: false,
+      include_cta: false,
+      mode: "generate",
+    });
+  };
+
   const handleRegenerateCaption = async () => {
-    await handleGenerateCaption();
+    await handleAiCaptionRequest({
+      include_hashtags: false,
+      include_cta: false,
+      mode: "regenerate",
+    });
   };
 
-  const handleAddHashtags = () => {
-    if (captionLoading) return;
-    const hashtags = buildHashtagsFromCaption(editableCaption || caption || title);
-    if (!hashtags) return;
-    setEditableCaption((prev) => `${prev}\n\n${hashtags}`.trim());
+  const handleAddHashtags = async () => {
+    await handleAiCaptionRequest({
+      include_hashtags: true,
+      include_cta: false,
+      mode: "hashtags",
+    });
   };
 
-  const handleAddCTA = () => {
+  const handleAddCTA = async () => {
+    await handleAiCaptionRequest({
+      include_hashtags: false,
+      include_cta: true,
+      mode: "cta",
+    });
+  };
+
+  const handleClearContent = () => {
     if (captionLoading) return;
-    const cta = buildCTAFromCaption(editableCaption || caption || title);
-    if (!cta) return;
-    setEditableCaption((prev) => `${prev}\n\n${cta}`.trim());
+    setEditableCaption("");
+    setQuotaMessage("");
   };
 
   return (
@@ -933,7 +981,8 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
                 <button
                   type="button"
                   onClick={handleAddHashtags}
-                  className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/80"
+                  disabled={captionLoading || quotaLoading || (quotaRemaining ?? 0) <= 0}
+                  className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/80 disabled:opacity-40"
                 >
                   Ajouter hashtags
                 </button>
@@ -941,9 +990,19 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
                 <button
                   type="button"
                   onClick={handleAddCTA}
-                  className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/80"
+                  disabled={captionLoading || quotaLoading || (quotaRemaining ?? 0) <= 0}
+                  className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/80 disabled:opacity-40"
                 >
                   Ajouter CTA
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleClearContent}
+                  disabled={captionLoading || !editableCaption}
+                  className="rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-2 text-sm text-red-200 disabled:opacity-40"
+                >
+                  Effacer le contenu
                 </button>
               </div>
 
