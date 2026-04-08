@@ -534,13 +534,43 @@ function extractOnlyHashtags(text: string) {
 }
 
 function extractOnlyCta(text: string) {
-  const blocks = String(text || "")
+  const raw = String(text || "").trim();
+  if (!raw) return "";
+
+  const emojiMatch = raw.match(/👉[^\n\r]*/);
+  if (emojiMatch?.[0]?.trim()) {
+    return emojiMatch[0].trim();
+  }
+
+  const blocks = raw
     .split(/\n{2,}/)
     .map((part) => part.trim())
     .filter(Boolean);
 
-  const cta = blocks.find((part) => part.startsWith("👉"));
-  return cta || "";
+  const ctaBlock = blocks.find((part) => {
+    const lower = part.toLowerCase();
+    return (
+      lower.startsWith("👉") ||
+      lower.includes("passe à l’action") ||
+      lower.includes("passe a l'action") ||
+      lower.includes("dis-moi en commentaire") ||
+      lower.includes("donne-moi ton avis") ||
+      lower.includes("écris-moi en message privé") ||
+      lower.includes("ecris-moi en message privé") ||
+      lower.includes("enregistre cette publication") ||
+      lower.includes("partage-la") ||
+      lower.includes("transforme cette idée en résultat")
+    );
+  });
+
+  if (ctaBlock) return ctaBlock;
+
+  const lastBlock = blocks[blocks.length - 1] || "";
+  if (lastBlock && lastBlock.length <= 220) {
+    return lastBlock;
+  }
+
+  return "";
 }
 
 function buildCaptionPayload(params: {
