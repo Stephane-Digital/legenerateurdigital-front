@@ -551,7 +551,7 @@ function buildMockCaption(input: {
 
   const safeTitle = title?.trim() || source?.trim() || "ton contenu";
 
-  return `${intro}
+return `${intro}
 
 ${body}
 
@@ -559,7 +559,7 @@ ${body}
 
 ${goal}
 
-${buildCTAFromCaption(source)}
+${buildCTAFromCaption({ objective, network })}
 
 ${buildHashtagsFromCaption(source)}`;
 }
