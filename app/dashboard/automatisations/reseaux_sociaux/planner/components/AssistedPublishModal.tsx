@@ -497,6 +497,75 @@ function buildCTAFromCaption(_caption: string) {
   return "👉 Enregistre ce post, partage-le et passe à l’action avec LGD.";
 }
 
+function normalizeWhitespace(value: string) {
+  return String(value || "")
+    .replace(/\s+/g, " ")        // remplace espaces multiples
+    .replace(/\n{3,}/g, "\n\n")  // limite les sauts de ligne
+    .trim();
+}
+
+function extractHashtagsOnly(value: string) {
+  const matches = String(value || "").match(/#[\p{L}0-9_]+/gu) || [];
+  return Array.from(new Set(matches.map((tag) => tag.trim()))).join(" ").trim();
+}
+
+function extractCtaOnly(value: string) {
+  const lines = String(value || "")
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const ctaLine = lines.find((line) => {
+    const lower = line.toLowerCase();
+
+    return (
+      line.startsWith("👉") ||
+      lower.includes("clique") ||
+      lower.includes("enregistre") ||
+      lower.includes("partage") ||
+      lower.includes("passe a l action") ||
+      lower.includes("passe à l'action") ||
+      lower.includes("contacte") ||
+      lower.includes("decouvre") ||
+      lower.includes("découvre") ||
+      lower.includes("reserve") ||
+      lower.includes("réserve") ||
+      lower.includes("commence")
+    );
+  });
+
+  return normalizeWhitespace(ctaLine || "");
+}
+
+function appendUniqueBlock(base: string, addition: string) {
+  const baseClean = normalizeWhitespace(base);
+  const addClean = normalizeWhitespace(addition);
+
+  if (!addClean) return baseClean;
+  if (!baseClean) return addClean;
+  if (baseClean.includes(addClean)) return baseClean;
+
+  return `${baseClean}
+
+${addClean}`.trim();
+}
+
+function appendUniqueHashtags(base: string, hashtagsBlock: string) {
+  const baseClean = normalizeWhitespace(base);
+  const newTags = extractHashtagsOnly(hashtagsBlock);
+  if (!newTags) return baseClean;
+
+  const existingSet = new Set(extractHashtagsOnly(baseClean).split(/\s+/).filter(Boolean));
+  const freshTags = newTags
+    .split(/\s+/)
+    .map((tag) => tag.trim())
+    .filter(Boolean)
+    .filter((tag) => !existingSet.has(tag));
+
+  if (!freshTags.length) return baseClean;
+  return appendUniqueBlock(baseClean, freshTags.join(" "));
+}
+
 function buildMockCaption(input: {
   source: string;
   network: string;
@@ -827,9 +896,31 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
       const generated = String(data?.caption || "").trim();
 
       if (generated) {
-        setEditableCaption(generated);
+        if (mode === "hashtags") {
+          const hashtagsOnly = extractHashtagsOnly(generated) || buildHashtagsFromCaption(currentBase || sourceBase);
+          if (hashtagsOnly) {
+            setEditableCaption((prev) => appendUniqueHashtags(prev || currentBase, hashtagsOnly));
+          } else {
+            setQuotaMessage("Aucun hashtag exploitable n’a été renvoyé par l’IA.");
+          }
+        } else if (mode === "cta") {
+          const ctaOnly = extractCtaOnly(generated) || buildCTAFromCaption(currentBase || sourceBase);
+          if (ctaOnly) {
+            setEditableCaption((prev) => appendUniqueBlock(prev || currentBase, ctaOnly));
+          } else {
+            setQuotaMessage("Aucun CTA exploitable n’a été renvoyé par l’IA.");
+          }
+        } else {
+          setEditableCaption(generated);
+        }
       } else {
-        setQuotaMessage("Aucune légende exploitable n’a été renvoyée par l’IA.");
+        setQuotaMessage(
+          mode === "hashtags"
+            ? "Aucun hashtag exploitable n’a été renvoyé par l’IA."
+            : mode === "cta"
+              ? "Aucun CTA exploitable n’a été renvoyé par l’IA."
+              : "Aucune légende exploitable n’a été renvoyée par l’IA.",
+        );
       }
 
       applyQuotaFromResponse(data);
