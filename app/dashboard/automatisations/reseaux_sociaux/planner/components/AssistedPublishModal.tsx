@@ -505,7 +505,7 @@ function normalizeWhitespace(value: string) {
 }
 
 function extractHashtagsOnly(value: string) {
-  const matches = String(value || "").match(/#[\p{L}0-9_]+/gu) || [];
+  const matches = String(value || "").match(/#[A-Za-zÀ-ÖØ-öø-ÿ0-9_]+/g) || [];
   return Array.from(new Set(matches.map((tag) => tag.trim()))).join(" ").trim();
 }
 
