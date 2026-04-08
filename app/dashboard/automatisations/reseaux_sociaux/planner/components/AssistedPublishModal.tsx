@@ -527,7 +527,8 @@ function mergeUniqueParagraphs(baseText: string, appendedText: string) {
 }
 
 function extractOnlyHashtags(text: string) {
-  const matches = String(text || "").match(/#[\p{L}\p{N}_-]+/gu) || [];
+  const matches =
+    String(text || "").match(/#[A-Za-zÀ-ÖØ-öø-ÿ0-9_-]+/g) || [];
   const unique = Array.from(new Set(matches.map((tag) => tag.trim())));
   return unique.join(" ");
 }
