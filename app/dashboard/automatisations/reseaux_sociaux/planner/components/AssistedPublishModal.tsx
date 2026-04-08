@@ -497,55 +497,6 @@ function buildCTAFromCaption(_caption: string) {
   return "👉 Enregistre ce post, partage-le et passe à l’action avec LGD.";
 }
 
-function buildMockCaption(input: {
-  source: string;
-  network: string;
-  tone: string;
-  objective: string;
-  title: string;
-}) {
-  const { source, network, tone, objective, title } = input;
-
-  const intro =
-    tone === "premium"
-      ? "🚀 Passe à un niveau supérieur avec une communication plus claire et plus rentable."
-      : tone === "expert"
-        ? "Voici une approche plus structurée pour transformer une idée en contenu utile."
-        : tone === "inspirant"
-          ? "Chaque publication peut devenir un vrai levier de croissance quand elle est bien pensée."
-          : "Publier mieux, plus vite et avec plus d’impact, c’est possible.";
-
-  const body =
-    network === "linkedin"
-      ? "Sur LinkedIn, la clarté, la structure et l’angle stratégique font toute la différence."
-      : network === "facebook"
-        ? "Sur Facebook, il faut capter l’attention vite et donner envie d’interagir."
-        : "Sur Instagram, l’impact visuel doit être soutenu par une légende claire et engageante.";
-
-  const goal =
-    objective === "conversion"
-      ? "L’objectif ici est simple : attirer l’attention, créer la confiance et pousser à l’action."
-      : objective === "engagement"
-        ? "L’objectif ici est de stimuler les réactions, les partages et les enregistrements."
-        : objective === "lead"
-          ? "L’objectif ici est de transformer l’intérêt en prospect qualifié."
-          : "L’objectif ici est de renforcer ta visibilité avec un message mieux structuré.";
-
-  const safeTitle = title?.trim() || source?.trim() || "ton contenu";
-
-  return `${intro}
-
-${body}
-
-À partir de "${safeTitle}", LGD peut t’aider à mieux structurer ton message et accélérer ta publication.
-
-${goal}
-
-${buildCTAFromCaption(source)}
-
-${buildHashtagsFromCaption(source)}`;
-}
-
 function PreviewCanvasView({ canvas }: { canvas: PreviewCanvas }) {
   const sortedLayers = [...canvas.layers]
     .filter((layer) => layer.visible !== false)
@@ -776,18 +727,29 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
     setQuotaMessage("");
 
     try {
-      const res = await api.post("/ai-caption/generate", {
-        text: editableCaption || caption || title,
+      const payload = {
+        prompt: editableCaption || caption || title,
+        network,
         tone,
-        max_length: 1200,
-      });
+        objective,
+        existing_caption: editableCaption,
+        include_hashtags: false,
+        include_cta: false,
+        language: "fr",
+        post_type: slides.length > 1 ? "carrousel" : "post",
+        media_type: mediaUrl ? "image" : "text",
+      };
+
+      const res = await api.post("/ai-caption/generate", payload);
+      const data = res?.data ?? {};
 
       const generated =
-        typeof res?.data === "string"
-          ? res.data
-          : res?.data?.text ||
-            res?.data?.content ||
-            res?.data?.result ||
+        typeof data === "string"
+          ? data
+          : data?.caption ||
+            data?.text ||
+            data?.content ||
+            data?.result ||
             "";
 
       if (generated) {
@@ -797,9 +759,14 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
       }
 
       await refreshQuota();
-    } catch (error) {
+    } catch (error: any) {
       console.error("LGD IA ERROR:", error);
-      setQuotaMessage("Erreur IA : génération impossible.");
+      const detail = error?.response?.data?.detail;
+      if (typeof detail === "string" && detail.trim()) {
+        setQuotaMessage(`Erreur IA : ${detail}`);
+      } else {
+        setQuotaMessage("Erreur IA : génération impossible.");
+      }
     } finally {
       setCaptionLoading(false);
     }
