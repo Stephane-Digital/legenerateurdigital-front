@@ -472,58 +472,78 @@ function getStatus(post: any, parsed: any) {
     .trim();
 }
 
-function mergeUniqueParagraphs(baseText: string, appendedText: string) {
-  const base = String(baseText || "").trim();
-  const append = String(appendedText || "").trim();
+function buildHashtagsFromCaption(caption: string) {
+  const words = String(caption || "")
+    .toLowerCase()
+    .replace(/[^a-zàâäéèêëîïôöùûüç0-9\s]/gi, " ")
+    .split(/\s+/)
+    .filter((w) => w.length >= 4);
 
-  if (!append) return base;
+  const common = [
+    "marketingdigital",
+    "businessenligne",
+    "entrepreneur",
+    "creationdecontenu",
+    "ia",
+    "socialmedia",
+  ];
 
-  const baseParts = base.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
-  const appendParts = append.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
-
-  const seen = new Set(baseParts.map((part) => part.toLowerCase()));
-  const merged = [...baseParts];
-
-  for (const part of appendParts) {
-    const key = part.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    merged.push(part);
-  }
-
-  return merged.join("\n\n").trim();
+  const dynamic = Array.from(new Set(words)).slice(0, 4).map((w) => `#${w}`);
+  const base = common.slice(0, 4).map((w) => `#${w}`);
+  return Array.from(new Set([...dynamic, ...base])).join(" ");
 }
 
-function extractOnlyHashtags(text: string) {
-  const matches =
-    String(text || "").match(/#[A-Za-zÀ-ÖØ-öø-ÿ0-9_-]+/g) || [];
-  const unique = Array.from(new Set(matches.map((tag) => tag.trim())));
-  return unique.join(" ");
+function buildCTAFromCaption(_caption: string) {
+  return "👉 Enregistre ce post, partage-le et passe à l’action avec LGD.";
 }
 
-function buildCaptionPayload(params: {
-  prompt: string;
+function buildMockCaption(input: {
+  source: string;
   network: string;
   tone: string;
   objective: string;
-  existingCaption: string;
-  includeHashtags: boolean;
-  includeCta: boolean;
-  slidesCount: number;
-  mediaUrl: string;
+  title: string;
 }) {
-  return {
-    prompt: params.prompt,
-    network: params.network,
-    tone: params.tone,
-    objective: params.objective,
-    existing_caption: params.existingCaption,
-    include_hashtags: params.includeHashtags,
-    include_cta: params.includeCta,
-    language: "fr",
-    post_type: params.slidesCount > 1 ? "carrousel" : "post",
-    media_type: params.mediaUrl ? "image" : "text",
-  };
+  const { source, network, tone, objective, title } = input;
+
+  const intro =
+    tone === "premium"
+      ? "🚀 Passe à un niveau supérieur avec une communication plus claire et plus rentable."
+      : tone === "expert"
+        ? "Voici une approche plus structurée pour transformer une idée en contenu utile."
+        : tone === "inspirant"
+          ? "Chaque publication peut devenir un vrai levier de croissance quand elle est bien pensée."
+          : "Publier mieux, plus vite et avec plus d’impact, c’est possible.";
+
+  const body =
+    network === "linkedin"
+      ? "Sur LinkedIn, la clarté, la structure et l’angle stratégique font toute la différence."
+      : network === "facebook"
+        ? "Sur Facebook, il faut capter l’attention vite et donner envie d’interagir."
+        : "Sur Instagram, l’impact visuel doit être soutenu par une légende claire et engageante.";
+
+  const goal =
+    objective === "conversion"
+      ? "L’objectif ici est simple : attirer l’attention, créer la confiance et pousser à l’action."
+      : objective === "engagement"
+        ? "L’objectif ici est de stimuler les réactions, les partages et les enregistrements."
+        : objective === "lead"
+          ? "L’objectif ici est de transformer l’intérêt en prospect qualifié."
+          : "L’objectif ici est de renforcer ta visibilité avec un message mieux structuré.";
+
+  const safeTitle = title?.trim() || source?.trim() || "ton contenu";
+
+  return `${intro}
+
+${body}
+
+À partir de "${safeTitle}", LGD peut t’aider à mieux structurer ton message et accélérer ta publication.
+
+${goal}
+
+${buildCTAFromCaption(source)}
+
+${buildHashtagsFromCaption(source)}`;
 }
 
 function PreviewCanvasView({ canvas }: { canvas: PreviewCanvas }) {
@@ -749,38 +769,6 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
     }
   };
 
-  const requestCaption = async (options?: { includeHashtags?: boolean; includeCta?: boolean }) => {
-    const payload = buildCaptionPayload({
-      prompt: editableCaption || caption || title,
-      network,
-      tone,
-      objective,
-      existingCaption: editableCaption,
-      includeHashtags: options?.includeHashtags ?? false,
-      includeCta: options?.includeCta ?? false,
-      slidesCount: slides.length,
-      mediaUrl,
-    });
-
-    const res = await api.post("/ai-caption/generate", payload);
-    return res?.data ?? {};
-  };
-
-  const applyRemaining = async (data: any) => {
-    const remainingRaw =
-      data?.quota?.remaining ??
-      data?.remaining ??
-      data?.remaining_tokens ??
-      null;
-
-    if (remainingRaw !== null && remainingRaw !== undefined) {
-      const remaining = Number(remainingRaw);
-      setQuotaRemaining(Number.isFinite(remaining) ? remaining : quotaRemaining);
-    } else {
-      await refreshQuota();
-    }
-  };
-
   const handleGenerateCaption = async () => {
     if (captionLoading || quotaLoading || (quotaRemaining ?? 0) <= 0) return;
 
@@ -788,12 +776,18 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
     setQuotaMessage("");
 
     try {
-      const data = await requestCaption();
+      const res = await api.post("/ai-caption/generate", {
+        prompt: editableCaption || caption || title,
+        network,
+        tone,
+        objective,
+        language: "fr",
+        include_hashtags: false,
+        include_cta: false,
+      });
 
-      const generated =
-        typeof data === "string"
-          ? data
-          : data?.caption || data?.text || data?.content || data?.result || "";
+      const data = res?.data ?? {};
+      const generated = String(data?.caption || "").trim();
 
       if (generated) {
         setEditableCaption(generated);
@@ -801,14 +795,24 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
         setQuotaMessage("Aucune légende exploitable n’a été renvoyée par l’IA.");
       }
 
-      await applyRemaining(data);
+      const remaining = Number(
+        data?.quota?.remaining ??
+          data?.quota?.remaining_tokens ??
+          quotaRemaining ??
+          0,
+      );
+
+      if (Number.isFinite(remaining)) {
+        setQuotaRemaining(remaining);
+      }
     } catch (error: any) {
-      console.error("LGD IA ERROR:", error);
-      const detail = error?.response?.data?.detail;
-      if (typeof detail === "string" && detail.trim()) {
-        setQuotaMessage(`Erreur IA : ${detail}`);
-      } else if (detail?.upsell?.message) {
-        setQuotaMessage(detail.upsell.message);
+      console.error("LGD IA CAPTION V2 ERROR:", error);
+
+      const apiError = error?.response?.data?.detail;
+
+      if (apiError?.code === "QUOTA_REACHED") {
+        setQuotaMessage(apiError?.message || "Quota IA atteint.");
+        setQuotaRemaining(apiError?.quota?.remaining ?? 0);
       } else {
         setQuotaMessage("Erreur IA : génération impossible.");
       }
@@ -821,64 +825,18 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
     await handleGenerateCaption();
   };
 
-  const handleAddHashtags = async () => {
-    if (captionLoading || quotaLoading || (quotaRemaining ?? 0) <= 0) return;
-
-    setCaptionLoading(true);
-    setQuotaMessage("");
-
-    try {
-      const data = await requestCaption({ includeHashtags: true });
-      const hashtags = firstNonEmptyString(data?.hashtags, extractOnlyHashtags(data?.caption || ""));
-
-      if (hashtags) {
-        setEditableCaption((prev) => mergeUniqueParagraphs(prev, hashtags));
-      } else {
-        setQuotaMessage("Aucun hashtag exploitable n’a été renvoyé par l’IA.");
-      }
-
-      await applyRemaining(data);
-    } catch (error: any) {
-      console.error("LGD HASHTAGS ERROR:", error);
-      const detail = error?.response?.data?.detail;
-      if (typeof detail === "string" && detail.trim()) {
-        setQuotaMessage(`Erreur IA : ${detail}`);
-      } else {
-        setQuotaMessage("Erreur IA : génération hashtags impossible.");
-      }
-    } finally {
-      setCaptionLoading(false);
-    }
+  const handleAddHashtags = () => {
+    if (captionLoading) return;
+    const hashtags = buildHashtagsFromCaption(editableCaption || caption || title);
+    if (!hashtags) return;
+    setEditableCaption((prev) => `${prev}\n\n${hashtags}`.trim());
   };
 
-  const handleAddCTA = async () => {
-    if (captionLoading || quotaLoading || (quotaRemaining ?? 0) <= 0) return;
-
-    setCaptionLoading(true);
-    setQuotaMessage("");
-
-    try {
-      const data = await requestCaption({ includeCta: true });
-      const cta = firstNonEmptyString(data?.cta);
-
-      if (cta) {
-        setEditableCaption((prev) => mergeUniqueParagraphs(prev, cta));
-      } else {
-        setQuotaMessage("Aucun CTA exploitable n’a été renvoyé par l’IA.");
-      }
-
-      await applyRemaining(data);
-    } catch (error: any) {
-      console.error("LGD CTA ERROR:", error);
-      const detail = error?.response?.data?.detail;
-      if (typeof detail === "string" && detail.trim()) {
-        setQuotaMessage(`Erreur IA : ${detail}`);
-      } else {
-        setQuotaMessage("Erreur IA : génération CTA impossible.");
-      }
-    } finally {
-      setCaptionLoading(false);
-    }
+  const handleAddCTA = () => {
+    if (captionLoading) return;
+    const cta = buildCTAFromCaption(editableCaption || caption || title);
+    if (!cta) return;
+    setEditableCaption((prev) => `${prev}\n\n${cta}`.trim());
   };
 
   return (
@@ -975,8 +933,7 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
                 <button
                   type="button"
                   onClick={handleAddHashtags}
-                  disabled={captionLoading || quotaLoading || (quotaRemaining ?? 0) <= 0}
-                  className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/80 disabled:opacity-40"
+                  className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/80"
                 >
                   Ajouter hashtags
                 </button>
@@ -984,8 +941,7 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
                 <button
                   type="button"
                   onClick={handleAddCTA}
-                  disabled={captionLoading || quotaLoading || (quotaRemaining ?? 0) <= 0}
-                  className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/80 disabled:opacity-40"
+                  className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/80"
                 >
                   Ajouter CTA
                 </button>
