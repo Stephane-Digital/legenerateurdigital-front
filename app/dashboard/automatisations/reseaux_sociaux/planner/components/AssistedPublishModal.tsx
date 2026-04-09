@@ -473,79 +473,25 @@ function getStatus(post: any, parsed: any) {
     .trim();
 }
 
-function normalizeWhitespace(value: string) {
-  return String(value || "")
-    .replace(/\r/g, "")
-    .replace(/[ \t]+/g, " ")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
-
-function normalizeForCompare(value: string) {
-  return normalizeWhitespace(value)
+function buildHashtagsFromCaption(caption: string) {
+  const words = String(caption || "")
     .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-}
+    .replace(/[^a-zàâäéèêëîïôöùûüç0-9\s]/gi, " ")
+    .split(/\s+/)
+    .filter((w) => w.length >= 4);
 
-function extractHashtagsOnly(value: string) {
-  const matches = String(value || "").match(/#[A-Za-zÀ-ÖØ-öø-ÿ0-9_]+/g) || [];
-  return Array.from(new Set(matches.map((tag) => tag.trim()))).join(" ").trim();
-}
+  const common = [
+    "marketingdigital",
+    "businessenligne",
+    "entrepreneur",
+    "creationdecontenu",
+    "ia",
+    "socialmedia",
+  ];
 
-function extractCtaOnly(value: string) {
-  const lines = String(value || "")
-    .split(/\n+/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  const ctaCandidates = lines.filter((line) => {
-    const lower = normalizeForCompare(line);
-    return (
-      line.startsWith("👉") ||
-      line.startsWith("➡️") ||
-      line.startsWith("✅") ||
-      line.startsWith("🔥") ||
-      line.startsWith("📩") ||
-      line.startsWith("📌") ||
-      lower.includes("clique") ||
-      lower.includes("enregistre") ||
-      lower.includes("partage") ||
-      lower.includes("passe a l action") ||
-      lower.includes("contacte") ||
-      lower.includes("decouvre") ||
-      lower.includes("reserve") ||
-      lower.includes("commence") ||
-      lower.includes("rejoins") ||
-      lower.includes("telecharge") ||
-      lower.includes("ecris nous") ||
-      lower.includes("ecris moi")
-    );
-  });
-
-  return normalizeWhitespace(ctaCandidates[ctaCandidates.length - 1] || "");
-}
-
-function removeCtaAndHashtags(value: string) {
-  const lines = String(value || "")
-    .replace(/\r/g, "")
-    .split(/\n+/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  const kept = lines.filter((line) => {
-    if (line.startsWith("#")) return false;
-    return normalizeForCompare(extractCtaOnly(line)) !== normalizeForCompare(line);
-  });
-
-  return normalizeWhitespace(kept.join("\n\n"));
-}
-
-function composeCaptionParts(base: string, cta: string, hashtags: string) {
-  return [normalizeWhitespace(base), normalizeWhitespace(cta), normalizeWhitespace(hashtags)]
-    .filter(Boolean)
-    .join("\n\n")
-    .trim();
+  const dynamic = Array.from(new Set(words)).slice(0, 4).map((w) => `#${w}`);
+  const base = common.slice(0, 4).map((w) => `#${w}`);
+  return Array.from(new Set([...dynamic, ...base])).join(" ");
 }
 
 function buildCTAFromCaption(input: { objective?: string; network?: string }) {
@@ -569,25 +515,92 @@ function buildCTAFromCaption(input: { objective?: string; network?: string }) {
   return "👉 Contacte-nous dès aujourd’hui pour passer à l’action avec LGD.";
 }
 
-function buildHashtagsFromCaption(caption: string) {
-  const words = String(caption || "")
-    .toLowerCase()
-    .replace(/[^a-zàâäéèêëîïôöùûüç0-9\s]/gi, " ")
-    .split(/\s+/)
-    .filter((w) => w.length >= 4);
+function normalizeWhitespace(value: string) {
+  return String(value || "")
+    .replace(/\r/g, "")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
 
-  const common = [
-    "marketingdigital",
-    "businessenligne",
-    "entrepreneur",
-    "creationdecontenu",
-    "visibilite",
-    "strategie",
-  ];
+function extractHashtagsOnly(value: string) {
+  const matches = String(value || "").match(/#[A-Za-zÀ-ÖØ-öø-ÿ0-9_]+/g) || [];
+  return Array.from(new Set(matches.map((tag) => tag.trim()))).join(" ").trim();
+}
 
-  const dynamic = Array.from(new Set(words)).slice(0, 4).map((w) => `#${w}`);
-  const base = common.slice(0, 4).map((w) => `#${w}`);
-  return Array.from(new Set([...dynamic, ...base])).join(" ");
+function isLikelyCtaLine(line: string) {
+  const lower = String(line || "").toLowerCase().trim();
+
+  return (
+    line.startsWith("👉") ||
+    line.startsWith("➡️") ||
+    line.startsWith("✅") ||
+    line.startsWith("🔥") ||
+    line.startsWith("📩") ||
+    line.startsWith("📌") ||
+    lower.includes("contacte") ||
+    lower.includes("contactez") ||
+    lower.includes("écris-nous") ||
+    lower.includes("ecris-nous") ||
+    lower.includes("écris moi") ||
+    lower.includes("ecris moi") ||
+    lower.includes("clique") ||
+    lower.includes("réserve") ||
+    lower.includes("reserve") ||
+    lower.includes("découvre") ||
+    lower.includes("decouvre") ||
+    lower.includes("partage") ||
+    lower.includes("enregistre")
+  );
+}
+
+function extractCtaOnly(value: string) {
+  const lines = String(value || "")
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const ctaLines = lines.filter((line) => isLikelyCtaLine(line));
+  return normalizeWhitespace(ctaLines[ctaLines.length - 1] || "");
+}
+
+function splitCaptionParts(value: string) {
+  const lines = String(value || "")
+    .replace(/\r/g, "")
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const hashtagParts: string[] = [];
+  const baseParts: string[] = [];
+  let cta = "";
+
+  for (const line of lines) {
+    if (line.startsWith("#")) {
+      hashtagParts.push(line);
+      continue;
+    }
+
+    if (isLikelyCtaLine(line)) {
+      cta = line;
+      continue;
+    }
+
+    baseParts.push(line);
+  }
+
+  return {
+    base: normalizeWhitespace(baseParts.join("\n\n")),
+    cta: normalizeWhitespace(cta),
+    hashtags: extractHashtagsOnly(hashtagParts.join(" ")),
+  };
+}
+
+function composeCaptionParts(base: string, cta: string, hashtags: string) {
+  return [normalizeWhitespace(base), normalizeWhitespace(cta), normalizeWhitespace(hashtags)]
+    .filter(Boolean)
+    .join("\n\n")
+    .trim();
 }
 
 function buildMockCaption(input: {
@@ -833,11 +846,22 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
     }
   };
 
-  const applyQuotaFromData = (data: any) => {
-    const remainingRaw = data?.quota?.remaining ?? data?.remaining ?? quotaRemaining ?? 0;
-    const remaining = Number(remainingRaw);
-    if (Number.isFinite(remaining)) {
-      setQuotaRemaining(remaining);
+  const refreshQuota = async () => {
+    try {
+      const quotaRes = await api.get("/ai-quota/global");
+      const quotaData = quotaRes?.data ?? {};
+      const remainingRaw =
+        quotaData?.remaining ??
+        quotaData?.remaining_tokens ??
+        quotaData?.quota_remaining ??
+        quotaData?.restant ??
+        quotaData?.quota?.remaining ??
+        quotaRemaining ??
+        0;
+      const remaining = Number(remainingRaw);
+      setQuotaRemaining(Number.isFinite(remaining) ? remaining : 0);
+    } catch (error) {
+      console.error("LGD QUOTA REFRESH ERROR:", error);
     }
   };
 
@@ -848,9 +872,12 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
     setQuotaMessage("");
 
     try {
+      const current = editableCaption || caption || title;
+      const parts = splitCaptionParts(current);
+      const promptBase = parts.base || current || title;
+
       const res = await api.post("/ai-caption/generate", {
-        prompt: editableCaption || caption || title,
-        brief: title,
+        prompt: promptBase,
         network,
         tone,
         objective,
@@ -863,15 +890,27 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
       const generated = normalizeWhitespace(String(data?.caption || ""));
 
       if (generated) {
-        setEditableCaption(generated);
+        setEditableCaption(composeCaptionParts(generated, parts.cta, parts.hashtags));
       } else {
         setQuotaMessage("Aucune légende exploitable n’a été renvoyée par l’IA.");
       }
 
-      applyQuotaFromData(data);
+      const remaining = Number(
+        data?.quota?.remaining ??
+        data?.quota?.remaining_tokens ??
+        quotaRemaining ??
+        0
+      );
+
+      if (Number.isFinite(remaining)) {
+        setQuotaRemaining(remaining);
+      } else {
+        await refreshQuota();
+      }
     } catch (error: any) {
-      console.error("LGD IA CAPTION ERROR:", error);
+      console.error("LGD IA ERROR:", error);
       const apiError = error?.response?.data?.detail;
+
       if (apiError?.code === "QUOTA_REACHED") {
         setQuotaMessage(apiError?.message || "Quota IA atteint.");
         setQuotaRemaining(Number(apiError?.quota?.remaining ?? 0));
@@ -895,12 +934,11 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
 
     try {
       const current = editableCaption || caption || title;
-      const base = removeCtaAndHashtags(current);
-      const currentCta = extractCtaOnly(current);
+      const parts = splitCaptionParts(current);
+      const promptBase = parts.base || title;
 
       const res = await api.post("/ai-caption/generate", {
-        prompt: `À partir du texte suivant, génère uniquement des hashtags pertinents en français.\nRègles :\n- renvoie uniquement des hashtags\n- une seule ligne\n- pas d'introduction\n- pas de phrase complète\n- 6 à 10 hashtags maximum\n\n${base || title}`,
-        brief: title,
+        prompt: `À partir du texte suivant, renvoie uniquement des hashtags pertinents en français, sans phrase, sans introduction, uniquement des hashtags séparés par des espaces.\n\n${promptBase}`,
         network,
         tone,
         objective,
@@ -911,13 +949,26 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
 
       const data = res?.data ?? {};
       const aiText = String(data?.caption || "");
-      const hashtags = extractHashtagsOnly(aiText) || buildHashtagsFromCaption(base || title);
+      const hashtags = extractHashtagsOnly(aiText) || buildHashtagsFromCaption(promptBase);
 
-      setEditableCaption(composeCaptionParts(base, currentCta, hashtags));
-      applyQuotaFromData(data);
+      setEditableCaption(composeCaptionParts(parts.base || promptBase, parts.cta, hashtags));
+
+      const remaining = Number(
+        data?.quota?.remaining ??
+        data?.quota?.remaining_tokens ??
+        quotaRemaining ??
+        0
+      );
+
+      if (Number.isFinite(remaining)) {
+        setQuotaRemaining(remaining);
+      } else {
+        await refreshQuota();
+      }
     } catch (error: any) {
       console.error("LGD IA HASHTAGS ERROR:", error);
       const apiError = error?.response?.data?.detail;
+
       if (apiError?.code === "QUOTA_REACHED") {
         setQuotaMessage(apiError?.message || "Quota IA atteint.");
         setQuotaRemaining(Number(apiError?.quota?.remaining ?? 0));
@@ -937,12 +988,11 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
 
     try {
       const current = editableCaption || caption || title;
-      const base = removeCtaAndHashtags(current);
-      const currentHashtags = extractHashtagsOnly(current);
+      const parts = splitCaptionParts(current);
+      const promptBase = parts.base || title;
 
       const res = await api.post("/ai-caption/generate", {
-        prompt: `À partir du texte suivant, génère uniquement un CTA final en français.\nRègles :\n- une seule ligne\n- pas de hashtags\n- pas de reformulation complète de la légende\n- pas d'introduction\n- commence de préférence par 👉\n\n${base || title}`,
-        brief: title,
+        prompt: `À partir du texte suivant, renvoie uniquement un CTA final en français sur une seule ligne, sans hashtags, sans introduction, sans reformuler la légende complète.\n\n${promptBase}`,
         network,
         tone,
         objective,
@@ -955,11 +1005,24 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
       const aiText = String(data?.caption || "");
       const cta = extractCtaOnly(aiText) || buildCTAFromCaption({ objective, network });
 
-      setEditableCaption(composeCaptionParts(base, cta, currentHashtags));
-      applyQuotaFromData(data);
+      setEditableCaption(composeCaptionParts(parts.base || promptBase, cta, parts.hashtags));
+
+      const remaining = Number(
+        data?.quota?.remaining ??
+        data?.quota?.remaining_tokens ??
+        quotaRemaining ??
+        0
+      );
+
+      if (Number.isFinite(remaining)) {
+        setQuotaRemaining(remaining);
+      } else {
+        await refreshQuota();
+      }
     } catch (error: any) {
       console.error("LGD IA CTA ERROR:", error);
       const apiError = error?.response?.data?.detail;
+
       if (apiError?.code === "QUOTA_REACHED") {
         setQuotaMessage(apiError?.message || "Quota IA atteint.");
         setQuotaRemaining(Number(apiError?.quota?.remaining ?? 0));
@@ -1008,7 +1071,7 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
                     Génère une légende optimisée selon le réseau, le ton et l’objectif.
                   </p>
                   <p className="mt-2 text-xs text-white/50">
-                    Quota IA restant: <span className="font-semibold text-yellow-300">{quotaLoading ? "..." : quotaRemaining ?? 0}</span>
+                    Quota IA restant : <span className="font-semibold text-yellow-300">{quotaLoading ? "..." : quotaRemaining ?? 0}</span>
                   </p>
                 </div>
 
