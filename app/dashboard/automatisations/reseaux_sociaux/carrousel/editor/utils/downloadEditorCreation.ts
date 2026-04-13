@@ -34,18 +34,18 @@ type EditorUI = {
   formatKey?: CanvasFormatKey;
 };
 
-export type PostDraft = {
+type PostDraft = {
   ui?: EditorUI;
   layers?: LayerData[];
 };
 
-export type SlideDraft = {
+type SlideDraft = {
   id?: string;
   ui?: EditorUI;
   layers?: LayerData[];
 };
 
-export type CarrouselDraft = {
+type CarrouselDraft = {
   ui?: EditorUI;
   slides?: SlideDraft[];
   layers?: LayerData[];
@@ -301,12 +301,9 @@ function drawTextLayer(
   ctx.restore();
 }
 
-export type EditorRenderFormat = "png" | "jpeg";
-
-async function renderSingleCreationToDataUrl(args: {
+export async function renderSingleCreationToDataUrl(args: {
   layers: LayerData[];
   ui?: EditorUI;
-  format?: EditorRenderFormat;
 }) {
   const format = getFormat(args.ui);
   const canvas = document.createElement("canvas");
@@ -315,11 +312,6 @@ async function renderSingleCreationToDataUrl(args: {
 
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas 2D indisponible");
-
-  if (args.format === "jpeg") {
-    ctx.fillStyle = "#111111";
-    ctx.fillRect(0, 0, format.w, format.h);
-  }
 
   const layers = toArray<LayerData>(args.layers).filter(isVisible);
   const backgroundLayer = getBackgroundLayer(layers);
@@ -372,63 +364,8 @@ async function renderSingleCreationToDataUrl(args: {
     }
   }
 
-  const mimeType = args.format === "jpeg" ? "image/jpeg" : "image/png";
-  const quality = args.format === "jpeg" ? 0.92 : undefined;
-  return canvas.toDataURL(mimeType, quality as any);
+  return canvas.toDataURL("image/png");
 }
-
-export async function renderEditorCreationToDataUrl(args: {
-  mode: "post" | "carrousel";
-  draft: any;
-  slideIndex?: number;
-  format?: EditorRenderFormat;
-}) {
-  const format = args.format || "png";
-
-  if (args.mode === "post") {
-    const draft = args.draft as PostDraft;
-    const layers = toArray<LayerData>(draft?.layers);
-    if (!layers.length) {
-      throw new Error("Aucun contenu à prévisualiser.");
-    }
-
-    return renderSingleCreationToDataUrl({
-      layers,
-      ui: draft?.ui,
-      format,
-    });
-  }
-
-  const draft = args.draft as CarrouselDraft;
-  const slides = toArray<SlideDraft>(draft?.slides);
-  const slideIndex = Math.max(0, Number(args.slideIndex || 0));
-
-  if (slides.length) {
-    const slide = slides[Math.min(slides.length - 1, slideIndex)];
-    const layers = toArray<LayerData>(slide?.layers);
-    if (!layers.length) {
-      throw new Error("Aucune slide à prévisualiser.");
-    }
-
-    return renderSingleCreationToDataUrl({
-      layers,
-      ui: slide?.ui || draft?.ui,
-      format,
-    });
-  }
-
-  const fallbackLayers = toArray<LayerData>(draft?.layers);
-  if (!fallbackLayers.length) {
-    throw new Error("Aucun carrousel à prévisualiser.");
-  }
-
-  return renderSingleCreationToDataUrl({
-    layers: fallbackLayers,
-    ui: draft?.ui,
-    format,
-  });
-}
-
 
 function triggerDownload(dataUrl: string, filename: string) {
   const link = document.createElement("a");
@@ -510,4 +447,31 @@ export async function downloadEditorCreation(args: {
   }
 
   await downloadCarrouselCreation(args.draft as CarrouselDraft, base);
+}
+
+export async function renderEditorCreationToDataUrl(args: {
+  mode: "post" | "carrousel";
+  draft: any;
+  slideIndex?: number;
+}) {
+  const draft = args?.draft || {};
+
+  if (args.mode === "post") {
+    const layers = toArray<LayerData>(draft?.layers);
+    if (!layers.length) throw new Error("Aucun layer de post à rendre.");
+    return renderSingleCreationToDataUrl({ layers, ui: draft?.ui });
+  }
+
+  const slides = toArray<SlideDraft>(draft?.slides);
+  if (slides.length) {
+    const index = Math.max(0, Number(args?.slideIndex ?? 0) || 0);
+    const slide = slides[index] || slides[0];
+    const layers = toArray<LayerData>(slide?.layers);
+    if (!layers.length) throw new Error("Aucun layer de slide à rendre.");
+    return renderSingleCreationToDataUrl({ layers, ui: slide?.ui || draft?.ui });
+  }
+
+  const fallbackLayers = toArray<LayerData>(draft?.layers);
+  if (!fallbackLayers.length) throw new Error("Aucun contenu carrousel à rendre.");
+  return renderSingleCreationToDataUrl({ layers: fallbackLayers, ui: draft?.ui });
 }
