@@ -1,7 +1,6 @@
 "use client";
 
 import api from "@/lib/api";
-import { renderEditorCreationToDataUrl } from "../../carrousel/editor/utils/downloadEditorCreation";
 import {
   Check,
   Copy,
@@ -14,6 +13,7 @@ import {
   Undo2,
 } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
+import { renderEditorCreationToDataUrl } from "../../carrousel/editor/utils/downloadEditorCreation";
 
 type ManualStatus = "published" | "scheduled";
 
@@ -44,6 +44,13 @@ type PreviewCanvas = {
   layers: PreviewLayer[];
   source: string;
 };
+
+type EditorRenderSpec = {
+  mode: "post" | "carrousel";
+  draft: any;
+  slideIndex?: number;
+};
+
 
 function safeParseJSON(value: any) {
   if (!value) return null;
@@ -274,62 +281,7 @@ function extractPreviewCanvas(post: any, parsed: any): PreviewCanvas | null {
   return null;
 }
 
-type EditorRenderSpec = {
-  mode: "post" | "carrousel";
-  draft: any;
-  slideIndex?: number;
-};
-
-function inferFormatKeyFromDimensions(width: number, height: number) {
-  if (width <= 0 || height <= 0) return "instagram_post";
-
-  const ratio = width / height;
-const presets: Array<{ key: string; ratio: number }> = [
-  { key: "instagram_post", ratio: 1 },
-  { key: "instagram_story", ratio: 1080 / 1920 },
-  { key: "facebook", ratio: 1200 / 628 },
-  { key: "linkedin", ratio: 1200 / 628 },
-  { key: "pinterest", ratio: 1000 / 1500 },
-];
-
-let best = presets[0];
-  let bestDiff = Math.abs(best.ratio - ratio);
-
-  for (const preset of presets.slice(1)) {
-    const diff = Math.abs(preset.ratio - ratio);
-    if (diff < bestDiff) {
-      best = preset;
-      bestDiff = diff;
-    }
-  }
-
-  return best.key;
-}
-
-function resolveFormatKey(post: any, parsed: any, fallbackLayers: any[] = []) {
-  const explicit = firstNonEmptyString(
-    parsed?.ui?.formatKey,
-    parsed?.formatKey,
-    parsed?.editor?.ui?.formatKey,
-    parsed?.editor?.formatKey,
-    post?.ui?.formatKey,
-  );
-
-  if (explicit) return explicit;
-
-  const meta = getCanvasMeta(parsed, post);
-  if (meta.width > 0 && meta.height > 0) {
-    return inferFormatKeyFromDimensions(meta.width, meta.height);
-  }
-
-  const normalizedLayers = fallbackLayers.map(normalizeLayer).filter(Boolean) as PreviewLayer[];
-  const size = inferCanvasSize(normalizedLayers, parsed, post);
-  return inferFormatKeyFromDimensions(size.width, size.height);
-}
-
-function resolveEditorRenderSpec(post: any, parsed: any): EditorRenderSpec | null {
-  if (!parsed || typeof parsed !== "object") return null;
-
+function inferEditorRenderSpec(post: any, parsed: any): EditorRenderSpec | null {
   const payload =
     parsed?.payload && typeof parsed.payload === "object"
       ? parsed.payload
@@ -337,67 +289,88 @@ function resolveEditorRenderSpec(post: any, parsed: any): EditorRenderSpec | nul
         ? parsed.draft
         : parsed;
 
-  const directLayers =
-    extractLayers(payload?.layers).length
-      ? extractLayers(payload?.layers)
-      : extractLayers(payload?.elements).length
-        ? extractLayers(payload?.elements)
-        : extractLayers(payload?.objects);
+  if (!payload || typeof payload !== "object") return null;
 
-  const formatKey = resolveFormatKey(post, payload, directLayers);
-  const ui = {
-    ...(payload?.ui && typeof payload.ui === "object" ? payload.ui : {}),
-    formatKey,
-  };
+  const explicitType = String(
+    payload?.type ||
+      payload?.format ||
+      payload?.kind ||
+      post?.format ||
+      post?.type ||
+      ""
+  )
+    .trim()
+    .toLowerCase();
 
-  const slides = extractSlides(payload?.slides).map((slide: any) => {
-    const slideLayers =
-      extractLayers(slide?.layers).length
-        ? extractLayers(slide?.layers)
-        : extractLayers(slide?.elements).length
-          ? extractLayers(slide?.elements)
-          : extractLayers(slide?.objects);
+  const slides = extractSlides(payload?.slides);
+  if (slides.length) {
+    const normalizedSlides = slides
+      .map((slide: any, index: number) => ({
+        id: String(slide?.id || `slide-${index + 1}`),
+        ui: slide?.ui || payload?.ui,
+        layers: extractLayers(slide?.layers),
+      }))
+      .filter((slide: any) => Array.isArray(slide.layers) && slide.layers.length > 0);
 
+    if (normalizedSlides.length) {
+      return {
+        mode: "carrousel",
+        draft: {
+          ui: payload?.ui,
+          slides: normalizedSlides,
+        },
+        slideIndex: 0,
+      };
+    }
+  }
+
+  const layers = extractLayers(payload?.layers);
+  if (layers.length || explicitType === "post") {
     return {
-      ...(slide && typeof slide === "object" ? slide : {}),
-      ui: {
-        ...(slide?.ui && typeof slide.ui === "object" ? slide.ui : {}),
-        formatKey: firstNonEmptyString(slide?.ui?.formatKey, formatKey),
-      },
-      layers: slideLayers,
-    };
-  });
-
-  const looksLikeCarrousel =
-    slides.length > 0 ||
-    String(payload?.type || post?.format || "").toLowerCase().includes("carrousel") ||
-    String(payload?.format || post?.format || "").toLowerCase().includes("carrousel") ||
-    payload?.carrousel_id != null ||
-    post?.carrousel_id != null;
-
-  if (looksLikeCarrousel) {
-    return {
-      mode: "carrousel",
+      mode: "post",
       draft: {
-        ...payload,
-        ui,
-        slides,
-        layers: directLayers,
+        ui: payload?.ui,
+        layers,
       },
-      slideIndex: 0,
     };
   }
 
-  if (!directLayers.length) return null;
+  return null;
+}
 
-  return {
-    mode: "post",
-    draft: {
-      ...payload,
-      ui,
-      layers: directLayers,
-    },
-  };
+function dataUrlToBlob(dataUrl: string): Promise<Blob> {
+  return fetch(dataUrl).then((response) => response.blob());
+}
+
+async function exportDataUrlImage(params: {
+  dataUrl: string;
+  title: string;
+  format: "png" | "jpeg";
+}) {
+  const { dataUrl, title, format } = params;
+
+  if (!dataUrl) throw new Error("Aucun aperçu fidèle disponible pour l'export.");
+
+  if (format === "png") {
+    const blob = await dataUrlToBlob(dataUrl);
+    downloadBlob(blob, `${sanitizeFilenamePart(title)}.png`);
+    return;
+  }
+
+  const img = await waitForImage(dataUrl);
+  const exportCanvas = document.createElement("canvas");
+  exportCanvas.width = img.naturalWidth || img.width || 1080;
+  exportCanvas.height = img.naturalHeight || img.height || 1080;
+  const ctx = exportCanvas.getContext("2d");
+
+  if (!ctx) throw new Error("Canvas non disponible pour l'export JPEG.");
+
+  ctx.fillStyle = "#0b0b0b";
+  ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+  ctx.drawImage(img, 0, 0, exportCanvas.width, exportCanvas.height);
+
+  const blob = await dataUrlToBlob(exportCanvas.toDataURL("image/jpeg", 0.92));
+  downloadBlob(blob, `${sanitizeFilenamePart(title)}.jpg`);
 }
 
 function flattenPossibleTextSources(post: any, parsed: any) {
@@ -1091,8 +1064,6 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
   const [copied, setCopied] = useState<"" | "caption">("");
   const [saving, setSaving] = useState<"" | ManualStatus>("");
   const [exporting, setExporting] = useState<"" | "png" | "jpeg">("");
-  const [renderPreviewUrl, setRenderPreviewUrl] = useState("");
-  const [renderPreviewLoading, setRenderPreviewLoading] = useState(false);
   const [editableCaption, setEditableCaption] = useState("");
   const [captionLoading, setCaptionLoading] = useState(false);
   const [quotaRemaining, setQuotaRemaining] = useState<number | null>(null);
@@ -1100,6 +1071,8 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
   const [quotaMessage, setQuotaMessage] = useState("");
   const [tone, setTone] = useState("premium");
   const [objective, setObjective] = useState("conversion");
+  const [editorPreviewUrl, setEditorPreviewUrl] = useState("");
+  const [editorPreviewLoading, setEditorPreviewLoading] = useState(false);
 
   const parsed = useMemo(() => safeParseJSON(post?.contenu ?? post?.content ?? null), [post]);
   const title = useMemo(() => extractTitle(post, parsed), [post, parsed]);
@@ -1107,7 +1080,7 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
   const mediaUrl = useMemo(() => extractMediaUrl(post, parsed), [post, parsed]);
   const mediaUrls = useMemo(() => extractAllMediaUrls(post, parsed), [post, parsed]);
   const slides = useMemo(() => extractSlides(parsed?.slides), [parsed]);
-  const editorRenderSpec = useMemo(() => resolveEditorRenderSpec(post, parsed), [post, parsed]);
+  const editorRenderSpec = useMemo(() => inferEditorRenderSpec(post, parsed), [post, parsed]);
   const previewCanvas = useMemo(() => extractPreviewCanvas(post, parsed), [post, parsed]);
   const network = useMemo(
     () => String(post?.reseau ?? post?.network ?? parsed?.reseau ?? parsed?.network ?? "").toLowerCase(),
@@ -1120,50 +1093,6 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
   useEffect(() => {
     setEditableCaption(caption || "");
   }, [caption, post?.id]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const renderPreview = async () => {
-      if (!open || !editorRenderSpec) {
-        if (!cancelled) {
-          setRenderPreviewUrl("");
-          setRenderPreviewLoading(false);
-        }
-        return;
-      }
-
-      try {
-        setRenderPreviewLoading(true);
-        const dataUrl = await renderEditorCreationToDataUrl({
-          mode: editorRenderSpec.mode,
-          draft: editorRenderSpec.draft,
-          slideIndex: editorRenderSpec.slideIndex,
-          format: "png",
-        });
-
-        if (!cancelled) {
-          setRenderPreviewUrl(dataUrl);
-        }
-      } catch (error) {
-        console.error("LGD planner preview render error:", error);
-        if (!cancelled) {
-          setRenderPreviewUrl("");
-        }
-      } finally {
-        if (!cancelled) {
-          setRenderPreviewLoading(false);
-        }
-      }
-    };
-
-    renderPreview();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [open, editorRenderSpec, post?.id]);
-
 
   useEffect(() => {
     let mounted = true;
@@ -1206,6 +1135,62 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
     };
   }, [open]);
 
+  useEffect(() => {
+    if (!open || !post || !editorRenderSpec) {
+      setEditorPreviewUrl("");
+      setEditorPreviewLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    let success = false;
+
+    const run = async (delayMs = 0) => {
+      if (delayMs > 0) {
+        await new Promise((resolve) => window.setTimeout(resolve, delayMs));
+      }
+      if (cancelled) return;
+
+      try {
+        const dataUrl = await renderEditorCreationToDataUrl({
+          mode: editorRenderSpec.mode,
+          draft: editorRenderSpec.draft,
+          slideIndex: editorRenderSpec.slideIndex,
+        });
+
+        if (!cancelled && dataUrl) {
+          success = true;
+          setEditorPreviewUrl(dataUrl);
+          setEditorPreviewLoading(false);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error("LGD planner faithful preview error:", error);
+        }
+      }
+    };
+
+    setEditorPreviewLoading(true);
+    setEditorPreviewUrl("");
+
+    const t1 = window.setTimeout(() => {
+      run(0);
+    }, 0);
+    const t2 = window.setTimeout(() => {
+      if (!success) run(220);
+    }, 220);
+    const t3 = window.setTimeout(() => {
+      if (!success) run(650);
+    }, 650);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      window.clearTimeout(t3);
+    };
+  }, [open, post?.id, editorRenderSpec]);
+
   if (!open || !post) return null;
 
   const copyValue = async (value: string, type: "caption") => {
@@ -1234,17 +1219,12 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
     try {
       setExporting(format);
 
-      if (editorRenderSpec) {
-        const dataUrl = await renderEditorCreationToDataUrl({
-          mode: editorRenderSpec.mode,
-          draft: editorRenderSpec.draft,
-          slideIndex: editorRenderSpec.slideIndex,
+      if (editorPreviewUrl) {
+        await exportDataUrlImage({
+          dataUrl: editorPreviewUrl,
+          title: title || "publication-lgd",
           format,
         });
-        const response = await fetch(dataUrl);
-        const blob = await response.blob();
-        const filename = `${sanitizeFilenamePart(title || "publication-lgd")}.${format === "jpeg" ? "jpg" : "png"}`;
-        downloadBlob(blob, filename);
         return;
       }
 
@@ -1625,7 +1605,7 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
                   <button
                     type="button"
                     onClick={() => handleExport("png")}
-                    disabled={(!editorRenderSpec && !previewCanvas && !mediaUrl) || !!exporting}
+                    disabled={(!editorPreviewUrl && !previewCanvas && !mediaUrl) || !!exporting || editorPreviewLoading}
                     className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 disabled:opacity-40"
                   >
                     <Download className="h-4 w-4" />
@@ -1635,7 +1615,7 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
                   <button
                     type="button"
                     onClick={() => handleExport("jpeg")}
-                    disabled={(!editorRenderSpec && !previewCanvas && !mediaUrl) || !!exporting}
+                    disabled={(!editorPreviewUrl && !previewCanvas && !mediaUrl) || !!exporting || editorPreviewLoading}
                     className="inline-flex items-center gap-2 rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-2 text-sm font-semibold text-yellow-300 disabled:opacity-40"
                   >
                     <Download className="h-4 w-4" />
@@ -1645,21 +1625,20 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
               </div>
 
               <div className="mt-4 space-y-4 rounded-2xl border border-dashed border-white/10 bg-black/20 p-4 text-sm text-white/70">
-                {renderPreviewLoading ? (
-                  <div className="flex items-center gap-3 rounded-2xl border border-yellow-500/20 bg-yellow-500/5 px-4 py-3 text-sm text-yellow-200">
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-yellow-400 border-t-transparent" />
-                    LGD reconstruit le visuel exact depuis l’éditeur…
+                {editorPreviewLoading ? (
+                  <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/5 px-4 py-4 text-sm text-yellow-200">
+                    Préparation du rendu fidèle depuis l’éditeur…
                   </div>
-                ) : renderPreviewUrl ? (
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-white/85">
+                ) : editorPreviewUrl ? (
+                  <div className="rounded-2xl border border-yellow-500/20 bg-black/30 p-3">
+                    <div className="mb-3 flex items-center gap-2 text-sm text-yellow-200">
                       <ImageIcon className="h-4 w-4 text-yellow-400" />
                       Aperçu fidèle reconstruit depuis le moteur de rendu de l’éditeur.
                     </div>
                     <img
-                      src={renderPreviewUrl}
-                      alt="preview fidèle"
-                      className="max-h-[520px] w-full rounded-xl border border-white/10 object-contain bg-black/40"
+                      src={editorPreviewUrl}
+                      alt="aperçu fidèle"
+                      className="max-h-[560px] w-full rounded-xl border border-white/10 object-contain bg-black/40"
                     />
                   </div>
                 ) : previewCanvas ? (
