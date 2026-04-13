@@ -376,11 +376,31 @@ async function drawImageCover(
   ctx.drawImage(img, dx, dy, drawW, drawH);
 }
 
+function normalizeFontFamily(font?: string) {
+  const value = String(font || "").trim();
+
+  if (!value) return `"Inter", Arial, sans-serif`;
+
+  // conserve exactement la police choisie dans l’éditeur
+  if (value.includes(",")) return value;
+
+  // force le quoting pour éviter les fallback navigateur
+  return `"${value}", Arial, sans-serif`;
+}
+
 function buildFont(style?: LayerStyle) {
   const size = Math.max(10, Number(style?.fontSize ?? 48) || 48);
-  const family = firstNonEmptyString(style?.fontFamily, "Inter", "Arial");
+  const family = normalizeFontFamily(
+    firstNonEmptyString(style?.fontFamily, "Inter")
+  );
+
   const weight = String(style?.fontWeight ?? "700");
-  const italic = style?.italic || style?.fontStyle === "italic" ? "italic " : "";
+
+  const italic =
+    style?.italic || style?.fontStyle === "italic"
+      ? "italic "
+      : "";
+
   return `${italic}${weight} ${size}px ${family}`;
 }
 
