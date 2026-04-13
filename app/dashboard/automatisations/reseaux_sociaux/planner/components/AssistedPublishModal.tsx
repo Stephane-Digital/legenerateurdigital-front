@@ -642,6 +642,215 @@ function buildMockCaption(input: {
   return `${intro}\n\n${body}\n\nÀ partir de "${safeTitle}", LGD peut t’aider à mieux structurer ton message et accélérer ta publication.\n\n${goal}\n\n${buildCTAFromCaption({ objective, network })}\n\n${buildHashtagsFromCaption(source)}`;
 }
 
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function sanitizeFilenamePart(value: string) {
+  return String(value || "publication-lgd")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-zA-Z0-9-_]+/g, "-")
+    .replace(/-{2,}/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .toLowerCase() || "publication-lgd";
+}
+
+function waitForImage(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const img = new window.Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error(`Impossible de charger l'image: ${src}`));
+    img.src = src;
+  });
+}
+
+function normalizeColorToCss(value: any) {
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (typeof value === "number" && Number.isFinite(value)) return `#${value.toString(16).padStart(6, "0")}`;
+  return "#ffffff";
+}
+
+async function exportPreviewCanvasImage(params: {
+  canvas: PreviewCanvas;
+  title: string;
+  format: "png" | "jpeg";
+}) {
+  const { canvas, title, format } = params;
+  const exportCanvas = document.createElement("canvas");
+  exportCanvas.width = Math.max(1, Math.round(canvas.width));
+  exportCanvas.height = Math.max(1, Math.round(canvas.height));
+  const ctx = exportCanvas.getContext("2d");
+
+  if (!ctx) {
+    throw new Error("Canvas non disponible pour l'export.");
+  }
+
+  if (format === "jpeg") {
+    ctx.fillStyle = "#0b0b0b";
+    ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+  } else {
+    ctx.clearRect(0, 0, exportCanvas.width, exportCanvas.height);
+  }
+
+  const sortedLayers = [...canvas.layers]
+    .filter((layer) => layer.visible !== false)
+    .sort((a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0));
+
+  for (const layer of sortedLayers) {
+    const x = Number(layer.x || 0);
+    const y = Number(layer.y || 0);
+    const width = typeof layer.width === "number" ? layer.width : exportCanvas.width;
+    const height = typeof layer.height === "number" ? layer.height : exportCanvas.height;
+    const opacity = typeof layer.style?.opacity === "number" ? Number(layer.style.opacity) : 1;
+    const rotation = typeof layer.style?.rotation === "number" ? Number(layer.style.rotation) : 0;
+
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, Math.min(1, opacity));
+
+    if (rotation) {
+      ctx.translate(x + width / 2, y + height / 2);
+      ctx.rotate((rotation * Math.PI) / 180);
+      ctx.translate(-(x + width / 2), -(y + height / 2));
+    }
+
+    if (layer.type === "background") {
+      const bg = String(layer.style?.background || layer.style?.color || "#111827");
+      if (bg.startsWith("linear-gradient")) {
+        const gradient = ctx.createLinearGradient(0, 0, exportCanvas.width, exportCanvas.height);
+        gradient.addColorStop(0, "#111827");
+        gradient.addColorStop(1, "#0f172a");
+        ctx.fillStyle = gradient;
+      } else {
+        ctx.fillStyle = bg;
+      }
+      ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+      ctx.restore();
+      continue;
+    }
+
+    if (layer.type === "image" && layer.src && looksLikeImageUrl(layer.src)) {
+      try {
+        const img = await waitForImage(layer.src);
+        ctx.drawImage(img, x, y, width, height);
+      } catch {
+        ctx.fillStyle = "rgba(255,255,255,0.06)";
+        ctx.fillRect(x, y, width, height);
+      }
+      ctx.restore();
+      continue;
+    }
+
+    if (layer.type === "text" && layer.text) {
+      const fontSize = Number(layer.style?.fontSize || 48);
+      const fontWeight = Number(layer.style?.fontWeight || 700);
+      const fontStyle = layer.style?.italic ? "italic" : "normal";
+      const fontFamily = String(layer.style?.fontFamily || "Inter, Arial, sans-serif");
+      const color = normalizeColorToCss(layer.style?.color);
+      const align = String(layer.style?.align || "left") as CanvasTextAlign;
+      const lineHeight = Math.max(fontSize * 1.12, 24);
+      const maxWidth = typeof layer.width === "number" ? layer.width : exportCanvas.width * 0.38;
+
+      ctx.fillStyle = color;
+      ctx.textAlign = align;
+      ctx.textBaseline = "top";
+      ctx.font = `${fontStyle} ${fontWeight} ${fontSize}px ${fontFamily}`;
+      ctx.shadowColor = "rgba(0,0,0,0.45)";
+      ctx.shadowBlur = 10;
+      ctx.shadowOffsetY = 2;
+
+      const words = String(layer.text).split(/\s+/);
+      const lines: string[] = [];
+      let currentLine = "";
+
+      for (const word of words) {
+        const tentative = currentLine ? `${currentLine} ${word}` : word;
+        if (ctx.measureText(tentative).width <= maxWidth || !currentLine) {
+          currentLine = tentative;
+        } else {
+          lines.push(currentLine);
+          currentLine = word;
+        }
+      }
+      if (currentLine) lines.push(currentLine);
+
+      const drawX = align === "center" ? x + maxWidth / 2 : align === "right" ? x + maxWidth : x;
+      lines.forEach((line, index) => {
+        ctx.fillText(line, drawX, y + index * lineHeight, maxWidth);
+      });
+
+      ctx.restore();
+      continue;
+    }
+
+    ctx.restore();
+  }
+
+  const mimeType = format === "jpeg" ? "image/jpeg" : "image/png";
+  const quality = format === "jpeg" ? 0.92 : undefined;
+  const dataUrl = exportCanvas.toDataURL(mimeType, quality as any);
+  const response = await fetch(dataUrl);
+  const blob = await response.blob();
+  const filename = `${sanitizeFilenamePart(title)}.${format === "jpeg" ? "jpg" : "png"}`;
+  downloadBlob(blob, filename);
+}
+
+async function exportMediaUrlImage(params: {
+  mediaUrl: string;
+  title: string;
+  format: "png" | "jpeg";
+}) {
+  const { mediaUrl, title, format } = params;
+
+  if (!mediaUrl) {
+    throw new Error("Aucun média disponible pour l'export.");
+  }
+
+  const response = await fetch(mediaUrl);
+  if (!response.ok) {
+    throw new Error("Impossible de récupérer le média pour l'export.");
+  }
+
+  const blob = await response.blob();
+
+  if (format === "png" && blob.type.includes("png")) {
+    downloadBlob(blob, `${sanitizeFilenamePart(title)}.png`);
+    return;
+  }
+
+  const bitmap = await createImageBitmap(blob);
+  const exportCanvas = document.createElement("canvas");
+  exportCanvas.width = bitmap.width;
+  exportCanvas.height = bitmap.height;
+  const ctx = exportCanvas.getContext("2d");
+
+  if (!ctx) {
+    throw new Error("Canvas non disponible pour l'export du média.");
+  }
+
+  if (format === "jpeg") {
+    ctx.fillStyle = "#0b0b0b";
+    ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+  }
+
+  ctx.drawImage(bitmap, 0, 0);
+
+  const mimeType = format === "jpeg" ? "image/jpeg" : "image/png";
+  const dataUrl = exportCanvas.toDataURL(mimeType, format === "jpeg" ? 0.92 : undefined as any);
+  const exportResponse = await fetch(dataUrl);
+  const exportBlob = await exportResponse.blob();
+  const filename = `${sanitizeFilenamePart(title)}.${format === "jpeg" ? "jpg" : "png"}`;
+  downloadBlob(exportBlob, filename);
+}
+
 function PreviewCanvasView({ canvas }: { canvas: PreviewCanvas }) {
   const sortedLayers = [...canvas.layers]
     .filter((layer) => layer.visible !== false)
@@ -752,8 +961,9 @@ function PreviewCanvasView({ canvas }: { canvas: PreviewCanvas }) {
 }
 
 export default function AssistedPublishModal({ open, post, onClose, onMarkStatus }: Props) {
-  const [copied, setCopied] = useState<"" | "caption" | "media">("");
+  const [copied, setCopied] = useState<"" | "caption">("");
   const [saving, setSaving] = useState<"" | ManualStatus>("");
+  const [exporting, setExporting] = useState<"" | "png" | "jpeg">("");
   const [editableCaption, setEditableCaption] = useState("");
   const [captionLoading, setCaptionLoading] = useState(false);
   const [quotaRemaining, setQuotaRemaining] = useState<number | null>(null);
@@ -824,7 +1034,7 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
 
   if (!open || !post) return null;
 
-  const copyValue = async (value: string, type: "caption" | "media") => {
+  const copyValue = async (value: string, type: "caption") => {
     if (!value) return;
     try {
       await navigator.clipboard.writeText(value);
@@ -843,6 +1053,37 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
       onClose();
     } finally {
       setSaving("");
+    }
+  };
+
+  const handleExport = async (format: "png" | "jpeg") => {
+    try {
+      setExporting(format);
+
+      if (previewCanvas) {
+        await exportPreviewCanvasImage({
+          canvas: previewCanvas,
+          title: title || "publication-lgd",
+          format,
+        });
+        return;
+      }
+
+      if (mediaUrl) {
+        await exportMediaUrlImage({
+          mediaUrl,
+          title: title || "publication-lgd",
+          format,
+        });
+        return;
+      }
+
+      alert("Aucun visuel disponible pour l’export.");
+    } catch (error: any) {
+      const message = String(error?.message || "Export impossible pour ce visuel.");
+      alert(message);
+    } finally {
+      setExporting("");
     }
   };
 
@@ -1195,25 +1436,23 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => copyValue(mediaUrl, "media")}
-                    disabled={!mediaUrl}
+                    onClick={() => handleExport("png")}
+                    disabled={(!previewCanvas && !mediaUrl) || !!exporting}
                     className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 disabled:opacity-40"
                   >
-                    {copied === "media" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                    Copier le lien
+                    <Download className="h-4 w-4" />
+                    {exporting === "png" ? "Export PNG..." : "Exporter PNG"}
                   </button>
 
-                  {mediaUrl && (
-                    <a
-                      href={mediaUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-2 rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-2 text-sm font-semibold text-yellow-300"
-                    >
-                      <Download className="h-4 w-4" />
-                      Ouvrir le média
-                    </a>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleExport("jpeg")}
+                    disabled={(!previewCanvas && !mediaUrl) || !!exporting}
+                    className="inline-flex items-center gap-2 rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-2 text-sm font-semibold text-yellow-300 disabled:opacity-40"
+                  >
+                    <Download className="h-4 w-4" />
+                    {exporting === "jpeg" ? "Export JPEG..." : "Exporter JPEG"}
+                  </button>
                 </div>
               </div>
 
