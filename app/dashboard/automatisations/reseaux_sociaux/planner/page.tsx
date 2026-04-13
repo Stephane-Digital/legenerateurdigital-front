@@ -4,7 +4,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import DayView from "./components/DayView";
 import MonthView from "./components/MonthView";
-import SocialConnectionsPanel from "./components/SocialConnectionsPanel";
 import WeekView from "./components/WeekView";
 
 type ViewMode = "month" | "week" | "day";
@@ -175,10 +174,45 @@ function PlannerPageInner() {
           <span className="text-yellow-400 capitalize">{titleMonthLabel}</span>
         </h1>
 
-        <SocialConnectionsPanel />
+        <div className="mt-10 rounded-[28px] border border-yellow-500/20 bg-[linear-gradient(180deg,rgba(18,18,18,0.96),rgba(10,10,10,0.96))] p-6 md:p-7 shadow-[0_0_0_1px_rgba(255,215,0,0.04)]">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+            <div className="max-w-2xl">
+              <p className="text-xs uppercase tracking-[0.28em] text-yellow-400/80">
+                Planner IA autonome
+              </p>
+              <h2 className="mt-3 text-xl md:text-2xl font-semibold text-white">
+                Calendrier intelligent sans dépendance aux connexions réseaux
+              </h2>
+              <p className="mt-3 text-sm md:text-[15px] leading-7 text-white/72">
+                LGD reste focalisé sur la création, la planification et la réutilisation du contenu.
+                Le planner actuel continue de fonctionner, mais le bloc de connexions est remplacé par
+                une logique plus premium : génération par lots, veille d&apos;angles viraux et édition rapide
+                directement dans le calendrier.
+              </p>
+            </div>
+
+            <div className="grid w-full max-w-xl grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="rounded-2xl border border-white/10 bg-black/30 px-4 py-4">
+                <p className="text-[11px] uppercase tracking-[0.22em] text-yellow-300/80">Auto-remplissage</p>
+                <p className="mt-2 text-sm font-semibold text-white">30 jours intelligents</p>
+                <p className="mt-2 text-xs leading-6 text-white/55">Prévu pour injecter périodiquement des idées prêtes à retravailler.</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-black/30 px-4 py-4">
+                <p className="text-[11px] uppercase tracking-[0.22em] text-yellow-300/80">Trend Radar</p>
+                <p className="mt-2 text-sm font-semibold text-white">Veille + réécriture</p>
+                <p className="mt-2 text-xs leading-6 text-white/55">Les futures tendances viendront nourrir le planner sans casser le flux actuel.</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-black/30 px-4 py-4">
+                <p className="text-[11px] uppercase tracking-[0.22em] text-yellow-300/80">Exports</p>
+                <p className="mt-2 text-sm font-semibold text-white">PNG / JPEG</p>
+                <p className="mt-2 text-xs leading-6 text-white/55">Chaque contenu peut être récupéré en image depuis le modal actuel.</p>
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Espacement validé */}
-        <div className="mt-[120px]">
+        <div className="mt-[72px]">
           {/* ====== SWITCH + FLÈCHES (FIX) ====== */}
           <div className="flex flex-col items-center gap-4 mb-6">
             <div className="flex items-center gap-3">
