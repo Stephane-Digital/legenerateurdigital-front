@@ -1,6 +1,7 @@
 "use client";
 
 import api from "@/lib/api";
+import { renderEditorCreationToDataUrl } from "../../carrousel/editor/utils/downloadEditorCreation";
 import {
   Check,
   Copy,
@@ -271,6 +272,132 @@ function extractPreviewCanvas(post: any, parsed: any): PreviewCanvas | null {
   }
 
   return null;
+}
+
+type EditorRenderSpec = {
+  mode: "post" | "carrousel";
+  draft: any;
+  slideIndex?: number;
+};
+
+function inferFormatKeyFromDimensions(width: number, height: number) {
+  if (width <= 0 || height <= 0) return "instagram_post";
+
+  const ratio = width / height;
+const presets: Array<{ key: string; ratio: number }> = [
+  { key: "instagram_post", ratio: 1 },
+  { key: "instagram_story", ratio: 1080 / 1920 },
+  { key: "facebook", ratio: 1200 / 628 },
+  { key: "linkedin", ratio: 1200 / 628 },
+  { key: "pinterest", ratio: 1000 / 1500 },
+];
+
+let best = presets[0];
+  let bestDiff = Math.abs(best.ratio - ratio);
+
+  for (const preset of presets.slice(1)) {
+    const diff = Math.abs(preset.ratio - ratio);
+    if (diff < bestDiff) {
+      best = preset;
+      bestDiff = diff;
+    }
+  }
+
+  return best.key;
+}
+
+function resolveFormatKey(post: any, parsed: any, fallbackLayers: any[] = []) {
+  const explicit = firstNonEmptyString(
+    parsed?.ui?.formatKey,
+    parsed?.formatKey,
+    parsed?.editor?.ui?.formatKey,
+    parsed?.editor?.formatKey,
+    post?.ui?.formatKey,
+  );
+
+  if (explicit) return explicit;
+
+  const meta = getCanvasMeta(parsed, post);
+  if (meta.width > 0 && meta.height > 0) {
+    return inferFormatKeyFromDimensions(meta.width, meta.height);
+  }
+
+  const normalizedLayers = fallbackLayers.map(normalizeLayer).filter(Boolean) as PreviewLayer[];
+  const size = inferCanvasSize(normalizedLayers, parsed, post);
+  return inferFormatKeyFromDimensions(size.width, size.height);
+}
+
+function resolveEditorRenderSpec(post: any, parsed: any): EditorRenderSpec | null {
+  if (!parsed || typeof parsed !== "object") return null;
+
+  const payload =
+    parsed?.payload && typeof parsed.payload === "object"
+      ? parsed.payload
+      : parsed?.draft && typeof parsed.draft === "object"
+        ? parsed.draft
+        : parsed;
+
+  const directLayers =
+    extractLayers(payload?.layers).length
+      ? extractLayers(payload?.layers)
+      : extractLayers(payload?.elements).length
+        ? extractLayers(payload?.elements)
+        : extractLayers(payload?.objects);
+
+  const formatKey = resolveFormatKey(post, payload, directLayers);
+  const ui = {
+    ...(payload?.ui && typeof payload.ui === "object" ? payload.ui : {}),
+    formatKey,
+  };
+
+  const slides = extractSlides(payload?.slides).map((slide: any) => {
+    const slideLayers =
+      extractLayers(slide?.layers).length
+        ? extractLayers(slide?.layers)
+        : extractLayers(slide?.elements).length
+          ? extractLayers(slide?.elements)
+          : extractLayers(slide?.objects);
+
+    return {
+      ...(slide && typeof slide === "object" ? slide : {}),
+      ui: {
+        ...(slide?.ui && typeof slide.ui === "object" ? slide.ui : {}),
+        formatKey: firstNonEmptyString(slide?.ui?.formatKey, formatKey),
+      },
+      layers: slideLayers,
+    };
+  });
+
+  const looksLikeCarrousel =
+    slides.length > 0 ||
+    String(payload?.type || post?.format || "").toLowerCase().includes("carrousel") ||
+    String(payload?.format || post?.format || "").toLowerCase().includes("carrousel") ||
+    payload?.carrousel_id != null ||
+    post?.carrousel_id != null;
+
+  if (looksLikeCarrousel) {
+    return {
+      mode: "carrousel",
+      draft: {
+        ...payload,
+        ui,
+        slides,
+        layers: directLayers,
+      },
+      slideIndex: 0,
+    };
+  }
+
+  if (!directLayers.length) return null;
+
+  return {
+    mode: "post",
+    draft: {
+      ...payload,
+      ui,
+      layers: directLayers,
+    },
+  };
 }
 
 function flattenPossibleTextSources(post: any, parsed: any) {
@@ -964,6 +1091,8 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
   const [copied, setCopied] = useState<"" | "caption">("");
   const [saving, setSaving] = useState<"" | ManualStatus>("");
   const [exporting, setExporting] = useState<"" | "png" | "jpeg">("");
+  const [renderPreviewUrl, setRenderPreviewUrl] = useState("");
+  const [renderPreviewLoading, setRenderPreviewLoading] = useState(false);
   const [editableCaption, setEditableCaption] = useState("");
   const [captionLoading, setCaptionLoading] = useState(false);
   const [quotaRemaining, setQuotaRemaining] = useState<number | null>(null);
@@ -978,6 +1107,7 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
   const mediaUrl = useMemo(() => extractMediaUrl(post, parsed), [post, parsed]);
   const mediaUrls = useMemo(() => extractAllMediaUrls(post, parsed), [post, parsed]);
   const slides = useMemo(() => extractSlides(parsed?.slides), [parsed]);
+  const editorRenderSpec = useMemo(() => resolveEditorRenderSpec(post, parsed), [post, parsed]);
   const previewCanvas = useMemo(() => extractPreviewCanvas(post, parsed), [post, parsed]);
   const network = useMemo(
     () => String(post?.reseau ?? post?.network ?? parsed?.reseau ?? parsed?.network ?? "").toLowerCase(),
@@ -990,6 +1120,50 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
   useEffect(() => {
     setEditableCaption(caption || "");
   }, [caption, post?.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const renderPreview = async () => {
+      if (!open || !editorRenderSpec) {
+        if (!cancelled) {
+          setRenderPreviewUrl("");
+          setRenderPreviewLoading(false);
+        }
+        return;
+      }
+
+      try {
+        setRenderPreviewLoading(true);
+        const dataUrl = await renderEditorCreationToDataUrl({
+          mode: editorRenderSpec.mode,
+          draft: editorRenderSpec.draft,
+          slideIndex: editorRenderSpec.slideIndex,
+          format: "png",
+        });
+
+        if (!cancelled) {
+          setRenderPreviewUrl(dataUrl);
+        }
+      } catch (error) {
+        console.error("LGD planner preview render error:", error);
+        if (!cancelled) {
+          setRenderPreviewUrl("");
+        }
+      } finally {
+        if (!cancelled) {
+          setRenderPreviewLoading(false);
+        }
+      }
+    };
+
+    renderPreview();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, editorRenderSpec, post?.id]);
+
 
   useEffect(() => {
     let mounted = true;
@@ -1059,6 +1233,20 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
   const handleExport = async (format: "png" | "jpeg") => {
     try {
       setExporting(format);
+
+      if (editorRenderSpec) {
+        const dataUrl = await renderEditorCreationToDataUrl({
+          mode: editorRenderSpec.mode,
+          draft: editorRenderSpec.draft,
+          slideIndex: editorRenderSpec.slideIndex,
+          format,
+        });
+        const response = await fetch(dataUrl);
+        const blob = await response.blob();
+        const filename = `${sanitizeFilenamePart(title || "publication-lgd")}.${format === "jpeg" ? "jpg" : "png"}`;
+        downloadBlob(blob, filename);
+        return;
+      }
 
       if (previewCanvas) {
         await exportPreviewCanvasImage({
@@ -1437,7 +1625,7 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
                   <button
                     type="button"
                     onClick={() => handleExport("png")}
-                    disabled={(!previewCanvas && !mediaUrl) || !!exporting}
+                    disabled={(!editorRenderSpec && !previewCanvas && !mediaUrl) || !!exporting}
                     className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 disabled:opacity-40"
                   >
                     <Download className="h-4 w-4" />
@@ -1447,7 +1635,7 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
                   <button
                     type="button"
                     onClick={() => handleExport("jpeg")}
-                    disabled={(!previewCanvas && !mediaUrl) || !!exporting}
+                    disabled={(!editorRenderSpec && !previewCanvas && !mediaUrl) || !!exporting}
                     className="inline-flex items-center gap-2 rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-2 text-sm font-semibold text-yellow-300 disabled:opacity-40"
                   >
                     <Download className="h-4 w-4" />
@@ -1457,7 +1645,24 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
               </div>
 
               <div className="mt-4 space-y-4 rounded-2xl border border-dashed border-white/10 bg-black/20 p-4 text-sm text-white/70">
-                {previewCanvas ? (
+                {renderPreviewLoading ? (
+                  <div className="flex items-center gap-3 rounded-2xl border border-yellow-500/20 bg-yellow-500/5 px-4 py-3 text-sm text-yellow-200">
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-yellow-400 border-t-transparent" />
+                    LGD reconstruit le visuel exact depuis l’éditeur…
+                  </div>
+                ) : renderPreviewUrl ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-white/85">
+                      <ImageIcon className="h-4 w-4 text-yellow-400" />
+                      Aperçu fidèle reconstruit depuis le moteur de rendu de l’éditeur.
+                    </div>
+                    <img
+                      src={renderPreviewUrl}
+                      alt="preview fidèle"
+                      className="max-h-[520px] w-full rounded-xl border border-white/10 object-contain bg-black/40"
+                    />
+                  </div>
+                ) : previewCanvas ? (
                   <PreviewCanvasView canvas={previewCanvas} />
                 ) : mediaUrl ? (
                   <div className="space-y-3">
