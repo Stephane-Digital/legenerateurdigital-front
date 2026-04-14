@@ -552,15 +552,7 @@ export async function renderSingleCreationToDataUrl(args: {
     }
 
     if (type === "text") {
-      const hasRichHtml = typeof layer?.html === "string" && layer.html.trim().length > 0;
-      if (hasRichHtml) {
-        const richDrawn = await drawTextLayerRich(ctx, layer);
-        if (!richDrawn) {
-          await drawTextLayer(ctx, layer);
-        }
-      } else {
-        await drawTextLayer(ctx, layer);
-      }
+      await drawTextLayer(ctx, layer);
     }
   }
 
