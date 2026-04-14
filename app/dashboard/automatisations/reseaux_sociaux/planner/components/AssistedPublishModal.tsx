@@ -1168,18 +1168,18 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
     try {
       setExporting(format);
 
-      if (mediaUrl && mediaUrl.startsWith("data:image/")) {
-        await exportDataUrlImage({
-          dataUrl: mediaUrl,
+      if (previewCanvas) {
+        await exportPreviewCanvasImage({
+          canvas: previewCanvas,
           title: title || "publication-lgd",
           format,
         });
         return;
       }
 
-      if (previewCanvas && !mediaUrl) {
-        await exportPreviewCanvasImage({
-          canvas: previewCanvas,
+      if (mediaUrl && mediaUrl.startsWith("data:image/")) {
+        await exportDataUrlImage({
+          dataUrl: mediaUrl,
           title: title || "publication-lgd",
           format,
         });
@@ -1574,7 +1574,9 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
               </div>
 
               <div className="mt-4 space-y-4 rounded-2xl border border-dashed border-white/10 bg-black/20 p-4 text-sm text-white/70">
-                {mediaUrl ? (
+                {previewCanvas ? (
+                  <PreviewCanvasView canvas={previewCanvas} />
+                ) : mediaUrl ? (
                   <div className="space-y-3">
                     <div className="flex items-center gap-2 text-white/85">
                       <ImageIcon className="h-4 w-4 text-yellow-400" />
@@ -1585,12 +1587,7 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
                       alt="preview"
                       className="max-h-[420px] w-full rounded-xl border border-white/10 object-contain bg-black/40"
                     />
-                    <div className="break-all rounded-xl bg-black/30 px-3 py-2 text-xs text-white/55">
-                      {mediaUrl}
-                    </div>
                   </div>
-                ) : previewCanvas ? (
-                  <PreviewCanvasView canvas={previewCanvas} />
                 ) : (
                   <p>
                     Aucun média détecté automatiquement. Utilise l’éditeur intelligent ou la bibliothèque pour récupérer le visuel.
