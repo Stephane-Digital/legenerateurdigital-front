@@ -535,6 +535,19 @@ function flattenPossibleMediaSources(post: any, parsed: any) {
   ]).filter(looksLikeImageUrl);
 }
 
+function extractExactPreviewImage(post: any, parsed: any) {
+  return firstNonEmptyString(
+    post?.planner_preview_image,
+    post?.preview_image,
+    post?.rendered_image,
+    post?.renderedImage,
+    parsed?.planner_preview_image,
+    parsed?.preview_image,
+    parsed?.rendered_image,
+    parsed?.renderedImage,
+  );
+}
+
 function extractMediaUrl(post: any, parsed: any) {
   const candidates = flattenPossibleMediaSources(post, parsed);
   return candidates[0] || "";
@@ -1036,9 +1049,7 @@ function PreviewCanvasView({ canvas }: { canvas: PreviewCanvas }) {
                     ...baseStyle,
                     color: String(layer.style?.color || "#ffffff"),
                     fontSize: `${(fontSize / canvas.height) * 100}cqh`,
-                    fontFamily: layer.style?.fontFamily
-                      ? String(layer.style.fontFamily).trim()
-                      : "Inter, Arial, sans-serif",
+                    fontFamily: String(layer.style?.fontFamily || "inherit"),
                     fontWeight: Number(layer.style?.fontWeight || 700),
                     fontStyle: layer.style?.italic ? "italic" : "normal",
                     textDecoration: layer.style?.underline ? "underline" : "none",
@@ -1079,6 +1090,7 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
   const parsed = useMemo(() => safeParseJSON(post?.contenu ?? post?.content ?? null), [post]);
   const title = useMemo(() => extractTitle(post, parsed), [post, parsed]);
   const caption = useMemo(() => extractCaption(post, parsed), [post, parsed]);
+  const exactPreviewImage = useMemo(() => extractExactPreviewImage(post, parsed), [post, parsed]);
   const mediaUrl = useMemo(() => extractMediaUrl(post, parsed), [post, parsed]);
   const mediaUrls = useMemo(() => extractAllMediaUrls(post, parsed), [post, parsed]);
   const slides = useMemo(() => extractSlides(parsed?.slides), [parsed]);
@@ -1220,6 +1232,24 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
   const handleExport = async (format: "png" | "jpeg") => {
     try {
       setExporting(format);
+
+      if (exactPreviewImage && exactPreviewImage.startsWith("data:image/")) {
+        await exportDataUrlImage({
+          dataUrl: exactPreviewImage,
+          title: title || "publication-lgd",
+          format,
+        });
+        return;
+      }
+
+      if (exactPreviewImage) {
+        await exportMediaUrlImage({
+          mediaUrl: exactPreviewImage,
+          title: title || "publication-lgd",
+          format,
+        });
+        return;
+      }
 
       if (editorPreviewUrl) {
         await exportDataUrlImage({
@@ -1607,7 +1637,7 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
                   <button
                     type="button"
                     onClick={() => handleExport("png")}
-                    disabled={(!editorPreviewUrl && !previewCanvas && !mediaUrl) || !!exporting || editorPreviewLoading}
+                    disabled={(!exactPreviewImage && !editorPreviewUrl && !previewCanvas && !mediaUrl) || !!exporting || editorPreviewLoading}
                     className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 disabled:opacity-40"
                   >
                     <Download className="h-4 w-4" />
@@ -1617,7 +1647,7 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
                   <button
                     type="button"
                     onClick={() => handleExport("jpeg")}
-                    disabled={(!editorPreviewUrl && !previewCanvas && !mediaUrl) || !!exporting || editorPreviewLoading}
+                    disabled={(!exactPreviewImage && !editorPreviewUrl && !previewCanvas && !mediaUrl) || !!exporting || editorPreviewLoading}
                     className="inline-flex items-center gap-2 rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-2 text-sm font-semibold text-yellow-300 disabled:opacity-40"
                   >
                     <Download className="h-4 w-4" />
@@ -1627,7 +1657,19 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
               </div>
 
               <div className="mt-4 space-y-4 rounded-2xl border border-dashed border-white/10 bg-black/20 p-4 text-sm text-white/70">
-                {editorPreviewLoading ? (
+                {exactPreviewImage ? (
+                  <div className="rounded-2xl border border-yellow-500/20 bg-black/30 p-3">
+                    <div className="mb-3 flex items-center gap-2 text-sm text-yellow-200">
+                      <ImageIcon className="h-4 w-4 text-yellow-400" />
+                      Aperçu exact enregistré depuis l’éditeur.
+                    </div>
+                    <img
+                      src={exactPreviewImage}
+                      alt="aperçu exact"
+                      className="max-h-[560px] w-full rounded-xl border border-white/10 object-contain bg-black/40"
+                    />
+                  </div>
+                ) : editorPreviewLoading ? (
                   <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/5 px-4 py-4 text-sm text-yellow-200">
                     Préparation du rendu fidèle depuis l’éditeur…
                   </div>
@@ -1656,9 +1698,6 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
                       alt="preview"
                       className="max-h-[420px] w-full rounded-xl border border-white/10 object-contain bg-black/40"
                     />
-                    <div className="break-all rounded-xl bg-black/30 px-3 py-2 text-xs text-white/55">
-                      {mediaUrl}
-                    </div>
                   </div>
                 ) : (
                   <p>
@@ -1666,7 +1705,7 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
                   </p>
                 )}
 
-                {!previewCanvas && mediaUrls.length > 1 && (
+                {!exactPreviewImage && !previewCanvas && mediaUrls.length > 1 && (
                   <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-3">
                     <p className="mb-2 text-xs uppercase tracking-[0.18em] text-yellow-300/80">Médias détectés</p>
                     <div className="space-y-2">
