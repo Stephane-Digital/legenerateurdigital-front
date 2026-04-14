@@ -13,7 +13,6 @@ import {
   Undo2,
 } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
-import { renderEditorCreationToDataUrl } from "../../carrousel/editor/utils/downloadEditorCreation";
 
 type ManualStatus = "published" | "scheduled";
 
@@ -508,6 +507,10 @@ function flattenPossibleMediaSources(post: any, parsed: any) {
 
   return uniqueStrings([
     firstNonEmptyString(
+      post?.planner_preview_image,
+      post?.preview_image,
+      post?.rendered_image,
+      post?.renderedImage,
       post?.media_url,
       post?.image_url,
       post?.mediaUrl,
@@ -520,6 +523,10 @@ function flattenPossibleMediaSources(post: any, parsed: any) {
       post?.coverUrl,
     ),
     firstNonEmptyString(
+      parsed?.planner_preview_image,
+      parsed?.preview_image,
+      parsed?.rendered_image,
+      parsed?.renderedImage,
       parsed?.media_url,
       parsed?.image_url,
       parsed?.mediaUrl,
@@ -1071,8 +1078,6 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
   const [quotaMessage, setQuotaMessage] = useState("");
   const [tone, setTone] = useState("premium");
   const [objective, setObjective] = useState("conversion");
-  const [editorPreviewUrl, setEditorPreviewUrl] = useState("");
-  const [editorPreviewLoading, setEditorPreviewLoading] = useState(false);
 
   const parsed = useMemo(() => safeParseJSON(post?.contenu ?? post?.content ?? null), [post]);
   const title = useMemo(() => extractTitle(post, parsed), [post, parsed]);
@@ -1080,7 +1085,6 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
   const mediaUrl = useMemo(() => extractMediaUrl(post, parsed), [post, parsed]);
   const mediaUrls = useMemo(() => extractAllMediaUrls(post, parsed), [post, parsed]);
   const slides = useMemo(() => extractSlides(parsed?.slides), [parsed]);
-  const editorRenderSpec = useMemo(() => inferEditorRenderSpec(post, parsed), [post, parsed]);
   const previewCanvas = useMemo(() => extractPreviewCanvas(post, parsed), [post, parsed]);
   const network = useMemo(
     () => String(post?.reseau ?? post?.network ?? parsed?.reseau ?? parsed?.network ?? "").toLowerCase(),
@@ -1091,8 +1095,8 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
   const isPublished = status.includes("published") || status.includes("envoy") || status.includes("success");
 
   useEffect(() => {
-    setEditableCaption(caption || "");
-  }, [caption, post?.id]);
+    setEditableCaption("");
+  }, [post?.id]);
 
   useEffect(() => {
     let mounted = true;
@@ -1135,61 +1139,6 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
     };
   }, [open]);
 
-  useEffect(() => {
-    if (!open || !post || !editorRenderSpec) {
-      setEditorPreviewUrl("");
-      setEditorPreviewLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-    let success = false;
-
-    const run = async (delayMs = 0) => {
-      if (delayMs > 0) {
-        await new Promise((resolve) => window.setTimeout(resolve, delayMs));
-      }
-      if (cancelled) return;
-
-      try {
-        const dataUrl = await renderEditorCreationToDataUrl({
-          mode: editorRenderSpec.mode,
-          draft: editorRenderSpec.draft,
-          slideIndex: editorRenderSpec.slideIndex,
-        });
-
-        if (!cancelled && dataUrl) {
-          success = true;
-          setEditorPreviewUrl(dataUrl);
-          setEditorPreviewLoading(false);
-        }
-      } catch (error) {
-        if (!cancelled) {
-          console.error("LGD planner faithful preview error:", error);
-        }
-      }
-    };
-
-    setEditorPreviewLoading(true);
-    setEditorPreviewUrl("");
-
-    const t1 = window.setTimeout(() => {
-      run(0);
-    }, 0);
-    const t2 = window.setTimeout(() => {
-      if (!success) run(220);
-    }, 220);
-    const t3 = window.setTimeout(() => {
-      if (!success) run(650);
-    }, 650);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(t1);
-      window.clearTimeout(t2);
-      window.clearTimeout(t3);
-    };
-  }, [open, post?.id, editorRenderSpec]);
 
   if (!open || !post) return null;
 
@@ -1219,16 +1168,16 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
     try {
       setExporting(format);
 
-      if (editorPreviewUrl) {
+      if (mediaUrl && mediaUrl.startsWith("data:image/")) {
         await exportDataUrlImage({
-          dataUrl: editorPreviewUrl,
+          dataUrl: mediaUrl,
           title: title || "publication-lgd",
           format,
         });
         return;
       }
 
-      if (previewCanvas) {
+      if (previewCanvas && !mediaUrl) {
         await exportPreviewCanvasImage({
           canvas: previewCanvas,
           title: title || "publication-lgd",
@@ -1605,7 +1554,7 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
                   <button
                     type="button"
                     onClick={() => handleExport("png")}
-                    disabled={(!editorPreviewUrl && !previewCanvas && !mediaUrl) || !!exporting || editorPreviewLoading}
+                    disabled={(!previewCanvas && !mediaUrl) || !!exporting}
                     className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 disabled:opacity-40"
                   >
                     <Download className="h-4 w-4" />
@@ -1615,7 +1564,7 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
                   <button
                     type="button"
                     onClick={() => handleExport("jpeg")}
-                    disabled={(!editorPreviewUrl && !previewCanvas && !mediaUrl) || !!exporting || editorPreviewLoading}
+                    disabled={(!previewCanvas && !mediaUrl) || !!exporting}
                     className="inline-flex items-center gap-2 rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-2 text-sm font-semibold text-yellow-300 disabled:opacity-40"
                   >
                     <Download className="h-4 w-4" />
@@ -1625,25 +1574,7 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
               </div>
 
               <div className="mt-4 space-y-4 rounded-2xl border border-dashed border-white/10 bg-black/20 p-4 text-sm text-white/70">
-                {editorPreviewLoading ? (
-                  <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/5 px-4 py-4 text-sm text-yellow-200">
-                    Préparation du rendu fidèle depuis l’éditeur…
-                  </div>
-                ) : editorPreviewUrl ? (
-                  <div className="rounded-2xl border border-yellow-500/20 bg-black/30 p-3">
-                    <div className="mb-3 flex items-center gap-2 text-sm text-yellow-200">
-                      <ImageIcon className="h-4 w-4 text-yellow-400" />
-                      Aperçu fidèle reconstruit depuis le moteur de rendu de l’éditeur.
-                    </div>
-                    <img
-                      src={editorPreviewUrl}
-                      alt="aperçu fidèle"
-                      className="max-h-[560px] w-full rounded-xl border border-white/10 object-contain bg-black/40"
-                    />
-                  </div>
-                ) : previewCanvas ? (
-                  <PreviewCanvasView canvas={previewCanvas} />
-                ) : mediaUrl ? (
+                {mediaUrl ? (
                   <div className="space-y-3">
                     <div className="flex items-center gap-2 text-white/85">
                       <ImageIcon className="h-4 w-4 text-yellow-400" />
@@ -1658,6 +1589,8 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
                       {mediaUrl}
                     </div>
                   </div>
+                ) : previewCanvas ? (
+                  <PreviewCanvasView canvas={previewCanvas} />
                 ) : (
                   <p>
                     Aucun média détecté automatiquement. Utilise l’éditeur intelligent ou la bibliothèque pour récupérer le visuel.
@@ -1756,3 +1689,5 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
     </div>
   );
 }
+
+
