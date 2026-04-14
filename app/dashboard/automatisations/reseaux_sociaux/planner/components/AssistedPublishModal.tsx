@@ -222,6 +222,65 @@ function snapToCommonFormat(width: number, height: number) {
   return { width, height };
 }
 
+function inferFormatKeyFromDimensions(width: number, height: number) {
+  if (width <= 0 || height <= 0) return "instagram_post";
+
+  const ratio = width / height;
+  const presets: Array<{ key: string; ratio: number }> = [
+    { key: "instagram_post", ratio: 1 },
+    { key: "instagram_story", ratio: 1080 / 1920 },
+    { key: "facebook", ratio: 1200 / 628 },
+    { key: "linkedin", ratio: 1200 / 628 },
+    { key: "pinterest", ratio: 1000 / 1500 },
+  ];
+
+  let best = presets[0];
+  let bestDiff = Math.abs(best.ratio - ratio);
+
+  for (const preset of presets.slice(1)) {
+    const diff = Math.abs(preset.ratio - ratio);
+    if (diff < bestDiff) {
+      best = preset;
+      bestDiff = diff;
+    }
+  }
+
+  return best.key;
+}
+
+function resolveFormatKey(post: any, parsed: any, layers: any[] = []) {
+  const explicit = firstNonEmptyString(
+    parsed?.ui?.formatKey,
+    parsed?.editor?.ui?.formatKey,
+    parsed?.formatKey,
+    post?.ui?.formatKey,
+    post?.formatKey,
+  );
+  if (explicit) return explicit;
+
+  const meta = getCanvasMeta(parsed, post);
+  if (meta.width > 0 && meta.height > 0) {
+    return inferFormatKeyFromDimensions(meta.width, meta.height);
+  }
+
+  let maxX = 0;
+  let maxY = 0;
+  for (const layer of Array.isArray(layers) ? layers : []) {
+    const x = Number(layer?.x ?? 0) || 0;
+    const y = Number(layer?.y ?? 0) || 0;
+    const w = Number(layer?.width ?? layer?.w ?? 0) || 0;
+    const h = Number(layer?.height ?? layer?.h ?? 0) || 0;
+    maxX = Math.max(maxX, x + w);
+    maxY = Math.max(maxY, y + h);
+  }
+
+  if (maxX > 0 && maxY > 0) {
+    return inferFormatKeyFromDimensions(maxX, maxY);
+  }
+
+  return "instagram_post";
+}
+
 function inferCanvasSize(layers: PreviewLayer[], parsed: any, post: any) {
   const fromMeta = getCanvasMeta(parsed, post);
   if (fromMeta.width > 0 && fromMeta.height > 0) {
@@ -305,18 +364,29 @@ function inferEditorRenderSpec(post: any, parsed: any): EditorRenderSpec | null 
   const slides = extractSlides(payload?.slides);
   if (slides.length) {
     const normalizedSlides = slides
-      .map((slide: any, index: number) => ({
-        id: String(slide?.id || `slide-${index + 1}`),
-        ui: slide?.ui || payload?.ui,
-        layers: extractLayers(slide?.layers),
-      }))
+      .map((slide: any, index: number) => {
+        const slideLayers = extractLayers(slide?.layers);
+        const formatKey = resolveFormatKey(post, slide ?? payload, slideLayers);
+        return {
+          id: String(slide?.id || `slide-${index + 1}`),
+          ui: {
+            ...(payload?.ui || {}),
+            ...(slide?.ui || {}),
+            formatKey,
+          },
+          layers: slideLayers,
+        };
+      })
       .filter((slide: any) => Array.isArray(slide.layers) && slide.layers.length > 0);
 
     if (normalizedSlides.length) {
       return {
         mode: "carrousel",
         draft: {
-          ui: payload?.ui,
+          ui: {
+            ...(payload?.ui || {}),
+            formatKey: resolveFormatKey(post, payload, normalizedSlides[0]?.layers || []),
+          },
           slides: normalizedSlides,
         },
         slideIndex: 0,
@@ -329,7 +399,10 @@ function inferEditorRenderSpec(post: any, parsed: any): EditorRenderSpec | null 
     return {
       mode: "post",
       draft: {
-        ui: payload?.ui,
+        ui: {
+          ...(payload?.ui || {}),
+          formatKey: resolveFormatKey(post, payload, layers),
+        },
         layers,
       },
     };
