@@ -1036,7 +1036,9 @@ function PreviewCanvasView({ canvas }: { canvas: PreviewCanvas }) {
                     ...baseStyle,
                     color: String(layer.style?.color || "#ffffff"),
                     fontSize: `${(fontSize / canvas.height) * 100}cqh`,
-                    fontFamily: String(layer.style?.fontFamily || "inherit"),
+                    fontFamily: layer.style?.fontFamily
+                      ? String(layer.style.fontFamily).trim()
+                      : "Inter, Arial, sans-serif",
                     fontWeight: Number(layer.style?.fontWeight || 700),
                     fontStyle: layer.style?.italic ? "italic" : "normal",
                     textDecoration: layer.style?.underline ? "underline" : "none",
@@ -1635,20 +1637,11 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
                       <ImageIcon className="h-4 w-4 text-yellow-400" />
                       Aperçu fidèle reconstruit depuis le moteur de rendu de l’éditeur.
                     </div>
-                    <div
-                      className="relative mx-auto overflow-hidden rounded-xl border border-white/10 bg-black/40"
-                      style={{
-                        aspectRatio: "1 / 1",
-                        width: "100%",
-                        maxWidth: "720px",
-                      }}
-                    >
-                      <img
-                        src={editorPreviewUrl}
-                        alt="aperçu fidèle"
-                        className="absolute inset-0 h-full w-full object-contain"
-                      />
-                    </div>
+                    <img
+                      src={editorPreviewUrl}
+                      alt="aperçu fidèle"
+                      className="max-h-[560px] w-full rounded-xl border border-white/10 object-contain bg-black/40"
+                    />
                   </div>
                 ) : previewCanvas ? (
                   <PreviewCanvasView canvas={previewCanvas} />
