@@ -222,65 +222,6 @@ function snapToCommonFormat(width: number, height: number) {
   return { width, height };
 }
 
-function inferFormatKeyFromDimensions(width: number, height: number) {
-  if (width <= 0 || height <= 0) return "instagram_post";
-
-  const ratio = width / height;
-  const presets: Array<{ key: string; ratio: number }> = [
-    { key: "instagram_post", ratio: 1 },
-    { key: "instagram_story", ratio: 1080 / 1920 },
-    { key: "facebook", ratio: 1200 / 628 },
-    { key: "linkedin", ratio: 1200 / 628 },
-    { key: "pinterest", ratio: 1000 / 1500 },
-  ];
-
-  let best = presets[0];
-  let bestDiff = Math.abs(best.ratio - ratio);
-
-  for (const preset of presets.slice(1)) {
-    const diff = Math.abs(preset.ratio - ratio);
-    if (diff < bestDiff) {
-      best = preset;
-      bestDiff = diff;
-    }
-  }
-
-  return best.key;
-}
-
-function resolveFormatKey(post: any, parsed: any, layers: any[] = []) {
-  const explicit = firstNonEmptyString(
-    parsed?.ui?.formatKey,
-    parsed?.editor?.ui?.formatKey,
-    parsed?.formatKey,
-    post?.ui?.formatKey,
-    post?.formatKey,
-  );
-  if (explicit) return explicit;
-
-  const meta = getCanvasMeta(parsed, post);
-  if (meta.width > 0 && meta.height > 0) {
-    return inferFormatKeyFromDimensions(meta.width, meta.height);
-  }
-
-  let maxX = 0;
-  let maxY = 0;
-  for (const layer of Array.isArray(layers) ? layers : []) {
-    const x = Number(layer?.x ?? 0) || 0;
-    const y = Number(layer?.y ?? 0) || 0;
-    const w = Number(layer?.width ?? layer?.w ?? 0) || 0;
-    const h = Number(layer?.height ?? layer?.h ?? 0) || 0;
-    maxX = Math.max(maxX, x + w);
-    maxY = Math.max(maxY, y + h);
-  }
-
-  if (maxX > 0 && maxY > 0) {
-    return inferFormatKeyFromDimensions(maxX, maxY);
-  }
-
-  return "instagram_post";
-}
-
 function inferCanvasSize(layers: PreviewLayer[], parsed: any, post: any) {
   const fromMeta = getCanvasMeta(parsed, post);
   if (fromMeta.width > 0 && fromMeta.height > 0) {
@@ -364,29 +305,18 @@ function inferEditorRenderSpec(post: any, parsed: any): EditorRenderSpec | null 
   const slides = extractSlides(payload?.slides);
   if (slides.length) {
     const normalizedSlides = slides
-      .map((slide: any, index: number) => {
-        const slideLayers = extractLayers(slide?.layers);
-        const formatKey = resolveFormatKey(post, slide ?? payload, slideLayers);
-        return {
-          id: String(slide?.id || `slide-${index + 1}`),
-          ui: {
-            ...(payload?.ui || {}),
-            ...(slide?.ui || {}),
-            formatKey,
-          },
-          layers: slideLayers,
-        };
-      })
+      .map((slide: any, index: number) => ({
+        id: String(slide?.id || `slide-${index + 1}`),
+        ui: slide?.ui || payload?.ui,
+        layers: extractLayers(slide?.layers),
+      }))
       .filter((slide: any) => Array.isArray(slide.layers) && slide.layers.length > 0);
 
     if (normalizedSlides.length) {
       return {
         mode: "carrousel",
         draft: {
-          ui: {
-            ...(payload?.ui || {}),
-            formatKey: resolveFormatKey(post, payload, normalizedSlides[0]?.layers || []),
-          },
+          ui: payload?.ui,
           slides: normalizedSlides,
         },
         slideIndex: 0,
@@ -399,10 +329,7 @@ function inferEditorRenderSpec(post: any, parsed: any): EditorRenderSpec | null 
     return {
       mode: "post",
       draft: {
-        ui: {
-          ...(payload?.ui || {}),
-          formatKey: resolveFormatKey(post, payload, layers),
-        },
+        ui: payload?.ui,
         layers,
       },
     };
@@ -1292,24 +1219,6 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
     try {
       setExporting(format);
 
-      if (mediaUrl && mediaUrl.startsWith("data:image/")) {
-        await exportDataUrlImage({
-          dataUrl: mediaUrl,
-          title: title || "publication-lgd",
-          format,
-        });
-        return;
-      }
-
-      if (mediaUrl) {
-        await exportMediaUrlImage({
-          mediaUrl,
-          title: title || "publication-lgd",
-          format,
-        });
-        return;
-      }
-
       if (editorPreviewUrl) {
         await exportDataUrlImage({
           dataUrl: editorPreviewUrl,
@@ -1322,6 +1231,15 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
       if (previewCanvas) {
         await exportPreviewCanvasImage({
           canvas: previewCanvas,
+          title: title || "publication-lgd",
+          format,
+        });
+        return;
+      }
+
+      if (mediaUrl) {
+        await exportMediaUrlImage({
+          mediaUrl,
           title: title || "publication-lgd",
           format,
         });
@@ -1707,19 +1625,7 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
               </div>
 
               <div className="mt-4 space-y-4 rounded-2xl border border-dashed border-white/10 bg-black/20 p-4 text-sm text-white/70">
-                {mediaUrl ? (
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-white/85">
-                      <ImageIcon className="h-4 w-4 text-yellow-400" />
-                      Aperçu exact enregistré depuis l’éditeur.
-                    </div>
-                    <img
-                      src={mediaUrl}
-                      alt="preview"
-                      className="w-full rounded-xl border border-white/10 object-contain bg-black/40"
-                    />
-                  </div>
-                ) : editorPreviewLoading ? (
+                {editorPreviewLoading ? (
                   <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/5 px-4 py-4 text-sm text-yellow-200">
                     Préparation du rendu fidèle depuis l’éditeur…
                   </div>
@@ -1729,21 +1635,45 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
                       <ImageIcon className="h-4 w-4 text-yellow-400" />
                       Aperçu fidèle reconstruit depuis le moteur de rendu de l’éditeur.
                     </div>
-                    <img
-                      src={editorPreviewUrl}
-                      alt="aperçu fidèle"
-                      className="max-h-[560px] w-full rounded-xl border border-white/10 object-contain bg-black/40"
-                    />
+                    <div
+                      className="relative mx-auto overflow-hidden rounded-xl border border-white/10 bg-black/40"
+                      style={{
+                        aspectRatio: "1 / 1",
+                        width: "100%",
+                        maxWidth: "720px",
+                      }}
+                    >
+                      <img
+                        src={editorPreviewUrl}
+                        alt="aperçu fidèle"
+                        className="absolute inset-0 h-full w-full object-contain"
+                      />
+                    </div>
                   </div>
                 ) : previewCanvas ? (
                   <PreviewCanvasView canvas={previewCanvas} />
+                ) : mediaUrl ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-white/85">
+                      <ImageIcon className="h-4 w-4 text-yellow-400" />
+                      Média détecté pour cette publication.
+                    </div>
+                    <img
+                      src={mediaUrl}
+                      alt="preview"
+                      className="max-h-[420px] w-full rounded-xl border border-white/10 object-contain bg-black/40"
+                    />
+                    <div className="break-all rounded-xl bg-black/30 px-3 py-2 text-xs text-white/55">
+                      {mediaUrl}
+                    </div>
+                  </div>
                 ) : (
                   <p>
                     Aucun média détecté automatiquement. Utilise l’éditeur intelligent ou la bibliothèque pour récupérer le visuel.
                   </p>
                 )}
 
-                {!mediaUrl && !previewCanvas && mediaUrls.length > 1 && (
+                {!previewCanvas && mediaUrls.length > 1 && (
                   <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-3">
                     <p className="mb-2 text-xs uppercase tracking-[0.18em] text-yellow-300/80">Médias détectés</p>
                     <div className="space-y-2">
