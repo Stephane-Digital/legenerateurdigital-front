@@ -1091,8 +1091,8 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
   const isPublished = status.includes("published") || status.includes("envoy") || status.includes("success");
 
   useEffect(() => {
-    setEditableCaption(caption || "");
-  }, [caption, post?.id]);
+    setEditableCaption("");
+  }, [post?.id]);
 
   useEffect(() => {
     let mounted = true;
@@ -1631,10 +1631,6 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
                   </div>
                 ) : editorPreviewUrl ? (
                   <div className="rounded-2xl border border-yellow-500/20 bg-black/30 p-3">
-                    <div className="mb-3 flex items-center gap-2 text-sm text-yellow-200">
-                      <ImageIcon className="h-4 w-4 text-yellow-400" />
-                      Aperçu fidèle reconstruit depuis le moteur de rendu de l’éditeur.
-                    </div>
                     <div
                       className="relative mx-auto overflow-hidden rounded-xl border border-white/10 bg-black/40"
                       style={{
