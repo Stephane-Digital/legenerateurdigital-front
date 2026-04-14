@@ -118,6 +118,18 @@ function normalizeFontFamily(font?: string) {
   return `"${raw}", Arial, sans-serif`;
 }
 
+function getFontImportCss(font?: string) {
+  const raw = String(font || "").trim().toLowerCase();
+  const imports: Record<string, string> = {
+    inter: "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap');",
+    lora: "@import url('https://fonts.googleapis.com/css2?family=Lora:wght@400;700&display=swap');",
+    oswald: "@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&display=swap');",
+    montserrat: "@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap');",
+    merriweather: "@import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&display=swap');",
+  };
+  return imports[raw] || "";
+}
+
 function getFormat(ui?: EditorUI) {
   const key = (ui?.formatKey || "instagram_post") as CanvasFormatKey;
   const fmt = CANVAS_FORMATS[key] || CANVAS_FORMATS.instagram_post;
@@ -267,9 +279,9 @@ async function drawTextLayerRich(ctx: CanvasRenderingContext2D, layer: LayerData
     `line-height:${lineHeight}`,
     `text-align:${textAlign}`,
     `text-decoration:${escapeXml(textDecoration)}`,
-    `white-space:normal`,
-    `word-break:break-word`,
-    `overflow-wrap:anywhere`,
+    `white-space:pre-wrap`,
+    `word-break:normal`,
+    `overflow-wrap:break-word`,
     `overflow:hidden`,
     `padding:${backgroundColor ? "16px 22px" : "0px"}`,
     `background:${backgroundColor ? escapeXml(backgroundColor) : "transparent"}`,
@@ -288,8 +300,14 @@ async function drawTextLayerRich(ctx: CanvasRenderingContext2D, layer: LayerData
   ].join(";");
 
   const bodyHtml = `
-    <div xmlns="http://www.w3.org/1999/xhtml" style="${containerStyles}">
-      ${html}
+    <div xmlns="http://www.w3.org/1999/xhtml">
+      <style>
+        ${getFontImportCss(firstNonEmptyString(style?.fontFamily, "Inter"))}
+        html, body { margin: 0; padding: 0; }
+      </style>
+      <div style="${containerStyles}">
+        ${html}
+      </div>
     </div>
   `;
 
@@ -552,7 +570,10 @@ export async function renderSingleCreationToDataUrl(args: {
     }
 
     if (type === "text") {
-      await drawTextLayer(ctx, layer);
+      const richDrawn = await drawTextLayerRich(ctx, layer);
+      if (!richDrawn) {
+        await drawTextLayer(ctx, layer);
+      }
     }
   }
 
