@@ -1091,8 +1091,8 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
   const isPublished = status.includes("published") || status.includes("envoy") || status.includes("success");
 
   useEffect(() => {
-    setEditableCaption("");
-  }, [post?.id]);
+    setEditableCaption(caption || "");
+  }, [caption, post?.id]);
 
   useEffect(() => {
     let mounted = true;
@@ -1631,20 +1631,15 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
                   </div>
                 ) : editorPreviewUrl ? (
                   <div className="rounded-2xl border border-yellow-500/20 bg-black/30 p-3">
-                    <div
-                      className="relative mx-auto overflow-hidden rounded-xl border border-white/10 bg-black/40"
-                      style={{
-                        aspectRatio: "1 / 1",
-                        width: "100%",
-                        maxWidth: "720px",
-                      }}
-                    >
-                      <img
-                        src={editorPreviewUrl}
-                        alt="aperçu fidèle"
-                        className="absolute inset-0 h-full w-full object-contain"
-                      />
+                    <div className="mb-3 flex items-center gap-2 text-sm text-yellow-200">
+                      <ImageIcon className="h-4 w-4 text-yellow-400" />
+                      Aperçu fidèle reconstruit depuis le moteur de rendu de l’éditeur.
                     </div>
+                    <img
+                      src={editorPreviewUrl}
+                      alt="aperçu fidèle"
+                      className="max-h-[560px] w-full rounded-xl border border-white/10 object-contain bg-black/40"
+                    />
                   </div>
                 ) : previewCanvas ? (
                   <PreviewCanvasView canvas={previewCanvas} />
@@ -1761,5 +1756,3 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
     </div>
   );
 }
-
-
