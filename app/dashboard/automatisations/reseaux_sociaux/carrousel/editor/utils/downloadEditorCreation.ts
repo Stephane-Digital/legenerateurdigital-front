@@ -99,6 +99,37 @@ function firstNonEmptyString(...values: any[]) {
   return "";
 }
 
+function normalizeFontFamily(font?: string) {
+  const raw = String(font || "").trim();
+  if (!raw) return '"Inter", Arial, sans-serif';
+
+  const map: Record<string, string> = {
+    inter: '"Inter", Arial, sans-serif',
+    lora: '"Lora", serif',
+    oswald: '"Oswald", sans-serif',
+    montserrat: '"Montserrat", sans-serif',
+    merriweather: '"Merriweather", serif',
+    arial: 'Arial, sans-serif',
+  };
+
+  const key = raw.toLowerCase();
+  if (map[key]) return map[key];
+  if (raw.includes(',')) return raw;
+  return `"${raw}", Arial, sans-serif`;
+}
+
+function getFontImportCss(font?: string) {
+  const raw = String(font || "").trim().toLowerCase();
+  const imports: Record<string, string> = {
+    inter: "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap');",
+    lora: "@import url('https://fonts.googleapis.com/css2?family=Lora:wght@400;700&display=swap');",
+    oswald: "@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&display=swap');",
+    montserrat: "@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap');",
+    merriweather: "@import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&display=swap');",
+  };
+  return imports[raw] || "";
+}
+
 function getFormat(ui?: EditorUI) {
   const key = (ui?.formatKey || "instagram_post") as CanvasFormatKey;
   const fmt = CANVAS_FORMATS[key] || CANVAS_FORMATS.instagram_post;
@@ -194,12 +225,14 @@ async function ensureFontReady(style: Record<string, any>) {
   if (typeof document === "undefined" || !document.fonts) return;
 
   const fontSize = Math.max(8, Number(style?.fontSize ?? 32) || 32);
-  const fontFamily = firstNonEmptyString(style?.fontFamily, "Inter", "Arial");
+  const fontFamily = normalizeFontFamily(firstNonEmptyString(style?.fontFamily, "Inter"));
   const fontStyle = style?.italic || style?.fontStyle === "italic" ? "italic" : "normal";
   const fontWeight = String(style?.fontWeight ?? 400);
 
   try {
     if (typeof document.fonts.load === "function") {
+      const primary = fontFamily.split(",")[0].replace(/"/g, "").trim();
+      await document.fonts.load(`${fontStyle} ${fontWeight} ${fontSize}px "${primary}"`);
       await document.fonts.load(`${fontStyle} ${fontWeight} ${fontSize}px ${fontFamily}`);
     }
     if ((document.fonts as any)?.ready) {
@@ -226,7 +259,7 @@ async function drawTextLayerRich(ctx: CanvasRenderingContext2D, layer: LayerData
   const color = firstNonEmptyString(style?.fill, style?.color, style?.textColor, "#ffffff");
   const backgroundColor = firstNonEmptyString(style?.backgroundColor, "");
   const fontSize = Math.max(8, Number(style?.fontSize ?? 32) || 32);
-  const fontFamily = firstNonEmptyString(style?.fontFamily, "Inter, Arial, sans-serif");
+  const fontFamily = normalizeFontFamily(firstNonEmptyString(style?.fontFamily, "Inter"));
   const fontWeight = String(style?.fontWeight ?? 400);
   const fontStyle = style?.italic || style?.fontStyle === "italic" ? "italic" : "normal";
   const lineHeight = Math.max(0.8, Number(style?.lineHeight ?? 1.2) || 1.2);
@@ -246,9 +279,9 @@ async function drawTextLayerRich(ctx: CanvasRenderingContext2D, layer: LayerData
     `line-height:${lineHeight}`,
     `text-align:${textAlign}`,
     `text-decoration:${escapeXml(textDecoration)}`,
-    `white-space:normal`,
-    `word-break:break-word`,
-    `overflow-wrap:anywhere`,
+    `white-space:pre-wrap`,
+    `word-break:normal`,
+    `overflow-wrap:break-word`,
     `overflow:hidden`,
     `padding:${backgroundColor ? "16px 22px" : "0px"}`,
     `background:${backgroundColor ? escapeXml(backgroundColor) : "transparent"}`,
@@ -267,8 +300,14 @@ async function drawTextLayerRich(ctx: CanvasRenderingContext2D, layer: LayerData
   ].join(";");
 
   const bodyHtml = `
-    <div xmlns="http://www.w3.org/1999/xhtml" style="${containerStyles}">
-      ${html}
+    <div xmlns="http://www.w3.org/1999/xhtml">
+      <style>
+        ${getFontImportCss(firstNonEmptyString(style?.fontFamily, "Inter"))}
+        html, body { margin: 0; padding: 0; }
+      </style>
+      <div style="${containerStyles}">
+        ${html}
+      </div>
     </div>
   `;
 
@@ -378,7 +417,7 @@ async function drawImageCover(
 
 function buildFont(style?: LayerStyle) {
   const size = Math.max(10, Number(style?.fontSize ?? 48) || 48);
-  const family = firstNonEmptyString(style?.fontFamily, "Inter", "Arial");
+  const family = normalizeFontFamily(firstNonEmptyString(style?.fontFamily, "Inter"));
   const weight = String(style?.fontWeight ?? "700");
   const italic = style?.italic || style?.fontStyle === "italic" ? "italic " : "";
   return `${italic}${weight} ${size}px ${family}`;
@@ -418,7 +457,7 @@ function wrapText(
   return lines;
 }
 
-function drawTextLayer(
+async function drawTextLayer(
   ctx: CanvasRenderingContext2D,
   layer: LayerData
 ) {
@@ -430,6 +469,7 @@ function drawTextLayer(
   const w = getLayerW(layer, 520);
   const h = getLayerH(layer, 240);
   const style = getLayerStyle(layer);
+  await ensureFontReady(style);
   const fontSize = Math.max(10, Number(style?.fontSize ?? 48) || 48);
   const lineHeight = Math.max(1, Number(style?.lineHeight ?? 1.2) || 1.2);
   const color = firstNonEmptyString(style?.fill, style?.color, style?.textColor, "#ffffff");
@@ -532,7 +572,7 @@ export async function renderSingleCreationToDataUrl(args: {
     if (type === "text") {
       const richDrawn = await drawTextLayerRich(ctx, layer);
       if (!richDrawn) {
-        drawTextLayer(ctx, layer);
+        await drawTextLayer(ctx, layer);
       }
     }
   }
