@@ -190,54 +190,30 @@ function svgMarkupToDataUrl(svg: string) {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
-function normalizeFontFamily(font?: string) {
+function getExactFontFamily(font?: string) {
   const value = String(font || "").trim();
-  if (!value) return '"Inter", Arial, sans-serif';
-
-  const known: Record<string, string> = {
-    lora: '"Lora", serif',
-    oswald: '"Oswald", sans-serif',
-    montserrat: '"Montserrat", sans-serif',
-    merriweather: '"Merriweather", serif',
-    inter: '"Inter", Arial, sans-serif',
-    arial: 'Arial, sans-serif',
-  };
-
-  const key = value.toLowerCase();
-  if (known[key]) return known[key];
-  if (value.includes(",")) return value;
-  return `"${value}", serif`;
+  if (!value) return "Inter";
+  return value;
 }
 
 async function ensureFontReady(style: Record<string, any>) {
   if (typeof document === "undefined" || !document.fonts) return;
 
   const fontSize = Math.max(8, Number(style?.fontSize ?? 32) || 32);
-  const normalizedFamily = normalizeFontFamily(
-    firstNonEmptyString(style?.fontFamily, "Inter")
-  );
-
-  const fontStyle =
-    style?.italic || style?.fontStyle === "italic" ? "italic" : "normal";
+  const fontFamily = getExactFontFamily(firstNonEmptyString(style?.fontFamily, "Inter"));
+  const fontStyle = style?.italic || style?.fontStyle === "italic" ? "italic" : "normal";
   const fontWeight = String(style?.fontWeight ?? 400);
 
   try {
-    const primaryFamily = normalizedFamily.split(",")[0].replace(/"/g, "").trim();
-
     if (typeof document.fonts.load === "function") {
-      await document.fonts.load(
-        `${fontStyle} ${fontWeight} ${fontSize}px "${primaryFamily}"`
-      );
-      await document.fonts.load(
-        `${fontStyle} ${fontWeight} ${fontSize}px ${normalizedFamily}`
-      );
+      await document.fonts.load(`${fontStyle} ${fontWeight} ${fontSize}px "${fontFamily}"`);
+      await document.fonts.load(`${fontStyle} ${fontWeight} ${fontSize}px ${fontFamily}`);
     }
-
     if ((document.fonts as any)?.ready) {
       await (document.fonts as any).ready;
     }
   } catch {
-    // ignore
+    // ignore font loading failure
   }
 }
 
@@ -257,9 +233,7 @@ async function drawTextLayerRich(ctx: CanvasRenderingContext2D, layer: LayerData
   const color = firstNonEmptyString(style?.fill, style?.color, style?.textColor, "#ffffff");
   const backgroundColor = firstNonEmptyString(style?.backgroundColor, "");
   const fontSize = Math.max(8, Number(style?.fontSize ?? 32) || 32);
-  const fontFamily = normalizeFontFamily(
-    firstNonEmptyString(style?.fontFamily, "Inter")
-  );
+  const fontFamily = getExactFontFamily(firstNonEmptyString(style?.fontFamily, "Inter"));
   const fontWeight = String(style?.fontWeight ?? 400);
   const fontStyle = style?.italic || style?.fontStyle === "italic" ? "italic" : "normal";
   const lineHeight = Math.max(0.8, Number(style?.lineHeight ?? 1.2) || 1.2);
@@ -411,13 +385,10 @@ async function drawImageCover(
 
 function buildFont(style?: LayerStyle) {
   const size = Math.max(10, Number(style?.fontSize ?? 48) || 48);
-  const family = normalizeFontFamily(
-    firstNonEmptyString(style?.fontFamily, "Inter")
-  );
+  const rawFamily = getExactFontFamily(firstNonEmptyString(style?.fontFamily, "Inter"));
+  const family = rawFamily.includes(" ") ? `"${rawFamily}"` : rawFamily;
   const weight = String(style?.fontWeight ?? "700");
-  const italic =
-    style?.italic || style?.fontStyle === "italic" ? "italic " : "";
-
+  const italic = style?.italic || style?.fontStyle === "italic" ? "italic " : "";
   return `${italic}${weight} ${size}px ${family}`;
 }
 
