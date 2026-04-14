@@ -1036,9 +1036,7 @@ function PreviewCanvasView({ canvas }: { canvas: PreviewCanvas }) {
                     ...baseStyle,
                     color: String(layer.style?.color || "#ffffff"),
                     fontSize: `${(fontSize / canvas.height) * 100}cqh`,
-                    fontFamily: layer.style?.fontFamily
-                      ? String(layer.style.fontFamily).trim()
-                      : "Inter, Arial, sans-serif",
+                    fontFamily: String(layer.style?.fontFamily || "inherit"),
                     fontWeight: Number(layer.style?.fontWeight || 700),
                     fontStyle: layer.style?.italic ? "italic" : "normal",
                     textDecoration: layer.style?.underline ? "underline" : "none",
@@ -1758,5 +1756,3 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
     </div>
   );
 }
-
-
