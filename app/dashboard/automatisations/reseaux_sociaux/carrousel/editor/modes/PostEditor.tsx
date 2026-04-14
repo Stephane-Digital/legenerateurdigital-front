@@ -5,7 +5,6 @@ import type { LayerData } from "../v5/types/layers";
 import EditorLayout from "../v5/ui/EditorLayout";
 import SchedulePlannerModal from "../ui/SchedulePlannerModal";
 import useSchedulePlanner from "../v5/hooks/useSchedulePlanner";
-import { renderSingleCreationToDataUrl } from "../utils/downloadEditorCreation";
 
 interface Props {
   mobileToolsOpen?: boolean;
@@ -679,17 +678,6 @@ export default function PostEditor({
 
   const handleScheduleConfirm = useCallback(
     async ({ reseau, date_programmee, titre }: { reseau: string; date_programmee: string; titre?: string }) => {
-      let previewImage = "";
-
-      try {
-        previewImage = await renderSingleCreationToDataUrl({
-          layers: draftLayers,
-          ui: draftUI,
-        });
-      } catch (error) {
-        console.error("LGD planner snapshot post error:", error);
-      }
-
       await schedule({
         reseau,
         date_programmee,
@@ -701,8 +689,6 @@ export default function PostEditor({
           layers: draftLayers,
           ui: draftUI,
           brief: brief || "",
-          preview_image: previewImage || null,
-          planner_preview_image: previewImage || null,
         },
       });
       setScheduleOpen(false);
