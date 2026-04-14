@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { LayerData } from "../v5/types/layers";
 import EditorLayout from "../v5/ui/EditorLayout";
 import SchedulePlannerModal from "../ui/SchedulePlannerModal";
+import { renderEditorCreationToDataUrl } from "../utils/downloadEditorCreation";
 import useSchedulePlanner from "../v5/hooks/useSchedulePlanner";
 
 interface Props {
@@ -792,6 +793,20 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
 
   const handleScheduleConfirm = useCallback(
     async ({ reseau, date_programmee, titre }: { reseau: string; date_programmee: string; titre?: string }) => {
+      let preview_image = "";
+      try {
+        preview_image = await renderEditorCreationToDataUrl({
+          mode: "carrousel",
+          draft: {
+            ui: draftUI,
+            slides: slides.map((slide) => ({ id: slide.id, ui: draftUI, layers: slide.layers })),
+          },
+          slideIndex: 0,
+        });
+      } catch (error) {
+        console.error("LGD planner snapshot carrousel error:", error);
+      }
+
       await schedule({
         reseau,
         date_programmee,
@@ -804,6 +819,8 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
           slides: slides.map((slide) => ({ id: slide.id, layers: slide.layers })),
           ui: draftUI,
           brief: brief || "",
+          preview_image,
+          planner_preview_image: preview_image,
         },
       });
       setScheduleOpen(false);
@@ -1235,4 +1252,3 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
     </div>
   );
 }
-
