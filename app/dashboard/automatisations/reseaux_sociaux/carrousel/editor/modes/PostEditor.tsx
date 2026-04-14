@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { LayerData } from "../v5/types/layers";
 import EditorLayout from "../v5/ui/EditorLayout";
-import { renderEditorCreationToDataUrl } from "../utils/downloadEditorCreation";
 import SchedulePlannerModal from "../ui/SchedulePlannerModal";
 import useSchedulePlanner from "../v5/hooks/useSchedulePlanner";
+import { renderSingleCreationToDataUrl } from "../utils/downloadEditorCreation";
 
 interface Props {
   mobileToolsOpen?: boolean;
@@ -679,14 +679,12 @@ export default function PostEditor({
 
   const handleScheduleConfirm = useCallback(
     async ({ reseau, date_programmee, titre }: { reseau: string; date_programmee: string; titre?: string }) => {
-      let preview_image = "";
+      let previewImage = "";
+
       try {
-        preview_image = await renderEditorCreationToDataUrl({
-          mode: "post",
-          draft: {
-            ui: draftUI,
-            layers: draftLayers,
-          },
+        previewImage = await renderSingleCreationToDataUrl({
+          layers: draftLayers,
+          ui: draftUI,
         });
       } catch (error) {
         console.error("LGD planner snapshot post error:", error);
@@ -703,8 +701,8 @@ export default function PostEditor({
           layers: draftLayers,
           ui: draftUI,
           brief: brief || "",
-          preview_image,
-          planner_preview_image: preview_image,
+          preview_image: previewImage || null,
+          planner_preview_image: previewImage || null,
         },
       });
       setScheduleOpen(false);
