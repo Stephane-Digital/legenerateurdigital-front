@@ -648,3 +648,4 @@ export async function renderEditorCreationToDataUrl(args: {
   if (!fallbackLayers.length) throw new Error("Aucun contenu carrousel à rendre.");
   return renderSingleCreationToDataUrl({ layers: fallbackLayers, ui: draft?.ui });
 }
+
