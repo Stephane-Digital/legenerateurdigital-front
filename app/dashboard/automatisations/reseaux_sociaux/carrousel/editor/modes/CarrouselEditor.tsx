@@ -5,6 +5,7 @@ import type { LayerData } from "../v5/types/layers";
 import EditorLayout from "../v5/ui/EditorLayout";
 import SchedulePlannerModal from "../ui/SchedulePlannerModal";
 import useSchedulePlanner from "../v5/hooks/useSchedulePlanner";
+import { renderEditorCreationToDataUrl } from "../utils/downloadEditorCreation";
 
 interface Props {
   mobileToolsOpen?: boolean;
@@ -318,6 +319,44 @@ function inferAngleFromBrief(brief: string): Angle {
   return "Produit digital";
 }
 
+
+const FONT_STYLESHEET_IDS: Record<string, string> = {
+  inter: "lgd-font-inter",
+  lora: "lgd-font-lora",
+  oswald: "lgd-font-oswald",
+  montserrat: "lgd-font-montserrat",
+  merriweather: "lgd-font-merriweather",
+};
+
+function getFontKey(font?: string) {
+  return String(font || "").trim().toLowerCase();
+}
+
+function getFontImportCss(font?: string) {
+  const key = getFontKey(font);
+  const map: Record<string, string> = {
+    inter: "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap');",
+    lora: "@import url('https://fonts.googleapis.com/css2?family=Lora:wght@400;700&display=swap');",
+    oswald: "@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&display=swap');",
+    montserrat: "@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap');",
+    merriweather: "@import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&display=swap');",
+  };
+  return map[key] || "";
+}
+
+function ensureFontStylesheetLoaded(font?: string) {
+  if (typeof document === "undefined") return;
+  const key = getFontKey(font);
+  const css = getFontImportCss(font);
+  if (!css) return;
+  const id = FONT_STYLESHEET_IDS[key] || `lgd-font-${key}`;
+  if (document.getElementById(id)) return;
+  const style = document.createElement("style");
+  style.id = id;
+  style.textContent = css;
+  document.head.appendChild(style);
+}
+
 export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, brief }: Props) {
   const [slides, setSlides] = useState<SlideDraft[]>(() => {
     const parsed = safeJsonParse(typeof window !== "undefined" ? window.localStorage.getItem(LS_CARROUSEL) : null);
@@ -458,6 +497,16 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
   const textLayers = useMemo(() => {
     return (activeSlide?.layers ?? []).filter((l: any) => l?.type === "text");
   }, [activeSlide?.layers]);
+
+  useEffect(() => {
+    const families = Array.from(new Set((slides || [])
+      .flatMap((slide) => (slide?.layers || []))
+      .filter((layer: any) => layer?.type === "text")
+      .map((layer: any) => String(layer?.style?.fontFamily ?? layer?.fontFamily ?? "").trim())
+      .filter(Boolean)));
+
+    families.forEach((family) => ensureFontStylesheetLoaded(family));
+  }, [slides]);
 
   const defaultTargetId = useMemo(() => {
     const anyText = textLayers as any[];
@@ -792,18 +841,36 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
 
   const handleScheduleConfirm = useCallback(
     async ({ reseau, date_programmee, titre }: { reseau: string; date_programmee: string; titre?: string }) => {
+      const safeSlides = slides.map((slide) => ({ id: slide.id, layers: slide.layers }));
+      let previewImage = "";
+
+      try {
+        previewImage = await renderEditorCreationToDataUrl({
+          mode: "carrousel",
+          draft: {
+            ui: draftUI,
+            slides: safeSlides,
+          },
+          slideIndex: 0,
+        });
+      } catch (error) {
+        console.error("LGD planner snapshot error (carrousel):", error);
+      }
+
       await schedule({
         reseau,
         date_programmee,
         titre: titre || plannerTitle,
         format: "carrousel",
-        slides: slides.map((slide) => ({ id: slide.id, layers: slide.layers })),
+        slides: safeSlides,
         contenu: {
           title: titre || plannerTitle,
           type: "carrousel",
-          slides: slides.map((slide) => ({ id: slide.id, layers: slide.layers })),
+          slides: safeSlides,
           ui: draftUI,
           brief: brief || "",
+          preview_image: previewImage || undefined,
+          planner_preview_image: previewImage || undefined,
         },
       });
       setScheduleOpen(false);
@@ -1235,4 +1302,3 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
     </div>
   );
 }
-
