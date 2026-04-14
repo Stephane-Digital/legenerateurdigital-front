@@ -5,7 +5,6 @@ import type { LayerData } from "../v5/types/layers";
 import EditorLayout from "../v5/ui/EditorLayout";
 import SchedulePlannerModal from "../ui/SchedulePlannerModal";
 import useSchedulePlanner from "../v5/hooks/useSchedulePlanner";
-import { renderSingleCreationToDataUrl } from "../utils/downloadEditorCreation";
 
 interface Props {
   mobileToolsOpen?: boolean;
@@ -793,20 +792,6 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
 
   const handleScheduleConfirm = useCallback(
     async ({ reseau, date_programmee, titre }: { reseau: string; date_programmee: string; titre?: string }) => {
-      let previewImage = "";
-
-      try {
-        const firstSlide = slides[0];
-        if (firstSlide?.layers?.length) {
-          previewImage = await renderSingleCreationToDataUrl({
-            layers: firstSlide.layers,
-            ui: draftUI,
-          });
-        }
-      } catch (error) {
-        console.error("LGD planner snapshot carrousel error:", error);
-      }
-
       await schedule({
         reseau,
         date_programmee,
@@ -819,8 +804,6 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
           slides: slides.map((slide) => ({ id: slide.id, layers: slide.layers })),
           ui: draftUI,
           brief: brief || "",
-          preview_image: previewImage || null,
-          planner_preview_image: previewImage || null,
         },
       });
       setScheduleOpen(false);
