@@ -3,9 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { LayerData } from "../v5/types/layers";
 import EditorLayout from "../v5/ui/EditorLayout";
-import SchedulePlannerModal from "../ui/SchedulePlannerModal";
-import useSchedulePlanner from "../v5/hooks/useSchedulePlanner";
-import { renderEditorCreationToDataUrl } from "../utils/downloadEditorCreation";
 
 interface Props {
   mobileToolsOpen?: boolean;
@@ -54,25 +51,6 @@ function apiBase() {
   return (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
 }
 
-function systemePlansUrl() {
-  return (
-    process.env.NEXT_PUBLIC_SYSTEME_PLANS_URL ||
-    "https://legenerateurdigital.systeme.io/plans"
-  ).trim();
-}
-
-function openPlans() {
-  if (typeof window === "undefined") return;
-  const url = systemePlansUrl();
-  if (!url) return;
-  window.open(url, "_blank", "noopener,noreferrer");
-}
-
-function isQuotaError(msg: string) {
-  const m = (msg || "").toLowerCase();
-  return m.includes("quota") || m.includes("plan") || m.includes("systeme");
-}
-
 function getAuthHeaders() {
   if (typeof window === "undefined") return {};
   const token =
@@ -81,41 +59,6 @@ function getAuthHeaders() {
     window.localStorage.getItem("jwt") ||
     "";
   return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
-function estimateTokens(text: string) {
-  const t = (text || "").trim();
-  if (!t) return 1;
-  return Math.max(1, Math.ceil(t.length / 4));
-}
-
-async function consumeCoachQuota(amount: number) {
-  const base = apiBase();
-  if (!base) return;
-  const a = Math.max(1, Math.trunc(Number(amount) || 1));
-  const res = await fetch(`${base}/ai-quota/consume?amount=${a}&feature=coach`, {
-    method: "POST",
-    headers: {
-      ...getAuthHeaders(),
-    },
-    credentials: "include",
-  });
-
-  if (!res.ok) {
-    let detail = "";
-    try {
-      const j = await res.json();
-      detail = j?.detail || j?.message || "";
-    } catch {
-      // ignore
-    }
-
-    if (res.status === 400) {
-      throw new Error(detail || "Quota insuffisant. Veuillez changer de plan.");
-    }
-
-    throw new Error(detail || `Erreur IA-Quotas (HTTP ${res.status})`);
-  }
 }
 
 async function aiRewriteText(args: { text: string; tone?: string; max_length?: number }) {
@@ -150,8 +93,6 @@ async function aiRewriteText(args: { text: string; tone?: string; max_length?: n
   const data = await res.json().catch(() => ({} as any));
   const out = data?.result ?? data?.text ?? data?.output ?? "";
   if (!out || typeof out !== "string") throw new Error("Réponse IA invalide");
-
-  await consumeCoachQuota(estimateTokens(args.text) + estimateTokens(out));
   return out;
 }
 
@@ -164,100 +105,20 @@ function safeJsonParse(raw: string | null) {
   }
 }
 
-function stableSig(value: any) {
-  try {
-    return JSON.stringify(value ?? null);
-  } catch {
-    return "";
-  }
-}
-
-function stripNonSerializableUI(input: any): any {
-  if (input == null) return input;
-  const t = typeof input;
-  if (t === "function") return undefined;
-  if (t !== "object") return input;
-
-  const anyObj: any = input as any;
-  if (anyObj?.nodeType === 1 || anyObj?.tagName || anyObj?.nodeName) return undefined;
-
-  if (Array.isArray(input)) {
-    return input
-      .map((x) => stripNonSerializableUI(x))
-      .filter((x) => x !== undefined);
-  }
-
-  const out: any = {};
-  for (const [k, v] of Object.entries(anyObj)) {
-    if (v === undefined) continue;
-    if (k === "runtime" || k === "_runtime" || k === "__runtime") continue;
-    if (k === "konva" || k === "_konva" || k === "__konva") continue;
-    if (k === "stage" || k === "layer" || k === "node" || k === "ref") continue;
-    if (k === "imageElement" || k === "imgEl" || k === "htmlImage") continue;
-
-    const cleaned = stripNonSerializableUI(v);
-    if (cleaned !== undefined) out[k] = cleaned;
-  }
-  return out;
-}
-
-function stableSerialize(value: any): string {
-  const seen = new WeakSet();
-
-  const normalize = (input: any): any => {
-    if (input == null || typeof input !== "object") return input;
-    if (seen.has(input)) return undefined;
-    seen.add(input);
-
-    if (Array.isArray(input)) return input.map(normalize);
-
-    const out: Record<string, any> = {};
-    for (const key of Object.keys(input).sort()) {
-      const normalized = normalize(input[key]);
-      if (normalized !== undefined) out[key] = normalized;
-    }
-    return out;
-  };
-
-  try {
-    return JSON.stringify(normalize(value));
-  } catch {
-    return String(value);
-  }
-}
-
-function layersSignature(layers: LayerData[] | null | undefined) {
-  return stableSerialize(
-    (layers || []).map((l: any) => ({
-      id: l?.id,
-      type: l?.type,
-      src: typeof l?.src === "string" ? l.src : undefined,
-      text: typeof l?.text === "string" ? l.text : undefined,
-      x: l?.x,
-      y: l?.y,
-      width: l?.width,
-      height: l?.height,
-      zIndex: l?.zIndex,
-      visible: l?.visible,
-      style: l?.style,
-    }))
-  );
-}
-
 function clip(s: string, n = 46) {
   const t = (s || "").replace(/\s+/g, " ").trim();
   if (t.length <= n) return t;
   return t.slice(0, n - 1) + "…";
 }
 
-function cryptoId(prefix = "id") {
-  const r = Math.random().toString(16).slice(2);
-  return `${prefix}-${Date.now()}-${r}`;
-}
-
 function ensureSlide(slides: SlideDraft[] | null | undefined): SlideDraft[] {
   if (slides && Array.isArray(slides) && slides.length > 0) return slides;
   return [{ id: cryptoId("slide"), layers: [] }];
+}
+
+function cryptoId(prefix = "id") {
+  const r = Math.random().toString(16).slice(2);
+  return `${prefix}-${Date.now()}-${r}`;
 }
 
 function extractTextFromLayers(layers: LayerData[]) {
@@ -268,103 +129,21 @@ function extractTextFromLayers(layers: LayerData[]) {
     .join("\n");
 }
 
-function normalizeBriefSig(b: string) {
-  return (b || "").replace(/\s+/g, " ").trim();
-}
-
-function inferObjectiveFromBrief(brief: string): Objective {
-  const b = (brief || "").toLowerCase();
-
-  if (
-    /\b(vendre|vente|acheter|commande|panier|promo|promotion|offre|prix|tarif|inscription|inscris|réserve|rdv|appel|dm|message)\b/.test(b) ||
-    /\b(convert|conversion|closing|close)\b/.test(b)
-  ) {
-    return "Convertir";
-  }
-
-  if (/\b(tuto|tutoriel|comment|étapes|etapes|guide|méthode|checklist|process|processus)\b/.test(b)) {
-    return "Éduquer";
-  }
-
-  if (/\b(story|histoire|parcours|avant\s*\/\s*après|avant-après|avant apres|mon expérience|mon experience)\b/.test(b)) {
-    return "Story";
-  }
-
-  return "Attirer";
-}
-
-function inferAngleFromBrief(brief: string): Angle {
-  const b = (brief || "").toLowerCase();
-
-  if (/\b(trop\s*cher|pas\s*le\s*temps|je\s*(pense|crois)|peur|objection|bloqué|bloque|doute)\b/.test(b)) {
-    return "Objection";
-  }
-  if (/\b(preuve|résultat|resultat|chiffre|cas\s*client|témoignage|temoignage|avant\s*\/\s*après|avant-après)\b/.test(b)) {
-    return "Preuve";
-  }
-  if (/\b(tuto|tutoriel|étapes|etapes|checklist|process|processus)\b/.test(b)) {
-    return "Tutoriel";
-  }
-  if (/\b(story|histoire|parcours)\b/.test(b)) {
-    return "Storytelling";
-  }
-  if (/\b(erreur|à\s*éviter|a\s*eviter|ne\s*fait\s*pas|stop|piège|piege)\b/.test(b)) {
-    return "Erreur fréquente";
-  }
-  if (/\b(mindset|discipline|habitude|routine|procrast|procrastination|motivation)\b/.test(b)) {
-    return "Mindset / discipline";
-  }
-
-  if (/\bmrr\b/.test(b)) return "MRR débutant";
-  return "Produit digital";
-}
-
-
-const FONT_STYLESHEET_IDS: Record<string, string> = {
-  inter: "lgd-font-inter",
-  lora: "lgd-font-lora",
-  oswald: "lgd-font-oswald",
-  montserrat: "lgd-font-montserrat",
-  merriweather: "lgd-font-merriweather",
-};
-
-function getFontKey(font?: string) {
-  return String(font || "").trim().toLowerCase();
-}
-
-function getFontImportCss(font?: string) {
-  const key = getFontKey(font);
-  const map: Record<string, string> = {
-    inter: "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap');",
-    lora: "@import url('https://fonts.googleapis.com/css2?family=Lora:wght@400;700&display=swap');",
-    oswald: "@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&display=swap');",
-    montserrat: "@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap');",
-    merriweather: "@import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&display=swap');",
-  };
-  return map[key] || "";
-}
-
-function ensureFontStylesheetLoaded(font?: string) {
-  if (typeof document === "undefined") return;
-  const key = getFontKey(font);
-  const css = getFontImportCss(font);
-  if (!css) return;
-  const id = FONT_STYLESHEET_IDS[key] || `lgd-font-${key}`;
-  if (document.getElementById(id)) return;
-  const style = document.createElement("style");
-  style.id = id;
-  style.textContent = css;
-  document.head.appendChild(style);
-}
-
 export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, brief }: Props) {
+  /** =========================
+   *  Draft state (localStorage)
+   *  ========================= */
   const [slides, setSlides] = useState<SlideDraft[]>(() => {
-    const parsed = safeJsonParse(typeof window !== "undefined" ? window.localStorage.getItem(LS_CARROUSEL) : null);
+    const parsed = safeJsonParse(
+      typeof window !== "undefined" ? window.localStorage.getItem(LS_CARROUSEL) : null
+    );
 
+    // Draft can be stored as { ui, layers } for single-canvas OR as { slides }.
     if (parsed?.slides && Array.isArray(parsed.slides)) {
       return ensureSlide(parsed.slides);
     }
 
+    // Backward compat: if draft has layers only, convert to one slide.
     if (parsed?.layers && Array.isArray(parsed.layers)) {
       return ensureSlide([{ id: cryptoId("slide"), layers: parsed.layers }]);
     }
@@ -372,31 +151,18 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
     return ensureSlide(null);
   });
 
-  const [draftUI, setDraftUI] = useState<any>(() => {
-    const parsed = safeJsonParse(typeof window !== "undefined" ? window.localStorage.getItem(LS_CARROUSEL) : null);
-    return parsed?.ui || undefined;
-  });
-
-  const uiRef = useRef<any>(draftUI);
-  const lastUiSigRef = useRef<string>(stableSig(draftUI ?? {}));
-  const lastLayersSigRef = useRef<string>("");
-  const [editorRefreshKey, setEditorRefreshKey] = useState<number>(0);
-
   const [activeSlideId, setActiveSlideId] = useState<string>(() => {
     const saved = typeof window !== "undefined" ? window.localStorage.getItem(LS_CARROUSEL_ACTIVE_SLIDE) : null;
     return saved || "";
   });
 
-  const activeSlideIdRef = useRef<string>("");
-  useEffect(() => {
-    activeSlideIdRef.current = activeSlideId;
-  }, [activeSlideId]);
-
+  // Persist active slide id
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (activeSlideId) window.localStorage.setItem(LS_CARROUSEL_ACTIVE_SLIDE, activeSlideId);
   }, [activeSlideId]);
 
+  // Ensure activeSlideId is always valid
   useEffect(() => {
     if (!slides.length) return;
     if (!activeSlideId) {
@@ -407,6 +173,7 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
     if (!exists) setActiveSlideId(slides[0].id);
   }, [slides, activeSlideId]);
 
+  // Persist slides draft
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
@@ -415,52 +182,27 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
         LS_CARROUSEL,
         JSON.stringify({
           ...existing,
-          ui: uiRef.current ?? draftUI,
           slides,
         })
       );
     } catch {
       // no-op
     }
-  }, [slides, draftUI]);
+  }, [slides]);
 
   const activeSlide = useMemo(() => slides.find((s) => s.id === activeSlideId) || slides[0], [slides, activeSlideId]);
-  const activeSlideLayersSig = useMemo(() => layersSignature(activeSlide?.layers ?? []), [activeSlide?.layers]);
 
-  useEffect(() => {
-    setEditorRefreshKey((v) => v + 1);
-  }, [activeSlideId]);
-
-  const updateLayersForSlide = useCallback((slideId: string, layers: LayerData[]) => {
-    const nextSig = layersSignature(layers ?? []);
-    lastLayersSigRef.current = nextSig;
-
-    setSlides((prev) => {
-      let changed = false;
-      const next = prev.map((s) => {
-        if (s.id !== slideId) return s;
-        if (layersSignature(s.layers) === nextSig) return s;
-        changed = true;
-        return { ...s, layers: layers ?? [] };
-      });
-      return changed ? next : prev;
-    });
-  }, []);
-
-  const updateLayers = useCallback((layers: LayerData[]) => {
-    const targetId = activeSlideIdRef.current;
-    if (!targetId) return;
-    updateLayersForSlide(targetId, layers ?? []);
-  }, [updateLayersForSlide]);
-
-  const handleUIChange = useCallback((ui: any) => {
-    const cleaned = stripNonSerializableUI(ui ?? {});
-    const sig = stableSig(cleaned ?? {});
-    if (sig === lastUiSigRef.current) return;
-    lastUiSigRef.current = sig;
-    uiRef.current = cleaned;
-    setDraftUI((prev: any) => (stableSig(prev ?? {}) === sig ? prev : cleaned));
-  }, []);
+  /** =========================
+   *  Update slide layers
+   *  ========================= */
+  const updateLayers = useCallback(
+    (layers: LayerData[]) => {
+      setSlides((prev) =>
+        prev.map((s) => (s.id === activeSlide.id ? { ...s, layers: layers ?? [] } : s))
+      );
+    },
+    [activeSlide.id]
+  );
 
   const addSlide = useCallback(() => {
     const id = cryptoId("slide");
@@ -494,19 +236,12 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
     });
   }, [activeSlide.id]);
 
+  /** =========================
+   *  IA Copilot UI state
+   *  ========================= */
   const textLayers = useMemo(() => {
     return (activeSlide?.layers ?? []).filter((l: any) => l?.type === "text");
   }, [activeSlide?.layers]);
-
-  useEffect(() => {
-    const families = Array.from(new Set((slides || [])
-      .flatMap((slide) => (slide?.layers || []))
-      .filter((layer: any) => layer?.type === "text")
-      .map((layer: any) => String(layer?.style?.fontFamily ?? layer?.fontFamily ?? "").trim())
-      .filter(Boolean)));
-
-    families.forEach((family) => ensureFontStylesheetLoaded(family));
-  }, [slides]);
 
   const defaultTargetId = useMemo(() => {
     const anyText = textLayers as any[];
@@ -516,53 +251,9 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
 
   const [targetLayerId, setTargetLayerId] = useState<string>("");
   useEffect(() => {
-    setTargetLayerId(defaultTargetId || "");
-  }, [activeSlideId, defaultTargetId]);
-
-  const syncEditorSelection = useCallback((id: string) => {
-    if (!id) return;
-    const currentUI = uiRef.current ?? {};
-
-    const currentSelectedLayerId = String(currentUI?.selectedLayerId ?? "");
-    const currentSelectedId = String(currentUI?.selectedId ?? "");
-    const currentSelectionId = String(currentUI?.selection?.id ?? "");
-    const currentSelectedLayerIds = Array.isArray(currentUI?.selectedLayerIds)
-      ? currentUI.selectedLayerIds.map((x: any) => String(x))
-      : [];
-    const currentSelectedIds = Array.isArray(currentUI?.selectedIds)
-      ? currentUI.selectedIds.map((x: any) => String(x))
-      : [];
-
-    const alreadySelected =
-      currentSelectedLayerId === String(id) &&
-      currentSelectedId === String(id) &&
-      currentSelectionId === String(id) &&
-      currentSelectedLayerIds.length === 1 &&
-      currentSelectedLayerIds[0] === String(id) &&
-      currentSelectedIds.length === 1 &&
-      currentSelectedIds[0] === String(id);
-
-    if (alreadySelected) return;
-
-    const nextUI = {
-      ...currentUI,
-      selectedLayerId: id,
-      selectedId: id,
-      selectedLayerIds: [id],
-      selectedIds: [id],
-      selection: {
-        ...(currentUI?.selection || {}),
-        id,
-        ids: [id],
-      },
-    };
-
-    handleUIChange(nextUI);
-  }, [handleUIChange]);
-
-  useEffect(() => {
-    if (targetLayerId) syncEditorSelection(targetLayerId);
-  }, [targetLayerId, syncEditorSelection]);
+    if (!targetLayerId && defaultTargetId) setTargetLayerId(defaultTargetId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultTargetId]);
 
   const [idea, setIdea] = useState<string>("");
   const [network, setNetwork] = useState<Network>("Instagram");
@@ -576,14 +267,15 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
 
   const [aiOutput, setAiOutput] = useState<string>("");
   const [aiHooks, setAiHooks] = useState<string[]>([]);
-  const { schedule, loading: scheduleLoading } = useSchedulePlanner();
-  const [scheduleOpen, setScheduleOpen] = useState(false);
 
-  const userTouchedIdeaRef = useRef(false);
-  const userTouchedObjectiveRef = useRef(false);
-  const userTouchedAngleRef = useRef(false);
-  const lastInjectedBriefSigRef = useRef<string>("");
+  // Inject brief into the copilot idea field by default (non-destructive)
+  useEffect(() => {
+    const b = (brief || "").trim();
+    if (!b) return;
+    setIdea((prev) => (prev && prev.trim().length > 0 ? prev : b));
+  }, [brief]);
 
+  // ✅ Brief banner (and injection)
   const [briefDismissed, setBriefDismissed] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem(LS_BRIEF_DISMISSED) === "1";
@@ -606,10 +298,9 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
     (text: string) => {
       if (!text) return;
       const id = targetLayerId || defaultTargetId;
-      const slideId = activeSlideIdRef.current || activeSlideId;
-      if (!id || !slideId) return;
+      if (!id) return;
 
-      const layers = (slides.find((s) => s.id === slideId)?.layers ?? activeSlide?.layers ?? []) as LayerData[];
+      const layers = activeSlide?.layers ?? [];
       if (!layers.length) return;
 
       const next = layers.map((l: any) => {
@@ -618,11 +309,9 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
         return { ...l, text };
       });
 
-      updateLayersForSlide(slideId, next as any);
-      syncEditorSelection(id);
-      setEditorRefreshKey((v) => v + 1);
+      updateLayers(next as any);
     },
-    [slides, activeSlide?.layers, activeSlideId, targetLayerId, defaultTargetId, updateLayersForSlide, syncEditorSelection]
+    [activeSlide?.layers, targetLayerId, defaultTargetId, updateLayers]
   );
 
   function buildContext() {
@@ -681,6 +370,7 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
           `Sujet: ${topic}`,
         ].join("\n");
       } else {
+        // rewrite
         const currentText = String((targetLayer as any)?.text ?? "").trim();
         prompt = [
           ctx,
@@ -715,6 +405,9 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
     }
   }
 
+  /** =========================
+   *  Copilot toggle (collapsible)
+   *  ========================= */
   const [copilotOpen, setCopilotOpen] = useState<boolean>(() => {
     if (typeof window === "undefined") return true;
     const v = window.localStorage.getItem(LS_CARROUSEL_COPILOT_OPEN);
@@ -730,43 +423,9 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
 
   const copilotDisabled = !apiBase();
 
-  useEffect(() => {
-    const b = (brief || "").trim();
-    if (!b) return;
-
-    const sig = normalizeBriefSig(b);
-
-    if (!userTouchedIdeaRef.current) {
-      setIdea((prev) => (prev && prev.trim().length > 0 ? prev : b));
-    }
-
-    if (!userTouchedObjectiveRef.current) {
-      const inferredObj = inferObjectiveFromBrief(b);
-      setObjective((prev) => (userTouchedObjectiveRef.current ? prev : inferredObj));
-    }
-
-    if (!userTouchedAngleRef.current) {
-      const inferredAngle = inferAngleFromBrief(b);
-      setAngle((prev) => (userTouchedAngleRef.current ? prev : inferredAngle));
-    }
-
-    if (copilotDisabled) return;
-    if (aiLoading) return;
-
-    if (lastInjectedBriefSigRef.current === sig) return;
-
-    if (aiOutput && aiOutput.trim().length > 0) {
-      lastInjectedBriefSigRef.current = sig;
-      return;
-    }
-
-    lastInjectedBriefSigRef.current = sig;
-
-    setTimeout(() => {
-      runCopilot("slideText").catch(() => {});
-    }, 0);
-  }, [brief]); // eslint-disable-line react-hooks/exhaustive-deps
-
+  /** =========================
+   *  IA AUDIT (Slide active)
+   *  ========================= */
   const [auditLoading, setAuditLoading] = useState(false);
   const [auditError, setAuditError] = useState<string | null>(null);
   const [auditResult, setAuditResult] = useState<string>("");
@@ -833,52 +492,6 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
     lastAuditSigRef.current = "";
   }, []);
 
-  const plannerTitle = useMemo(() => {
-    const slideTexts = slides
-      .flatMap((slide) => (slide.layers || []).map((layer: any) => String(layer?.text || "").trim()).filter(Boolean));
-    return clip(slideTexts[0] || idea || brief || "Carrousel intelligent LGD", 72);
-  }, [slides, idea, brief]);
-
-  const handleScheduleConfirm = useCallback(
-    async ({ reseau, date_programmee, titre }: { reseau: string; date_programmee: string; titre?: string }) => {
-      const safeSlides = slides.map((slide) => ({ id: slide.id, layers: slide.layers }));
-      let previewImage = "";
-
-      try {
-        previewImage = await renderEditorCreationToDataUrl({
-          mode: "carrousel",
-          draft: {
-            ui: draftUI,
-            slides: safeSlides,
-          },
-          slideIndex: 0,
-        });
-      } catch (error) {
-        console.error("LGD planner snapshot error (carrousel):", error);
-      }
-
-      await schedule({
-        reseau,
-        date_programmee,
-        titre: titre || plannerTitle,
-        format: "carrousel",
-        slides: safeSlides,
-        contenu: {
-          title: titre || plannerTitle,
-          type: "carrousel",
-          slides: safeSlides,
-          ui: draftUI,
-          brief: brief || "",
-          preview_image: previewImage || undefined,
-          planner_preview_image: previewImage || undefined,
-        },
-      });
-      setScheduleOpen(false);
-      if (typeof window !== "undefined") window.alert("✅ Ajouté au Planner !");
-    },
-    [schedule, plannerTitle, slides, draftUI, brief]
-  );
-
   return (
     <div className="w-full flex justify-center">
       <div className="mx-auto mt-20 w-full max-w-[1800px] px-6 pb-16">
@@ -890,412 +503,356 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
           }}
         >
           <div className="w-full">
-            {!briefDismissed && (brief || "").trim() ? (
-              <div className="mb-6 rounded-3xl border border-yellow-500/20 bg-yellow-500/10 px-5 py-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-yellow-200 font-semibold">Brief reçu du Coach Alex V2</div>
-                    <div className="mt-1 text-sm text-yellow-100/80 whitespace-pre-wrap">{(brief || "").trim()}</div>
-                    <div className="mt-2 text-[11px] text-white/55">
-                      ✅ Injecté automatiquement dans le Copilot (Sujet + Objectif + Angle + 1ère génération).
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setBriefDismissed(true)}
-                    className="shrink-0 rounded-xl border border-yellow-500/25 bg-black/30 px-3 py-2 text-xs font-semibold text-yellow-200 hover:bg-black/45"
-                  >
-                    Ignorer
-                  </button>
-                </div>
+      {/* ================= COACH BRIEF (injected) ================= */}
+      {!briefDismissed && (brief || "").trim() ? (
+        <div className="mb-6 rounded-3xl border border-yellow-500/20 bg-yellow-500/10 px-5 py-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-yellow-200 font-semibold">Brief reçu du Coach Alex V2</div>
+              <div className="mt-1 text-sm text-yellow-100/80 whitespace-pre-wrap">{(brief || "").trim()}</div>
+              <div className="mt-2 text-[11px] text-white/55">
+                ✅ Injecté automatiquement dans le Copilot (champ “Sujet / idée” + contexte).
               </div>
-            ) : null}
+            </div>
+            <button
+              type="button"
+              onClick={() => setBriefDismissed(true)}
+              className="shrink-0 rounded-xl border border-yellow-500/25 bg-black/30 px-3 py-2 text-xs font-semibold text-yellow-200 hover:bg-black/45"
+            >
+              Ignorer
+            </button>
+          </div>
+        </div>
+      ) : null}
 
-            <div className="mb-5 rounded-2xl border border-yellow-500/15 bg-black/30 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="text-yellow-200 font-semibold">Audit IA — Slide active</div>
-                  <div className="text-white/50 text-sm">
-                    Lecture seule (ne modifie rien) • Score + forces/faiblesses + correctifs actionnables (MRR).
-                  </div>
-                </div>
+      {/* ===== AUDIT IA (slide active) ===== */}
+      <div className="mb-5 rounded-2xl border border-yellow-500/15 bg-black/30 p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="text-yellow-200 font-semibold">Audit IA — Slide active</div>
+            <div className="text-white/50 text-sm">
+              Lecture seule (ne modifie rien) • Score + forces/faiblesses + correctifs actionnables (MRR).
+            </div>
+          </div>
 
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={runAudit}
-                    disabled={auditLoading || copilotDisabled}
-                    className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
-                  >
-                    {auditLoading ? "Analyse…" : "🔎 Lancer l’audit"}
-                  </button>
-                  <button
-                    onClick={clearAudit}
-                    className="rounded-xl px-3 py-2 text-sm text-yellow-100 border border-yellow-500/20 bg-black/40 hover:bg-black/60"
-                  >
-                    Effacer
-                  </button>
-                </div>
-              </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={runAudit}
+              disabled={auditLoading || copilotDisabled}
+              className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
+            >
+              {auditLoading ? "Analyse…" : "🔎 Lancer l’audit"}
+            </button>
+            <button
+              onClick={clearAudit}
+              className="rounded-xl px-3 py-2 text-sm text-yellow-100 border border-yellow-500/20 bg-black/40 hover:bg-black/60"
+            >
+              Effacer
+            </button>
+          </div>
+        </div>
 
-              {copilotDisabled ? (
-                <div className="mt-3 rounded-2xl border border-red-500/20 bg-red-500/10 p-3 text-red-200 text-sm">
-                  NEXT_PUBLIC_API_URL manquant côté frontend.
-                </div>
-              ) : null}
+        {copilotDisabled ? (
+          <div className="mt-3 rounded-2xl border border-red-500/20 bg-red-500/10 p-3 text-red-200 text-sm">
+            NEXT_PUBLIC_API_URL manquant côté frontend.
+          </div>
+        ) : null}
 
-              {auditError ? (
-                <div className="mt-3 rounded-2xl border border-red-500/20 bg-red-500/10 p-3 text-red-200 text-sm">
-                  {auditError}
-                </div>
-              ) : null}
+        {auditError ? (
+          <div className="mt-3 rounded-2xl border border-red-500/20 bg-red-500/10 p-3 text-red-200 text-sm">
+            {auditError}
+          </div>
+        ) : null}
 
-              {auditResult ? (
-                <textarea
-                  value={auditResult}
-                  readOnly
-                  rows={6}
-                  className="mt-3 w-full rounded-2xl bg-black/40 border border-yellow-500/15 px-4 py-3 text-yellow-100 outline-none"
+        {auditResult ? (
+          <textarea
+            value={auditResult}
+            readOnly
+            rows={6}
+            className="mt-3 w-full rounded-2xl bg-black/40 border border-yellow-500/15 px-4 py-3 text-yellow-100 outline-none"
+          />
+        ) : (
+          <div className="mt-3 text-[12px] text-white/45">
+            Texte détecté sur la slide active : {computeSlideText() ? "oui" : "non"}.
+          </div>
+        )}
+      </div>
+
+      {/* ===== COPILOT (collapsible) ===== */}
+      <div className="mb-6 rounded-3xl border border-yellow-500/15 bg-black/30">
+        <div className="flex items-center justify-between gap-3 px-5 py-4">
+          <div>
+            <div className="text-yellow-200 font-semibold">Copilot IA — Carrousel (Marketing digital • MRR)</div>
+            <div className="text-white/55 text-sm">
+              Slide active uniquement • texte-only • hooks/valeur/CTA (safe)
+            </div>
+          </div>
+
+          <button
+            onClick={() => setCopilotOpen((v) => !v)}
+            className="rounded-xl border border-yellow-500/25 bg-black/40 px-4 py-2 text-sm font-semibold text-yellow-200 hover:bg-black/55"
+          >
+            {copilotOpen ? "Masquer" : "Afficher"}
+          </button>
+        </div>
+
+        {copilotOpen ? (
+          <div className="px-5 pb-5">
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => runCopilot("hooks")}
+                disabled={aiLoading || copilotDisabled}
+                className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
+              >
+                Hooks x10
+              </button>
+              <button
+                onClick={() => runCopilot("slideText")}
+                disabled={aiLoading || copilotDisabled}
+                className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
+              >
+                Texte slide
+              </button>
+              <button
+                onClick={() => runCopilot("steps")}
+                disabled={aiLoading || copilotDisabled}
+                className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
+              >
+                3 étapes
+              </button>
+              <button
+                onClick={() => runCopilot("cta")}
+                disabled={aiLoading || copilotDisabled}
+                className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
+              >
+                CTA
+              </button>
+              <button
+                onClick={() => runCopilot("rewrite")}
+                disabled={aiLoading || copilotDisabled || !targetLayerId}
+                className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
+              >
+                Réécrire
+              </button>
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 lg:grid-cols-12 gap-4">
+              <div className="lg:col-span-4">
+                <label className="block text-yellow-300 text-xs mb-2">Sujet / idée (optionnel)</label>
+                <input
+                  value={idea}
+                  onChange={(e) => setIdea(e.target.value)}
+                  placeholder="Ex : 3 erreurs MRR qui te bloquent…"
+                  className="w-full rounded-2xl bg-black/40 border border-yellow-500/20 px-4 py-3 text-yellow-100 outline-none"
                 />
-              ) : (
-                <div className="mt-3 text-[12px] text-white/45">
-                  Texte détecté sur la slide active : {computeSlideText() ? "oui" : "non"}.
-                </div>
-              )}
-            </div>
 
-            <div className="mb-6 rounded-3xl border border-yellow-500/15 bg-black/30">
-              <div className="flex items-center justify-between gap-3 px-5 py-4">
-                <div>
-                  <div className="text-yellow-200 font-semibold">Copilot IA — Carrousel (Marketing digital • MRR)</div>
-                  <div className="text-white/55 text-sm">Slide active uniquement • texte-only • hooks/valeur/CTA (safe)</div>
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-yellow-300 text-xs mb-2">Réseau</label>
+                    <select
+                      value={network}
+                      onChange={(e) => setNetwork(e.target.value as Network)}
+                      className="w-full rounded-2xl bg-black/40 border border-yellow-500/20 px-4 py-3 text-yellow-100 outline-none"
+                    >
+                      <option>Instagram</option>
+                      <option>TikTok</option>
+                      <option>LinkedIn</option>
+                      <option>Facebook</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-yellow-300 text-xs mb-2">Objectif</label>
+                    <select
+                      value={objective}
+                      onChange={(e) => setObjective(e.target.value as Objective)}
+                      className="w-full rounded-2xl bg-black/40 border border-yellow-500/20 px-4 py-3 text-yellow-100 outline-none"
+                    >
+                      <option>Attirer</option>
+                      <option>Éduquer</option>
+                      <option>Convertir</option>
+                      <option>Story</option>
+                    </select>
+                  </div>
                 </div>
 
-                <button
-                  onClick={() => setCopilotOpen((v) => !v)}
-                  className="rounded-xl border border-yellow-500/25 bg-black/40 px-4 py-2 text-sm font-semibold text-yellow-200 hover:bg-black/55"
-                >
-                  {copilotOpen ? "Masquer" : "Afficher"}
-                </button>
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-yellow-300 text-xs mb-2">Angle</label>
+                    <select
+                      value={angle}
+                      onChange={(e) => setAngle(e.target.value as Angle)}
+                      className="w-full rounded-2xl bg-black/40 border border-yellow-500/20 px-4 py-3 text-yellow-100 outline-none"
+                    >
+                      <option>MRR débutant</option>
+                      <option>Produit digital</option>
+                      <option>Objection</option>
+                      <option>Storytelling</option>
+                      <option>Preuve</option>
+                      <option>Tutoriel</option>
+                      <option>Erreur fréquente</option>
+                      <option>Mindset / discipline</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-yellow-300 text-xs mb-2">Longueur max (caractères)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={maxChars}
+                      onChange={(e) => setMaxChars(Number(e.target.value || 0))}
+                      className="w-full rounded-2xl bg-black/40 border border-yellow-500/20 px-4 py-3 text-yellow-100 outline-none"
+                    />
+                    <div className="mt-1 text-[11px] text-white/45">0 = auto • approx. caractères</div>
+                  </div>
+                </div>
+
+                <div className="mt-3">
+                  <label className="block text-yellow-300 text-xs mb-2">Ton / Style (LGD)</label>
+                  <input
+                    value={tone}
+                    onChange={(e) => setTone(e.target.value)}
+                    className="w-full rounded-2xl bg-black/40 border border-yellow-500/20 px-4 py-3 text-yellow-100 outline-none"
+                  />
+                </div>
+
+                <div className="mt-3">
+                  <label className="block text-yellow-300 text-xs mb-2">Appliquer sur le layer texte (slide active)</label>
+                  <select
+                    value={targetLayerId}
+                    onChange={(e) => setTargetLayerId(e.target.value)}
+                    className="w-full rounded-2xl bg-black/40 border border-yellow-500/20 px-4 py-3 text-yellow-100 outline-none"
+                  >
+                    {textLayers.length === 0 ? <option value="">Aucun layer texte</option> : null}
+                    {textLayers.map((l: any) => (
+                      <option key={String(l.id)} value={String(l.id)}>
+                        {String(l.id)} — “{clip(String(l.text || ""))}”
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
-              {copilotOpen ? (
-                <div className="px-5 pb-5">
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      onClick={() => runCopilot("hooks")}
-                      disabled={aiLoading || copilotDisabled}
-                      className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
-                    >
-                      Hooks x10
-                    </button>
-                    <button
-                      onClick={() => runCopilot("slideText")}
-                      disabled={aiLoading || copilotDisabled}
-                      className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
-                    >
-                      Texte slide
-                    </button>
-                    <button
-                      onClick={() => runCopilot("steps")}
-                      disabled={aiLoading || copilotDisabled}
-                      className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
-                    >
-                      3 étapes
-                    </button>
-                    <button
-                      onClick={() => runCopilot("cta")}
-                      disabled={aiLoading || copilotDisabled}
-                      className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
-                    >
-                      CTA
-                    </button>
-                    <button
-                      onClick={() => runCopilot("rewrite")}
-                      disabled={aiLoading || copilotDisabled || !targetLayerId}
-                      className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
-                    >
-                      Réécrire
-                    </button>
-                  </div>
-
-                  <div className="mt-4 grid grid-cols-1 lg:grid-cols-12 gap-4">
-                    <div className="lg:col-span-4">
-                      <label className="block text-yellow-300 text-xs mb-2">Sujet / idée (optionnel)</label>
-                      <input
-                        value={idea}
-                        onChange={(e) => {
-                          userTouchedIdeaRef.current = true;
-                          setIdea(e.target.value);
+              <div className="lg:col-span-8">
+                <div className="rounded-3xl p-4 bg-black/30 border border-yellow-500/15">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-yellow-200 font-semibold">Résultat IA</div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => applyToLayer(aiOutput)}
+                        disabled={aiLoading || !aiOutput || textLayers.length === 0}
+                        className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
+                      >
+                        Appliquer au layer
+                      </button>
+                      <button
+                        onClick={() => {
+                          setAiOutput("");
+                          setAiHooks([]);
+                          setAiError(null);
                         }}
-                        placeholder="Ex : 3 erreurs MRR qui te bloquent…"
-                        className="w-full rounded-2xl bg-black/40 border border-yellow-500/20 px-4 py-3 text-yellow-100 outline-none"
-                      />
-
-                      <div className="mt-3 grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-yellow-300 text-xs mb-2">Réseau</label>
-                          <select
-                            value={network}
-                            onChange={(e) => setNetwork(e.target.value as Network)}
-                            className="w-full rounded-2xl bg-black/40 border border-yellow-500/20 px-4 py-3 text-yellow-100 outline-none"
-                          >
-                            <option>Instagram</option>
-                            <option>TikTok</option>
-                            <option>LinkedIn</option>
-                            <option>Facebook</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-yellow-300 text-xs mb-2">Objectif</label>
-                          <select
-                            value={objective}
-                            onChange={(e) => {
-                              userTouchedObjectiveRef.current = true;
-                              setObjective(e.target.value as Objective);
-                            }}
-                            className="w-full rounded-2xl bg-black/40 border border-yellow-500/20 px-4 py-3 text-yellow-100 outline-none"
-                          >
-                            <option>Attirer</option>
-                            <option>Éduquer</option>
-                            <option>Convertir</option>
-                            <option>Story</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="mt-3 grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-yellow-300 text-xs mb-2">Angle</label>
-                          <select
-                            value={angle}
-                            onChange={(e) => {
-                              userTouchedAngleRef.current = true;
-                              setAngle(e.target.value as Angle);
-                            }}
-                            className="w-full rounded-2xl bg-black/40 border border-yellow-500/20 px-4 py-3 text-yellow-100 outline-none"
-                          >
-                            <option>MRR débutant</option>
-                            <option>Produit digital</option>
-                            <option>Objection</option>
-                            <option>Storytelling</option>
-                            <option>Preuve</option>
-                            <option>Tutoriel</option>
-                            <option>Erreur fréquente</option>
-                            <option>Mindset / discipline</option>
-                          </select>
-                        </div>
-
-                        <div>
-                          <label className="block text-yellow-300 text-xs mb-2">Longueur max (caractères)</label>
-                          <input
-                            type="number"
-                            min={0}
-                            value={maxChars}
-                            onChange={(e) => setMaxChars(Number(e.target.value || 0))}
-                            className="w-full rounded-2xl bg-black/40 border border-yellow-500/20 px-4 py-3 text-yellow-100 outline-none"
-                          />
-                          <div className="mt-1 text-[11px] text-white/45">0 = auto • approx. caractères</div>
-                        </div>
-                      </div>
-
-                      <div className="mt-3">
-                        <label className="block text-yellow-300 text-xs mb-2">Ton / Style (LGD)</label>
-                        <input
-                          value={tone}
-                          onChange={(e) => setTone(e.target.value)}
-                          className="w-full rounded-2xl bg-black/40 border border-yellow-500/20 px-4 py-3 text-yellow-100 outline-none"
-                        />
-                      </div>
-
-                      <div className="mt-3">
-                        <label className="block text-yellow-300 text-xs mb-2">Appliquer sur le layer texte (slide active)</label>
-                        <select
-                          value={targetLayerId}
-                          onChange={(e) => setTargetLayerId(e.target.value)}
-                          className="w-full rounded-2xl bg-black/40 border border-yellow-500/20 px-4 py-3 text-yellow-100 outline-none"
-                        >
-                          {textLayers.length === 0 ? <option value="">Aucun layer texte</option> : null}
-                          {textLayers.map((l: any) => (
-                            <option key={String(l.id)} value={String(l.id)}>
-                              {String(l.id)} — “{clip(String(l.text || ""))}”
-                            </option>
-                          ))}
-                        </select>
-
-                        <div className="mt-2 flex flex-wrap items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => syncEditorSelection(targetLayerId || defaultTargetId)}
-                            disabled={!targetLayerId && !defaultTargetId}
-                            className="rounded-xl px-3 py-2 text-xs text-yellow-100 border border-yellow-500/20 bg-black/40 hover:bg-black/60 disabled:opacity-60"
-                          >
-                            Sélectionner ce layer dans l’éditeur
-                          </button>
-                          <div className="text-[11px] text-white/45">La cible texte reste synchronisée avec la slide active.</div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="lg:col-span-8">
-                      <div className="rounded-3xl p-4 bg-black/30 border border-yellow-500/15">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="text-yellow-200 font-semibold">Résultat IA</div>
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => applyToLayer(aiOutput)}
-                              disabled={aiLoading || !aiOutput || textLayers.length === 0}
-                              className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
-                            >
-                              Appliquer au layer
-                            </button>
-                            <button
-                              onClick={() => {
-                                setAiOutput("");
-                                setAiHooks([]);
-                                setAiError(null);
-                              }}
-                              className="rounded-xl px-3 py-2 text-sm text-yellow-100 border border-yellow-500/20 bg-black/40 hover:bg-black/60"
-                            >
-                              Effacer
-                            </button>
-                          </div>
-                        </div>
-
-                        {aiError ? (
-                          <div className="mt-3 rounded-2xl border border-red-500/20 bg-red-500/10 p-3 text-red-200 text-sm">
-                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                              <div>{aiError}</div>
-                              {isQuotaError(aiError) ? (
-                                <button
-                                  type="button"
-                                  onClick={openPlans}
-                                  className="shrink-0 rounded-xl border border-yellow-500/25 bg-black/35 px-3 py-2 text-xs font-semibold text-yellow-200 hover:bg-black/50"
-                                >
-                                  Voir les plans
-                                </button>
-                              ) : null}
-                            </div>
-                          </div>
-                        ) : null}
-
-                        {aiLoading ? (
-                          <div className="mt-3 rounded-2xl border border-yellow-500/15 bg-black/25 px-4 py-8">
-                            <div className="flex flex-col items-center justify-center gap-4">
-                              <div className="h-8 w-8 animate-spin rounded-full border-2 border-yellow-400 border-t-transparent" />
-                              <div className="text-sm text-white/70">Génération IA en cours...</div>
-                              <div className="text-xs text-white/45 text-center">
-                                LGD prépare une proposition premium à injecter dans ton carrousel.
-                              </div>
-                            </div>
-                          </div>
-                        ) : aiHooks.length > 0 ? (
-                          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
-                            {aiHooks.map((h, idx) => (
-                              <button
-                                key={`${idx}-${h}`}
-                                onClick={() => {
-                                  setAiOutput(h);
-                                  applyToLayer(h);
-                                }}
-                                className="text-left rounded-2xl border border-yellow-500/15 bg-black/40 hover:bg-black/55 px-4 py-3 text-yellow-100"
-                              >
-                                <div className="text-[11px] text-white/45 mb-1">Suggestion {idx + 1}</div>
-                                <div className="text-sm font-semibold">{h}</div>
-                              </button>
-                            ))}
-                          </div>
-                        ) : (
-                          <textarea
-                            value={aiOutput}
-                            onChange={(e) => setAiOutput(e.target.value)}
-                            placeholder="Les résultats IA apparaîtront ici…"
-                            rows={8}
-                            className="mt-3 w-full rounded-2xl bg-black/40 border border-yellow-500/15 px-4 py-3 text-yellow-100 outline-none"
-                          />
-                        )}
-
-                        {targetLayer ? (
-                          <div className="mt-3 text-[11px] text-white/45">
-                            Layer cible : <span className="text-yellow-200">{String((targetLayer as any)?.id || "")}</span>
-                          </div>
-                        ) : null}
-                      </div>
+                        className="rounded-xl px-3 py-2 text-sm text-yellow-100 border border-yellow-500/20 bg-black/40 hover:bg-black/60"
+                      >
+                        Effacer
+                      </button>
                     </div>
                   </div>
+
+                  {aiError ? (
+                    <div className="mt-3 rounded-2xl border border-red-500/20 bg-red-500/10 p-3 text-red-200 text-sm">
+                      {aiError}
+                    </div>
+                  ) : null}
+
+                  {aiLoading ? <div className="mt-3 text-white/60 text-sm">Génération IA en cours…</div> : null}
+
+                  {aiHooks.length > 0 ? (
+                    <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {aiHooks.map((h, idx) => (
+                        <button
+                          key={`${idx}-${h}`}
+                          onClick={() => {
+                            setAiOutput(h);
+                            applyToLayer(h);
+                          }}
+                          className="text-left rounded-2xl border border-yellow-500/15 bg-black/40 hover:bg-black/55 px-4 py-3 text-yellow-100"
+                        >
+                          <div className="text-[11px] text-white/45 mb-1">Suggestion {idx + 1}</div>
+                          <div className="text-sm font-semibold">{h}</div>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <textarea
+                      value={aiOutput}
+                      onChange={(e) => setAiOutput(e.target.value)}
+                      placeholder="Les résultats IA apparaîtront ici…"
+                      rows={8}
+                      className="mt-3 w-full rounded-2xl bg-black/40 border border-yellow-500/15 px-4 py-3 text-yellow-100 outline-none"
+                    />
+                  )}
+
+                  {targetLayer ? (
+                    <div className="mt-3 text-[11px] text-white/45">
+                      Layer cible : <span className="text-yellow-200">{String((targetLayer as any)?.id || "")}</span>
+                    </div>
+                  ) : null}
                 </div>
-              ) : null}
+              </div>
             </div>
+          </div>
+        ) : null}
+      </div>
 
-            <div className="mb-4 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setScheduleOpen(true)}
-                disabled={scheduleLoading}
-                className="rounded-xl border border-yellow-500/25 bg-[#ffb800] px-4 py-2 text-sm font-semibold text-black hover:brightness-110 disabled:opacity-60"
-              >
-                {scheduleLoading ? "Planification" : "Planifier"}
-              </button>
-            </div>
+      <EditorLayout
+        initialLayers={activeSlide.layers}
+        initialLayersKey={activeSlideId} // ✅ force re-init propre par slide
+        onChange={updateLayers}
+        mobileToolsOpen={mobileToolsOpen}
+        onCloseMobileTools={onCloseMobileTools}
+      />
 
-            <EditorLayout
-              key={`${activeSlideId}-${editorRefreshKey}`}
-              initialLayers={activeSlide?.layers ?? []}
-              initialLayersKey={`${activeSlideId}-${editorRefreshKey}`}
-              initialUI={draftUI}
-              onUIChange={handleUIChange}
-              onChange={updateLayers}
-              mobileToolsOpen={mobileToolsOpen}
-              onCloseMobileTools={onCloseMobileTools}
-            />
+      {/* Bottom slides bar (design inchangé) */}
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+        {slides.map((s, idx) => {
+          const active = s.id === activeSlideId;
+          return (
+            <button
+              key={s.id}
+              onClick={() => setActiveSlideId(s.id)}
+              className={[
+                "px-4 py-2 rounded-xl border text-sm",
+                active
+                  ? "bg-[#ffb800] text-black border-[#ffb800]"
+                  : "bg-black/40 text-yellow-100 border-yellow-500/20 hover:bg-black/55",
+              ].join(" ")}
+            >
+              Slide {idx + 1}
+            </button>
+          );
+        })}
 
-            <SchedulePlannerModal
-              open={scheduleOpen}
-              loading={scheduleLoading}
-              defaultTitle={plannerTitle}
-              onClose={() => setScheduleOpen(false)}
-              onConfirm={handleScheduleConfirm}
-            />
+        <button
+          onClick={addSlide}
+          className="px-4 py-2 rounded-xl border border-yellow-500/25 bg-yellow-500/10 text-yellow-200 hover:bg-yellow-500/15"
+        >
+          + Ajouter
+        </button>
 
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-              {slides.map((s, idx) => {
-                const active = s.id === activeSlideId;
-                return (
-                  <button
-                    key={s.id}
-                    onClick={() => setActiveSlideId(s.id)}
-                    className={[
-                      "px-4 py-2 rounded-xl border text-sm",
-                      active
-                        ? "bg-[#ffb800] text-black border-[#ffb800]"
-                        : "bg-black/40 text-yellow-100 border-yellow-500/20 hover:bg-black/55",
-                    ].join(" ")}
-                  >
-                    Slide {idx + 1}
-                  </button>
-                );
-              })}
+        <button
+          onClick={duplicateActiveSlide}
+          className="px-4 py-2 rounded-xl border border-yellow-500/25 bg-yellow-500/10 text-yellow-200 hover:bg-yellow-500/15"
+        >
+          Dupliquer
+        </button>
 
-              <button
-                onClick={addSlide}
-                className="px-4 py-2 rounded-xl border border-yellow-500/25 bg-yellow-500/10 text-yellow-200 hover:bg-yellow-500/15"
-              >
-                + Ajouter
-              </button>
-
-              <button
-                onClick={duplicateActiveSlide}
-                className="px-4 py-2 rounded-xl border border-yellow-500/25 bg-yellow-500/10 text-yellow-200 hover:bg-yellow-500/15"
-              >
-                Dupliquer
-              </button>
-
-              <button
-                onClick={deleteActiveSlide}
-                className="px-4 py-2 rounded-xl border border-red-500/25 bg-red-500/10 text-red-200 hover:bg-red-500/15"
-              >
-                Supprimer
-              </button>
-            </div>
+        <button
+          onClick={deleteActiveSlide}
+          className="px-4 py-2 rounded-xl border border-red-500/25 bg-red-500/10 text-red-200 hover:bg-red-500/15"
+        >
+          Supprimer
+        </button>
+      </div>
           </div>
         </div>
       </div>
