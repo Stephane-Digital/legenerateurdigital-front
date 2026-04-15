@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import ThumbStage from "./components/ThumbStage";
 
 function getAuthHeaders() {
   if (typeof window === "undefined") return {};
@@ -73,8 +74,6 @@ async function fetchFirstOk(urls: string[]) {
   throw lastErr || new Error("fetch failed");
 }
 
-
-
 function getImageSizeFromUrl(src: string): Promise<{ width: number; height: number }> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -102,6 +101,7 @@ function fitInsideBox(
     height,
   };
 }
+
 function formatFR(iso?: string | null) {
   if (!iso) return "";
   const d = new Date(iso);
@@ -153,7 +153,6 @@ function escapeXml(s: string) {
     .replace(/'/g, "&apos;");
 }
 
-/** layers peut être array, string JSON, ou objet wrapper */
 function normalizeLayers(input: any): any[] {
   if (!input) return [];
   if (Array.isArray(input)) return input;
@@ -304,15 +303,110 @@ function layersToSvg(layers: any, ratio: "1:1" | "9:16" | "16:9") {
   return parts.join("");
 }
 
-function RuntimeSvg({ svg }: { svg: string }) {
-  return (
-    <div
-      className="absolute inset-0"
-      dangerouslySetInnerHTML={{
-        __html: svg,
-      }}
-    />
-  );
+function safeJsonParse(v: any) {
+  if (v == null) return null;
+  if (typeof v === "object") return v;
+  if (typeof v !== "string") return v;
+  try {
+    return JSON.parse(v);
+  } catch {
+    return v;
+  }
+}
+
+function normalizePayload(raw: any) {
+  const payload = safeJsonParse(raw) || {};
+  const candidates = [payload?.draft, payload?.payload, payload?.content, payload].filter(Boolean);
+
+  for (const c of candidates) {
+    if (
+      c?.canvas?.layers ||
+      c?.layers ||
+      c?.slides ||
+      c?.carrousel?.slides ||
+      c?.draft?.slides ||
+      c?.data?.slides ||
+      c?.data?.layers
+    ) {
+      return c;
+    }
+  }
+
+  return payload || {};
+}
+
+function ensureArrayLayers(value: any) {
+  const normalized = normalizeLayers(value);
+  return Array.isArray(normalized) ? normalized : [];
+}
+
+function extractPostLayers(wrapper?: SavedWrapper | null) {
+  const p = normalizePayload(wrapper?.payload);
+
+  const layers =
+    p?.layers ??
+    p?.canvas?.layers ??
+    p?.data?.layers ??
+    p?.content?.layers ??
+    p?.draft?.layers ??
+    p?.draft?.canvas?.layers ??
+    null;
+
+  return ensureArrayLayers(layers);
+}
+
+function extractCarrouselSlides(wrapper?: SavedWrapper | null) {
+  const p = normalizePayload(wrapper?.payload);
+
+  const slides =
+    p?.slides ??
+    p?.carrousel?.slides ??
+    p?.draft?.slides ??
+    p?.draft?.carrousel?.slides ??
+    p?.data?.slides ??
+    null;
+
+  return Array.isArray(slides) ? slides : [];
+}
+
+function extractSlideLayers(slide: any) {
+  if (!slide) return [];
+
+  const layers =
+    slide?.layers ??
+    slide?.canvas?.layers ??
+    slide?.data?.layers ??
+    slide?.payload?.layers ??
+    slide?.content?.layers ??
+    slide?.draft?.layers ??
+    slide?.draft?.canvas?.layers ??
+    slide?.elements ??
+    slide?.canvas?.elements ??
+    slide?.data?.elements ??
+    slide?.payload?.elements ??
+    slide?.content?.elements ??
+    slide?.doc?.elements ??
+    slide?.nodes ??
+    slide?.canvas?.nodes ??
+    slide?.data?.nodes ??
+    slide?.objects ??
+    slide?.canvas?.objects ??
+    slide?.data?.objects ??
+    null;
+
+  return ensureArrayLayers(layers);
+}
+
+function guessCanvasSizeFromLayers(layers: any[], fallbackRatio: "1:1" | "9:16" | "16:9") {
+  for (const l of layers || []) {
+    const cw = Number(l?.canvasWidth ?? l?.cw ?? l?.stageWidth ?? l?.w_canvas ?? l?.attrs?.stageWidth ?? NaN);
+    const ch = Number(l?.canvasHeight ?? l?.ch ?? l?.stageHeight ?? l?.h_canvas ?? l?.attrs?.stageHeight ?? NaN);
+    if (Number.isFinite(cw) && Number.isFinite(ch) && cw > 200 && ch > 200) {
+      return { w: cw, h: ch };
+    }
+  }
+
+  return ratioToWH(fallbackRatio);
 }
 
 function NetworkIcon({ network }: { network: string }) {
@@ -402,8 +496,12 @@ function LibraryCard({
 
   const [slideIdx, setSlideIdx] = useState(0);
 
-  const postLayers = wrapper?.payload?.layers || wrapper?.payload?.data?.layers || null;
-  const slides = Array.isArray(wrapper?.payload?.slides) ? wrapper?.payload?.slides : [];
+  const postLayers = useMemo(() => extractPostLayers(wrapper), [wrapper]);
+  const slides = useMemo(() => extractCarrouselSlides(wrapper), [wrapper]);
+  const currentSlideLayers = useMemo(() => {
+    if (kind !== "carrousel" || !slides.length) return [];
+    return extractSlideLayers(slides[Math.min(slideIdx, slides.length - 1)] || null);
+  }, [kind, slides, slideIdx]);
 
   useEffect(() => {
     if (kind !== "carrousel" || slides.length <= 1) return;
@@ -413,14 +511,20 @@ function LibraryCard({
     return () => window.clearInterval(t);
   }, [kind, slides.length]);
 
+  const previewLayers = kind === "post" ? postLayers : currentSlideLayers;
+  const previewCanvas = useMemo(
+    () => guessCanvasSizeFromLayers(previewLayers, meta.ratio),
+    [previewLayers, meta.ratio]
+  );
+
   const svg = useMemo(() => {
-    if (kind === "post" && postLayers) return layersToSvg(postLayers, meta.ratio);
-    if (kind === "carrousel" && slides.length)
-      return layersToSvg(slides[Math.min(slideIdx, slides.length - 1)] || [], meta.ratio);
+    if (kind === "post" && postLayers.length) return layersToSvg(postLayers, meta.ratio);
+    if (kind === "carrousel" && currentSlideLayers.length) return layersToSvg(currentSlideLayers, meta.ratio);
     return "";
-  }, [kind, postLayers, slides, slideIdx, meta.ratio]);
+  }, [kind, postLayers, currentSlideLayers, meta.ratio]);
 
   const hasFileImage = String(item.mime_type || "").startsWith("image/") && !!item.preview_url;
+  const hasPreviewLayers = previewLayers.length > 0;
 
   return (
     <div className="group relative">
@@ -457,8 +561,20 @@ function LibraryCard({
                 className="absolute inset-0 h-full w-full object-cover"
                 draggable={false}
               />
+            ) : hasPreviewLayers ? (
+              <ThumbStage
+                layers={previewLayers}
+                canvasWidth={previewCanvas.w}
+                canvasHeight={previewCanvas.h}
+                cover
+              />
             ) : svg ? (
-              <RuntimeSvg svg={svg} />
+              <div
+                className="absolute inset-0"
+                dangerouslySetInnerHTML={{
+                  __html: svg,
+                }}
+              />
             ) : (
               <div className="absolute inset-0 flex items-center justify-center text-xs text-white/50">
                 Aperçu indisponible
