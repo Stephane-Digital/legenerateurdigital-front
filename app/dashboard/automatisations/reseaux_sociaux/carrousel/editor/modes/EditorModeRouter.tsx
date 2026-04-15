@@ -193,6 +193,110 @@ async function prepareDraftForLibrary(draft: any): Promise<any> {
   return replaceBlobUrls(draft, replaceMap);
 }
 
+type AnyObj = Record<string, any>;
+
+function safeJsonParseAny(v: any) {
+  if (v == null) return null;
+  if (typeof v === "object") return v;
+  if (typeof v !== "string") return v;
+  try {
+    return JSON.parse(v);
+  } catch {
+    return v;
+  }
+}
+
+function normalizeArchivePayload(raw: any): AnyObj {
+  const payload = safeJsonParseAny(raw) as AnyObj;
+  const candidates = [payload?.draft, payload?.payload, payload?.content, payload].filter(Boolean);
+
+  for (const c of candidates) {
+    if (c?.canvas?.layers || c?.layers || c?.slides || c?.carrousel?.slides) return c;
+  }
+
+  return payload || {};
+}
+
+function extractArchivePostDraft(payloadLike: any) {
+  const p = normalizeArchivePayload(payloadLike);
+  const layers =
+    p?.layers ??
+    p?.canvas?.layers ??
+    p?.data?.layers ??
+    p?.content?.layers ??
+    p?.draft?.layers ??
+    p?.draft?.canvas?.layers ??
+    [];
+
+  return {
+    ui: p?.ui ?? p?.draft?.ui ?? undefined,
+    layers: Array.isArray(layers) ? layers : [],
+  };
+}
+
+function extractArchiveCarrouselDraft(payloadLike: any) {
+  const p = normalizeArchivePayload(payloadLike);
+  const rawSlides =
+    p?.slides ??
+    p?.carrousel?.slides ??
+    p?.draft?.slides ??
+    p?.draft?.carrousel?.slides ??
+    p?.data?.slides ??
+    [];
+
+  const slides = (Array.isArray(rawSlides) ? rawSlides : []).map((slide: any, index: number) => {
+    const layers =
+      slide?.layers ??
+      slide?.canvas?.layers ??
+      slide?.data?.layers ??
+      slide?.payload?.layers ??
+      [];
+
+    return {
+      id: String(slide?.id || `slide-${index + 1}`),
+      layers: Array.isArray(layers) ? layers : [],
+    };
+  });
+
+  return {
+    ui: p?.ui ?? p?.draft?.ui ?? undefined,
+    slides,
+  };
+}
+
+async function fetchArchiveRawById(id: string) {
+  const base = apiBase();
+  if (!base) throw new Error("NEXT_PUBLIC_API_URL manquant");
+
+  const urls = [
+    `${base}/library/raw/${id}`,
+    `${base}/library/${id}/raw`,
+    `${base}/library/items/${id}/raw`,
+  ];
+
+  let lastError: any = null;
+
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, {
+        credentials: "include",
+        headers: { ...getAuthHeaders() },
+      });
+
+      if (!res.ok) {
+        lastError = new Error(`HTTP ${res.status}`);
+        continue;
+      }
+
+      return await res.json().catch(() => null);
+    } catch (e) {
+      lastError = e;
+    }
+  }
+
+  throw lastError || new Error("Impossible de charger l’archive.");
+}
+
 export default function EditorModeRouter() {
   const [mode, setMode] = useState<Mode>("post");
   const mobileFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -207,10 +311,68 @@ export default function EditorModeRouter() {
   const [downloading, setDownloading] = useState(false);
   const [downloadMsg, setDownloadMsg] = useState<string>("");
 
+  const [loadingArchiveSelection, setLoadingArchiveSelection] = useState(false);
+  const [archiveSelectionError, setArchiveSelectionError] = useState("");
+
   useEffect(() => {
     const saved = typeof window !== "undefined" ? window.localStorage.getItem("lgd_editor_mode") : null;
     if (saved === "post" || saved === "carrousel") setMode(saved);
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const sp = new URLSearchParams(window.location.search || "");
+    const openLibrary = sp.get("openLibrary");
+    const archiveId = (sp.get("id") || "").trim();
+    const archiveKind = (sp.get("kind") || "").trim().toLowerCase();
+
+    if (openLibrary !== "1" || !archiveId || (archiveKind !== "post" && archiveKind !== "carrousel")) {
+      setArchiveSelectionError("");
+      setLoadingArchiveSelection(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function hydrateSelectedArchive() {
+      setLoadingArchiveSelection(true);
+      setArchiveSelectionError("");
+
+      try {
+        const raw = await fetchArchiveRawById(archiveId);
+        if (cancelled) return;
+
+        const payloadRaw = raw?.payload ?? raw?.generated_content ?? raw?.data ?? raw ?? null;
+
+        if (archiveKind === "post") {
+          const draft = extractArchivePostDraft(payloadRaw);
+          window.localStorage.setItem(LS_EDITOR_MODE, "post");
+          window.localStorage.setItem(LS_POST, JSON.stringify(draft));
+          setMode("post");
+        } else {
+          const draft = extractArchiveCarrouselDraft(payloadRaw);
+          window.localStorage.setItem(LS_EDITOR_MODE, "carrousel");
+          window.localStorage.setItem(LS_CARROUSEL, JSON.stringify(draft));
+          if (draft?.slides?.[0]?.id) {
+            window.localStorage.setItem("lgd_editor_carrousel_active_slide_v5", String(draft.slides[0].id));
+          }
+          setMode("carrousel");
+        }
+      } catch (e: any) {
+        if (cancelled) return;
+        setArchiveSelectionError(e?.message || "Impossible de charger cette archive dans l’éditeur.");
+      } finally {
+        if (!cancelled) setLoadingArchiveSelection(false);
+      }
+    }
+
+    hydrateSelectedArchive();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -444,6 +606,22 @@ export default function EditorModeRouter() {
 
   const modeLabel = useMemo(() => (mode === "post" ? "POSTS" : "CARROUSEL"), [mode]);
 
+  if (loadingArchiveSelection) {
+    return (
+      <div className="min-h-screen bg-black text-white">
+        <div className="mx-auto w-full max-w-[980px] px-6 pt-28 pb-16">
+          <div className="rounded-3xl border border-yellow-500/20 bg-black/40 p-8 text-center shadow-2xl">
+            <div className="text-sm font-semibold uppercase tracking-[0.08em] text-yellow-200">Bibliothèque LGD</div>
+            <h1 className="mt-3 text-3xl font-extrabold text-[#ffb800]">Chargement de l’archive sélectionnée…</h1>
+            <p className="mt-3 text-sm text-white/70">
+              LGD prépare votre contenu archivé pour l’ouvrir dans le Canva avec la bonne sélection.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (isPhone) {
     return (
       <div className="min-h-screen bg-black text-white">
@@ -558,6 +736,7 @@ export default function EditorModeRouter() {
 
             {archiveMsg ? <div className="text-xs text-white/70">{archiveMsg}</div> : null}
             {downloadMsg ? <div className="text-xs text-white/70">{downloadMsg}</div> : null}
+            {archiveSelectionError ? <div className="text-xs text-red-300">{archiveSelectionError}</div> : null}
           </div>
         </div>
 
@@ -590,4 +769,3 @@ export default function EditorModeRouter() {
     </div>
   );
 }
-
