@@ -1302,3 +1302,4 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
     </div>
   );
 }
+
