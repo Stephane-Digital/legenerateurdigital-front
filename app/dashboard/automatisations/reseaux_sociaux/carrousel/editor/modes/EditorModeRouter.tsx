@@ -20,6 +20,7 @@ const LS_EDITOR_INTELLIGENT_BRIEF = "lgd_editor_intelligent_brief";
 // Anti-régression: empêche d'afficher un brief déjà consommé
 const LS_BRIEF_LAST_CONSUMED = "lgd_editor_brief_last_consumed";
 
+const LS_EDITOR_MODE = "lgd_editor_mode";
 const LS_POST = "lgd_editor_post_draft_v5";
 const LS_CARROUSEL = "lgd_editor_carrousel_draft_v5";
 
