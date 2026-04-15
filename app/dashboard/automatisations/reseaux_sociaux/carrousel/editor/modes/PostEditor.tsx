@@ -278,10 +278,16 @@ const FONT_STYLESHEET_IDS: Record<string, string> = {
   oswald: "lgd-font-oswald",
   montserrat: "lgd-font-montserrat",
   merriweather: "lgd-font-merriweather",
+  roboto: "lgd-font-roboto",
+  "playfair display": "lgd-font-playfair-display",
 };
 
 function getFontKey(font?: string) {
-  return String(font || "").trim().toLowerCase();
+  return String(font || "")
+    .trim()
+    .replace(/^["']+|["']+$/g, "")
+    .replace(/\s+/g, " ")
+    .toLowerCase();
 }
 
 function getFontImportCss(font?: string) {
@@ -292,6 +298,8 @@ function getFontImportCss(font?: string) {
     oswald: "@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&display=swap');",
     montserrat: "@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap');",
     merriweather: "@import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&display=swap');",
+    roboto: "@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');",
+    "playfair display": "@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800;900&display=swap');",
   };
   return map[key] || "";
 }
