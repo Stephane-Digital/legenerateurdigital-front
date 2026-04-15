@@ -220,29 +220,52 @@ function normalizeArchivePayload(raw: any): AnyObj {
 
 function extractArchivePostDraft(payloadLike: any) {
   const p = normalizeArchivePayload(payloadLike);
-  const layers =
-    p?.layers ??
-    p?.canvas?.layers ??
-    p?.data?.layers ??
-    p?.content?.layers ??
-    p?.draft?.layers ??
-    p?.draft?.canvas?.layers ??
-    [];
 
-  return {
-    ui: p?.ui ?? p?.draft?.ui ?? undefined,
-    layers: Array.isArray(layers) ? layers : [],
-  };
+  // ✅ IMPORTANT
+  // On recharge le draft archivé le plus fidèlement possible,
+  // sans le reconstruire inutilement, pour préserver :
+  // - police / fontFamily
+  // - lineHeight / spacing
+  // - width / height / scale éventuels
+  // - ui / format / ratio
+  // - tous les champs déjà validés par l’éditeur
+  if (p && typeof p === "object") {
+    const directLayers =
+      p?.layers ??
+      p?.canvas?.layers ??
+      p?.data?.layers ??
+      p?.content?.layers ??
+      p?.draft?.layers ??
+      p?.draft?.canvas?.layers ??
+      [];
+
+    return {
+      ...p,
+      ui:
+        p?.ui ??
+        p?.data?.ui ??
+        p?.canvas?.ui ??
+        p?.content?.ui ??
+        p?.draft?.ui ??
+        p?.draft?.canvas?.ui ??
+        undefined,
+      layers: Array.isArray(directLayers) ? directLayers : [],
+    };
+  }
+
+  return { layers: [], ui: undefined };
 }
 
 function extractArchiveCarrouselDraft(payloadLike: any) {
   const p = normalizeArchivePayload(payloadLike);
+
   const rawSlides =
     p?.slides ??
     p?.carrousel?.slides ??
     p?.draft?.slides ??
     p?.draft?.carrousel?.slides ??
     p?.data?.slides ??
+    p?.content?.slides ??
     [];
 
   const slides = (Array.isArray(rawSlides) ? rawSlides : []).map((slide: any, index: number) => {
@@ -250,17 +273,28 @@ function extractArchiveCarrouselDraft(payloadLike: any) {
       slide?.layers ??
       slide?.canvas?.layers ??
       slide?.data?.layers ??
+      slide?.content?.layers ??
       slide?.payload?.layers ??
+      slide?.elements ??
       [];
 
     return {
+      ...slide,
       id: String(slide?.id || `slide-${index + 1}`),
       layers: Array.isArray(layers) ? layers : [],
     };
   });
 
   return {
-    ui: p?.ui ?? p?.draft?.ui ?? undefined,
+    ...p,
+    ui:
+      p?.ui ??
+      p?.data?.ui ??
+      p?.canvas?.ui ??
+      p?.content?.ui ??
+      p?.draft?.ui ??
+      p?.draft?.canvas?.ui ??
+      undefined,
     slides,
   };
 }
