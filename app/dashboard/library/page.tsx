@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import SchedulePlannerModal from "../editor/ui/SchedulePlannerModal";
-import useSchedulePlanner from "../editor/v5/hooks/useSchedulePlanner";
-import { renderEditorCreationToDataUrl } from "../editor/utils/downloadEditorCreation";
+import SchedulePlannerModal from "../automatisations/reseaux_sociaux/carrousel/editor/ui/SchedulePlannerModal";
+import useSchedulePlanner from "../automatisations/reseaux_sociaux/carrousel/editor/v5/hooks/useSchedulePlanner";
+import { renderEditorCreationToDataUrl } from "../automatisations/reseaux_sociaux/carrousel/editor/utils/downloadEditorCreation";
 
 function getAuthHeaders() {
   if (typeof window === "undefined") return {};
