@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import ThumbStage from "./components/ThumbStage";
 import SchedulePlannerModal from "../automatisations/reseaux_sociaux/carrousel/editor/ui/SchedulePlannerModal";
 import useSchedulePlanner from "../automatisations/reseaux_sociaux/carrousel/editor/v5/hooks/useSchedulePlanner";
 import { renderEditorCreationToDataUrl } from "../automatisations/reseaux_sociaux/carrousel/editor/utils/downloadEditorCreation";
@@ -77,6 +76,8 @@ async function fetchFirstOk(urls: string[]) {
   throw lastErr || new Error("fetch failed");
 }
 
+
+
 function getImageSizeFromUrl(src: string): Promise<{ width: number; height: number }> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -104,7 +105,6 @@ function fitInsideBox(
     height,
   };
 }
-
 function formatFR(iso?: string | null) {
   if (!iso) return "";
   const d = new Date(iso);
@@ -147,6 +147,16 @@ function ratioToWH(ratio: "1:1" | "9:16" | "16:9") {
   return { w, h };
 }
 
+function escapeXml(s: string) {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+/** layers peut être array, string JSON, ou objet wrapper */
 function normalizeLayers(input: any): any[] {
   if (!input) return [];
   if (Array.isArray(input)) return input;
@@ -172,6 +182,25 @@ function normalizeLayers(input: any): any[] {
   return [];
 }
 
+function sortByZ(layers: any) {
+  const arr = normalizeLayers(layers);
+  return [...arr].sort((a, b) => Number(a?.zIndex ?? 0) - Number(b?.zIndex ?? 0));
+}
+
+function pickBackground(layers: any) {
+  const arr = normalizeLayers(layers);
+  return (arr || []).find((l) => String(l?.type || "").toLowerCase() === "background") || null;
+}
+
+function normalizeAssetHref(src: any) {
+  const s = typeof src === "string" ? src : "";
+  if (!s) return "";
+  if (s.startsWith("data:") || s.startsWith("blob:")) return s;
+  if (s.startsWith("http")) return s;
+  if (s.startsWith("/")) return normalizeUrl(s);
+  return s;
+}
+
 function inferNetwork(formatKey: string, platform: string) {
   const v = `${platform || ""} ${formatKey || ""}`.toLowerCase();
   if (v.includes("instagram") || v.includes("insta")) return "instagram";
@@ -185,9 +214,8 @@ function inferNetwork(formatKey: string, platform: string) {
 
 function inferRatio(formatKey: string) {
   const v = (formatKey || "").toLowerCase();
-  if (v.includes("story") || v.includes("9:16") || v.includes("vertical") || v.includes("reel") || v.includes("short")) {
+  if (v.includes("story") || v.includes("9:16") || v.includes("vertical") || v.includes("reel") || v.includes("short"))
     return "9:16" as const;
-  }
   if (v.includes("16:9") || v.includes("landscape") || v.includes("banner")) return "16:9" as const;
   return "1:1" as const;
 }
@@ -244,30 +272,52 @@ function extractSlideLayers(slide: any): any[] {
 
 function extractArchivePostDraft(wrapper?: SavedWrapper | null) {
   const payload = wrapper?.payload || {};
+  const source =
+    payload?.draft ||
+    payload?.payload ||
+    payload?.content ||
+    payload;
+
   const layers = normalizeLayers(
-    payload?.layers ||
-      payload?.data?.layers ||
-      payload?.canvas?.layers ||
-      payload?.draft?.layers ||
-      payload?.draft?.canvas?.layers ||
-      payload?.content?.layers ||
+    source?.layers ||
+      source?.data?.layers ||
+      source?.canvas?.layers ||
+      source?.draft?.layers ||
+      source?.draft?.canvas?.layers ||
+      source?.content?.layers ||
       []
   );
 
   const ui =
+    source?.ui ||
+    source?.data?.ui ||
+    source?.canvas?.ui ||
+    source?.draft?.ui ||
+    source?.content?.ui ||
     payload?.ui ||
-    payload?.data?.ui ||
-    payload?.canvas?.ui ||
-    payload?.draft?.ui ||
-    payload?.content?.ui ||
     {};
 
-  return { layers, ui };
+  return {
+    ...(source && typeof source === "object" ? source : {}),
+    ui,
+    layers,
+  };
 }
 
 function extractArchiveCarrouselDraft(wrapper?: SavedWrapper | null) {
   const payload = wrapper?.payload || {};
+  const source =
+    payload?.draft ||
+    payload?.payload ||
+    payload?.content ||
+    payload;
+
   const rawSlides = firstArray(
+    source?.slides,
+    source?.data?.slides,
+    source?.canvas?.slides,
+    source?.draft?.slides,
+    source?.content?.slides,
     payload?.slides,
     payload?.data?.slides,
     payload?.canvas?.slides,
@@ -276,41 +326,115 @@ function extractArchiveCarrouselDraft(wrapper?: SavedWrapper | null) {
   );
 
   const slides = rawSlides.map((slide: any, index: number) => ({
+    ...(slide && typeof slide === "object" ? slide : {}),
     id: String(slide?.id || `slide-${index + 1}`),
     layers: extractSlideLayers(slide),
   }));
 
   const ui =
+    source?.ui ||
+    source?.data?.ui ||
+    source?.canvas?.ui ||
+    source?.draft?.ui ||
+    source?.content?.ui ||
     payload?.ui ||
-    payload?.data?.ui ||
-    payload?.canvas?.ui ||
-    payload?.draft?.ui ||
-    payload?.content?.ui ||
     {};
 
-  return { slides, ui };
+  return {
+    ...(source && typeof source === "object" ? source : {}),
+    ui,
+    slides,
+  };
 }
 
 function getFirstTextFromLayers(layers: any[]): string {
-  return (layers || []).map((layer: any) => String(layer?.text || "").trim()).find(Boolean) || "";
+  return (layers || []).map((layer: any) => String(layer?.text || '').trim()).find(Boolean) || '';
 }
 
 function buildPlannerTitle(item: LibraryItem, wrapper?: SavedWrapper | null) {
   const kind = detectEditorKind(item, wrapper);
 
-  if (kind === "carrousel") {
+  if (kind === 'carrousel') {
     const draft = extractArchiveCarrouselDraft(wrapper);
     const firstText = getFirstTextFromLayers(draft.slides?.[0]?.layers || []);
-    return firstText || item.title || "Carrousel LGD";
+    return firstText || item.title || 'Carrousel LGD';
   }
 
-  if (kind === "post") {
+  if (kind === 'post') {
     const draft = extractArchivePostDraft(wrapper);
     const firstText = getFirstTextFromLayers(draft.layers || []);
-    return firstText || item.title || "Post LGD";
+    return firstText || item.title || 'Post LGD';
   }
 
-  return item.title || "Contenu LGD";
+  return item.title || 'Contenu LGD';
+}
+
+function layersToSvg(layers: any, ratio: "1:1" | "9:16" | "16:9") {
+  const { w, h } = ratioToWH(ratio);
+  const ordered = sortByZ(layers);
+
+  const bg = pickBackground(ordered);
+  const bgColor = String(bg?.color || bg?.fill || "#000000");
+  const bgImgRaw = bg?.src || bg?.url || bg?.imageUrl || bg?.dataUrl || bg?.value || null;
+  const bgImg = normalizeAssetHref(bgImgRaw);
+
+  const draw = ordered.filter((l: any) => String(l?.type || "").toLowerCase() !== "background");
+
+  const parts: string[] = [];
+  parts.push(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid slice" style="display:block;">`
+  );
+  parts.push(`<rect x="0" y="0" width="${w}" height="${h}" fill="${escapeXml(bgColor)}" />`);
+  if (bgImg) {
+    parts.push(
+      `<image href="${escapeXml(bgImg)}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="xMidYMid slice" />`
+    );
+  }
+
+  for (const layer of draw) {
+    const t = String(layer?.type || "").toLowerCase();
+    const x = Number(layer?.x ?? 0);
+    const y = Number(layer?.y ?? 0);
+
+    if (t === "text") {
+      const text = escapeXml(String(layer?.text ?? layer?.value ?? ""));
+      const fontSize = Number(layer?.fontSize ?? layer?.font?.size ?? 48);
+      const color = escapeXml(String(layer?.fill ?? layer?.color ?? "#ffffff"));
+      const weight = escapeXml(String(layer?.fontWeight ?? layer?.font?.weight ?? "600"));
+      parts.push(
+        `<text x="${x}" y="${y}" fill="${color}" font-size="${fontSize}" font-weight="${weight}" font-family="Inter, system-ui, sans-serif">${text}</text>`
+      );
+    } else if (t === "image") {
+      const href = normalizeAssetHref(layer?.src || layer?.url || layer?.imageUrl || layer?.dataUrl || layer?.value || "");
+      const w0 = Number(layer?.width ?? 400);
+      const h0 = Number(layer?.height ?? 300);
+      if (href) {
+        parts.push(
+          `<image href="${escapeXml(href)}" x="${x}" y="${y}" width="${w0}" height="${h0}" preserveAspectRatio="xMidYMid slice" />`
+        );
+      }
+    } else if (t === "rect" || t === "shape") {
+      const w0 = Number(layer?.width ?? 300);
+      const h0 = Number(layer?.height ?? 200);
+      const fill = escapeXml(String(layer?.fill ?? layer?.color ?? "#ffffff"));
+      const opacity = Number(layer?.opacity ?? 1);
+      parts.push(`<rect x="${x}" y="${y}" width="${w0}" height="${h0}" fill="${fill}" fill-opacity="${opacity}" />`);
+    }
+  }
+
+  parts.push(`</svg>`);
+  return parts.join("");
+}
+
+function RuntimeSvg({ svg }: { svg: string }) {
+  return (
+    <div
+      className="absolute inset-0"
+      dangerouslySetInnerHTML={{
+        __html: svg,
+      }}
+    />
+  );
 }
 
 function NetworkIcon({ network }: { network: string }) {
@@ -328,7 +452,12 @@ function NetworkIcon({ network }: { network: string }) {
           stroke="currentColor"
           strokeWidth="1.8"
         />
-        <path d="M17.2 6.8h.01" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+        <path
+          d="M17.2 6.8h.01"
+          stroke="currentColor"
+          strokeWidth="2.4"
+          strokeLinecap="round"
+        />
       </svg>
     );
   }
@@ -392,18 +521,13 @@ function LibraryCard({
   const kind = detectEditorKind(item, wrapper);
   const meta = extractMeta(wrapper, kind);
   const savedAt = pickBestDate(item, wrapper);
+
   const [slideIdx, setSlideIdx] = useState(0);
 
   const postDraft = extractArchivePostDraft(wrapper);
   const carrouselDraft = extractArchiveCarrouselDraft(wrapper);
   const postLayers = postDraft.layers;
   const slides = carrouselDraft.slides;
-  const currentLayers = kind === "post"
-    ? postLayers
-    : kind === "carrousel"
-      ? slides[Math.min(slideIdx, Math.max(0, slides.length - 1))]?.layers || []
-      : [];
-  const canvasSize = ratioToWH(meta.ratio);
 
   useEffect(() => {
     if (kind !== "carrousel" || slides.length <= 1) return;
@@ -413,8 +537,14 @@ function LibraryCard({
     return () => window.clearInterval(t);
   }, [kind, slides.length]);
 
+  const svg = useMemo(() => {
+    if (kind === "post" && postLayers) return layersToSvg(postLayers, meta.ratio);
+    if (kind === "carrousel" && slides.length)
+      return layersToSvg(slides[Math.min(slideIdx, slides.length - 1)]?.layers || [], meta.ratio);
+    return "";
+  }, [kind, postLayers, slides, slideIdx, meta.ratio]);
+
   const hasFileImage = String(item.mime_type || "").startsWith("image/") && !!item.preview_url;
-  const hasArchivePreview = (kind === "post" && postLayers.length > 0) || (kind === "carrousel" && currentLayers.length > 0);
 
   return (
     <div className="group relative">
@@ -451,13 +581,8 @@ function LibraryCard({
                 className="absolute inset-0 h-full w-full object-cover"
                 draggable={false}
               />
-            ) : hasArchivePreview ? (
-              <ThumbStage
-                layers={currentLayers}
-                canvasWidth={canvasSize.w}
-                canvasHeight={canvasSize.h}
-                cover
-              />
+            ) : svg ? (
+              <RuntimeSvg svg={svg} />
             ) : (
               <div className="absolute inset-0 flex items-center justify-center text-xs text-white/50">
                 Aperçu indisponible
@@ -695,16 +820,18 @@ export default function LibraryPage() {
     if (kind === "post") {
       const draft = extractArchivePostDraft(wrap);
       const safeLayers = Array.isArray(draft.layers) ? draft.layers : [];
+      const plannerDraft = {
+        ...draft,
+        ui: draft.ui || {},
+        layers: safeLayers,
+      };
       let previewImage = "";
 
       if (safeLayers.length) {
         try {
           previewImage = await renderEditorCreationToDataUrl({
             mode: "post",
-            draft: {
-              ui: draft.ui || {},
-              layers: safeLayers,
-            },
+            draft: plannerDraft,
           });
         } catch (error) {
           console.error("LGD planner snapshot error (archive post):", error);
@@ -717,10 +844,9 @@ export default function LibraryPage() {
         titre: titre || buildPlannerTitle(it, wrap),
         format: "post",
         contenu: {
+          ...plannerDraft,
           title: titre || buildPlannerTitle(it, wrap),
           type: "post",
-          layers: safeLayers,
-          ui: draft.ui || {},
           library_item_id: it.id,
           preview_image: previewImage || undefined,
           planner_preview_image: previewImage || undefined,
@@ -729,15 +855,17 @@ export default function LibraryPage() {
     } else if (kind === "carrousel") {
       const draft = extractArchiveCarrouselDraft(wrap);
       const safeSlides = Array.isArray(draft.slides) ? draft.slides : [];
+      const plannerDraft = {
+        ...draft,
+        ui: draft.ui || {},
+        slides: safeSlides,
+      };
       let previewImage = "";
 
       try {
         previewImage = await renderEditorCreationToDataUrl({
           mode: "carrousel",
-          draft: {
-            ui: draft.ui || {},
-            slides: safeSlides,
-          },
+          draft: plannerDraft,
           slideIndex: 0,
         });
       } catch (error) {
@@ -751,10 +879,9 @@ export default function LibraryPage() {
         format: "carrousel",
         slides: safeSlides,
         contenu: {
+          ...plannerDraft,
           title: titre || buildPlannerTitle(it, wrap),
           type: "carrousel",
-          slides: safeSlides,
-          ui: draft.ui || {},
           library_item_id: it.id,
           preview_image: previewImage || undefined,
           planner_preview_image: previewImage || undefined,
