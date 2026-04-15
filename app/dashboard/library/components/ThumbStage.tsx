@@ -47,6 +47,8 @@ function pickBackground(layers: AnyObj[]) {
     bg?.fill ??
     bg?.color ??
     bg?.background ??
+    bg?.style?.fill ??
+    bg?.style?.color ??
     bg?.props?.fill ??
     bg?.props?.color ??
     bg?.attrs?.fill ??
@@ -57,6 +59,7 @@ function pickBackground(layers: AnyObj[]) {
     bg?.src ??
     bg?.imageUrl ??
     bg?.image_url ??
+    bg?.style?.backgroundImage ??
     bg?.props?.url ??
     bg?.props?.src ??
     null;
@@ -167,8 +170,8 @@ export default function ThumbStage({
                 const text = String(layer?.text ?? layer?.value ?? layer?.content ?? "");
                 if (!text) return null;
 
-                const fontSize = Number(layer?.fontSize ?? layer?.font_size ?? 48) || 48;
-                const color = String(layer?.fill ?? layer?.color ?? "#ffffff");
+                const fontSize = Number(layer?.fontSize ?? layer?.font_size ?? layer?.style?.fontSize ?? 48) || 48;
+                const color = String(layer?.fill ?? layer?.color ?? layer?.style?.color ?? "#ffffff");
 
                 const w = ww > 0 ? ww : 800;
 
@@ -184,9 +187,10 @@ export default function ThumbStage({
                       transform: `rotate(${rotation}deg)`,
                       transformOrigin: "top left",
                       fontSize,
-                      lineHeight: 1.1,
+                      lineHeight: Number(layer?.lineHeight ?? layer?.style?.lineHeight ?? 1.1) || 1.1,
                       color,
-                      fontWeight: 700,
+                      fontWeight: Number(layer?.fontWeight ?? layer?.style?.fontWeight ?? 700) || 700,
+                      textAlign: String(layer?.align ?? layer?.textAlign ?? layer?.style?.textAlign ?? "left") as any,
                       textShadow: "0 2px 10px rgba(0,0,0,0.45)",
                     }}
                   >
@@ -235,7 +239,7 @@ export default function ThumbStage({
               }
 
               if (type === "shape" || type === "rect" || type === "rectangle") {
-                const fill = String(layer?.fill || layer?.color || "rgba(255,255,255,0.15)");
+                const fill = String(layer?.fill || layer?.color || layer?.style?.background || layer?.style?.color || "rgba(255,255,255,0.15)");
                 const r = Number(layer?.radius ?? layer?.r ?? 0) || 0;
 
                 const rw = ww > 0 ? ww : 200;
