@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import ThumbStage from "./components/ThumbStage";
+import SchedulePlannerModal from "../editor/ui/SchedulePlannerModal";
+import useSchedulePlanner from "../editor/v5/hooks/useSchedulePlanner";
+import { renderEditorCreationToDataUrl } from "../editor/utils/downloadEditorCreation";
 
 function getAuthHeaders() {
   if (typeof window === "undefined") return {};
@@ -74,6 +76,8 @@ async function fetchFirstOk(urls: string[]) {
   throw lastErr || new Error("fetch failed");
 }
 
+
+
 function getImageSizeFromUrl(src: string): Promise<{ width: number; height: number }> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -101,7 +105,6 @@ function fitInsideBox(
     height,
   };
 }
-
 function formatFR(iso?: string | null) {
   if (!iso) return "";
   const d = new Date(iso);
@@ -153,6 +156,7 @@ function escapeXml(s: string) {
     .replace(/'/g, "&apos;");
 }
 
+/** layers peut être array, string JSON, ou objet wrapper */
 function normalizeLayers(input: any): any[] {
   if (!input) return [];
   if (Array.isArray(input)) return input;
@@ -246,6 +250,97 @@ function extractMeta(wrapper?: SavedWrapper | null, kind?: "post" | "carrousel" 
   return { platform, formatKey, ratio, network, label };
 }
 
+function firstArray(...values: any[]): any[] {
+  for (const value of values) {
+    if (Array.isArray(value)) return value;
+  }
+  return [];
+}
+
+function extractSlideLayers(slide: any): any[] {
+  return normalizeLayers(
+    slide?.layers ||
+      slide?.canvas?.layers ||
+      slide?.data?.layers ||
+      slide?.content?.layers ||
+      slide?.elements ||
+      slide?.nodes ||
+      slide?.objects ||
+      []
+  );
+}
+
+function extractArchivePostDraft(wrapper?: SavedWrapper | null) {
+  const payload = wrapper?.payload || {};
+  const layers = normalizeLayers(
+    payload?.layers ||
+      payload?.data?.layers ||
+      payload?.canvas?.layers ||
+      payload?.draft?.layers ||
+      payload?.draft?.canvas?.layers ||
+      payload?.content?.layers ||
+      []
+  );
+
+  const ui =
+    payload?.ui ||
+    payload?.data?.ui ||
+    payload?.canvas?.ui ||
+    payload?.draft?.ui ||
+    payload?.content?.ui ||
+    {};
+
+  return { layers, ui };
+}
+
+function extractArchiveCarrouselDraft(wrapper?: SavedWrapper | null) {
+  const payload = wrapper?.payload || {};
+  const rawSlides = firstArray(
+    payload?.slides,
+    payload?.data?.slides,
+    payload?.canvas?.slides,
+    payload?.draft?.slides,
+    payload?.content?.slides
+  );
+
+  const slides = rawSlides.map((slide: any, index: number) => ({
+    id: String(slide?.id || `slide-${index + 1}`),
+    layers: extractSlideLayers(slide),
+  }));
+
+  const ui =
+    payload?.ui ||
+    payload?.data?.ui ||
+    payload?.canvas?.ui ||
+    payload?.draft?.ui ||
+    payload?.content?.ui ||
+    {};
+
+  return { slides, ui };
+}
+
+function getFirstTextFromLayers(layers: any[]): string {
+  return (layers || []).map((layer: any) => String(layer?.text || '').trim()).find(Boolean) || '';
+}
+
+function buildPlannerTitle(item: LibraryItem, wrapper?: SavedWrapper | null) {
+  const kind = detectEditorKind(item, wrapper);
+
+  if (kind === 'carrousel') {
+    const draft = extractArchiveCarrouselDraft(wrapper);
+    const firstText = getFirstTextFromLayers(draft.slides?.[0]?.layers || []);
+    return firstText || item.title || 'Carrousel LGD';
+  }
+
+  if (kind === 'post') {
+    const draft = extractArchivePostDraft(wrapper);
+    const firstText = getFirstTextFromLayers(draft.layers || []);
+    return firstText || item.title || 'Post LGD';
+  }
+
+  return item.title || 'Contenu LGD';
+}
+
 function layersToSvg(layers: any, ratio: "1:1" | "9:16" | "16:9") {
   const { w, h } = ratioToWH(ratio);
   const ordered = sortByZ(layers);
@@ -303,110 +398,15 @@ function layersToSvg(layers: any, ratio: "1:1" | "9:16" | "16:9") {
   return parts.join("");
 }
 
-function safeJsonParse(v: any) {
-  if (v == null) return null;
-  if (typeof v === "object") return v;
-  if (typeof v !== "string") return v;
-  try {
-    return JSON.parse(v);
-  } catch {
-    return v;
-  }
-}
-
-function normalizePayload(raw: any) {
-  const payload = safeJsonParse(raw) || {};
-  const candidates = [payload?.draft, payload?.payload, payload?.content, payload].filter(Boolean);
-
-  for (const c of candidates) {
-    if (
-      c?.canvas?.layers ||
-      c?.layers ||
-      c?.slides ||
-      c?.carrousel?.slides ||
-      c?.draft?.slides ||
-      c?.data?.slides ||
-      c?.data?.layers
-    ) {
-      return c;
-    }
-  }
-
-  return payload || {};
-}
-
-function ensureArrayLayers(value: any) {
-  const normalized = normalizeLayers(value);
-  return Array.isArray(normalized) ? normalized : [];
-}
-
-function extractPostLayers(wrapper?: SavedWrapper | null) {
-  const p = normalizePayload(wrapper?.payload);
-
-  const layers =
-    p?.layers ??
-    p?.canvas?.layers ??
-    p?.data?.layers ??
-    p?.content?.layers ??
-    p?.draft?.layers ??
-    p?.draft?.canvas?.layers ??
-    null;
-
-  return ensureArrayLayers(layers);
-}
-
-function extractCarrouselSlides(wrapper?: SavedWrapper | null) {
-  const p = normalizePayload(wrapper?.payload);
-
-  const slides =
-    p?.slides ??
-    p?.carrousel?.slides ??
-    p?.draft?.slides ??
-    p?.draft?.carrousel?.slides ??
-    p?.data?.slides ??
-    null;
-
-  return Array.isArray(slides) ? slides : [];
-}
-
-function extractSlideLayers(slide: any) {
-  if (!slide) return [];
-
-  const layers =
-    slide?.layers ??
-    slide?.canvas?.layers ??
-    slide?.data?.layers ??
-    slide?.payload?.layers ??
-    slide?.content?.layers ??
-    slide?.draft?.layers ??
-    slide?.draft?.canvas?.layers ??
-    slide?.elements ??
-    slide?.canvas?.elements ??
-    slide?.data?.elements ??
-    slide?.payload?.elements ??
-    slide?.content?.elements ??
-    slide?.doc?.elements ??
-    slide?.nodes ??
-    slide?.canvas?.nodes ??
-    slide?.data?.nodes ??
-    slide?.objects ??
-    slide?.canvas?.objects ??
-    slide?.data?.objects ??
-    null;
-
-  return ensureArrayLayers(layers);
-}
-
-function guessCanvasSizeFromLayers(layers: any[], fallbackRatio: "1:1" | "9:16" | "16:9") {
-  for (const l of layers || []) {
-    const cw = Number(l?.canvasWidth ?? l?.cw ?? l?.stageWidth ?? l?.w_canvas ?? l?.attrs?.stageWidth ?? NaN);
-    const ch = Number(l?.canvasHeight ?? l?.ch ?? l?.stageHeight ?? l?.h_canvas ?? l?.attrs?.stageHeight ?? NaN);
-    if (Number.isFinite(cw) && Number.isFinite(ch) && cw > 200 && ch > 200) {
-      return { w: cw, h: ch };
-    }
-  }
-
-  return ratioToWH(fallbackRatio);
+function RuntimeSvg({ svg }: { svg: string }) {
+  return (
+    <div
+      className="absolute inset-0"
+      dangerouslySetInnerHTML={{
+        __html: svg,
+      }}
+    />
+  );
 }
 
 function NetworkIcon({ network }: { network: string }) {
@@ -496,12 +496,10 @@ function LibraryCard({
 
   const [slideIdx, setSlideIdx] = useState(0);
 
-  const postLayers = useMemo(() => extractPostLayers(wrapper), [wrapper]);
-  const slides = useMemo(() => extractCarrouselSlides(wrapper), [wrapper]);
-  const currentSlideLayers = useMemo(() => {
-    if (kind !== "carrousel" || !slides.length) return [];
-    return extractSlideLayers(slides[Math.min(slideIdx, slides.length - 1)] || null);
-  }, [kind, slides, slideIdx]);
+  const postDraft = extractArchivePostDraft(wrapper);
+  const carrouselDraft = extractArchiveCarrouselDraft(wrapper);
+  const postLayers = postDraft.layers;
+  const slides = carrouselDraft.slides;
 
   useEffect(() => {
     if (kind !== "carrousel" || slides.length <= 1) return;
@@ -511,20 +509,14 @@ function LibraryCard({
     return () => window.clearInterval(t);
   }, [kind, slides.length]);
 
-  const previewLayers = kind === "post" ? postLayers : currentSlideLayers;
-  const previewCanvas = useMemo(
-    () => guessCanvasSizeFromLayers(previewLayers, meta.ratio),
-    [previewLayers, meta.ratio]
-  );
-
   const svg = useMemo(() => {
-    if (kind === "post" && postLayers.length) return layersToSvg(postLayers, meta.ratio);
-    if (kind === "carrousel" && currentSlideLayers.length) return layersToSvg(currentSlideLayers, meta.ratio);
+    if (kind === "post" && postLayers) return layersToSvg(postLayers, meta.ratio);
+    if (kind === "carrousel" && slides.length)
+      return layersToSvg(slides[Math.min(slideIdx, slides.length - 1)]?.layers || [], meta.ratio);
     return "";
-  }, [kind, postLayers, currentSlideLayers, meta.ratio]);
+  }, [kind, postLayers, slides, slideIdx, meta.ratio]);
 
   const hasFileImage = String(item.mime_type || "").startsWith("image/") && !!item.preview_url;
-  const hasPreviewLayers = previewLayers.length > 0;
 
   return (
     <div className="group relative">
@@ -561,20 +553,8 @@ function LibraryCard({
                 className="absolute inset-0 h-full w-full object-cover"
                 draggable={false}
               />
-            ) : hasPreviewLayers ? (
-              <ThumbStage
-                layers={previewLayers}
-                canvasWidth={previewCanvas.w}
-                canvasHeight={previewCanvas.h}
-                cover
-              />
             ) : svg ? (
-              <div
-                className="absolute inset-0"
-                dangerouslySetInnerHTML={{
-                  __html: svg,
-                }}
-              />
+              <RuntimeSvg svg={svg} />
             ) : (
               <div className="absolute inset-0 flex items-center justify-center text-xs text-white/50">
                 Aperçu indisponible
@@ -624,8 +604,10 @@ export default function LibraryPage() {
 
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Record<number, boolean>>({});
+  const [plannerTargetId, setPlannerTargetId] = useState<number | null>(null);
 
   const loadAbort = useRef<AbortController | null>(null);
+  const { schedule, loading: scheduleLoading } = useSchedulePlanner();
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -774,6 +756,113 @@ export default function LibraryPage() {
       });
   }
 
+  function openPlannerForSelected() {
+    const firstId = selectedIds[0];
+    if (!firstId) {
+      alert("Sélectionne d’abord un élément.");
+      return;
+    }
+
+    const it = items.find((x) => x.id === firstId);
+    if (!it) {
+      alert("Élément introuvable.");
+      return;
+    }
+
+    const wrap = wrappers[it.id] || null;
+    const kind = detectEditorKind(it, wrap);
+    if (kind !== "post" && kind !== "carrousel") {
+      alert("Seuls les posts et carrousels archivés peuvent être planifiés.");
+      return;
+    }
+
+    setPlannerTargetId(firstId);
+  }
+
+  async function handlePlannerConfirm({ reseau, date_programmee, titre }: { reseau: string; date_programmee: string; titre?: string }) {
+    const firstId = plannerTargetId;
+    if (!firstId) return;
+
+    const it = items.find((x) => x.id === firstId);
+    if (!it) throw new Error("Archive introuvable.");
+
+    const wrap = wrappers[it.id] || null;
+    const kind = detectEditorKind(it, wrap);
+
+    if (kind === "post") {
+      const draft = extractArchivePostDraft(wrap);
+      const safeLayers = Array.isArray(draft.layers) ? draft.layers : [];
+      let previewImage = "";
+
+      if (safeLayers.length) {
+        try {
+          previewImage = await renderEditorCreationToDataUrl({
+            mode: "post",
+            draft: {
+              ui: draft.ui || {},
+              layers: safeLayers,
+            },
+          });
+        } catch (error) {
+          console.error("LGD planner snapshot error (archive post):", error);
+        }
+      }
+
+      await schedule({
+        reseau,
+        date_programmee,
+        titre: titre || buildPlannerTitle(it, wrap),
+        format: "post",
+        contenu: {
+          title: titre || buildPlannerTitle(it, wrap),
+          type: "post",
+          layers: safeLayers,
+          ui: draft.ui || {},
+          library_item_id: it.id,
+          preview_image: previewImage || undefined,
+          planner_preview_image: previewImage || undefined,
+        },
+      });
+    } else if (kind === "carrousel") {
+      const draft = extractArchiveCarrouselDraft(wrap);
+      const safeSlides = Array.isArray(draft.slides) ? draft.slides : [];
+      let previewImage = "";
+
+      try {
+        previewImage = await renderEditorCreationToDataUrl({
+          mode: "carrousel",
+          draft: {
+            ui: draft.ui || {},
+            slides: safeSlides,
+          },
+          slideIndex: 0,
+        });
+      } catch (error) {
+        console.error("LGD planner snapshot error (archive carrousel):", error);
+      }
+
+      await schedule({
+        reseau,
+        date_programmee,
+        titre: titre || buildPlannerTitle(it, wrap),
+        format: "carrousel",
+        slides: safeSlides,
+        contenu: {
+          title: titre || buildPlannerTitle(it, wrap),
+          type: "carrousel",
+          slides: safeSlides,
+          ui: draft.ui || {},
+          library_item_id: it.id,
+          preview_image: previewImage || undefined,
+          planner_preview_image: previewImage || undefined,
+        },
+      });
+    }
+
+    setPlannerTargetId(null);
+    if (typeof window !== "undefined") window.alert("✅ Ajouté au Planner !");
+  }
+
   async function deleteSelected() {
     if (!selectedIds.length) return;
     if (!apiUrl) return;
@@ -813,6 +902,14 @@ export default function LibraryPage() {
                 className="h-10 w-[280px] rounded-xl border border-yellow-500/20 bg-black/30 px-4 text-sm text-white placeholder:text-white/40 outline-none focus:border-yellow-500/40"
               />
             </div>
+
+            <button
+              onClick={openPlannerForSelected}
+              disabled={!selectedIds.length}
+              className="h-10 rounded-xl border border-yellow-500/20 bg-black/30 px-4 text-sm text-white/80 hover:bg-black/40 hover:text-white transition disabled:opacity-40"
+            >
+              Planifier
+            </button>
 
             <button
               onClick={deleteSelected}
@@ -867,6 +964,21 @@ export default function LibraryPage() {
             </div>
           )}
         </div>
+
+        <SchedulePlannerModal
+          open={!!plannerTargetId}
+          onClose={() => setPlannerTargetId(null)}
+          loading={scheduleLoading}
+          defaultTitle={
+            plannerTargetId
+              ? buildPlannerTitle(
+                  items.find((x) => x.id === plannerTargetId) as LibraryItem,
+                  wrappers[plannerTargetId] || null
+                )
+              : "Post LGD"
+          }
+          onConfirm={handlePlannerConfirm}
+        />
       </div>
     </div>
   );
