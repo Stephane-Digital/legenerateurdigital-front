@@ -1091,16 +1091,6 @@ export default function PostEditor({
           </div>
 
           {/* ================= EDITOR ================= */}
-          <div className="mb-4 flex justify-end">
-            <button
-              type="button"
-              onClick={() => setScheduleOpen(true)}
-              disabled={scheduleLoading}
-              className="rounded-xl border border-yellow-500/25 bg-[#ffb800] px-4 py-2 text-sm font-semibold text-black hover:brightness-110 disabled:opacity-60"
-            >
-              {scheduleLoading ? "Planification..." : "Planifier"}
-            </button>
-          </div>
 
           <div className="w-full min-h-[820px] flex justify-center">
             <EditorLayout
