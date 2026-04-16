@@ -243,7 +243,7 @@ async function drawTextLayerRich(ctx: CanvasRenderingContext2D, layer: LayerData
   const x = getLayerX(layer);
   const y = getLayerY(layer);
   const w = Math.max(20, Math.round(getLayerW(layer, 520)));
-  const h = Math.max(20, Math.round(getLayerH(layer, 240)));
+  const baseH = Math.max(20, Math.round(getLayerH(layer, 240)));
   const style = getLayerStyle(layer);
   await ensureFontReady(style);
 
@@ -259,6 +259,14 @@ async function drawTextLayerRich(ctx: CanvasRenderingContext2D, layer: LayerData
   const letterSpacing = typeof style?.letterSpacing === "number" ? `${style.letterSpacing}px` : "normal";
   const textTransform = style?.textTransform ? String(style.textTransform) : "none";
   const layerOpacity = typeof layer?.opacity === "number" ? layer.opacity : 1;
+
+  ctx.save();
+  ctx.font = buildFont(style);
+  const estimatedLines = wrapText(ctx, text, Math.max(60, w - 12));
+  ctx.restore();
+  const estimatedHeight = Math.max(20, Math.ceil(estimatedLines.length * fontSize * lineHeight + (backgroundColor ? 32 : 12)));
+  const h = Math.max(baseH, estimatedHeight);
+
   const containerStyles = [
     `width:${w}px`,
     `min-height:${h}px`,
@@ -271,9 +279,9 @@ async function drawTextLayerRich(ctx: CanvasRenderingContext2D, layer: LayerData
     `line-height:${lineHeight}`,
     `text-align:${textAlign}`,
     `text-decoration:${escapeXml(textDecoration)}`,
-    `white-space:pre-wrap`,
-    `word-break:normal`,
-    `overflow-wrap:break-word`,
+    `white-space:normal`,
+    `word-break:break-word`,
+    `overflow-wrap:anywhere`,
     `overflow:hidden`,
     `padding:${backgroundColor ? "16px 22px" : "0px"}`,
     `background:${backgroundColor ? escapeXml(backgroundColor) : "transparent"}`,
@@ -453,7 +461,7 @@ function drawTextLayer(
   const x = getLayerX(layer);
   const y = getLayerY(layer);
   const w = getLayerW(layer, 520);
-  const h = getLayerH(layer, 240);
+  const baseH = getLayerH(layer, 240);
   const style = getLayerStyle(layer);
   const fontSize = Math.max(10, Number(style?.fontSize ?? 48) || 48);
   const lineHeight = Math.max(1, Number(style?.lineHeight ?? 1.2) || 1.2);
@@ -468,6 +476,7 @@ function drawTextLayer(
 
   const lines = wrapText(ctx, text, Math.max(60, w - 12));
   const step = fontSize * lineHeight;
+  const h = Math.max(baseH, Math.ceil(lines.length * step + 12));
 
   let drawX = x + 6;
   if (align === "center") drawX = x + w / 2;
