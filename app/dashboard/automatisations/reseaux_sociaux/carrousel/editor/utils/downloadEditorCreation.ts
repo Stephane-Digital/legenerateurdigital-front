@@ -158,7 +158,8 @@ function textToHtml(text: string) {
   return String(text ?? "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+    .replace(/>/g, "&gt;")
+    .replace(/\n/g, "<br/>");
 }
 
 function escapeXml(value: string) {
@@ -236,7 +237,8 @@ async function ensureFontReady(style: Record<string, any>) {
 
 async function drawTextLayerRich(ctx: CanvasRenderingContext2D, layer: LayerData) {
   const text = String(layer?.text || "").trim();
-  if (!text) return false;
+  const html = getTextLayerHtml(layer);
+  if (!text && !html) return false;
 
   const x = getLayerX(layer);
   const y = getLayerY(layer);
@@ -270,7 +272,7 @@ async function drawTextLayerRich(ctx: CanvasRenderingContext2D, layer: LayerData
     `text-align:${textAlign}`,
     `text-decoration:${escapeXml(textDecoration)}`,
     `white-space:pre-wrap`,
-    `word-break:break-word`,
+    `word-break:normal`,
     `overflow-wrap:break-word`,
     `overflow:hidden`,
     `padding:${backgroundColor ? "16px 22px" : "0px"}`,
@@ -289,9 +291,10 @@ async function drawTextLayerRich(ctx: CanvasRenderingContext2D, layer: LayerData
     `margin:0`,
   ].join(";");
 
-  const safeTextHtml = textToHtml(String(layer?.text ?? ""));
   const bodyHtml = `
-    <div xmlns="http://www.w3.org/1999/xhtml" style="${containerStyles}">${safeTextHtml}</div>
+    <div xmlns="http://www.w3.org/1999/xhtml" style="${containerStyles}">
+      ${html}
+    </div>
   `;
 
   const svg = `
