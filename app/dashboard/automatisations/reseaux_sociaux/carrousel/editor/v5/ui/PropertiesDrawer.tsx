@@ -46,6 +46,16 @@ function normalizeHex(input: string) {
   return "#ffffff";
 }
 
+
+function textToHtml(text: string) {
+  return String(text ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/
+/g, "<br/>");
+}
+
 function estimateTextHeight(
   text: string,
   options: {
@@ -149,7 +159,7 @@ export default function PropertiesDrawer({ open, layer, onClose, onChange }: Pro
       fontStyle: String(nextStyle.fontStyle || "normal"),
     });
 
-    onChange({ text: value, height: nextHeight } as any);
+    onChange({ text: value, html: textToHtml(value), height: nextHeight } as any);
   };
 
   const setStyle = (patch: any) => {
