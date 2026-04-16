@@ -218,54 +218,53 @@ function normalizeArchivePayload(raw: any): AnyObj {
   return payload || {};
 }
 
+
+function restoreArchivedTextLineBreaks(text: any) {
+  const raw = String(text ?? "");
+  if (!raw) return "";
+  return raw
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .replace(/([?!.:;…])\n(?=\S)/g, "$1\n\n");
+}
+
+function restoreArchivedLineBreaksInLayers(layers: any[]): any[] {
+  return (Array.isArray(layers) ? layers : []).map((layer: any) => {
+    if (!layer || typeof layer !== "object") return layer;
+    if (String(layer?.type || "").toLowerCase() !== "text") return layer;
+    return {
+      ...layer,
+      text: restoreArchivedTextLineBreaks(layer?.text ?? layer?.value ?? layer?.content ?? ""),
+    };
+  });
+}
+
 function extractArchivePostDraft(payloadLike: any) {
   const p = normalizeArchivePayload(payloadLike);
-
-  // ✅ IMPORTANT
-  // On recharge le draft archivé le plus fidèlement possible,
-  // sans le reconstruire inutilement, pour préserver :
-  // - police / fontFamily
-  // - lineHeight / spacing
-  // - width / height / scale éventuels
-  // - ui / format / ratio
-  // - tous les champs déjà validés par l’éditeur
-  if (p && typeof p === "object") {
-    const directLayers =
-      p?.layers ??
+  const layers = restoreArchivedLineBreaksInLayers(
+    (p?.layers ??
       p?.canvas?.layers ??
       p?.data?.layers ??
       p?.content?.layers ??
       p?.draft?.layers ??
       p?.draft?.canvas?.layers ??
-      [];
+      [])
+  );
 
-    return {
-      ...p,
-      ui:
-        p?.ui ??
-        p?.data?.ui ??
-        p?.canvas?.ui ??
-        p?.content?.ui ??
-        p?.draft?.ui ??
-        p?.draft?.canvas?.ui ??
-        undefined,
-      layers: Array.isArray(directLayers) ? directLayers : [],
-    };
-  }
-
-  return { layers: [], ui: undefined };
+  return {
+    ui: p?.ui ?? p?.draft?.ui ?? undefined,
+    layers: Array.isArray(layers) ? layers : [],
+  };
 }
 
 function extractArchiveCarrouselDraft(payloadLike: any) {
   const p = normalizeArchivePayload(payloadLike);
-
   const rawSlides =
     p?.slides ??
     p?.carrousel?.slides ??
     p?.draft?.slides ??
     p?.draft?.carrousel?.slides ??
     p?.data?.slides ??
-    p?.content?.slides ??
     [];
 
   const slides = (Array.isArray(rawSlides) ? rawSlides : []).map((slide: any, index: number) => {
@@ -273,28 +272,17 @@ function extractArchiveCarrouselDraft(payloadLike: any) {
       slide?.layers ??
       slide?.canvas?.layers ??
       slide?.data?.layers ??
-      slide?.content?.layers ??
       slide?.payload?.layers ??
-      slide?.elements ??
       [];
 
     return {
-      ...slide,
       id: String(slide?.id || `slide-${index + 1}`),
-      layers: Array.isArray(layers) ? layers : [],
+      layers: Array.isArray(layers) ? restoreArchivedLineBreaksInLayers(layers) : [],
     };
   });
 
   return {
-    ...p,
-    ui:
-      p?.ui ??
-      p?.data?.ui ??
-      p?.canvas?.ui ??
-      p?.content?.ui ??
-      p?.draft?.ui ??
-      p?.draft?.canvas?.ui ??
-      undefined,
+    ui: p?.ui ?? p?.draft?.ui ?? undefined,
     slides,
   };
 }
