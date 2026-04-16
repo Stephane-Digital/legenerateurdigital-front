@@ -52,8 +52,7 @@ function textToHtml(text: string) {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/
-/g, "<br/>");
+    .replace(/\n/g, "<br/>");
 }
 
 function estimateTextHeight(
