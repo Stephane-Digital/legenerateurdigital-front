@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState  } from "react";
 import ThumbStage from "./components/ThumbStage";
 
 function getAuthHeaders() {
