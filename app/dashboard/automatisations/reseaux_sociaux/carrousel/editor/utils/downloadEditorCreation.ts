@@ -235,6 +235,24 @@ async function ensureFontReady(style: Record<string, any>) {
   }
 }
 
+function shouldUseRichTextRender(layer: LayerData, style: LayerStyle & Record<string, any>) {
+  const html = typeof layer?.html === "string" ? layer.html.trim() : "";
+  if (html) return true;
+
+  const fontFamily = String(style?.fontFamily || "").toLowerCase();
+  const hasSpecialFont =
+    fontFamily.includes("merriweather") ||
+    fontFamily.includes("playfair") ||
+    fontFamily.includes("lora");
+
+  const hasRichStyle =
+    !!style?.underline ||
+    !!style?.italic ||
+    String(style?.fontStyle || "").toLowerCase() === "italic";
+
+  return hasSpecialFont || hasRichStyle;
+}
+
 async function drawTextLayerRich(ctx: CanvasRenderingContext2D, layer: LayerData) {
   const text = String(layer?.text || "").trim();
   const html = getTextLayerHtml(layer);
@@ -244,20 +262,23 @@ async function drawTextLayerRich(ctx: CanvasRenderingContext2D, layer: LayerData
   const y = getLayerY(layer);
   const w = Math.max(20, Math.round(getLayerW(layer, 520)));
   const style = getLayerStyle(layer);
-  if (!shouldUseRichTextRender(layer, style)) return false;
-  await ensureFontReady(style);
+if (!shouldUseRichTextRender(layer, style)) {
+  return false; // fallback vers drawTextLayer (canvas)
+}
+await ensureFontReady(style);
 
-  const textAlign = getLayerTextAlign(style);
-  const color = firstNonEmptyString(style?.fill, style?.color, style?.textColor, "#ffffff");
-  const backgroundColor = firstNonEmptyString(style?.backgroundColor, "");
-  const fontSize = Math.max(8, Number(style?.fontSize ?? 32) || 32);
-  const fontFamily = firstNonEmptyString(style?.fontFamily, "Inter, Arial, sans-serif");
-  const fontWeight = String(style?.fontWeight ?? 400);
-  const fontStyle = style?.italic || style?.fontStyle === "italic" ? "italic" : "normal";
-  const lineHeight = Math.max(0.8, Number(style?.lineHeight ?? 1.2) || 1.2);
-  const estimatedLines = String(layer?.text || "").replace(/
-/g, "").split("
-").length || 1;
+const textAlign = getLayerTextAlign(style);
+const color = firstNonEmptyString(style?.fill, style?.color, style?.textColor, "#ffffff");
+const backgroundColor = firstNonEmptyString(style?.backgroundColor, "");
+const fontSize = Math.max(8, Number(style?.fontSize ?? 32) || 32);
+const fontFamily = firstNonEmptyString(style?.fontFamily, "Inter", "Arial", "sans-serif");
+const fontWeight = String(style?.fontWeight ?? 400);
+const fontStyle = style?.italic || style?.fontStyle === "italic" ? "italic" : "normal";
+const lineHeight = Math.max(0.8, Number(style?.lineHeight ?? 1.2) || 1.2);
+ctx.font = `${fontStyle} ${fontWeight} ${fontSize}px "${fontFamily}", Arial, sans-serif`;
+
+
+  const estimatedLines = String(layer?.text || "").replace(/\r/g, "").split("\n").length || 1;
   const h = Math.max(20, Math.round(getLayerH(layer, 240)), Math.ceil(estimatedLines * fontSize * lineHeight + (backgroundColor ? 32 : 12)));
   const textDecoration = String(style?.textDecoration || (style?.underline ? "underline" : "none"));
   const letterSpacing = typeof style?.letterSpacing === "number" ? `${style.letterSpacing}px` : "normal";
