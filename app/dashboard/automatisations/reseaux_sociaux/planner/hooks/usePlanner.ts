@@ -3,6 +3,24 @@
 import api from "@/lib/api";
 import { useEffect, useRef, useState } from "react";
 
+const API_PROXY_PREFIX = "/api/proxy";
+
+async function proxyJson(path: string, init?: RequestInit) {
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+  const res = await fetch(`${API_PROXY_PREFIX}${normalized}`, {
+    credentials: "include",
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      ...(init?.headers || {}),
+    },
+  });
+
+  if (!res.ok) throw new Error(`${normalized} failed (${res.status})`);
+  return await res.json().catch(() => ({}));
+}
+
+
 export default function usePlanner() {
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -16,6 +34,10 @@ export default function usePlanner() {
     setPosts((prev) => prev.filter((p) => String(p?.id) !== id));
 
     const tryDelete = async (path: string) => {
+      try {
+        return await proxyJson(path, { method: "DELETE" });
+      } catch {}
+
       const fn = (api as any)?.delete;
 
       if (typeof fn === "function") {
@@ -54,8 +76,13 @@ export default function usePlanner() {
     setLoading(true);
 
     try {
-      const res = await (api as any).get("/planner/posts");
-      const data = res?.data ?? res ?? [];
+      let data: any = [];
+      try {
+        data = await proxyJson("/planner/posts");
+      } catch {
+        const res = await (api as any).get("/planner/posts");
+        data = res?.data ?? res ?? [];
+      }
 
       if (Array.isArray(data)) {
         setPosts(data);
