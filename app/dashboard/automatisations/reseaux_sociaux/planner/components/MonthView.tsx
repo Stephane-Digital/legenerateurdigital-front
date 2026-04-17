@@ -1,29 +1,32 @@
 "use client";
 
 import api from "@/lib/api";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { formatDateKey, getMonthDays, isToday } from "../utils/date";
-
-const API_PROXY_PREFIX = "/api/proxy";
-
-async function proxyJson(path: string, init?: RequestInit) {
-  const normalized = path.startsWith("/") ? path : `/${path}`;
-  const res = await fetch(`${API_PROXY_PREFIX}${normalized}`, {
-    credentials: "include",
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers || {}),
-    },
-  });
-
-  if (!res.ok) throw new Error(`${normalized} failed (${res.status})`);
-  return await res.json().catch(() => ({}));
-}
 
 interface Props {
   currentDate: Date;
   onSelectDate: (date: Date) => void;
+}
+
+function getAuthHeaders() {
+  if (typeof window === "undefined") return {};
+  const token =
+    window.localStorage.getItem("access_token") ||
+    window.localStorage.getItem("token") ||
+    window.localStorage.getItem("jwt") ||
+    window.localStorage.getItem("lgd_token") ||
+    "";
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+async function fetchSameOriginJson(path: string) {
+  const res = await fetch(`/api/proxy${path}`, {
+    credentials: "include",
+    headers: { ...getAuthHeaders() },
+  });
+  if (!res.ok) throw new Error(`proxy ${path} failed (${res.status})`);
+  return await res.json().catch(() => null);
 }
 
 const icons: Record<string, JSX.Element> = {
@@ -36,14 +39,32 @@ const icons: Record<string, JSX.Element> = {
 
 async function fetchPlannerPosts() {
   try {
-    const data = await proxyJson("/planner/posts");
+    const data = await fetchSameOriginJson("/planner/posts");
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data?.items)) return data.items;
+  } catch {
+    // ignore
+  }
+
+  try {
+    const res = await (api as any).get("/planner/posts");
+    const data = res?.data ?? res ?? [];
     if (Array.isArray(data)) return data;
   } catch {
     // ignore
   }
 
   try {
-    const data2 = await proxyJson("/social-posts");
+    const data2 = await fetchSameOriginJson("/social-posts");
+    if (Array.isArray(data2)) return data2;
+    if (Array.isArray(data2?.items)) return data2.items;
+  } catch {
+    // ignore
+  }
+
+  try {
+    const res2 = await (api as any).get("/social-posts");
+    const data2 = res2?.data ?? res2 ?? [];
     return Array.isArray(data2) ? data2 : [];
   } catch {
     return [];
@@ -96,12 +117,19 @@ function networkBadge(n: string) {
 export default function MonthView({ currentDate, onSelectDate }: Props) {
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const lastGoodPosts = useRef<any[]>([]);
 
   useEffect(() => {
     async function load() {
       setLoading(true);
-      const data = await fetchPlannerPosts();
-      setPosts(data);
+      try {
+        const data = await fetchPlannerPosts();
+        const safe = Array.isArray(data) ? data : [];
+        setPosts(safe);
+        if (safe.length > 0) lastGoodPosts.current = safe;
+      } catch {
+        setPosts(lastGoodPosts.current);
+      }
       setLoading(false);
     }
     load();
