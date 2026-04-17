@@ -12,7 +12,6 @@ const DASHBOARD_PATH = "/dashboard";
 const AFFILIATION_PATH = "/dashboard/affiliation";
 const EDITOR_PATH = "/dashboard/automatisations/reseaux_sociaux/editor-intelligent";
 const COACH_PATH = "/dashboard/coach-ia";
-const PLANNER_PATH = "/dashboard/automatisations/reseaux_sociaux/planner";
 const LEADS_PATH = "/dashboard/lead-engine";
 const EMAIL_CAMPAIGNS_PATH = "/dashboard/email-campaigns";
 
@@ -142,7 +141,6 @@ export default function Header() {
           {hasPaidAccess ? (
             <>
               <Link href={EDITOR_PATH} className={linkClasses(EDITOR_PATH)}>Éditeur</Link>
-              <Link href={PLANNER_PATH} className={linkClasses(PLANNER_PATH)}>Planner</Link>
               <Link href={LEADS_PATH} className={linkClasses(LEADS_PATH)}>Leads IA</Link>
               <Link href={COACH_PATH} className={linkClasses(COACH_PATH)}>Coach</Link>
               <Link href={EMAIL_CAMPAIGNS_PATH} className={linkClasses(EMAIL_CAMPAIGNS_PATH)}>Emailing IA</Link>
@@ -150,7 +148,6 @@ export default function Header() {
           ) : (
             <>
               <a href={PLANS_URL} className="px-4 py-2 rounded-xl border border-yellow-600/20 text-white/35 hover:bg-[#111111] transition-all" onClick={lockedToPlans}>Éditeur 🔒</a>
-              <a href={PLANS_URL} className="px-4 py-2 rounded-xl border border-yellow-600/20 text-white/35 hover:bg-[#111111] transition-all" onClick={lockedToPlans}>Planner 🔒</a>
               <a href={PLANS_URL} className="px-4 py-2 rounded-xl border border-yellow-600/20 text-white/35 hover:bg-[#111111] transition-all" onClick={lockedToPlans}>Leads IA 🔒</a>
               <a href={PLANS_URL} className="px-4 py-2 rounded-xl border border-yellow-600/20 text-white/35 hover:bg-[#111111] transition-all" onClick={lockedToPlans}>Coach 🔒</a>
               <a href={PLANS_URL} className="px-4 py-2 rounded-xl border border-yellow-600/20 text-white/35 hover:bg-[#111111] transition-all" onClick={lockedToPlans}>Emailing IA 🔒</a>
@@ -187,7 +184,6 @@ export default function Header() {
                   {hasPaidAccess ? (
                     <>
                       <button className={isActive(pathname, EDITOR_PATH) ? drawerBtnActive : drawerBtn} onClick={() => go(EDITOR_PATH)}><span>Éditeur</span><span className="text-white/40">→</span></button>
-                      <button className={isActive(pathname, PLANNER_PATH) ? drawerBtnActive : drawerBtn} onClick={() => go(PLANNER_PATH)}><span>Planner</span><span className="text-white/40">→</span></button>
                       <button className={isActive(pathname, LEADS_PATH) ? drawerBtnActive : drawerBtn} onClick={() => go(LEADS_PATH)}><span>Leads IA</span><span className="text-white/40">→</span></button>
                       <button className={isActive(pathname, COACH_PATH) ? drawerBtnActive : drawerBtn} onClick={() => go(COACH_PATH)}><span>Coach</span><span className="text-white/40">→</span></button>
                       <button className={isActive(pathname, EMAIL_CAMPAIGNS_PATH) ? drawerBtnActive : drawerBtn} onClick={() => go(EMAIL_CAMPAIGNS_PATH)}><span>Emailing IA</span><span className="text-white/40">→</span></button>
@@ -195,7 +191,6 @@ export default function Header() {
                   ) : (
                     <>
                       <a href={PLANS_URL} className={drawerBtnLocked} onClick={lockedToPlans}><span>Éditeur</span><span>🔒</span></a>
-                      <a href={PLANS_URL} className={drawerBtnLocked} onClick={lockedToPlans}><span>Planner</span><span>🔒</span></a>
                       <a href={PLANS_URL} className={drawerBtnLocked} onClick={lockedToPlans}><span>Leads IA</span><span>🔒</span></a>
                       <a href={PLANS_URL} className={drawerBtnLocked} onClick={lockedToPlans}><span>Coach</span><span>🔒</span></a>
                       <a href={PLANS_URL} className={drawerBtnLocked} onClick={lockedToPlans}><span>Emailing IA</span><span>🔒</span></a>
