@@ -7,6 +7,23 @@ import { CalendarCheck2, Trash2 } from "lucide-react";
 import AssistedPublishModal from "./AssistedPublishModal";
 import { formatDateKey } from "../utils/date";
 
+const API_PROXY_PREFIX = "/api/proxy";
+
+async function proxyJson(path: string, init?: RequestInit) {
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+  const res = await fetch(`${API_PROXY_PREFIX}${normalized}`, {
+    credentials: "include",
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      ...(init?.headers || {}),
+    },
+  });
+
+  if (!res.ok) throw new Error(`${normalized} failed (${res.status})`);
+  return await res.json().catch(() => ({}));
+}
+
 const icons: Record<string, JSX.Element> = {
   instagram: <div className="w-2 h-2 rounded bg-pink-400" />,
   facebook: <div className="w-2 h-2 rounded bg-blue-500" />,
@@ -22,15 +39,17 @@ interface Props {
 
 async function fetchPlannerPosts() {
   try {
-    const res = await (api as any).get("/planner/posts");
-    const data = res?.data ?? res ?? [];
+    const data = await proxyJson("/planner/posts");
     if (Array.isArray(data)) return data;
   } catch {
     // ignore
   }
-  const res2 = await (api as any).get("/social-posts");
-  const data2 = res2?.data ?? res2 ?? [];
-  return Array.isArray(data2) ? data2 : [];
+  try {
+    const data2 = await proxyJson("/social-posts");
+    return Array.isArray(data2) ? data2 : [];
+  } catch {
+    return [];
+  }
 }
 
 function safeParseJSON(x: any) {
@@ -151,7 +170,11 @@ export default function DayView({ currentDate }: Props) {
     );
 
     try {
-      await (api as any).patch(`/planner/posts/${pid}/manual-status`, { status });
+      try {
+        await proxyJson(`/planner/posts/${pid}/manual-status`, { method: "PATCH", body: JSON.stringify({ status }) });
+      } catch {
+        await (api as any).patch(`/planner/posts/${pid}/manual-status`, { status });
+      }
     } catch (e) {
       console.error("updateManualStatus error", e);
       setPosts(previous);
@@ -165,6 +188,10 @@ export default function DayView({ currentDate }: Props) {
     setPosts((prev) => prev.filter((p) => String(p?.id) !== pid));
 
     const tryDelete = async (path: string) => {
+      try {
+        return await proxyJson(path, { method: "DELETE" });
+      } catch {}
+
       const fn = (api as any)?.delete;
       if (typeof fn === "function") return await fn(path);
 
