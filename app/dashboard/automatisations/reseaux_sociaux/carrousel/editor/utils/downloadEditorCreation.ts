@@ -158,8 +158,7 @@ function textToHtml(text: string) {
   return String(text ?? "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/\n/g, "<br/>");
+    .replace(/>/g, "&gt;");
 }
 
 function escapeXml(value: string) {
@@ -235,48 +234,25 @@ async function ensureFontReady(style: Record<string, any>) {
   }
 }
 
-function shouldUseRichTextRender(layer: LayerData, style: LayerStyle & Record<string, any>) {
-  const html = typeof layer?.html === "string" ? layer.html.trim() : "";
-  const plainHtml = textToHtml(String(layer?.text ?? "")).trim();
-
-  if (html) {
-    const normalizedHtml = html.replace(/\s+/g, " ").trim().toLowerCase();
-    const normalizedPlain = plainHtml.replace(/\s+/g, " ").trim().toLowerCase();
-    const hasRichMarkup = /<(span|strong|em|u|b|i|div|p)\b/i.test(html) || /style\s*=|class\s*=|&nbsp;/i.test(html);
-    if (hasRichMarkup || normalizedHtml !== normalizedPlain) return true;
-  }
-
-  const hasBackground = !!firstNonEmptyString(style?.backgroundColor, "");
-  return hasBackground;
-}
-
 async function drawTextLayerRich(ctx: CanvasRenderingContext2D, layer: LayerData) {
   const text = String(layer?.text || "").trim();
-  const html = getTextLayerHtml(layer);
-  if (!text && !html) return false;
+  if (!text) return false;
 
   const x = getLayerX(layer);
   const y = getLayerY(layer);
   const w = Math.max(20, Math.round(getLayerW(layer, 520)));
+  const h = Math.max(20, Math.round(getLayerH(layer, 240)));
   const style = getLayerStyle(layer);
-if (!shouldUseRichTextRender(layer, style)) {
-  return false; // fallback vers drawTextLayer (canvas)
-}
-await ensureFontReady(style);
+  await ensureFontReady(style);
 
-const textAlign = getLayerTextAlign(style);
-const color = firstNonEmptyString(style?.fill, style?.color, style?.textColor, "#ffffff");
-const backgroundColor = firstNonEmptyString(style?.backgroundColor, "");
-const fontSize = Math.max(8, Number(style?.fontSize ?? 32) || 32);
-const fontFamily = firstNonEmptyString(style?.fontFamily, "Inter", "Arial", "sans-serif");
-const fontWeight = String(style?.fontWeight ?? 400);
-const fontStyle = style?.italic || style?.fontStyle === "italic" ? "italic" : "normal";
-const lineHeight = Math.max(0.8, Number(style?.lineHeight ?? 1.2) || 1.2);
-ctx.font = `${fontStyle} ${fontWeight} ${fontSize}px "${fontFamily}", Arial, sans-serif`;
-
-
-  const estimatedLines = String(layer?.text || "").replace(/\r/g, "").split("\n").length || 1;
-  const h = Math.max(20, Math.round(getLayerH(layer, 240)), Math.ceil(estimatedLines * fontSize * lineHeight + (backgroundColor ? 32 : 12)));
+  const textAlign = getLayerTextAlign(style);
+  const color = firstNonEmptyString(style?.fill, style?.color, style?.textColor, "#ffffff");
+  const backgroundColor = firstNonEmptyString(style?.backgroundColor, "");
+  const fontSize = Math.max(8, Number(style?.fontSize ?? 32) || 32);
+  const fontFamily = firstNonEmptyString(style?.fontFamily, "Inter", "Arial", "sans-serif");
+  const fontWeight = String(style?.fontWeight ?? 400);
+  const fontStyle = style?.italic || style?.fontStyle === "italic" ? "italic" : "normal";
+  const lineHeight = Math.max(0.8, Number(style?.lineHeight ?? 1.2) || 1.2);
   const textDecoration = String(style?.textDecoration || (style?.underline ? "underline" : "none"));
   const letterSpacing = typeof style?.letterSpacing === "number" ? `${style.letterSpacing}px` : "normal";
   const textTransform = style?.textTransform ? String(style.textTransform) : "none";
@@ -287,15 +263,15 @@ ctx.font = `${fontStyle} ${fontWeight} ${fontSize}px "${fontFamily}", Arial, san
     `box-sizing:border-box`,
     `color:${escapeXml(color)}`,
     `font-size:${fontSize}px`,
-    `font-family:${escapeXml(fontFamily)}`,
+    `font-family:"${escapeXml(fontFamily)}"`,
     `font-weight:${escapeXml(fontWeight)}`,
     `font-style:${escapeXml(fontStyle)}`,
     `line-height:${lineHeight}`,
     `text-align:${textAlign}`,
     `text-decoration:${escapeXml(textDecoration)}`,
-    `white-space:normal`,
+    `white-space:pre-wrap`,
     `word-break:break-word`,
-    `overflow-wrap:anywhere`,
+    `overflow-wrap:break-word`,
     `overflow:hidden`,
     `padding:${backgroundColor ? "16px 22px" : "0px"}`,
     `background:${backgroundColor ? escapeXml(backgroundColor) : "transparent"}`,
@@ -313,10 +289,9 @@ ctx.font = `${fontStyle} ${fontWeight} ${fontSize}px "${fontFamily}", Arial, san
     `margin:0`,
   ].join(";");
 
+  const safeTextHtml = textToHtml(String(layer?.text ?? ""));
   const bodyHtml = `
-    <div xmlns="http://www.w3.org/1999/xhtml" style="${containerStyles}">
-      ${html}
-    </div>
+    <div xmlns="http://www.w3.org/1999/xhtml" style="${containerStyles}">${safeTextHtml}</div>
   `;
 
   const svg = `
@@ -425,8 +400,7 @@ async function drawImageCover(
 
 function buildFont(style?: LayerStyle) {
   const size = Math.max(10, Number(style?.fontSize ?? 48) || 48);
-  const rawFamily = firstNonEmptyString(style?.fontFamily, "Inter", "Arial");
-  const family = rawFamily.includes(" ") && !rawFamily.includes(",") ? `"${rawFamily}"` : rawFamily;
+  const family = firstNonEmptyString(style?.fontFamily, "Inter", "Arial");
   const weight = String(style?.fontWeight ?? "700");
   const italic = style?.italic || style?.fontStyle === "italic" ? "italic " : "";
   return `${italic}${weight} ${size}px ${family}`;
@@ -476,6 +450,7 @@ function drawTextLayer(
   const x = getLayerX(layer);
   const y = getLayerY(layer);
   const w = getLayerW(layer, 520);
+  const h = getLayerH(layer, 240);
   const style = getLayerStyle(layer);
   const fontSize = Math.max(10, Number(style?.fontSize ?? 48) || 48);
   const lineHeight = Math.max(1, Number(style?.lineHeight ?? 1.2) || 1.2);
@@ -490,7 +465,6 @@ function drawTextLayer(
 
   const lines = wrapText(ctx, text, Math.max(60, w - 12));
   const step = fontSize * lineHeight;
-  const h = Math.max(getLayerH(layer, 240), Math.ceil(lines.length * step + 12));
 
   let drawX = x + 6;
   if (align === "center") drawX = x + w / 2;
@@ -578,7 +552,6 @@ export async function renderSingleCreationToDataUrl(args: {
     }
 
     if (type === "text") {
-      await ensureFontReady(getLayerStyle(layer));
       const richDrawn = await drawTextLayerRich(ctx, layer);
       if (!richDrawn) {
         drawTextLayer(ctx, layer);
