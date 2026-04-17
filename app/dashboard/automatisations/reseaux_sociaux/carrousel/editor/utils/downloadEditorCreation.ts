@@ -243,8 +243,8 @@ async function drawTextLayerRich(ctx: CanvasRenderingContext2D, layer: LayerData
   const x = getLayerX(layer);
   const y = getLayerY(layer);
   const w = Math.max(20, Math.round(getLayerW(layer, 520)));
-  const baseH = Math.max(20, Math.round(getLayerH(layer, 240)));
   const style = getLayerStyle(layer);
+  if (!shouldUseRichTextRender(layer, style)) return false;
   await ensureFontReady(style);
 
   const textAlign = getLayerTextAlign(style);
@@ -255,18 +255,14 @@ async function drawTextLayerRich(ctx: CanvasRenderingContext2D, layer: LayerData
   const fontWeight = String(style?.fontWeight ?? 400);
   const fontStyle = style?.italic || style?.fontStyle === "italic" ? "italic" : "normal";
   const lineHeight = Math.max(0.8, Number(style?.lineHeight ?? 1.2) || 1.2);
+  const estimatedLines = String(layer?.text || "").replace(/
+/g, "").split("
+").length || 1;
+  const h = Math.max(20, Math.round(getLayerH(layer, 240)), Math.ceil(estimatedLines * fontSize * lineHeight + (backgroundColor ? 32 : 12)));
   const textDecoration = String(style?.textDecoration || (style?.underline ? "underline" : "none"));
   const letterSpacing = typeof style?.letterSpacing === "number" ? `${style.letterSpacing}px` : "normal";
   const textTransform = style?.textTransform ? String(style.textTransform) : "none";
   const layerOpacity = typeof layer?.opacity === "number" ? layer.opacity : 1;
-
-  ctx.save();
-  ctx.font = buildFont(style);
-  const estimatedLines = wrapText(ctx, text, Math.max(60, w - 12));
-  ctx.restore();
-  const estimatedHeight = Math.max(20, Math.ceil(estimatedLines.length * fontSize * lineHeight + (backgroundColor ? 32 : 12)));
-  const h = Math.max(baseH, estimatedHeight);
-
   const containerStyles = [
     `width:${w}px`,
     `min-height:${h}px`,
@@ -411,7 +407,8 @@ async function drawImageCover(
 
 function buildFont(style?: LayerStyle) {
   const size = Math.max(10, Number(style?.fontSize ?? 48) || 48);
-  const family = firstNonEmptyString(style?.fontFamily, "Inter", "Arial");
+  const rawFamily = firstNonEmptyString(style?.fontFamily, "Inter", "Arial");
+  const family = rawFamily.includes(" ") && !rawFamily.includes(",") ? `"${rawFamily}"` : rawFamily;
   const weight = String(style?.fontWeight ?? "700");
   const italic = style?.italic || style?.fontStyle === "italic" ? "italic " : "";
   return `${italic}${weight} ${size}px ${family}`;
@@ -461,7 +458,6 @@ function drawTextLayer(
   const x = getLayerX(layer);
   const y = getLayerY(layer);
   const w = getLayerW(layer, 520);
-  const baseH = getLayerH(layer, 240);
   const style = getLayerStyle(layer);
   const fontSize = Math.max(10, Number(style?.fontSize ?? 48) || 48);
   const lineHeight = Math.max(1, Number(style?.lineHeight ?? 1.2) || 1.2);
@@ -476,7 +472,7 @@ function drawTextLayer(
 
   const lines = wrapText(ctx, text, Math.max(60, w - 12));
   const step = fontSize * lineHeight;
-  const h = Math.max(baseH, Math.ceil(lines.length * step + 12));
+  const h = Math.max(getLayerH(layer, 240), Math.ceil(lines.length * step + 12));
 
   let drawX = x + 6;
   if (align === "center") drawX = x + w / 2;
