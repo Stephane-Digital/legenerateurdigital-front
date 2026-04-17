@@ -4,6 +4,23 @@ import api from "@/lib/api";
 import { useEffect, useMemo, useState } from "react";
 import { formatDateKey, getMonthDays, isToday } from "../utils/date";
 
+const API_PROXY_PREFIX = "/api/proxy";
+
+async function proxyJson(path: string, init?: RequestInit) {
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+  const res = await fetch(`${API_PROXY_PREFIX}${normalized}`, {
+    credentials: "include",
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      ...(init?.headers || {}),
+    },
+  });
+
+  if (!res.ok) throw new Error(`${normalized} failed (${res.status})`);
+  return await res.json().catch(() => ({}));
+}
+
 interface Props {
   currentDate: Date;
   onSelectDate: (date: Date) => void;
@@ -19,16 +36,18 @@ const icons: Record<string, JSX.Element> = {
 
 async function fetchPlannerPosts() {
   try {
-    const res = await (api as any).get("/planner/posts");
-    const data = res?.data ?? res ?? [];
+    const data = await proxyJson("/planner/posts");
     if (Array.isArray(data)) return data;
   } catch {
     // ignore
   }
 
-  const res2 = await (api as any).get("/social-posts");
-  const data2 = res2?.data ?? res2 ?? [];
-  return Array.isArray(data2) ? data2 : [];
+  try {
+    const data2 = await proxyJson("/social-posts");
+    return Array.isArray(data2) ? data2 : [];
+  } catch {
+    return [];
+  }
 }
 
 function normNetwork(p: any): string {
