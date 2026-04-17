@@ -3,23 +3,25 @@
 import api from "@/lib/api";
 import { useEffect, useRef, useState } from "react";
 
-const API_PROXY_PREFIX = "/api/proxy";
-
-async function proxyJson(path: string, init?: RequestInit) {
-  const normalized = path.startsWith("/") ? path : `/${path}`;
-  const res = await fetch(`${API_PROXY_PREFIX}${normalized}`, {
-    credentials: "include",
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers || {}),
-    },
-  });
-
-  if (!res.ok) throw new Error(`${normalized} failed (${res.status})`);
-  return await res.json().catch(() => ({}));
+function getAuthHeaders() {
+  if (typeof window === "undefined") return {};
+  const token =
+    window.localStorage.getItem("access_token") ||
+    window.localStorage.getItem("token") ||
+    window.localStorage.getItem("jwt") ||
+    window.localStorage.getItem("lgd_token") ||
+    "";
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+async function fetchSameOriginJson(path: string) {
+  const res = await fetch(`/api/proxy${path}`, {
+    credentials: "include",
+    headers: { ...getAuthHeaders() },
+  });
+  if (!res.ok) throw new Error(`proxy ${path} failed (${res.status})`);
+  return await res.json().catch(() => null);
+}
 
 export default function usePlanner() {
   const [posts, setPosts] = useState<any[]>([]);
@@ -34,10 +36,6 @@ export default function usePlanner() {
     setPosts((prev) => prev.filter((p) => String(p?.id) !== id));
 
     const tryDelete = async (path: string) => {
-      try {
-        return await proxyJson(path, { method: "DELETE" });
-      } catch {}
-
       const fn = (api as any)?.delete;
 
       if (typeof fn === "function") {
@@ -76,17 +74,18 @@ export default function usePlanner() {
     setLoading(true);
 
     try {
-      let data: any = [];
+      let data: any = null;
       try {
-        data = await proxyJson("/planner/posts");
+        data = await fetchSameOriginJson("/planner/posts");
       } catch {
         const res = await (api as any).get("/planner/posts");
         data = res?.data ?? res ?? [];
       }
 
-      if (Array.isArray(data)) {
-        setPosts(data);
-        lastGoodPosts.current = data; // ✅ sauvegarde
+      const safe = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
+      setPosts(safe);
+      if (safe.length > 0) {
+        lastGoodPosts.current = safe;
       }
     } catch (err) {
       console.error("Erreur chargement planner:", err);
