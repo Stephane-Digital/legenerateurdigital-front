@@ -4,8 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import ThumbStage from "./components/ThumbStage";
-import SchedulePlannerModal from "../automatisations/reseaux_sociaux/carrousel/editor/ui/SchedulePlannerModal";
-import useSchedulePlanner from "../automatisations/reseaux_sociaux/carrousel/editor/v5/hooks/useSchedulePlanner";
 import { renderEditorCreationToDataUrl } from "../automatisations/reseaux_sociaux/carrousel/editor/utils/downloadEditorCreation";
 
 function getAuthHeaders() {
@@ -229,59 +227,70 @@ function firstArray(...values: any[]): any[] {
   return [];
 }
 
+
+function restoreArchivedTextLineBreaks(text: any) {
+  const raw = String(text ?? "");
+  if (!raw) return "";
+  return raw
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .replace(/([?!.:;…])\n(?=\S)/g, "$1\n\n");
+}
+
+function restoreArchivedLineBreaksInLayers(layers: any[]): any[] {
+  return (Array.isArray(layers) ? layers : []).map((layer: any) => {
+    if (!layer || typeof layer !== "object") return layer;
+    if (String(layer?.type || "").toLowerCase() !== "text") return layer;
+    return {
+      ...layer,
+      text: restoreArchivedTextLineBreaks(layer?.text ?? layer?.value ?? layer?.content ?? ""),
+    };
+  });
+}
+
 function extractSlideLayers(slide: any): any[] {
-  return normalizeLayers(
-    slide?.layers ||
-      slide?.canvas?.layers ||
-      slide?.data?.layers ||
-      slide?.content?.layers ||
-      slide?.elements ||
-      slide?.nodes ||
-      slide?.objects ||
-      []
+  return restoreArchivedLineBreaksInLayers(
+    normalizeLayers(
+      slide?.layers ||
+        slide?.canvas?.layers ||
+        slide?.data?.layers ||
+        slide?.content?.layers ||
+        slide?.elements ||
+        slide?.nodes ||
+        slide?.objects ||
+        []
+    )
   );
 }
 
 function extractArchivePostDraft(wrapper?: SavedWrapper | null) {
   const payload = wrapper?.payload || {};
-  const source = payload?.draft || payload?.payload || payload?.content || payload;
-
-  const layers = normalizeLayers(
-    source?.layers ||
-      source?.data?.layers ||
-      source?.canvas?.layers ||
-      source?.draft?.layers ||
-      source?.draft?.canvas?.layers ||
-      source?.content?.layers ||
-      []
+  const layers = restoreArchivedLineBreaksInLayers(
+    normalizeLayers(
+      payload?.layers ||
+        payload?.data?.layers ||
+        payload?.canvas?.layers ||
+        payload?.draft?.layers ||
+        payload?.draft?.canvas?.layers ||
+        payload?.content?.layers ||
+        []
+    )
   );
 
   const ui =
-    source?.ui ||
-    source?.data?.ui ||
-    source?.canvas?.ui ||
-    source?.draft?.ui ||
-    source?.content?.ui ||
     payload?.ui ||
+    payload?.data?.ui ||
+    payload?.canvas?.ui ||
+    payload?.draft?.ui ||
+    payload?.content?.ui ||
     {};
 
-  return {
-    ...(source && typeof source === "object" ? source : {}),
-    ui,
-    layers,
-  };
+  return { layers, ui };
 }
 
 function extractArchiveCarrouselDraft(wrapper?: SavedWrapper | null) {
   const payload = wrapper?.payload || {};
-  const source = payload?.draft || payload?.payload || payload?.content || payload;
-
   const rawSlides = firstArray(
-    source?.slides,
-    source?.data?.slides,
-    source?.canvas?.slides,
-    source?.draft?.slides,
-    source?.content?.slides,
     payload?.slides,
     payload?.data?.slides,
     payload?.canvas?.slides,
@@ -290,25 +299,19 @@ function extractArchiveCarrouselDraft(wrapper?: SavedWrapper | null) {
   );
 
   const slides = rawSlides.map((slide: any, index: number) => ({
-    ...(slide && typeof slide === "object" ? slide : {}),
     id: String(slide?.id || `slide-${index + 1}`),
-    layers: extractSlideLayers(slide),
+    layers: restoreArchivedLineBreaksInLayers(extractSlideLayers(slide)),
   }));
 
   const ui =
-    source?.ui ||
-    source?.data?.ui ||
-    source?.canvas?.ui ||
-    source?.draft?.ui ||
-    source?.content?.ui ||
     payload?.ui ||
+    payload?.data?.ui ||
+    payload?.canvas?.ui ||
+    payload?.draft?.ui ||
+    payload?.content?.ui ||
     {};
 
-  return {
-    ...(source && typeof source === "object" ? source : {}),
-    ui,
-    slides,
-  };
+  return { slides, ui };
 }
 
 function getFirstTextFromLayers(layers: any[]): string {
@@ -418,12 +421,11 @@ function LibraryCard({
   const carrouselDraft = extractArchiveCarrouselDraft(wrapper);
   const postLayers = postDraft.layers;
   const slides = carrouselDraft.slides;
-  const currentLayers =
-    kind === "post"
-      ? postLayers
-      : kind === "carrousel"
-        ? slides[Math.min(slideIdx, Math.max(0, slides.length - 1))]?.layers || []
-        : [];
+  const currentLayers = kind === "post"
+    ? postLayers
+    : kind === "carrousel"
+      ? slides[Math.min(slideIdx, Math.max(0, slides.length - 1))]?.layers || []
+      : [];
   const canvasSize = ratioToWH(meta.ratio);
 
   useEffect(() => {
@@ -716,18 +718,16 @@ export default function LibraryPage() {
     if (kind === "post") {
       const draft = extractArchivePostDraft(wrap);
       const safeLayers = Array.isArray(draft.layers) ? draft.layers : [];
-      const plannerDraft = {
-        ...draft,
-        ui: draft.ui || {},
-        layers: safeLayers,
-      };
       let previewImage = "";
 
       if (safeLayers.length) {
         try {
           previewImage = await renderEditorCreationToDataUrl({
             mode: "post",
-            draft: plannerDraft,
+            draft: {
+              ui: draft.ui || {},
+              layers: safeLayers,
+            },
           });
         } catch (error) {
           console.error("LGD planner snapshot error (archive post):", error);
@@ -740,9 +740,10 @@ export default function LibraryPage() {
         titre: titre || buildPlannerTitle(it, wrap),
         format: "post",
         contenu: {
-          ...plannerDraft,
           title: titre || buildPlannerTitle(it, wrap),
           type: "post",
+          layers: safeLayers,
+          ui: draft.ui || {},
           library_item_id: it.id,
           preview_image: previewImage || undefined,
           planner_preview_image: previewImage || undefined,
@@ -751,17 +752,15 @@ export default function LibraryPage() {
     } else if (kind === "carrousel") {
       const draft = extractArchiveCarrouselDraft(wrap);
       const safeSlides = Array.isArray(draft.slides) ? draft.slides : [];
-      const plannerDraft = {
-        ...draft,
-        ui: draft.ui || {},
-        slides: safeSlides,
-      };
       let previewImage = "";
 
       try {
         previewImage = await renderEditorCreationToDataUrl({
           mode: "carrousel",
-          draft: plannerDraft,
+          draft: {
+            ui: draft.ui || {},
+            slides: safeSlides,
+          },
           slideIndex: 0,
         });
       } catch (error) {
@@ -775,9 +774,10 @@ export default function LibraryPage() {
         format: "carrousel",
         slides: safeSlides,
         contenu: {
-          ...plannerDraft,
           title: titre || buildPlannerTitle(it, wrap),
           type: "carrousel",
+          slides: safeSlides,
+          ui: draft.ui || {},
           library_item_id: it.id,
           preview_image: previewImage || undefined,
           planner_preview_image: previewImage || undefined,
@@ -830,11 +830,21 @@ export default function LibraryPage() {
             </div>
 
             <button
-              onClick={openPlannerForSelected}
+              onClick={()=>{
+  alert("Export en cours (à brancher)");
+}}
               disabled={!selectedIds.length}
               className="h-10 rounded-xl border border-yellow-500/20 bg-black/30 px-4 text-sm text-white/80 hover:bg-black/40 hover:text-white transition disabled:opacity-40"
             >
-              Planifier
+              Exporter
+            </button>
+
+            <button
+              onClick={()=> window.open("https://www.instagram.com/", "_blank")}
+              disabled={!selectedIds.length}
+              className="h-10 rounded-xl border border-yellow-500/20 bg-black/30 px-4 text-sm text-white/80 hover:bg-black/40 hover:text-white transition disabled:opacity-40"
+            >
+              Instagram
             </button>
 
             <button
@@ -891,20 +901,7 @@ export default function LibraryPage() {
           )}
         </div>
 
-        <SchedulePlannerModal
-          open={!!plannerTargetId}
-          onClose={() => setPlannerTargetId(null)}
-          loading={scheduleLoading}
-          defaultTitle={
-            plannerTargetId
-              ? buildPlannerTitle(
-                  items.find((x) => x.id === plannerTargetId) as LibraryItem,
-                  wrappers[plannerTargetId] || null
-                )
-              : "Post LGD"
-          }
-          onConfirm={handlePlannerConfirm}
-        />
+        
       </div>
     </div>
   );
