@@ -2,27 +2,10 @@
 
 import api from "@/lib/api";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CalendarCheck2, Trash2 } from "lucide-react";
 import AssistedPublishModal from "./AssistedPublishModal";
 import { formatDateKey } from "../utils/date";
-
-const API_PROXY_PREFIX = "/api/proxy";
-
-async function proxyJson(path: string, init?: RequestInit) {
-  const normalized = path.startsWith("/") ? path : `/${path}`;
-  const res = await fetch(`${API_PROXY_PREFIX}${normalized}`, {
-    credentials: "include",
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers || {}),
-    },
-  });
-
-  if (!res.ok) throw new Error(`${normalized} failed (${res.status})`);
-  return await res.json().catch(() => ({}));
-}
 
 const icons: Record<string, JSX.Element> = {
   instagram: <div className="w-2 h-2 rounded bg-pink-400" />,
@@ -37,15 +20,51 @@ interface Props {
   currentDate: Date;
 }
 
+function getAuthHeaders() {
+  if (typeof window === "undefined") return {};
+  const token =
+    window.localStorage.getItem("access_token") ||
+    window.localStorage.getItem("token") ||
+    window.localStorage.getItem("jwt") ||
+    window.localStorage.getItem("lgd_token") ||
+    "";
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+async function fetchSameOriginJson(path: string) {
+  const res = await fetch(`/api/proxy${path}`, {
+    credentials: "include",
+    headers: { ...getAuthHeaders() },
+  });
+  if (!res.ok) throw new Error(`proxy ${path} failed (${res.status})`);
+  return await res.json().catch(() => null);
+}
+
 async function fetchPlannerPosts() {
   try {
-    const data = await proxyJson("/planner/posts");
+    const data = await fetchSameOriginJson("/planner/posts");
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data?.items)) return data.items;
+  } catch {
+    // ignore
+  }
+  try {
+    const res = await (api as any).get("/planner/posts");
+    const data = res?.data ?? res ?? [];
     if (Array.isArray(data)) return data;
   } catch {
     // ignore
   }
   try {
-    const data2 = await proxyJson("/social-posts");
+    const data2 = await fetchSameOriginJson("/social-posts");
+    if (Array.isArray(data2)) return data2;
+    if (Array.isArray(data2?.items)) return data2.items;
+  } catch {
+    // ignore
+  }
+  try {
+    const res2 = await (api as any).get("/social-posts");
+    const data2 = res2?.data ?? res2 ?? [];
     return Array.isArray(data2) ? data2 : [];
   } catch {
     return [];
@@ -136,20 +155,39 @@ export default function DayView({ currentDate }: Props) {
   const router = useRouter();
   const [posts, setPosts] = useState<any[]>([]);
   const [assistPost, setAssistPost] = useState<any | null>(null);
+  const lastGoodPosts = useRef<any[]>([]);
 
   const dayKey = formatDateKey(currentDate);
 
   useEffect(() => {
+    let cancelled = false;
     async function load() {
-      const data = await fetchPlannerPosts();
-      setPosts(data);
+      try {
+        const data = await fetchPlannerPosts();
+        const safe = Array.isArray(data) ? data : [];
+        if (!cancelled) {
+          setPosts(safe);
+          if (safe.length > 0) lastGoodPosts.current = safe;
+        }
+      } catch {
+        if (!cancelled) setPosts(lastGoodPosts.current);
+      }
     }
     load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const refreshPosts = async () => {
-    const data = await fetchPlannerPosts();
-    setPosts(data);
+    try {
+      const data = await fetchPlannerPosts();
+      const safe = Array.isArray(data) ? data : [];
+      setPosts(safe);
+      if (safe.length > 0) lastGoodPosts.current = safe;
+    } catch {
+      setPosts(lastGoodPosts.current);
+    }
   };
 
   const updateManualStatus = async (id: number | string, status: "published" | "scheduled") => {
@@ -170,11 +208,7 @@ export default function DayView({ currentDate }: Props) {
     );
 
     try {
-      try {
-        await proxyJson(`/planner/posts/${pid}/manual-status`, { method: "PATCH", body: JSON.stringify({ status }) });
-      } catch {
-        await (api as any).patch(`/planner/posts/${pid}/manual-status`, { status });
-      }
+      await (api as any).patch(`/planner/posts/${pid}/manual-status`, { status });
     } catch (e) {
       console.error("updateManualStatus error", e);
       setPosts(previous);
@@ -188,10 +222,6 @@ export default function DayView({ currentDate }: Props) {
     setPosts((prev) => prev.filter((p) => String(p?.id) !== pid));
 
     const tryDelete = async (path: string) => {
-      try {
-        return await proxyJson(path, { method: "DELETE" });
-      } catch {}
-
       const fn = (api as any)?.delete;
       if (typeof fn === "function") return await fn(path);
 
