@@ -5,6 +5,23 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { getWeekDays, isToday } from "../utils/date";
 
+const API_PROXY_PREFIX = "/api/proxy";
+
+async function proxyJson(path: string, init?: RequestInit) {
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+  const res = await fetch(`${API_PROXY_PREFIX}${normalized}`, {
+    credentials: "include",
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      ...(init?.headers || {}),
+    },
+  });
+
+  if (!res.ok) throw new Error(`${normalized} failed (${res.status})`);
+  return await res.json().catch(() => ({}));
+}
+
 const icons: Record<string, JSX.Element> = {
   instagram: <div className="w-2 h-2 rounded bg-pink-400" />,
   facebook: <div className="w-2 h-2 rounded bg-blue-500" />,
@@ -20,16 +37,14 @@ interface Props {
 
 async function fetchPlannerPosts() {
   try {
-    const res = await api.get("/planner/posts");
-    const data = res?.data ?? [];
+    const data = await proxyJson("/planner/posts");
     if (Array.isArray(data)) return data;
   } catch (error) {
     if (isAuthError(error)) return [];
   }
 
   try {
-    const res2 = await api.get("/social-posts");
-    const data2 = res2?.data ?? [];
+    const data2 = await proxyJson("/social-posts");
     return Array.isArray(data2) ? data2 : [];
   } catch (error) {
     if (isAuthError(error)) return [];
