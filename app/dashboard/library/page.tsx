@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import ThumbStage from "./components/ThumbStage";
-import { renderEditorCreationToDataUrl } from "../automatisations/reseaux_sociaux/carrousel/editor/utils/downloadEditorCreation";
 
 function getAuthHeaders() {
   if (typeof window === "undefined") return {};
@@ -227,7 +226,6 @@ function firstArray(...values: any[]): any[] {
   return [];
 }
 
-
 function restoreArchivedTextLineBreaks(text: any) {
   const raw = String(text ?? "");
   if (!raw) return "";
@@ -312,28 +310,6 @@ function extractArchiveCarrouselDraft(wrapper?: SavedWrapper | null) {
     {};
 
   return { slides, ui };
-}
-
-function getFirstTextFromLayers(layers: any[]): string {
-  return (layers || []).map((layer: any) => String(layer?.text || "").trim()).find(Boolean) || "";
-}
-
-function buildPlannerTitle(item: LibraryItem, wrapper?: SavedWrapper | null) {
-  const kind = detectEditorKind(item, wrapper);
-
-  if (kind === "carrousel") {
-    const draft = extractArchiveCarrouselDraft(wrapper);
-    const firstText = getFirstTextFromLayers(draft.slides?.[0]?.layers || []);
-    return firstText || item.title || "Carrousel LGD";
-  }
-
-  if (kind === "post") {
-    const draft = extractArchivePostDraft(wrapper);
-    const firstText = getFirstTextFromLayers(draft.layers || []);
-    return firstText || item.title || "Post LGD";
-  }
-
-  return item.title || "Contenu LGD";
 }
 
 function NetworkIcon({ network }: { network: string }) {
@@ -421,9 +397,10 @@ function LibraryCard({
   const carrouselDraft = extractArchiveCarrouselDraft(wrapper);
   const postLayers = postDraft.layers;
   const slides = carrouselDraft.slides;
-  const currentLayers = kind === "post"
-    ? postLayers
-    : kind === "carrousel"
+  const currentLayers =
+    kind === "post"
+      ? postLayers
+      : kind === "carrousel"
       ? slides[Math.min(slideIdx, Math.max(0, slides.length - 1))]?.layers || []
       : [];
   const canvasSize = ratioToWH(meta.ratio);
@@ -530,10 +507,8 @@ export default function LibraryPage() {
 
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Record<number, boolean>>({});
-  const [plannerTargetId, setPlannerTargetId] = useState<number | null>(null);
 
   const loadAbort = useRef<AbortController | null>(null);
-  const { schedule, loading: scheduleLoading } = useSchedulePlanner();
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -607,6 +582,9 @@ export default function LibraryPage() {
 
   useEffect(() => {
     loadListAndRaw();
+    return () => {
+      loadAbort.current?.abort();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -682,113 +660,6 @@ export default function LibraryPage() {
       });
   }
 
-  function openPlannerForSelected() {
-    const firstId = selectedIds[0];
-    if (!firstId) {
-      alert("Sélectionne d’abord un élément.");
-      return;
-    }
-
-    const it = items.find((x) => x.id === firstId);
-    if (!it) {
-      alert("Élément introuvable.");
-      return;
-    }
-
-    const wrap = wrappers[it.id] || null;
-    const kind = detectEditorKind(it, wrap);
-    if (kind !== "post" && kind !== "carrousel") {
-      alert("Seuls les posts et carrousels archivés peuvent être planifiés.");
-      return;
-    }
-
-    setPlannerTargetId(firstId);
-  }
-
-  async function handlePlannerConfirm({ reseau, date_programmee, titre }: { reseau: string; date_programmee: string; titre?: string }) {
-    const firstId = plannerTargetId;
-    if (!firstId) return;
-
-    const it = items.find((x) => x.id === firstId);
-    if (!it) throw new Error("Archive introuvable.");
-
-    const wrap = wrappers[it.id] || null;
-    const kind = detectEditorKind(it, wrap);
-
-    if (kind === "post") {
-      const draft = extractArchivePostDraft(wrap);
-      const safeLayers = Array.isArray(draft.layers) ? draft.layers : [];
-      let previewImage = "";
-
-      if (safeLayers.length) {
-        try {
-          previewImage = await renderEditorCreationToDataUrl({
-            mode: "post",
-            draft: {
-              ui: draft.ui || {},
-              layers: safeLayers,
-            },
-          });
-        } catch (error) {
-          console.error("LGD planner snapshot error (archive post):", error);
-        }
-      }
-
-      await schedule({
-        reseau,
-        date_programmee,
-        titre: titre || buildPlannerTitle(it, wrap),
-        format: "post",
-        contenu: {
-          title: titre || buildPlannerTitle(it, wrap),
-          type: "post",
-          layers: safeLayers,
-          ui: draft.ui || {},
-          library_item_id: it.id,
-          preview_image: previewImage || undefined,
-          planner_preview_image: previewImage || undefined,
-        },
-      });
-    } else if (kind === "carrousel") {
-      const draft = extractArchiveCarrouselDraft(wrap);
-      const safeSlides = Array.isArray(draft.slides) ? draft.slides : [];
-      let previewImage = "";
-
-      try {
-        previewImage = await renderEditorCreationToDataUrl({
-          mode: "carrousel",
-          draft: {
-            ui: draft.ui || {},
-            slides: safeSlides,
-          },
-          slideIndex: 0,
-        });
-      } catch (error) {
-        console.error("LGD planner snapshot error (archive carrousel):", error);
-      }
-
-      await schedule({
-        reseau,
-        date_programmee,
-        titre: titre || buildPlannerTitle(it, wrap),
-        format: "carrousel",
-        slides: safeSlides,
-        contenu: {
-          title: titre || buildPlannerTitle(it, wrap),
-          type: "carrousel",
-          slides: safeSlides,
-          ui: draft.ui || {},
-          library_item_id: it.id,
-          preview_image: previewImage || undefined,
-          planner_preview_image: previewImage || undefined,
-        },
-      });
-    }
-
-    setPlannerTargetId(null);
-    if (typeof window !== "undefined") window.alert("✅ Ajouté au Planner !");
-  }
-
   async function deleteSelected() {
     if (!selectedIds.length) return;
     if (!apiUrl) return;
@@ -830,9 +701,9 @@ export default function LibraryPage() {
             </div>
 
             <button
-              onClick={()=>{
-  alert("Export en cours (à brancher)");
-}}
+              onClick={() => {
+                alert("Export en cours (à brancher)");
+              }}
               disabled={!selectedIds.length}
               className="h-10 rounded-xl border border-yellow-500/20 bg-black/30 px-4 text-sm text-white/80 hover:bg-black/40 hover:text-white transition disabled:opacity-40"
             >
@@ -840,7 +711,7 @@ export default function LibraryPage() {
             </button>
 
             <button
-              onClick={()=> window.open("https://www.instagram.com/", "_blank")}
+              onClick={() => window.open("https://www.instagram.com/", "_blank")}
               disabled={!selectedIds.length}
               className="h-10 rounded-xl border border-yellow-500/20 bg-black/30 px-4 text-sm text-white/80 hover:bg-black/40 hover:text-white transition disabled:opacity-40"
             >
@@ -900,8 +771,6 @@ export default function LibraryPage() {
             </div>
           )}
         </div>
-
-        
       </div>
     </div>
   );
