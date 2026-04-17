@@ -2,8 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState  } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import ThumbStage from "./components/ThumbStage";
+import SchedulePlannerModal from "../automatisations/reseaux_sociaux/carrousel/editor/ui/SchedulePlannerModal";
+import useSchedulePlanner from "../automatisations/reseaux_sociaux/carrousel/editor/v5/hooks/useSchedulePlanner";
+import { renderEditorCreationToDataUrl } from "../automatisations/reseaux_sociaux/carrousel/editor/utils/downloadEditorCreation";
 
 function getAuthHeaders() {
   if (typeof window === "undefined") return {};
@@ -241,30 +244,44 @@ function extractSlideLayers(slide: any): any[] {
 
 function extractArchivePostDraft(wrapper?: SavedWrapper | null) {
   const payload = wrapper?.payload || {};
+  const source = payload?.draft || payload?.payload || payload?.content || payload;
+
   const layers = normalizeLayers(
-    payload?.layers ||
-      payload?.data?.layers ||
-      payload?.canvas?.layers ||
-      payload?.draft?.layers ||
-      payload?.draft?.canvas?.layers ||
-      payload?.content?.layers ||
+    source?.layers ||
+      source?.data?.layers ||
+      source?.canvas?.layers ||
+      source?.draft?.layers ||
+      source?.draft?.canvas?.layers ||
+      source?.content?.layers ||
       []
   );
 
   const ui =
+    source?.ui ||
+    source?.data?.ui ||
+    source?.canvas?.ui ||
+    source?.draft?.ui ||
+    source?.content?.ui ||
     payload?.ui ||
-    payload?.data?.ui ||
-    payload?.canvas?.ui ||
-    payload?.draft?.ui ||
-    payload?.content?.ui ||
     {};
 
-  return { layers, ui };
+  return {
+    ...(source && typeof source === "object" ? source : {}),
+    ui,
+    layers,
+  };
 }
 
 function extractArchiveCarrouselDraft(wrapper?: SavedWrapper | null) {
   const payload = wrapper?.payload || {};
+  const source = payload?.draft || payload?.payload || payload?.content || payload;
+
   const rawSlides = firstArray(
+    source?.slides,
+    source?.data?.slides,
+    source?.canvas?.slides,
+    source?.draft?.slides,
+    source?.content?.slides,
     payload?.slides,
     payload?.data?.slides,
     payload?.canvas?.slides,
@@ -273,19 +290,25 @@ function extractArchiveCarrouselDraft(wrapper?: SavedWrapper | null) {
   );
 
   const slides = rawSlides.map((slide: any, index: number) => ({
+    ...(slide && typeof slide === "object" ? slide : {}),
     id: String(slide?.id || `slide-${index + 1}`),
     layers: extractSlideLayers(slide),
   }));
 
   const ui =
+    source?.ui ||
+    source?.data?.ui ||
+    source?.canvas?.ui ||
+    source?.draft?.ui ||
+    source?.content?.ui ||
     payload?.ui ||
-    payload?.data?.ui ||
-    payload?.canvas?.ui ||
-    payload?.draft?.ui ||
-    payload?.content?.ui ||
     {};
 
-  return { slides, ui };
+  return {
+    ...(source && typeof source === "object" ? source : {}),
+    ui,
+    slides,
+  };
 }
 
 function getFirstTextFromLayers(layers: any[]): string {
@@ -395,11 +418,12 @@ function LibraryCard({
   const carrouselDraft = extractArchiveCarrouselDraft(wrapper);
   const postLayers = postDraft.layers;
   const slides = carrouselDraft.slides;
-  const currentLayers = kind === "post"
-    ? postLayers
-    : kind === "carrousel"
-      ? slides[Math.min(slideIdx, Math.max(0, slides.length - 1))]?.layers || []
-      : [];
+  const currentLayers =
+    kind === "post"
+      ? postLayers
+      : kind === "carrousel"
+        ? slides[Math.min(slideIdx, Math.max(0, slides.length - 1))]?.layers || []
+        : [];
   const canvasSize = ratioToWH(meta.ratio);
 
   useEffect(() => {
@@ -504,6 +528,10 @@ export default function LibraryPage() {
 
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Record<number, boolean>>({});
+  const [plannerTargetId, setPlannerTargetId] = useState<number | null>(null);
+
+  const loadAbort = useRef<AbortController | null>(null);
+  const { schedule, loading: scheduleLoading } = useSchedulePlanner();
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -652,6 +680,115 @@ export default function LibraryPage() {
       });
   }
 
+  function openPlannerForSelected() {
+    const firstId = selectedIds[0];
+    if (!firstId) {
+      alert("Sélectionne d’abord un élément.");
+      return;
+    }
+
+    const it = items.find((x) => x.id === firstId);
+    if (!it) {
+      alert("Élément introuvable.");
+      return;
+    }
+
+    const wrap = wrappers[it.id] || null;
+    const kind = detectEditorKind(it, wrap);
+    if (kind !== "post" && kind !== "carrousel") {
+      alert("Seuls les posts et carrousels archivés peuvent être planifiés.");
+      return;
+    }
+
+    setPlannerTargetId(firstId);
+  }
+
+  async function handlePlannerConfirm({ reseau, date_programmee, titre }: { reseau: string; date_programmee: string; titre?: string }) {
+    const firstId = plannerTargetId;
+    if (!firstId) return;
+
+    const it = items.find((x) => x.id === firstId);
+    if (!it) throw new Error("Archive introuvable.");
+
+    const wrap = wrappers[it.id] || null;
+    const kind = detectEditorKind(it, wrap);
+
+    if (kind === "post") {
+      const draft = extractArchivePostDraft(wrap);
+      const safeLayers = Array.isArray(draft.layers) ? draft.layers : [];
+      const plannerDraft = {
+        ...draft,
+        ui: draft.ui || {},
+        layers: safeLayers,
+      };
+      let previewImage = "";
+
+      if (safeLayers.length) {
+        try {
+          previewImage = await renderEditorCreationToDataUrl({
+            mode: "post",
+            draft: plannerDraft,
+          });
+        } catch (error) {
+          console.error("LGD planner snapshot error (archive post):", error);
+        }
+      }
+
+      await schedule({
+        reseau,
+        date_programmee,
+        titre: titre || buildPlannerTitle(it, wrap),
+        format: "post",
+        contenu: {
+          ...plannerDraft,
+          title: titre || buildPlannerTitle(it, wrap),
+          type: "post",
+          library_item_id: it.id,
+          preview_image: previewImage || undefined,
+          planner_preview_image: previewImage || undefined,
+        },
+      });
+    } else if (kind === "carrousel") {
+      const draft = extractArchiveCarrouselDraft(wrap);
+      const safeSlides = Array.isArray(draft.slides) ? draft.slides : [];
+      const plannerDraft = {
+        ...draft,
+        ui: draft.ui || {},
+        slides: safeSlides,
+      };
+      let previewImage = "";
+
+      try {
+        previewImage = await renderEditorCreationToDataUrl({
+          mode: "carrousel",
+          draft: plannerDraft,
+          slideIndex: 0,
+        });
+      } catch (error) {
+        console.error("LGD planner snapshot error (archive carrousel):", error);
+      }
+
+      await schedule({
+        reseau,
+        date_programmee,
+        titre: titre || buildPlannerTitle(it, wrap),
+        format: "carrousel",
+        slides: safeSlides,
+        contenu: {
+          ...plannerDraft,
+          title: titre || buildPlannerTitle(it, wrap),
+          type: "carrousel",
+          library_item_id: it.id,
+          preview_image: previewImage || undefined,
+          planner_preview_image: previewImage || undefined,
+        },
+      });
+    }
+
+    setPlannerTargetId(null);
+    if (typeof window !== "undefined") window.alert("✅ Ajouté au Planner !");
+  }
+
   async function deleteSelected() {
     if (!selectedIds.length) return;
     if (!apiUrl) return;
@@ -691,6 +828,14 @@ export default function LibraryPage() {
                 className="h-10 w-[280px] rounded-xl border border-yellow-500/20 bg-black/30 px-4 text-sm text-white placeholder:text-white/40 outline-none focus:border-yellow-500/40"
               />
             </div>
+
+            <button
+              onClick={openPlannerForSelected}
+              disabled={!selectedIds.length}
+              className="h-10 rounded-xl border border-yellow-500/20 bg-black/30 px-4 text-sm text-white/80 hover:bg-black/40 hover:text-white transition disabled:opacity-40"
+            >
+              Planifier
+            </button>
 
             <button
               onClick={deleteSelected}
@@ -745,6 +890,21 @@ export default function LibraryPage() {
             </div>
           )}
         </div>
+
+        <SchedulePlannerModal
+          open={!!plannerTargetId}
+          onClose={() => setPlannerTargetId(null)}
+          loading={scheduleLoading}
+          defaultTitle={
+            plannerTargetId
+              ? buildPlannerTitle(
+                  items.find((x) => x.id === plannerTargetId) as LibraryItem,
+                  wrappers[plannerTargetId] || null
+                )
+              : "Post LGD"
+          }
+          onConfirm={handlePlannerConfirm}
+        />
       </div>
     </div>
   );
