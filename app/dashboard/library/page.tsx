@@ -4,9 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import ThumbStage from "./components/ThumbStage";
-import SchedulePlannerModal from "../automatisations/reseaux_sociaux/carrousel/editor/ui/SchedulePlannerModal";
-import useSchedulePlanner from "../automatisations/reseaux_sociaux/carrousel/editor/v5/hooks/useSchedulePlanner";
-import { renderEditorCreationToDataUrl } from "../automatisations/reseaux_sociaux/carrousel/editor/utils/downloadEditorCreation";
 
 function getAuthHeaders() {
   if (typeof window === "undefined") return {};
@@ -46,51 +43,6 @@ type SavedWrapper = {
   created_at?: string;
   payload?: any;
 };
-
-
-function safeJsonParseAny(v: any) {
-  if (v == null) return null;
-  if (typeof v === "object") return v;
-  if (typeof v !== "string") return v;
-  try {
-    return JSON.parse(v);
-  } catch {
-    return null;
-  }
-}
-
-function buildWrapperFromUnknown(raw: any, fallbackKind?: string | null): SavedWrapper | null {
-  const data = safeJsonParseAny(raw);
-  if (!data || typeof data !== "object") return null;
-
-  if ("payload" in (data as any)) {
-    const obj = data as any;
-    return {
-      kind: String(obj?.kind || fallbackKind || ""),
-      savedAt: obj?.savedAt,
-      saved_at: obj?.saved_at,
-      updated_at: obj?.updated_at,
-      created_at: obj?.created_at,
-      payload: obj?.payload ?? null,
-    };
-  }
-
-  const payload =
-    (data as any)?.generated_content ??
-    (data as any)?.content ??
-    (data as any)?.data?.payload ??
-    (data as any)?.data ??
-    data;
-
-  return {
-    kind: String((data as any)?.kind || fallbackKind || ""),
-    savedAt: (data as any)?.savedAt,
-    saved_at: (data as any)?.saved_at,
-    updated_at: (data as any)?.updated_at,
-    created_at: (data as any)?.created_at,
-    payload,
-  };
-}
 
 const LS_POST = "lgd_editor_post_draft_v5";
 const LS_CARROUSEL = "lgd_editor_carrousel_draft_v5";
@@ -274,54 +226,29 @@ function firstArray(...values: any[]): any[] {
   return [];
 }
 
-
-function restoreArchivedTextLineBreaks(text: any) {
-  const raw = String(text ?? "");
-  if (!raw) return "";
-  return raw
-    .replace(/\r\n/g, "\n")
-    .replace(/\r/g, "\n")
-    .replace(/([?!.:;…])\n(?=\S)/g, "$1\n\n");
-}
-
-function restoreArchivedLineBreaksInLayers(layers: any[]): any[] {
-  return (Array.isArray(layers) ? layers : []).map((layer: any) => {
-    if (!layer || typeof layer !== "object") return layer;
-    if (String(layer?.type || "").toLowerCase() !== "text") return layer;
-    return {
-      ...layer,
-      text: restoreArchivedTextLineBreaks(layer?.text ?? layer?.value ?? layer?.content ?? ""),
-    };
-  });
-}
-
 function extractSlideLayers(slide: any): any[] {
-  return restoreArchivedLineBreaksInLayers(
-    normalizeLayers(
-      slide?.layers ||
-        slide?.canvas?.layers ||
-        slide?.data?.layers ||
-        slide?.content?.layers ||
-        slide?.elements ||
-        slide?.nodes ||
-        slide?.objects ||
-        []
-    )
+  return normalizeLayers(
+    slide?.layers ||
+      slide?.canvas?.layers ||
+      slide?.data?.layers ||
+      slide?.content?.layers ||
+      slide?.elements ||
+      slide?.nodes ||
+      slide?.objects ||
+      []
   );
 }
 
 function extractArchivePostDraft(wrapper?: SavedWrapper | null) {
   const payload = wrapper?.payload || {};
-  const layers = restoreArchivedLineBreaksInLayers(
-    normalizeLayers(
-      payload?.layers ||
-        payload?.data?.layers ||
-        payload?.canvas?.layers ||
-        payload?.draft?.layers ||
-        payload?.draft?.canvas?.layers ||
-        payload?.content?.layers ||
-        []
-    )
+  const layers = normalizeLayers(
+    payload?.layers ||
+      payload?.data?.layers ||
+      payload?.canvas?.layers ||
+      payload?.draft?.layers ||
+      payload?.draft?.canvas?.layers ||
+      payload?.content?.layers ||
+      []
   );
 
   const ui =
@@ -347,7 +274,7 @@ function extractArchiveCarrouselDraft(wrapper?: SavedWrapper | null) {
 
   const slides = rawSlides.map((slide: any, index: number) => ({
     id: String(slide?.id || `slide-${index + 1}`),
-    layers: restoreArchivedLineBreaksInLayers(extractSlideLayers(slide)),
+    layers: extractSlideLayers(slide),
   }));
 
   const ui =
@@ -577,10 +504,6 @@ export default function LibraryPage() {
 
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Record<number, boolean>>({});
-  const [plannerTargetId, setPlannerTargetId] = useState<number | null>(null);
-
-  const loadAbort = useRef<AbortController | null>(null);
-  const { schedule, loading: scheduleLoading } = useSchedulePlanner();
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -596,8 +519,7 @@ export default function LibraryPage() {
     [selected]
   );
 
-  
-async function loadListAndRaw() {
+  async function loadListAndRaw() {
     if (!apiUrl) {
       setError("API indisponible");
       setLoading(false);
@@ -616,60 +538,35 @@ async function loadListAndRaw() {
       const list: LibraryItem[] = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
       setItems(list);
 
-      const next: Record<number, SavedWrapper | null> = {};
       const need = list.filter((it) => {
         const k = String(it.kind || it.filename || "").toLowerCase();
-        return k.includes("lgd_post") || k.includes("lgd_carrousel");
+        const isLgd = k.includes("lgd_post") || k.includes("lgd_carrousel");
+        return isLgd && !!it.raw_url;
       });
 
+      const next: Record<number, SavedWrapper | null> = {};
       const concurrency = 6;
       let idx = 0;
 
       const worker = async () => {
         while (idx < need.length) {
           const current = need[idx++];
-
-          const fromItem = buildWrapperFromUnknown(
-            (current as any)?.generated_content ??
-              (current as any)?.payload ??
-              (current as any)?.content ??
-              (current as any)?.data,
-            current.kind || current.filename || ""
-          );
-          if (fromItem?.payload) {
-            next[current.id] = fromItem;
-            continue;
-          }
-
-          const urls = [
-            current.raw_url ? normalizeUrl(current.raw_url) : "",
-            `${apiUrl}/library/raw/${current.id}`,
-            `${apiUrl}/library/${current.id}/raw`,
-            `${apiUrl}/library/items/${current.id}/raw`,
-          ].filter(Boolean);
-
-          let resolved: SavedWrapper | null = null;
-
-          for (const url of urls) {
-            try {
-              const r = await fetch(url, { credentials: "include", headers: { ...getAuthHeaders() } });
-              if (!r.ok) continue;
-              const txt = await r.text();
-              const built = buildWrapperFromUnknown(txt, current.kind || current.filename || "");
-              if (built?.payload) {
-                resolved = built;
-                break;
-              }
-            } catch {
-              // ignore and try next url
+          try {
+            const r = await fetch(normalizeUrl(current.raw_url!), { credentials: "include", headers: { ...getAuthHeaders() } });
+            if (!r.ok) {
+              next[current.id] = null;
+              continue;
             }
+            const txt = await r.text();
+            const json = JSON.parse(txt) as SavedWrapper;
+            next[current.id] = json;
+          } catch {
+            next[current.id] = null;
           }
-
-          next[current.id] = resolved;
         }
       };
 
-      await Promise.all(Array.from({ length: Math.min(concurrency, Math.max(need.length, 1)) }, () => worker()));
+      await Promise.all(Array.from({ length: Math.min(concurrency, need.length) }, () => worker()));
       setWrappers(next);
     } catch (e: any) {
       setError(String(e?.message || e));
@@ -755,113 +652,6 @@ async function loadListAndRaw() {
       });
   }
 
-  function openPlannerForSelected() {
-    const firstId = selectedIds[0];
-    if (!firstId) {
-      alert("Sélectionne d’abord un élément.");
-      return;
-    }
-
-    const it = items.find((x) => x.id === firstId);
-    if (!it) {
-      alert("Élément introuvable.");
-      return;
-    }
-
-    const wrap = wrappers[it.id] || null;
-    const kind = detectEditorKind(it, wrap);
-    if (kind !== "post" && kind !== "carrousel") {
-      alert("Seuls les posts et carrousels archivés peuvent être planifiés.");
-      return;
-    }
-
-    setPlannerTargetId(firstId);
-  }
-
-  async function handlePlannerConfirm({ reseau, date_programmee, titre }: { reseau: string; date_programmee: string; titre?: string }) {
-    const firstId = plannerTargetId;
-    if (!firstId) return;
-
-    const it = items.find((x) => x.id === firstId);
-    if (!it) throw new Error("Archive introuvable.");
-
-    const wrap = wrappers[it.id] || null;
-    const kind = detectEditorKind(it, wrap);
-
-    if (kind === "post") {
-      const draft = extractArchivePostDraft(wrap);
-      const safeLayers = Array.isArray(draft.layers) ? draft.layers : [];
-      let previewImage = "";
-
-      if (safeLayers.length) {
-        try {
-          previewImage = await renderEditorCreationToDataUrl({
-            mode: "post",
-            draft: {
-              ui: draft.ui || {},
-              layers: safeLayers,
-            },
-          });
-        } catch (error) {
-          console.error("LGD planner snapshot error (archive post):", error);
-        }
-      }
-
-      await schedule({
-        reseau,
-        date_programmee,
-        titre: titre || buildPlannerTitle(it, wrap),
-        format: "post",
-        contenu: {
-          title: titre || buildPlannerTitle(it, wrap),
-          type: "post",
-          layers: safeLayers,
-          ui: draft.ui || {},
-          library_item_id: it.id,
-          preview_image: previewImage || undefined,
-          planner_preview_image: previewImage || undefined,
-        },
-      });
-    } else if (kind === "carrousel") {
-      const draft = extractArchiveCarrouselDraft(wrap);
-      const safeSlides = Array.isArray(draft.slides) ? draft.slides : [];
-      let previewImage = "";
-
-      try {
-        previewImage = await renderEditorCreationToDataUrl({
-          mode: "carrousel",
-          draft: {
-            ui: draft.ui || {},
-            slides: safeSlides,
-          },
-          slideIndex: 0,
-        });
-      } catch (error) {
-        console.error("LGD planner snapshot error (archive carrousel):", error);
-      }
-
-      await schedule({
-        reseau,
-        date_programmee,
-        titre: titre || buildPlannerTitle(it, wrap),
-        format: "carrousel",
-        slides: safeSlides,
-        contenu: {
-          title: titre || buildPlannerTitle(it, wrap),
-          type: "carrousel",
-          slides: safeSlides,
-          ui: draft.ui || {},
-          library_item_id: it.id,
-          preview_image: previewImage || undefined,
-          planner_preview_image: previewImage || undefined,
-        },
-      });
-    }
-
-    setPlannerTargetId(null);
-    if (typeof window !== "undefined") window.alert("✅ Ajouté au Planner !");
-  }
-
   async function deleteSelected() {
     if (!selectedIds.length) return;
     if (!apiUrl) return;
@@ -901,14 +691,6 @@ async function loadListAndRaw() {
                 className="h-10 w-[280px] rounded-xl border border-yellow-500/20 bg-black/30 px-4 text-sm text-white placeholder:text-white/40 outline-none focus:border-yellow-500/40"
               />
             </div>
-
-            <button
-              onClick={openPlannerForSelected}
-              disabled={!selectedIds.length}
-              className="h-10 rounded-xl border border-yellow-500/20 bg-black/30 px-4 text-sm text-white/80 hover:bg-black/40 hover:text-white transition disabled:opacity-40"
-            >
-              Planifier
-            </button>
 
             <button
               onClick={deleteSelected}
@@ -963,21 +745,6 @@ async function loadListAndRaw() {
             </div>
           )}
         </div>
-
-        <SchedulePlannerModal
-          open={!!plannerTargetId}
-          onClose={() => setPlannerTargetId(null)}
-          loading={scheduleLoading}
-          defaultTitle={
-            plannerTargetId
-              ? buildPlannerTitle(
-                  items.find((x) => x.id === plannerTargetId) as LibraryItem,
-                  wrappers[plannerTargetId] || null
-                )
-              : "Post LGD"
-          }
-          onConfirm={handlePlannerConfirm}
-        />
       </div>
     </div>
   );
