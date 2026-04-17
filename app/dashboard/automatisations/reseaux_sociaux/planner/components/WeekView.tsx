@@ -2,25 +2,8 @@
 
 import api, { isAuthError } from "@/lib/api";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getWeekDays, isToday } from "../utils/date";
-
-const API_PROXY_PREFIX = "/api/proxy";
-
-async function proxyJson(path: string, init?: RequestInit) {
-  const normalized = path.startsWith("/") ? path : `/${path}`;
-  const res = await fetch(`${API_PROXY_PREFIX}${normalized}`, {
-    credentials: "include",
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers || {}),
-    },
-  });
-
-  if (!res.ok) throw new Error(`${normalized} failed (${res.status})`);
-  return await res.json().catch(() => ({}));
-}
 
 const icons: Record<string, JSX.Element> = {
   instagram: <div className="w-2 h-2 rounded bg-pink-400" />,
@@ -35,16 +18,54 @@ interface Props {
   onSelectDate: (date: Date) => void;
 }
 
+function getAuthHeaders() {
+  if (typeof window === "undefined") return {};
+  const token =
+    window.localStorage.getItem("access_token") ||
+    window.localStorage.getItem("token") ||
+    window.localStorage.getItem("jwt") ||
+    window.localStorage.getItem("lgd_token") ||
+    "";
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+async function fetchSameOriginJson(path: string) {
+  const res = await fetch(`/api/proxy${path}`, {
+    credentials: "include",
+    headers: { ...getAuthHeaders() },
+  });
+  if (!res.ok) throw new Error(`proxy ${path} failed (${res.status})`);
+  return await res.json().catch(() => null);
+}
+
 async function fetchPlannerPosts() {
   try {
-    const data = await proxyJson("/planner/posts");
+    const data = await fetchSameOriginJson("/planner/posts");
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data?.items)) return data.items;
+  } catch {
+    // ignore and fallback
+  }
+
+  try {
+    const res = await api.get("/planner/posts");
+    const data = res?.data ?? [];
     if (Array.isArray(data)) return data;
   } catch (error) {
     if (isAuthError(error)) return [];
   }
 
   try {
-    const data2 = await proxyJson("/social-posts");
+    const data2 = await fetchSameOriginJson("/social-posts");
+    if (Array.isArray(data2)) return data2;
+    if (Array.isArray(data2?.items)) return data2.items;
+  } catch {
+    // ignore and fallback
+  }
+
+  try {
+    const res2 = await api.get("/social-posts");
+    const data2 = res2?.data ?? [];
     return Array.isArray(data2) ? data2 : [];
   } catch (error) {
     if (isAuthError(error)) return [];
@@ -96,6 +117,7 @@ export default function WeekView({ currentDate, onSelectDate }: Props) {
   const router = useRouter();
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const lastGoodPosts = useRef<any[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -104,11 +126,13 @@ export default function WeekView({ currentDate, onSelectDate }: Props) {
       try {
         const data = await fetchPlannerPosts();
         if (!cancelled) {
-          setPosts(Array.isArray(data) ? data : []);
+          const safe = Array.isArray(data) ? data : [];
+          setPosts(safe);
+          if (safe.length > 0) lastGoodPosts.current = safe;
         }
       } catch {
         if (!cancelled) {
-          setPosts([]);
+          setPosts(lastGoodPosts.current);
         }
       } finally {
         if (!cancelled) {
