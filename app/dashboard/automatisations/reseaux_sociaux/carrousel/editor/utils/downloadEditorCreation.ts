@@ -237,20 +237,17 @@ async function ensureFontReady(style: Record<string, any>) {
 
 function shouldUseRichTextRender(layer: LayerData, style: LayerStyle & Record<string, any>) {
   const html = typeof layer?.html === "string" ? layer.html.trim() : "";
-  if (html) return true;
+  const plainHtml = textToHtml(String(layer?.text ?? "")).trim();
 
-  const fontFamily = String(style?.fontFamily || "").toLowerCase();
-  const hasSpecialFont =
-    fontFamily.includes("merriweather") ||
-    fontFamily.includes("playfair") ||
-    fontFamily.includes("lora");
+  if (html) {
+    const normalizedHtml = html.replace(/\s+/g, " ").trim().toLowerCase();
+    const normalizedPlain = plainHtml.replace(/\s+/g, " ").trim().toLowerCase();
+    const hasRichMarkup = /<(span|strong|em|u|b|i|div|p)\b/i.test(html) || /style\s*=|class\s*=|&nbsp;/i.test(html);
+    if (hasRichMarkup || normalizedHtml !== normalizedPlain) return true;
+  }
 
-  const hasRichStyle =
-    !!style?.underline ||
-    !!style?.italic ||
-    String(style?.fontStyle || "").toLowerCase() === "italic";
-
-  return hasSpecialFont || hasRichStyle;
+  const hasBackground = !!firstNonEmptyString(style?.backgroundColor, "");
+  return hasBackground;
 }
 
 async function drawTextLayerRich(ctx: CanvasRenderingContext2D, layer: LayerData) {
@@ -581,6 +578,7 @@ export async function renderSingleCreationToDataUrl(args: {
     }
 
     if (type === "text") {
+      await ensureFontReady(getLayerStyle(layer));
       const richDrawn = await drawTextLayerRich(ctx, layer);
       if (!richDrawn) {
         drawTextLayer(ctx, layer);
