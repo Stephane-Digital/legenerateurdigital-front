@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import ThumbStage from "./components/ThumbStage";
 import SchedulePlannerModal from "../automatisations/reseaux_sociaux/carrousel/editor/ui/SchedulePlannerModal";
 import useSchedulePlanner from "../automatisations/reseaux_sociaux/carrousel/editor/v5/hooks/useSchedulePlanner";
 import { renderEditorCreationToDataUrl } from "../automatisations/reseaux_sociaux/carrousel/editor/utils/downloadEditorCreation";
-import ThumbStage from "./components/ThumbStage";
 
 function getAuthHeaders() {
   if (typeof window === "undefined") return {};
@@ -47,6 +47,51 @@ type SavedWrapper = {
   payload?: any;
 };
 
+
+function safeJsonParseAny(v: any) {
+  if (v == null) return null;
+  if (typeof v === "object") return v;
+  if (typeof v !== "string") return v;
+  try {
+    return JSON.parse(v);
+  } catch {
+    return null;
+  }
+}
+
+function buildWrapperFromUnknown(raw: any, fallbackKind?: string | null): SavedWrapper | null {
+  const data = safeJsonParseAny(raw);
+  if (!data || typeof data !== "object") return null;
+
+  if ("payload" in (data as any)) {
+    const obj = data as any;
+    return {
+      kind: String(obj?.kind || fallbackKind || ""),
+      savedAt: obj?.savedAt,
+      saved_at: obj?.saved_at,
+      updated_at: obj?.updated_at,
+      created_at: obj?.created_at,
+      payload: obj?.payload ?? null,
+    };
+  }
+
+  const payload =
+    (data as any)?.generated_content ??
+    (data as any)?.content ??
+    (data as any)?.data?.payload ??
+    (data as any)?.data ??
+    data;
+
+  return {
+    kind: String((data as any)?.kind || fallbackKind || ""),
+    savedAt: (data as any)?.savedAt,
+    saved_at: (data as any)?.saved_at,
+    updated_at: (data as any)?.updated_at,
+    created_at: (data as any)?.created_at,
+    payload,
+  };
+}
+
 const LS_POST = "lgd_editor_post_draft_v5";
 const LS_CARROUSEL = "lgd_editor_carrousel_draft_v5";
 const LS_EDITOR_MODE = "lgd_editor_mode_v5";
@@ -77,8 +122,6 @@ async function fetchFirstOk(urls: string[]) {
   throw lastErr || new Error("fetch failed");
 }
 
-
-
 function getImageSizeFromUrl(src: string): Promise<{ width: number; height: number }> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -106,6 +149,7 @@ function fitInsideBox(
     height,
   };
 }
+
 function formatFR(iso?: string | null) {
   if (!iso) return "";
   const d = new Date(iso);
@@ -148,16 +192,6 @@ function ratioToWH(ratio: "1:1" | "9:16" | "16:9") {
   return { w, h };
 }
 
-function escapeXml(s: string) {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/\"/g, "&quot;")
-    .replace(/'/g, "&apos;");
-}
-
-/** layers peut être array, string JSON, ou objet wrapper */
 function normalizeLayers(input: any): any[] {
   if (!input) return [];
   if (Array.isArray(input)) return input;
@@ -183,25 +217,6 @@ function normalizeLayers(input: any): any[] {
   return [];
 }
 
-function sortByZ(layers: any) {
-  const arr = normalizeLayers(layers);
-  return [...arr].sort((a, b) => Number(a?.zIndex ?? 0) - Number(b?.zIndex ?? 0));
-}
-
-function pickBackground(layers: any) {
-  const arr = normalizeLayers(layers);
-  return (arr || []).find((l) => String(l?.type || "").toLowerCase() === "background") || null;
-}
-
-function normalizeAssetHref(src: any) {
-  const s = typeof src === "string" ? src : "";
-  if (!s) return "";
-  if (s.startsWith("data:") || s.startsWith("blob:")) return s;
-  if (s.startsWith("http")) return s;
-  if (s.startsWith("/")) return normalizeUrl(s);
-  return s;
-}
-
 function inferNetwork(formatKey: string, platform: string) {
   const v = `${platform || ""} ${formatKey || ""}`.toLowerCase();
   if (v.includes("instagram") || v.includes("insta")) return "instagram";
@@ -215,8 +230,9 @@ function inferNetwork(formatKey: string, platform: string) {
 
 function inferRatio(formatKey: string) {
   const v = (formatKey || "").toLowerCase();
-  if (v.includes("story") || v.includes("9:16") || v.includes("vertical") || v.includes("reel") || v.includes("short"))
+  if (v.includes("story") || v.includes("9:16") || v.includes("vertical") || v.includes("reel") || v.includes("short")) {
     return "9:16" as const;
+  }
   if (v.includes("16:9") || v.includes("landscape") || v.includes("banner")) return "16:9" as const;
   return "1:1" as const;
 }
@@ -258,29 +274,54 @@ function firstArray(...values: any[]): any[] {
   return [];
 }
 
+
+function restoreArchivedTextLineBreaks(text: any) {
+  const raw = String(text ?? "");
+  if (!raw) return "";
+  return raw
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .replace(/([?!.:;…])\n(?=\S)/g, "$1\n\n");
+}
+
+function restoreArchivedLineBreaksInLayers(layers: any[]): any[] {
+  return (Array.isArray(layers) ? layers : []).map((layer: any) => {
+    if (!layer || typeof layer !== "object") return layer;
+    if (String(layer?.type || "").toLowerCase() !== "text") return layer;
+    return {
+      ...layer,
+      text: restoreArchivedTextLineBreaks(layer?.text ?? layer?.value ?? layer?.content ?? ""),
+    };
+  });
+}
+
 function extractSlideLayers(slide: any): any[] {
-  return normalizeLayers(
-    slide?.layers ||
-      slide?.canvas?.layers ||
-      slide?.data?.layers ||
-      slide?.content?.layers ||
-      slide?.elements ||
-      slide?.nodes ||
-      slide?.objects ||
-      []
+  return restoreArchivedLineBreaksInLayers(
+    normalizeLayers(
+      slide?.layers ||
+        slide?.canvas?.layers ||
+        slide?.data?.layers ||
+        slide?.content?.layers ||
+        slide?.elements ||
+        slide?.nodes ||
+        slide?.objects ||
+        []
+    )
   );
 }
 
 function extractArchivePostDraft(wrapper?: SavedWrapper | null) {
   const payload = wrapper?.payload || {};
-  const layers = normalizeLayers(
-    payload?.layers ||
-      payload?.data?.layers ||
-      payload?.canvas?.layers ||
-      payload?.draft?.layers ||
-      payload?.draft?.canvas?.layers ||
-      payload?.content?.layers ||
-      []
+  const layers = restoreArchivedLineBreaksInLayers(
+    normalizeLayers(
+      payload?.layers ||
+        payload?.data?.layers ||
+        payload?.canvas?.layers ||
+        payload?.draft?.layers ||
+        payload?.draft?.canvas?.layers ||
+        payload?.content?.layers ||
+        []
+    )
   );
 
   const ui =
@@ -306,7 +347,7 @@ function extractArchiveCarrouselDraft(wrapper?: SavedWrapper | null) {
 
   const slides = rawSlides.map((slide: any, index: number) => ({
     id: String(slide?.id || `slide-${index + 1}`),
-    layers: extractSlideLayers(slide),
+    layers: restoreArchivedLineBreaksInLayers(extractSlideLayers(slide)),
   }));
 
   const ui =
@@ -342,17 +383,6 @@ function buildPlannerTitle(item: LibraryItem, wrapper?: SavedWrapper | null) {
   return item.title || "Contenu LGD";
 }
 
-function guessCanvasSizeFromLayers(layers: any[], ratio: "1:1" | "9:16" | "16:9") {
-  for (const layer of layers || []) {
-    const cw = Number(layer?.canvasWidth ?? layer?.cw ?? layer?.stageWidth ?? layer?.w_canvas ?? NaN);
-    const ch = Number(layer?.canvasHeight ?? layer?.ch ?? layer?.stageHeight ?? layer?.h_canvas ?? NaN);
-    if (Number.isFinite(cw) && Number.isFinite(ch) && cw > 200 && ch > 200) {
-      return { w: cw, h: ch };
-    }
-  }
-  return ratioToWH(ratio);
-}
-
 function NetworkIcon({ network }: { network: string }) {
   const common = "h-4 w-4 text-yellow-200/90";
   if (network === "instagram") {
@@ -368,12 +398,7 @@ function NetworkIcon({ network }: { network: string }) {
           stroke="currentColor"
           strokeWidth="1.8"
         />
-        <path
-          d="M17.2 6.8h.01"
-          stroke="currentColor"
-          strokeWidth="2.4"
-          strokeLinecap="round"
-        />
+        <path d="M17.2 6.8h.01" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
       </svg>
     );
   }
@@ -437,22 +462,18 @@ function LibraryCard({
   const kind = detectEditorKind(item, wrapper);
   const meta = extractMeta(wrapper, kind);
   const savedAt = pickBestDate(item, wrapper);
-
   const [slideIdx, setSlideIdx] = useState(0);
-  const [fallbackImageOk, setFallbackImageOk] = useState(true);
 
   const postDraft = extractArchivePostDraft(wrapper);
   const carrouselDraft = extractArchiveCarrouselDraft(wrapper);
-  const postLayers = Array.isArray(postDraft.layers) ? postDraft.layers : [];
-  const slides = Array.isArray(carrouselDraft.slides) ? carrouselDraft.slides : [];
-  const activeLayers =
-    kind === "post"
-      ? postLayers
-      : slides[Math.min(slideIdx, Math.max(0, slides.length - 1))]?.layers || [];
-
-  const hasRenderableArchive = Array.isArray(activeLayers) && activeLayers.length > 0;
-  const canvasSize = guessCanvasSizeFromLayers(activeLayers, meta.ratio);
-  const fallbackSrc = normalizeUrl(item.preview_url || item.file_url || "");
+  const postLayers = postDraft.layers;
+  const slides = carrouselDraft.slides;
+  const currentLayers = kind === "post"
+    ? postLayers
+    : kind === "carrousel"
+      ? slides[Math.min(slideIdx, Math.max(0, slides.length - 1))]?.layers || []
+      : [];
+  const canvasSize = ratioToWH(meta.ratio);
 
   useEffect(() => {
     if (kind !== "carrousel" || slides.length <= 1) return;
@@ -462,9 +483,8 @@ function LibraryCard({
     return () => window.clearInterval(t);
   }, [kind, slides.length]);
 
-  useEffect(() => {
-    setFallbackImageOk(true);
-  }, [item.preview_url, item.file_url, item.id]);
+  const hasFileImage = String(item.mime_type || "").startsWith("image/") && !!item.preview_url;
+  const hasArchivePreview = (kind === "post" && postLayers.length > 0) || (kind === "carrousel" && currentLayers.length > 0);
 
   return (
     <div className="group relative">
@@ -494,20 +514,19 @@ function LibraryCard({
           <div className="absolute inset-0 bg-black" />
 
           <div className="absolute inset-0 overflow-hidden">
-            {hasRenderableArchive ? (
-              <ThumbStage
-                layers={activeLayers}
-                canvasWidth={canvasSize.w}
-                canvasHeight={canvasSize.h}
-                cover
-              />
-            ) : fallbackSrc && fallbackImageOk ? (
+            {hasFileImage ? (
               <img
-                src={fallbackSrc}
+                src={normalizeUrl(item.preview_url!)}
                 alt={item.title}
                 className="absolute inset-0 h-full w-full object-cover"
                 draggable={false}
-                onError={() => setFallbackImageOk(false)}
+              />
+            ) : hasArchivePreview ? (
+              <ThumbStage
+                layers={currentLayers}
+                canvasWidth={canvasSize.w}
+                canvasHeight={canvasSize.h}
+                cover
               />
             ) : (
               <div className="absolute inset-0 flex items-center justify-center text-xs text-white/50">
@@ -577,7 +596,8 @@ export default function LibraryPage() {
     [selected]
   );
 
-  async function loadListAndRaw() {
+  
+async function loadListAndRaw() {
     if (!apiUrl) {
       setError("API indisponible");
       setLoading(false);
@@ -596,48 +616,60 @@ export default function LibraryPage() {
       const list: LibraryItem[] = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
       setItems(list);
 
+      const next: Record<number, SavedWrapper | null> = {};
       const need = list.filter((it) => {
         const k = String(it.kind || it.filename || "").toLowerCase();
-        const isLgd = k.includes("lgd_post") || k.includes("lgd_carrousel");
-        return isLgd;
+        return k.includes("lgd_post") || k.includes("lgd_carrousel");
       });
 
-      const next: Record<number, SavedWrapper | null> = {};
       const concurrency = 6;
       let idx = 0;
 
       const worker = async () => {
         while (idx < need.length) {
           const current = need[idx++];
-          const candidateUrls = [
+
+          const fromItem = buildWrapperFromUnknown(
+            (current as any)?.generated_content ??
+              (current as any)?.payload ??
+              (current as any)?.content ??
+              (current as any)?.data,
+            current.kind || current.filename || ""
+          );
+          if (fromItem?.payload) {
+            next[current.id] = fromItem;
+            continue;
+          }
+
+          const urls = [
             current.raw_url ? normalizeUrl(current.raw_url) : "",
             `${apiUrl}/library/raw/${current.id}`,
             `${apiUrl}/library/${current.id}/raw`,
             `${apiUrl}/library/items/${current.id}/raw`,
           ].filter(Boolean);
 
-          let loaded: SavedWrapper | null = null;
+          let resolved: SavedWrapper | null = null;
 
-          for (const url of candidateUrls) {
+          for (const url of urls) {
             try {
-              const r = await fetch(url, {
-                credentials: "include",
-                headers: { ...getAuthHeaders() },
-              });
+              const r = await fetch(url, { credentials: "include", headers: { ...getAuthHeaders() } });
               if (!r.ok) continue;
               const txt = await r.text();
-              loaded = JSON.parse(txt) as SavedWrapper;
-              break;
+              const built = buildWrapperFromUnknown(txt, current.kind || current.filename || "");
+              if (built?.payload) {
+                resolved = built;
+                break;
+              }
             } catch {
-              // ignore and try next candidate
+              // ignore and try next url
             }
           }
 
-          next[current.id] = loaded;
+          next[current.id] = resolved;
         }
       };
 
-      await Promise.all(Array.from({ length: Math.min(concurrency, need.length) }, () => worker()));
+      await Promise.all(Array.from({ length: Math.min(concurrency, Math.max(need.length, 1)) }, () => worker()));
       setWrappers(next);
     } catch (e: any) {
       setError(String(e?.message || e));
