@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 
-type Network = "instagram" | "facebook" | "pinterest" | string;
+type Network = "instagram" | "facebook" | "linkedin" | string;
 
 type SchedulePayload = {
   // ✅ réseau
@@ -90,6 +90,19 @@ export function useSchedulePlanner() {
     const scheduled_at = pickScheduledAt(payload);
 
     try {
+      
+// 🔥 LGD FIX: ensure full Canva payload is always sent
+if (!payload.contenu && typeof window !== "undefined") {
+  try {
+    const mode = localStorage.getItem("lgd_editor_mode_v5");
+    if (mode === "post") {
+      payload.contenu = JSON.parse(localStorage.getItem("lgd_editor_post_draft_v5") || "null");
+    } else if (mode === "carrousel") {
+      payload.contenu = JSON.parse(localStorage.getItem("lgd_editor_carrousel_draft_v5") || "null");
+    }
+  } catch {}
+}
+
       const isCarrousel = looksLikeCarrousel(payload);
 
       const endpoint = isCarrousel ? "/planner/schedule-carrousel" : "/planner/schedule-post";
