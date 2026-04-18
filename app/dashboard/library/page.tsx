@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import ThumbStage from "./components/ThumbStage";
+import { renderEditorCreationToDataUrl } from "../automatisations/reseaux_sociaux/carrousel/editor/utils/downloadEditorCreation";
 
 function getAuthHeaders() {
   if (typeof window === "undefined") return {};
@@ -312,6 +313,29 @@ function extractArchiveCarrouselDraft(wrapper?: SavedWrapper | null) {
   return { slides, ui };
 }
 
+function sanitizeFilePart(value: string) {
+  return String(value || "")
+    .trim()
+    .replace(/[\\/:*?"<>|]+/g, "-")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 80) || "lgd-export";
+}
+
+function downloadDataUrl(dataUrl: string, filename: string) {
+  const link = document.createElement("a");
+  link.href = dataUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function NetworkIcon({ network }: { network: string }) {
   const common = "h-4 w-4 text-yellow-200/90";
   if (network === "instagram") {
@@ -504,6 +528,7 @@ export default function LibraryPage() {
   const [wrappers, setWrappers] = useState<Record<number, SavedWrapper | null>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Record<number, boolean>>({});
@@ -660,6 +685,70 @@ export default function LibraryPage() {
       });
   }
 
+  async function exportSelected() {
+    if (!selectedIds.length) {
+      alert("Sélectionne d’abord un élément.");
+      return;
+    }
+
+    setExporting(true);
+
+    try {
+      for (const id of selectedIds) {
+        const it = items.find((x) => x.id === id);
+        if (!it) continue;
+
+        const wrap = wrappers[it.id] || null;
+        const kind = detectEditorKind(it, wrap);
+        const safeTitle = sanitizeFilePart(it.title || `${kind}-${it.id}`);
+
+        if (kind === "post") {
+          const draft = extractArchivePostDraft(wrap);
+          const safeLayers = Array.isArray(draft.layers) ? draft.layers : [];
+          if (!safeLayers.length) continue;
+
+          const dataUrl = await renderEditorCreationToDataUrl({
+            mode: "post",
+            draft: {
+              ui: draft.ui || {},
+              layers: safeLayers,
+            },
+          });
+
+          downloadDataUrl(dataUrl, `${safeTitle}.png`);
+          await sleep(180);
+          continue;
+        }
+
+        if (kind === "carrousel") {
+          const draft = extractArchiveCarrouselDraft(wrap);
+          const safeSlides = Array.isArray(draft.slides) ? draft.slides : [];
+          if (!safeSlides.length) continue;
+
+          for (let index = 0; index < safeSlides.length; index += 1) {
+            const dataUrl = await renderEditorCreationToDataUrl({
+              mode: "carrousel",
+              draft: {
+                ui: draft.ui || {},
+                slides: safeSlides,
+              },
+              slideIndex: index,
+            });
+
+            const n = String(index + 1).padStart(2, "0");
+            downloadDataUrl(dataUrl, `${safeTitle}-slide-${n}.png`);
+            await sleep(220);
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Export archive error:", e);
+      alert("Erreur export. Voir console.");
+    } finally {
+      setExporting(false);
+    }
+  }
+
   async function deleteSelected() {
     if (!selectedIds.length) return;
     if (!apiUrl) return;
@@ -701,13 +790,11 @@ export default function LibraryPage() {
             </div>
 
             <button
-              onClick={() => {
-                alert("Export en cours (à brancher)");
-              }}
-              disabled={!selectedIds.length}
+              onClick={exportSelected}
+              disabled={!selectedIds.length || exporting}
               className="h-10 rounded-xl border border-yellow-500/20 bg-black/30 px-4 text-sm text-white/80 hover:bg-black/40 hover:text-white transition disabled:opacity-40"
             >
-              Exporter
+              {exporting ? "Export…" : "Exporter"}
             </button>
 
             <button
