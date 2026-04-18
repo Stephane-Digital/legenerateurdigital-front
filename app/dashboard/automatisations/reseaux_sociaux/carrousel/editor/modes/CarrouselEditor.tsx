@@ -48,7 +48,7 @@ type Angle =
   | "Erreur fréquente"
   | "Mindset / discipline";
 
-type CopilotTask = "hooks" | "slideText" | "steps" | "cta" | "rewrite";
+type CopilotTask = "hooks" | "slideText" | "steps" | "caption" | "cta" | "rewrite";
 
 function apiBase() {
   return (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
@@ -584,6 +584,8 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
 
   const [aiOutput, setAiOutput] = useState<string>("");
   const [aiHooks, setAiHooks] = useState<string[]>([]);
+  const [aiCaption, setAiCaption] = useState<string>("");
+  const [copyFeedback, setCopyFeedback] = useState<string>("");
   const { schedule, loading: scheduleLoading } = useSchedulePlanner();
   const [scheduleOpen, setScheduleOpen] = useState(false);
 
@@ -609,6 +611,37 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
   const targetLayer = useMemo(() => {
     return (activeSlide?.layers ?? []).find((l: any) => String(l?.id) === String(targetLayerId)) as any;
   }, [activeSlide?.layers, targetLayerId]);
+
+  const copyToClipboard = useCallback(async (value: string) => {
+    const safeValue = String(value || "").trim();
+    if (!safeValue) return;
+
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(safeValue);
+      } else if (typeof document !== "undefined") {
+        const textarea = document.createElement("textarea");
+        textarea.value = safeValue;
+        textarea.setAttribute("readonly", "true");
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+
+      setCopyFeedback("Légende copiée.");
+      window.setTimeout(() => {
+        setCopyFeedback((prev) => (prev === "Légende copiée." ? "" : prev));
+      }, 1800);
+    } catch {
+      setCopyFeedback("Copie impossible.");
+      window.setTimeout(() => {
+        setCopyFeedback((prev) => (prev === "Copie impossible." ? "" : prev));
+      }, 1800);
+    }
+  }, []);
 
   const applyToLayer = useCallback(
     (text: string) => {
@@ -681,6 +714,15 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
           "Format STRICT :\nTITRE: ...\n1) ...\n2) ...\n3) ...\nCTA: ...",
           `Sujet: ${topic}`,
         ].join("\n");
+      } else if (task === "caption") {
+        prompt = [
+          ctx,
+          "Écris une légende Instagram prête à poster pour accompagner ce carrousel.",
+          "Inclure : Hook (1ère ligne), valeur claire, mini-structure fluide, puis CTA orienté MRR (DM mot-clé / commentaire mot-clé).",
+          "La légende doit compléter le carrousel, sans répéter mot pour mot la slide.",
+          "Pas de hashtags ici.",
+          `Sujet: ${topic}`,
+        ].join("\n");
       } else if (task === "cta") {
         prompt = [
           ctx,
@@ -712,6 +754,9 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
 
         setAiHooks(lines.slice(0, 10));
         setAiOutput(out);
+      } else if (task === "caption") {
+        setAiHooks([]);
+        setAiCaption(out);
       } else {
         setAiHooks([]);
         setAiOutput(out);
@@ -1011,6 +1056,13 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
                       3 étapes
                     </button>
                     <button
+                      onClick={() => runCopilot("caption")}
+                      disabled={aiLoading || copilotDisabled}
+                      className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
+                    >
+                      Légende IA
+                    </button>
+                    <button
                       onClick={() => runCopilot("cta")}
                       disabled={aiLoading || copilotDisabled}
                       className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
@@ -1160,6 +1212,8 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
                               onClick={() => {
                                 setAiOutput("");
                                 setAiHooks([]);
+                                setAiCaption("");
+                                setCopyFeedback("");
                                 setAiError(null);
                               }}
                               className="rounded-xl px-3 py-2 text-sm text-yellow-100 border border-yellow-500/20 bg-black/40 hover:bg-black/60"
@@ -1221,6 +1275,36 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
                             className="mt-3 w-full rounded-2xl bg-black/40 border border-yellow-500/15 px-4 py-3 text-yellow-100 outline-none"
                           />
                         )}
+
+                        {aiCaption ? (
+                          <div className="mt-4 rounded-2xl border border-yellow-500/15 bg-black/25 p-4">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                              <div>
+                                <div className="text-yellow-200 font-semibold">Légende IA</div>
+                                <div className="text-[11px] text-white/45">Légende générée pour accompagner le carrousel, sans toucher aux slides.</div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => copyToClipboard(aiCaption)}
+                                  disabled={!aiCaption}
+                                  className="rounded-xl px-3 py-2 text-xs font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
+                                >
+                                  Copier la légende
+                                </button>
+                              </div>
+                            </div>
+
+                            <textarea
+                              value={aiCaption}
+                              onChange={(e) => setAiCaption(e.target.value)}
+                              rows={8}
+                              className="mt-3 w-full rounded-2xl bg-black/40 border border-yellow-500/15 px-4 py-3 text-yellow-100 outline-none"
+                            />
+
+                            {copyFeedback ? <div className="mt-2 text-[11px] text-white/55">{copyFeedback}</div> : null}
+                          </div>
+                        ) : null}
 
                         {targetLayer ? (
                           <div className="mt-3 text-[11px] text-white/45">
