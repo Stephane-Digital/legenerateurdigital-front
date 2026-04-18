@@ -43,6 +43,8 @@ type Angle =
   | "Erreur fréquente"
   | "Mindset / discipline";
 
+type CopilotTask = "hooks" | "caption" | "cta" | "hashtags" | "ab" | "rewrite";
+
 function apiBase() {
   return (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
 }
@@ -480,8 +482,7 @@ export default function PostEditor({
 
   const [aiOutput, setAiOutput] = useState<string>("");
   const [aiHooks, setAiHooks] = useState<string[]>([]);
-  const [aiCaption, setAiCaption] = useState<string>("");
-  const [copyFeedback, setCopyFeedback] = useState<string>("");
+  const [aiTask, setAiTask] = useState<CopilotTask | null>(null);
   const { schedule, loading: scheduleLoading } = useSchedulePlanner();
   const [scheduleOpen, setScheduleOpen] = useState(false);
 
@@ -509,37 +510,6 @@ export default function PostEditor({
   const targetLayer = useMemo(() => {
     return (draftLayers ?? []).find((l: any) => String(l?.id) === String(targetLayerId)) as any;
   }, [draftLayers, targetLayerId]);
-
-  const copyToClipboard = useCallback(async (value: string) => {
-    const safeValue = String(value || "").trim();
-    if (!safeValue) return;
-
-    try {
-      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(safeValue);
-      } else if (typeof document !== "undefined") {
-        const textarea = document.createElement("textarea");
-        textarea.value = safeValue;
-        textarea.setAttribute("readonly", "true");
-        textarea.style.position = "fixed";
-        textarea.style.opacity = "0";
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand("copy");
-        document.body.removeChild(textarea);
-      }
-
-      setCopyFeedback("Légende copiée.");
-      window.setTimeout(() => {
-        setCopyFeedback((prev) => (prev === "Légende copiée." ? "" : prev));
-      }, 1800);
-    } catch {
-      setCopyFeedback("Copie impossible.");
-      window.setTimeout(() => {
-        setCopyFeedback((prev) => (prev === "Copie impossible." ? "" : prev));
-      }, 1800);
-    }
-  }, []);
 
   // ✅ IMPORTANT: synchroniser la sélection du layer dans l'UI de l'éditeur
   // pour que les propriétés (dont la couleur) s'appliquent bien au layer cible.
@@ -610,7 +580,60 @@ export default function PostEditor({
     [draftLayers, targetLayerId, defaultTargetId, handleLayersChange, syncEditorSelection]
   );
 
-  function buildContext() {
+  function normalizeWhitespace(value: string) {
+  return String(value || "").replace(/\r/g, "").replace(/[\t ]+/g, " ").trim();
+}
+
+function extractHashtagsOnly(value: string) {
+  const matches = String(value || "").match(/#[\p{L}\p{N}_-]+/gu) || [];
+  const unique: string[] = [];
+  for (const tag of matches) {
+    if (!unique.includes(tag)) unique.push(tag);
+  }
+  return unique.slice(0, 20).join(" ");
+}
+
+function extractShortCaptionOnly(value: string) {
+  const cleaned = String(value || "")
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^\s*[-•*]+\s*/, "").trim())
+    .filter((line) => line && !line.startsWith("#") && !/^CTA\s*[:：-]/i.test(line));
+
+  const result: string[] = [];
+  for (const line of cleaned) {
+    if (/^A\s*[:：-]/i.test(line) || /^B\s*[:：-]/i.test(line)) continue;
+    result.push(line);
+    if (result.length >= 4) break;
+  }
+
+  return normalizeWhitespace(result.join("\n")).slice(0, 280);
+}
+
+function extractCtasOnly(value: string) {
+  const lines = String(value || "")
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^\s*[-•*]+\s*/, "").trim())
+    .filter(Boolean)
+    .filter((line) => !line.startsWith("#"));
+
+  const kept: string[] = [];
+  for (const line of lines) {
+    if (/^A\s*[:：-]/i.test(line) || /^B\s*[:：-]/i.test(line)) continue;
+    kept.push(line);
+    if (kept.length >= 5) break;
+  }
+
+  return kept.join("\n");
+}
+
+function normalizeCopilotOutput(task: CopilotTask, value: string) {
+  if (task === "hashtags") return extractHashtagsOnly(value);
+  if (task === "cta") return extractCtasOnly(value);
+  if (task === "caption") return extractShortCaptionOnly(value);
+  return String(value || "").trim();
+}
+
+function buildContext() {
     const base = [
       "Tu es LGD Copilot : spécialiste du marketing digital, produits digitaux, formation, MRR (Master Resell Rights).",
       "Tu écris pour fédérer sur les réseaux sociaux et convertir vers une offre MRR / formation.",
@@ -623,7 +646,8 @@ export default function PostEditor({
     return [base, "---", "Brief du coach (à respecter):", b].join("\n");
   }
 
-  async function runCopilot(task: "hooks" | "caption" | "cta" | "hashtags" | "ab" | "rewrite") {
+  async function runCopilot(task: CopilotTask) {
+    setAiTask(task);
     setAiError(null);
     setAiLoading(true);
 
@@ -644,23 +668,24 @@ export default function PostEditor({
       } else if (task === "caption") {
         prompt = [
           ctx,
-          "Écris une caption prête à poster (format paragraphe + bullets si utile).",
-          "Inclure : Hook (1ère ligne), Valeur, Mini-structure, puis CTA orienté MRR (DM mot-clé).",
-          "Pas de hashtags ici.",
+          "Écris UNE légende courte prête à poster.",
+          "Format STRICT : 2 à 4 lignes maximum, ton naturel, impactant, sans puces.",
+          "Aucun hashtag. Aucun bloc CTA. Aucun titre. Aucune explication.",
+          "La réponse doit être une légende courte uniquement.",
           `Sujet: ${topic}`,
         ].join("\n");
       } else if (task === "cta") {
         prompt = [
           ctx,
-          "Propose 5 CTA orientés conversion MRR (DM mot-clé / commentaire mot-clé / lien en bio).",
-          "Format STRICT : une liste à puces, 1 CTA par ligne. Pas d'explication.",
+          "Génère 5 CTA courts orientés conversion MRR (DM mot-clé / commentaire mot-clé / lien en bio).",
+          "Format STRICT : 5 lignes maximum, 1 CTA par ligne, aucun paragraphe, aucune explication, aucun hashtag.",
           `Sujet: ${topic}`,
         ].join("\n");
       } else if (task === "hashtags") {
         prompt = [
           ctx,
           "Génère 20 hashtags pertinents pour le sujet, en français + quelques EN si utile.",
-          "Format STRICT : une seule ligne, hashtags séparés par des espaces. Pas d'explication.",
+          "Format STRICT ABSOLU : une seule ligne, uniquement des hashtags séparés par des espaces. Aucun mot hors hashtag. Aucune explication.",
           `Sujet: ${topic}`,
         ].join("\n");
       } else if (task === "ab") {
@@ -697,14 +722,10 @@ export default function PostEditor({
           .filter(Boolean);
 
         setAiHooks(lines.slice(0, 10));
-        setAiOutput(out);
-      } else if (task === "caption") {
-        setAiHooks([]);
-        setAiCaption(out);
-        setAiOutput(out);
+        setAiOutput(lines.slice(0, 10).join("\n"));
       } else {
         setAiHooks([]);
-        setAiOutput(out);
+        setAiOutput(normalizeCopilotOutput(task, out));
       }
     } catch (e: any) {
       setAiError(e?.message || "Erreur IA");
@@ -879,7 +900,7 @@ export default function PostEditor({
                   disabled={aiLoading || copilotDisabled}
                   className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
                 >
-                  Légende IA
+                  Caption prête
                 </button>
                 <button
                   onClick={() => runCopilot("cta")}
@@ -1042,8 +1063,7 @@ export default function PostEditor({
                           onClick={() => {
                             setAiOutput("");
                             setAiHooks([]);
-                            setAiCaption("");
-                            setCopyFeedback("");
+                            setAiTask(null);
                             setAiError(null);
                           }}
                           className="rounded-xl px-3 py-2 text-sm text-yellow-100 border border-yellow-500/20 bg-black/40 hover:bg-black/60"
@@ -1114,39 +1134,18 @@ export default function PostEditor({
                       />
                     )}
 
+                    {aiTask === "caption" ? (
+                      <div className="mt-3 text-[11px] text-white/45">Mode attendu : légende courte uniquement.</div>
+                    ) : null}
+                    {aiTask === "cta" ? (
+                      <div className="mt-3 text-[11px] text-white/45">Mode attendu : uniquement des CTA, 1 par ligne.</div>
+                    ) : null}
+                    {aiTask === "hashtags" ? (
+                      <div className="mt-3 text-[11px] text-white/45">Mode attendu : uniquement des hashtags.</div>
+                    ) : null}
                     <div className="mt-3 text-[11px] text-white/45">
                       Note : l’IA est volontairement spécialisée “marketing digital / produits digitaux / MRR”. Si tu sors du scope, elle recadre.
                     </div>
-
-                    {aiCaption ? (
-                      <div className="mt-4 rounded-2xl border border-yellow-500/15 bg-black/25 p-4">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                          <div>
-                            <div className="text-yellow-200 font-semibold">Légende IA</div>
-                            <div className="text-[11px] text-white/45">Comme dans le Planner, mais directement dans le Copilot.</div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => copyToClipboard(aiCaption)}
-                              disabled={!aiCaption}
-                              className="rounded-xl px-3 py-2 text-xs font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
-                            >
-                              Copier la légende
-                            </button>
-                          </div>
-                        </div>
-
-                        <textarea
-                          value={aiCaption}
-                          onChange={(e) => setAiCaption(e.target.value)}
-                          rows={8}
-                          className="mt-3 w-full rounded-2xl bg-black/40 border border-yellow-500/15 px-4 py-3 text-yellow-100 outline-none"
-                        />
-
-                        {copyFeedback ? <div className="mt-2 text-[11px] text-white/55">{copyFeedback}</div> : null}
-                      </div>
-                    ) : null}
                   </div>
 
                   {targetLayer ? (
