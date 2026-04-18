@@ -48,7 +48,7 @@ type Angle =
   | "Erreur fréquente"
   | "Mindset / discipline";
 
-type CopilotTask = "hooks" | "slideText" | "steps" | "cta" | "rewrite";
+type CopilotTask = "hooks" | "slideText" | "steps" | "caption" | "cta" | "hashtags" | "rewrite";
 
 function apiBase() {
   return (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
@@ -584,7 +584,6 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
 
   const [aiOutput, setAiOutput] = useState<string>("");
   const [aiHooks, setAiHooks] = useState<string[]>([]);
-  const [aiTask, setAiTask] = useState<CopilotTask | null>(null);
   const { schedule, loading: scheduleLoading } = useSchedulePlanner();
   const [scheduleOpen, setScheduleOpen] = useState(false);
 
@@ -635,31 +634,64 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
   );
 
   function normalizeWhitespace(value: string) {
-  return String(value || "").replace(/\r/g, "").replace(/[\t ]+/g, " ").trim();
-}
-
-function extractCtasOnly(value: string) {
-  const lines = String(value || "")
-    .split(/\r?\n/)
-    .map((line) => line.replace(/^\s*[-•*]+\s*/, "").trim())
-    .filter(Boolean)
-    .filter((line) => !line.startsWith("#"));
-
-  const kept: string[] = [];
-  for (const line of lines) {
-    kept.push(line);
-    if (kept.length >= 5) break;
+    return String(value || "")
+      .replace(/\r/g, "")
+      .replace(/\t+/g, " ")
+      .replace(/[ ]{2,}/g, " ")
+      .trim();
   }
 
-  return kept.join("\n");
-}
+  function extractHashtagsOnly(value: string) {
+    const matches =
+      String(value || "").match(/#[A-Za-z0-9À-ÖØ-öø-ÿ_-]+/g) || [];
+    const unique: string[] = [];
+    for (const tag of matches) {
+      if (!unique.includes(tag)) unique.push(tag);
+    }
+    return unique.slice(0, 20).join(" ");
+  }
 
-function normalizeCopilotOutput(task: CopilotTask, value: string) {
-  if (task === "cta") return extractCtasOnly(value);
-  return normalizeWhitespace(String(value || ""));
-}
+  function extractShortCaptionOnly(value: string) {
+    const cleaned = String(value || "")
+      .split(/\r?\n/)
+      .map((line) => line.replace(/^\s*[-•*]+\s*/, "").trim())
+      .filter((line) => line && !line.startsWith("#") && !/^CTA\s*[:\-]/i.test(line));
 
-function buildContext() {
+    const result: string[] = [];
+    for (const line of cleaned) {
+      if (/^A\s*[:\-]/i.test(line) || /^B\s*[:\-]/i.test(line)) continue;
+      result.push(line);
+      if (result.length >= 4) break;
+    }
+
+    return normalizeWhitespace(result.join("\n")).slice(0, 280);
+  }
+
+  function extractCtasOnly(value: string) {
+    const lines = String(value || "")
+      .split(/\r?\n/)
+      .map((line) => line.replace(/^\s*[-•*]+\s*/, "").trim())
+      .filter(Boolean)
+      .filter((line) => !line.startsWith("#"));
+
+    const kept: string[] = [];
+    for (const line of lines) {
+      if (/^A\s*[:\-]/i.test(line) || /^B\s*[:\-]/i.test(line)) continue;
+      kept.push(line);
+      if (kept.length >= 5) break;
+    }
+
+    return kept.join("\n");
+  }
+
+  function normalizeCopilotOutput(task: CopilotTask, value: string) {
+    if (task === "hashtags") return extractHashtagsOnly(value);
+    if (task === "cta") return extractCtasOnly(value);
+    if (task === "caption") return extractShortCaptionOnly(value);
+    return normalizeWhitespace(String(value || ""));
+  }
+
+  function buildContext() {
     const base = [
       "Tu es LGD Copilot : spécialiste du marketing digital, produits digitaux, formation, MRR (Master Resell Rights).",
       "Tu écris pour fédérer sur les réseaux sociaux et convertir vers une offre MRR / formation.",
@@ -675,7 +707,6 @@ function buildContext() {
   }
 
   async function runCopilot(task: CopilotTask) {
-    setAiTask(task);
     setAiError(null);
     setAiLoading(true);
 
@@ -708,11 +739,27 @@ function buildContext() {
           "Format STRICT :\nTITRE: ...\n1) ...\n2) ...\n3) ...\nCTA: ...",
           `Sujet: ${topic}`,
         ].join("\n");
+      } else if (task === "caption") {
+        prompt = [
+          ctx,
+          "Génère UNE légende courte pour accompagner ce carrousel sur Instagram.",
+          "Format STRICT : 2 à 4 lignes maximum, texte court, naturel, engageant.",
+          "Aucun hashtag. Aucun bloc CTA. Aucun titre. Aucune explication.",
+          `Sujet: ${topic}`,
+        ].join("\n");
       } else if (task === "cta") {
         prompt = [
           ctx,
           "Génère 5 CTA courts adaptés à une slide de carrousel (DM mot-clé / commentaire mot-clé / lien bio).",
           "Format STRICT : 5 lignes maximum, 1 CTA par ligne, aucun paragraphe, aucune explication, aucun hashtag.",
+          `Sujet: ${topic}`,
+        ].join("\n");
+      } else if (task === "hashtags") {
+        prompt = [
+          ctx,
+          "Génère 20 hashtags pertinents pour accompagner ce carrousel.",
+          "Format STRICT : une seule ligne composée uniquement de hashtags séparés par des espaces.",
+          "Aucun mot hors hashtag. Aucune phrase. Aucune explication.",
           `Sujet: ${topic}`,
         ].join("\n");
       } else {
@@ -738,7 +785,7 @@ function buildContext() {
           .filter(Boolean);
 
         setAiHooks(lines.slice(0, 10));
-        setAiOutput(lines.slice(0, 10).join("\n"));
+        setAiOutput(out);
       } else {
         setAiHooks([]);
         setAiOutput(normalizeCopilotOutput(task, out));
@@ -1002,7 +1049,7 @@ function buildContext() {
               <div className="flex items-center justify-between gap-3 px-5 py-4">
                 <div>
                   <div className="text-yellow-200 font-semibold">Copilot IA — Carrousel (Marketing digital • MRR)</div>
-                  <div className="text-white/55 text-sm">Slide active uniquement • texte-only • hooks/valeur/CTA (safe)</div>
+                  <div className="text-white/55 text-sm">Slide active uniquement • texte-only • hooks/légende/hashtags/CTA (safe)</div>
                 </div>
 
                 <button
@@ -1038,11 +1085,25 @@ function buildContext() {
                       3 étapes
                     </button>
                     <button
+                      onClick={() => runCopilot("caption")}
+                      disabled={aiLoading || copilotDisabled}
+                      className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
+                    >
+                      Légende IA
+                    </button>
+                    <button
                       onClick={() => runCopilot("cta")}
                       disabled={aiLoading || copilotDisabled}
                       className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
                     >
                       CTA
+                    </button>
+                    <button
+                      onClick={() => runCopilot("hashtags")}
+                      disabled={aiLoading || copilotDisabled}
+                      className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
+                    >
+                      Hashtags
                     </button>
                     <button
                       onClick={() => runCopilot("rewrite")}
@@ -1187,7 +1248,6 @@ function buildContext() {
                               onClick={() => {
                                 setAiOutput("");
                                 setAiHooks([]);
-                                setAiTask(null);
                                 setAiError(null);
                               }}
                               className="rounded-xl px-3 py-2 text-sm text-yellow-100 border border-yellow-500/20 bg-black/40 hover:bg-black/60"
@@ -1241,18 +1301,26 @@ function buildContext() {
                             ))}
                           </div>
                         ) : (
-                          <textarea
-                            value={aiOutput}
-                            onChange={(e) => setAiOutput(e.target.value)}
-                            placeholder="Les résultats IA apparaîtront ici…"
-                            rows={8}
-                            className="mt-3 w-full rounded-2xl bg-black/40 border border-yellow-500/15 px-4 py-3 text-yellow-100 outline-none"
-                          />
+                          <>
+                            <textarea
+                              value={aiOutput}
+                              onChange={(e) => setAiOutput(e.target.value)}
+                              placeholder="Les résultats IA apparaîtront ici…"
+                              rows={8}
+                              className="mt-3 w-full rounded-2xl bg-black/40 border border-yellow-500/15 px-4 py-3 text-yellow-100 outline-none"
+                            />
+                           {aiOutput ? (
+  <div className="mt-3 text-[11px] text-white/45">
+    {aiOutput.startsWith("#")
+      ? "Mode attendu : uniquement des hashtags."
+      : aiOutput.includes("\n")
+      ? "Mode attendu : uniquement des CTA, 1 par ligne."
+      : "Mode attendu : uniquement une légende courte, sans CTA ni hashtags."}
+  </div>
+) : null}
+                          </>
                         )}
 
-                        {aiTask === "cta" ? (
-                          <div className="mt-3 text-[11px] text-white/45">Mode attendu : uniquement des CTA, 1 par ligne.</div>
-                        ) : null}
                         {targetLayer ? (
                           <div className="mt-3 text-[11px] text-white/45">
                             Layer cible : <span className="text-yellow-200">{String((targetLayer as any)?.id || "")}</span>
