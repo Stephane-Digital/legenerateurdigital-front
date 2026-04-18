@@ -100,14 +100,30 @@ function firstNonEmptyString(...values: any[]) {
 }
 
 
+function normalizeFontFamily(font?: string) {
+  return firstNonEmptyString(font)
+    .split(",")[0]
+    .replace(/["']/g, "")
+    .trim();
+}
+
 function getFontImportCss(font?: string) {
-  const raw = String(font || "").trim().toLowerCase();
+  const raw = normalizeFontFamily(font).toLowerCase();
   const imports: Record<string, string> = {
-    inter: "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap');",
-    lora: "@import url('https://fonts.googleapis.com/css2?family=Lora:wght@400;700&display=swap');",
+    inter: "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');",
+    lora: "@import url('https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&display=swap');",
     oswald: "@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&display=swap');",
     montserrat: "@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap');",
     merriweather: "@import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&display=swap');",
+    poppins: "@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');",
+    roboto: "@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');",
+    'open sans': "@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700;800&display=swap');",
+    nunito: "@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap');",
+    raleway: "@import url('https://fonts.googleapis.com/css2?family=Raleway:wght@400;500;600;700;800&display=swap');",
+    'playfair display': "@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800&display=swap');",
+    'dm sans': "@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap');",
+    'bebas neue': "@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap');",
+    'libre baskerville': "@import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&display=swap');",
   };
   return imports[raw] || "";
 }
@@ -205,7 +221,7 @@ function svgMarkupToDataUrl(svg: string) {
 async function ensureFontReady(style: Record<string, any>) {
   if (typeof document === "undefined" || !document.fonts) return;
 
-  const rawFont = firstNonEmptyString(style?.fontFamily, "Inter", "Arial");
+  const rawFont = normalizeFontFamily(firstNonEmptyString(style?.fontFamily, "Inter", "Arial"));
   const css = getFontImportCss(rawFont);
   if (css) {
     const id = `lgd-render-font-${String(rawFont).trim().toLowerCase()}`;
@@ -218,7 +234,7 @@ async function ensureFontReady(style: Record<string, any>) {
   }
 
   const fontSize = Math.max(8, Number(style?.fontSize ?? 32) || 32);
-  const fontFamily = firstNonEmptyString(style?.fontFamily, "Inter", "Arial");
+  const fontFamily = normalizeFontFamily(firstNonEmptyString(style?.fontFamily, "Inter", "Arial")) || "Inter";
   const fontStyle = style?.italic || style?.fontStyle === "italic" ? "italic" : "normal";
   const fontWeight = String(style?.fontWeight ?? 400);
 
@@ -400,10 +416,10 @@ async function drawImageCover(
 
 function buildFont(style?: LayerStyle) {
   const size = Math.max(10, Number(style?.fontSize ?? 48) || 48);
-  const family = firstNonEmptyString(style?.fontFamily, "Inter", "Arial");
+  const family = normalizeFontFamily(firstNonEmptyString(style?.fontFamily, "Inter", "Arial")) || "Inter";
   const weight = String(style?.fontWeight ?? "700");
   const italic = style?.italic || style?.fontStyle === "italic" ? "italic " : "";
-  return `${italic}${weight} ${size}px ${family}`;
+  return `${italic}${weight} ${size}px "${family}", Arial, sans-serif`;
 }
 
 function wrapText(
@@ -440,40 +456,83 @@ function wrapText(
   return lines;
 }
 
-function drawTextLayer(
+function drawRoundedRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  radius: number
+) {
+  const r = Math.max(0, Math.min(radius, Math.min(w, h) / 2));
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+async function drawTextLayer(
   ctx: CanvasRenderingContext2D,
   layer: LayerData
 ) {
   const text = String(layer?.text || "").trim();
-  if (!text) return;
+  if (!text) return false;
 
   const x = getLayerX(layer);
   const y = getLayerY(layer);
   const w = getLayerW(layer, 520);
   const h = getLayerH(layer, 240);
   const style = getLayerStyle(layer);
+  await ensureFontReady(style);
+
   const fontSize = Math.max(10, Number(style?.fontSize ?? 48) || 48);
   const lineHeight = Math.max(1, Number(style?.lineHeight ?? 1.2) || 1.2);
   const color = firstNonEmptyString(style?.fill, style?.color, style?.textColor, "#ffffff");
   const align = getLayerTextAlign(style) as CanvasTextAlign;
+  const backgroundColor = firstNonEmptyString(style?.backgroundColor, "");
+  const layerOpacity = Math.max(0, Math.min(1, Number(layer?.opacity ?? 1) || 1));
+  const paddingX = backgroundColor ? 22 : 6;
+  const paddingY = backgroundColor ? 16 : 6;
 
   ctx.save();
+  ctx.globalAlpha = layerOpacity;
+
+  if (backgroundColor) {
+    ctx.fillStyle = backgroundColor;
+    drawRoundedRect(ctx, x, y, w, h, 18);
+    ctx.fill();
+  }
+
   ctx.font = buildFont(style);
   ctx.fillStyle = color;
   ctx.textBaseline = "top";
   ctx.textAlign = align;
 
-  const lines = wrapText(ctx, text, Math.max(60, w - 12));
+  const lines = wrapText(ctx, text, Math.max(60, w - paddingX * 2));
   const step = fontSize * lineHeight;
+  const totalTextHeight = Math.max(fontSize, lines.length * step);
 
-  let drawX = x + 6;
+  let baseY = y + paddingY;
+  if (backgroundColor) {
+    const centered = y + Math.max(0, (h - totalTextHeight) / 2);
+    baseY = Math.max(y + paddingY, centered);
+  }
+
+  let drawX = x + paddingX;
   if (align === "center") drawX = x + w / 2;
-  if (align === "right") drawX = x + w - 6;
+  if (align === "right") drawX = x + w - paddingX;
 
   lines.forEach((line, index) => {
-    const lineY = y + 6 + index * step;
-    if (lineY > y + h) return;
-    ctx.fillText(line, drawX, lineY, w - 12);
+    const lineY = baseY + index * step;
+    if (lineY > y + h - paddingY) return;
+    ctx.fillText(line, drawX, lineY, Math.max(20, w - paddingX * 2));
 
     if (style?.underline) {
       const metrics = ctx.measureText(line);
@@ -491,6 +550,7 @@ function drawTextLayer(
   });
 
   ctx.restore();
+  return true;
 }
 
 export async function renderSingleCreationToDataUrl(args: {
@@ -552,9 +612,12 @@ export async function renderSingleCreationToDataUrl(args: {
     }
 
     if (type === "text") {
-      const richDrawn = await drawTextLayerRich(ctx, layer);
-      if (!richDrawn) {
-        drawTextLayer(ctx, layer);
+      const nativeDrawn = await drawTextLayer(ctx, layer);
+      if (!nativeDrawn) {
+        const richDrawn = await drawTextLayerRich(ctx, layer);
+        if (!richDrawn) {
+          await drawTextLayer(ctx, layer);
+        }
       }
     }
   }
