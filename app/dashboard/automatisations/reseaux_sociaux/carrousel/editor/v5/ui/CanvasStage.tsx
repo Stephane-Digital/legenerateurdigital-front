@@ -595,17 +595,25 @@ export default function CanvasStage({
         const dx = p.x - resize.startX;
         const dy = p.y - resize.startY;
 
-        const delta = Math.max(dx, dy);
-        const scaleFactor = 1 + delta / 300;
+        let newW = resize.origW;
+        let newH = resize.origH;
 
-        const nextFontSize = clamp(resize.origFontSize * scaleFactor, 10, 220);
-        const newW = clamp(resize.origW * scaleFactor, 50, format.w * 2);
-        const newH = clamp(resize.origH * scaleFactor, 30, format.h * 2);
+        if (resize.corner.includes("r")) {
+          newW = clamp(resize.origW + dx, 50, format.w * 2);
+        }
+        if (resize.corner.includes("l")) {
+          newW = clamp(resize.origW - dx, 50, format.w * 2);
+        }
+        if (resize.corner.includes("b")) {
+          newH = clamp(resize.origH + dy, 30, format.h * 2);
+        }
+        if (resize.corner.includes("t")) {
+          newH = clamp(resize.origH - dy, 30, format.h * 2);
+        }
 
         updateLayer(resize.id, {
           width: newW,
           height: newH,
-          style: { fontSize: nextFontSize } as any,
         } as any);
         return;
       }
