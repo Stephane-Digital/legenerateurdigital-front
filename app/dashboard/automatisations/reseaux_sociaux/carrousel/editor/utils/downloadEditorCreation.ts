@@ -101,31 +101,31 @@ function firstNonEmptyString(...values: any[]) {
 
 
 function normalizeFontFamily(font?: string) {
-  return firstNonEmptyString(font)
+  const raw = firstNonEmptyString(font, "Inter");
+  const cleaned = raw
     .split(",")[0]
     .replace(/["']/g, "")
     .trim();
+
+  const lower = cleaned.toLowerCase();
+  if (lower === "montserrat") return "Montserrat";
+  if (lower === "oswald") return "Oswald";
+  if (lower === "inter") return "Inter";
+  if (lower === "lora") return "Lora";
+  if (lower === "merriweather") return "Merriweather";
+  return cleaned || "Inter";
 }
 
-function getFontImportCss(font?: string) {
+function getFontStylesheetUrl(font?: string) {
   const raw = normalizeFontFamily(font).toLowerCase();
-  const imports: Record<string, string> = {
-    inter: "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');",
-    lora: "@import url('https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&display=swap');",
-    oswald: "@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&display=swap');",
-    montserrat: "@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap');",
-    merriweather: "@import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&display=swap');",
-    poppins: "@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');",
-    roboto: "@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');",
-    'open sans': "@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700;800&display=swap');",
-    nunito: "@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap');",
-    raleway: "@import url('https://fonts.googleapis.com/css2?family=Raleway:wght@400;500;600;700;800&display=swap');",
-    'playfair display': "@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800&display=swap');",
-    'dm sans': "@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap');",
-    'bebas neue': "@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap');",
-    'libre baskerville': "@import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&display=swap');",
+  const urls: Record<string, string> = {
+    inter: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap",
+    lora: "https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&display=swap",
+    oswald: "https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&display=swap",
+    montserrat: "https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap",
+    merriweather: "https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&display=swap",
   };
-  return imports[raw] || "";
+  return urls[raw] || "";
 }
 
 function getFormat(ui?: EditorUI) {
@@ -221,29 +221,46 @@ function svgMarkupToDataUrl(svg: string) {
 async function ensureFontReady(style: Record<string, any>) {
   if (typeof document === "undefined" || !document.fonts) return;
 
-  const rawFont = normalizeFontFamily(firstNonEmptyString(style?.fontFamily, "Inter", "Arial"));
-  const css = getFontImportCss(rawFont);
-  if (css) {
-    const id = `lgd-render-font-${String(rawFont).trim().toLowerCase()}`;
+  const fontFamily = normalizeFontFamily(style?.fontFamily);
+  const href = getFontStylesheetUrl(fontFamily);
+  if (href) {
+    const id = `lgd-render-font-${fontFamily.toLowerCase()}`;
     if (!document.getElementById(id)) {
-      const tag = document.createElement("style");
-      tag.id = id;
-      tag.textContent = css;
-      document.head.appendChild(tag);
+      const link = document.createElement("link");
+      link.id = id;
+      link.rel = "stylesheet";
+      link.href = href;
+      document.head.appendChild(link);
+      await new Promise<void>((resolve) => {
+        link.onload = () => resolve();
+        link.onerror = () => resolve();
+        window.setTimeout(resolve, 800);
+      });
     }
   }
 
   const fontSize = Math.max(8, Number(style?.fontSize ?? 32) || 32);
-  const fontFamily = normalizeFontFamily(firstNonEmptyString(style?.fontFamily, "Inter", "Arial")) || "Inter";
   const fontStyle = style?.italic || style?.fontStyle === "italic" ? "italic" : "normal";
   const fontWeight = String(style?.fontWeight ?? 400);
 
   try {
     if (typeof document.fonts.load === "function") {
-      await document.fonts.load(`${fontStyle} ${fontWeight} ${fontSize}px ${fontFamily}`);
+      await document.fonts.load(`${fontStyle} ${fontWeight} ${fontSize}px "${fontFamily}"`);
+      await document.fonts.load(`normal 400 ${fontSize}px "${fontFamily}"`);
+      await document.fonts.load(`normal 700 ${fontSize}px "${fontFamily}"`);
     }
     if ((document.fonts as any)?.ready) {
       await (document.fonts as any).ready;
+    }
+    for (let i = 0; i < 8; i += 1) {
+      try {
+        if (typeof (document.fonts as any).check === "function" && (document.fonts as any).check(`${fontStyle} ${fontWeight} ${fontSize}px "${fontFamily}"`)) {
+          break;
+        }
+      } catch {
+        // ignore
+      }
+      await delay(120);
     }
   } catch {
     // ignore font loading failure
@@ -416,10 +433,10 @@ async function drawImageCover(
 
 function buildFont(style?: LayerStyle) {
   const size = Math.max(10, Number(style?.fontSize ?? 48) || 48);
-  const family = normalizeFontFamily(firstNonEmptyString(style?.fontFamily, "Inter", "Arial")) || "Inter";
-  const weight = String(style?.fontWeight ?? "700");
+  const family = normalizeFontFamily(style?.fontFamily);
+  const weight = String(style?.fontWeight ?? "400");
   const italic = style?.italic || style?.fontStyle === "italic" ? "italic " : "";
-  return `${italic}${weight} ${size}px "${family}", Arial, sans-serif`;
+  return `${italic}${weight} ${size}px ${family}`;
 }
 
 function wrapText(
@@ -456,57 +473,52 @@ function wrapText(
   return lines;
 }
 
-function drawRoundedRect(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  radius: number
-) {
-  const r = Math.max(0, Math.min(radius, Math.min(w, h) / 2));
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-  ctx.lineTo(x + r, y + h);
-  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-  ctx.lineTo(x, y + r);
-  ctx.quadraticCurveTo(x, y, x + r, y);
-  ctx.closePath();
-}
-
 async function drawTextLayer(
   ctx: CanvasRenderingContext2D,
   layer: LayerData
 ) {
   const text = String(layer?.text || "").trim();
-  if (!text) return false;
+  if (!text) return;
 
   const x = getLayerX(layer);
   const y = getLayerY(layer);
   const w = getLayerW(layer, 520);
   const h = getLayerH(layer, 240);
   const style = getLayerStyle(layer);
+
   await ensureFontReady(style);
 
   const fontSize = Math.max(10, Number(style?.fontSize ?? 48) || 48);
   const lineHeight = Math.max(1, Number(style?.lineHeight ?? 1.2) || 1.2);
   const color = firstNonEmptyString(style?.fill, style?.color, style?.textColor, "#ffffff");
-  const align = getLayerTextAlign(style) as CanvasTextAlign;
   const backgroundColor = firstNonEmptyString(style?.backgroundColor, "");
-  const layerOpacity = Math.max(0, Math.min(1, Number(layer?.opacity ?? 1) || 1));
-  const paddingX = backgroundColor ? 22 : 6;
-  const paddingY = backgroundColor ? 16 : 6;
+  const align = getLayerTextAlign(style) as CanvasTextAlign;
+  const opacity = Math.max(0, Math.min(1, Number(layer?.opacity ?? 1) || 1));
+  const paddingX = backgroundColor ? 22 : 0;
+  const paddingY = backgroundColor ? 16 : 0;
+  const maxTextWidth = Math.max(40, w - paddingX * 2 - 12);
 
   ctx.save();
-  ctx.globalAlpha = layerOpacity;
+  ctx.globalAlpha = opacity;
 
   if (backgroundColor) {
+    const radius = 18;
+    const left = x;
+    const top = y;
+    const right = x + w;
+    const bottom = y + h;
+    ctx.beginPath();
+    ctx.moveTo(left + radius, top);
+    ctx.lineTo(right - radius, top);
+    ctx.quadraticCurveTo(right, top, right, top + radius);
+    ctx.lineTo(right, bottom - radius);
+    ctx.quadraticCurveTo(right, bottom, right - radius, bottom);
+    ctx.lineTo(left + radius, bottom);
+    ctx.quadraticCurveTo(left, bottom, left, bottom - radius);
+    ctx.lineTo(left, top + radius);
+    ctx.quadraticCurveTo(left, top, left + radius, top);
+    ctx.closePath();
     ctx.fillStyle = backgroundColor;
-    drawRoundedRect(ctx, x, y, w, h, 18);
     ctx.fill();
   }
 
@@ -515,24 +527,17 @@ async function drawTextLayer(
   ctx.textBaseline = "top";
   ctx.textAlign = align;
 
-  const lines = wrapText(ctx, text, Math.max(60, w - paddingX * 2));
+  const lines = wrapText(ctx, text, maxTextWidth);
   const step = fontSize * lineHeight;
-  const totalTextHeight = Math.max(fontSize, lines.length * step);
 
-  let baseY = y + paddingY;
-  if (backgroundColor) {
-    const centered = y + Math.max(0, (h - totalTextHeight) / 2);
-    baseY = Math.max(y + paddingY, centered);
-  }
-
-  let drawX = x + paddingX;
+  let drawX = x + paddingX + 6;
   if (align === "center") drawX = x + w / 2;
-  if (align === "right") drawX = x + w - paddingX;
+  if (align === "right") drawX = x + w - paddingX - 6;
 
   lines.forEach((line, index) => {
-    const lineY = baseY + index * step;
-    if (lineY > y + h - paddingY) return;
-    ctx.fillText(line, drawX, lineY, Math.max(20, w - paddingX * 2));
+    const lineY = y + paddingY + 6 + index * step;
+    if (lineY > y + h) return;
+    ctx.fillText(line, drawX, lineY, maxTextWidth);
 
     if (style?.underline) {
       const metrics = ctx.measureText(line);
@@ -550,7 +555,6 @@ async function drawTextLayer(
   });
 
   ctx.restore();
-  return true;
 }
 
 export async function renderSingleCreationToDataUrl(args: {
@@ -612,13 +616,7 @@ export async function renderSingleCreationToDataUrl(args: {
     }
 
     if (type === "text") {
-      const nativeDrawn = await drawTextLayer(ctx, layer);
-      if (!nativeDrawn) {
-        const richDrawn = await drawTextLayerRich(ctx, layer);
-        if (!richDrawn) {
-          await drawTextLayer(ctx, layer);
-        }
-      }
+      await drawTextLayer(ctx, layer);
     }
   }
 
