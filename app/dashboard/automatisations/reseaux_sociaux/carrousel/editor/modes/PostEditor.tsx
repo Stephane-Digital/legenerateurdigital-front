@@ -585,7 +585,7 @@ export default function PostEditor({
 }
 
 function extractHashtagsOnly(value: string) {
-  const matches = String(value || "").match(/#[\p{L}\p{N}_-]+/gu) || [];
+  const matches = String(value || "").match(/#[A-Za-z0-9À-ÖØ-öø-ÿ_-]+/g) || [];
   const unique: string[] = [];
   for (const tag of matches) {
     if (!unique.includes(tag)) unique.push(tag);
