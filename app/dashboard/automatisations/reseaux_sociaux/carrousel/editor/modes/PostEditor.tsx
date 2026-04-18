@@ -480,6 +480,8 @@ export default function PostEditor({
 
   const [aiOutput, setAiOutput] = useState<string>("");
   const [aiHooks, setAiHooks] = useState<string[]>([]);
+  const [aiCaption, setAiCaption] = useState<string>("");
+  const [copyFeedback, setCopyFeedback] = useState<string>("");
   const { schedule, loading: scheduleLoading } = useSchedulePlanner();
   const [scheduleOpen, setScheduleOpen] = useState(false);
 
@@ -507,6 +509,37 @@ export default function PostEditor({
   const targetLayer = useMemo(() => {
     return (draftLayers ?? []).find((l: any) => String(l?.id) === String(targetLayerId)) as any;
   }, [draftLayers, targetLayerId]);
+
+  const copyToClipboard = useCallback(async (value: string) => {
+    const safeValue = String(value || "").trim();
+    if (!safeValue) return;
+
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(safeValue);
+      } else if (typeof document !== "undefined") {
+        const textarea = document.createElement("textarea");
+        textarea.value = safeValue;
+        textarea.setAttribute("readonly", "true");
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+
+      setCopyFeedback("Légende copiée.");
+      window.setTimeout(() => {
+        setCopyFeedback((prev) => (prev === "Légende copiée." ? "" : prev));
+      }, 1800);
+    } catch {
+      setCopyFeedback("Copie impossible.");
+      window.setTimeout(() => {
+        setCopyFeedback((prev) => (prev === "Copie impossible." ? "" : prev));
+      }, 1800);
+    }
+  }, []);
 
   // ✅ IMPORTANT: synchroniser la sélection du layer dans l'UI de l'éditeur
   // pour que les propriétés (dont la couleur) s'appliquent bien au layer cible.
@@ -664,6 +697,10 @@ export default function PostEditor({
           .filter(Boolean);
 
         setAiHooks(lines.slice(0, 10));
+        setAiOutput(out);
+      } else if (task === "caption") {
+        setAiHooks([]);
+        setAiCaption(out);
         setAiOutput(out);
       } else {
         setAiHooks([]);
@@ -842,7 +879,7 @@ export default function PostEditor({
                   disabled={aiLoading || copilotDisabled}
                   className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
                 >
-                  Caption prête
+                  Légende IA
                 </button>
                 <button
                   onClick={() => runCopilot("cta")}
@@ -1005,6 +1042,8 @@ export default function PostEditor({
                           onClick={() => {
                             setAiOutput("");
                             setAiHooks([]);
+                            setAiCaption("");
+                            setCopyFeedback("");
                             setAiError(null);
                           }}
                           className="rounded-xl px-3 py-2 text-sm text-yellow-100 border border-yellow-500/20 bg-black/40 hover:bg-black/60"
@@ -1078,6 +1117,36 @@ export default function PostEditor({
                     <div className="mt-3 text-[11px] text-white/45">
                       Note : l’IA est volontairement spécialisée “marketing digital / produits digitaux / MRR”. Si tu sors du scope, elle recadre.
                     </div>
+
+                    {aiCaption ? (
+                      <div className="mt-4 rounded-2xl border border-yellow-500/15 bg-black/25 p-4">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <div className="text-yellow-200 font-semibold">Légende IA</div>
+                            <div className="text-[11px] text-white/45">Comme dans le Planner, mais directement dans le Copilot.</div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => copyToClipboard(aiCaption)}
+                              disabled={!aiCaption}
+                              className="rounded-xl px-3 py-2 text-xs font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
+                            >
+                              Copier la légende
+                            </button>
+                          </div>
+                        </div>
+
+                        <textarea
+                          value={aiCaption}
+                          onChange={(e) => setAiCaption(e.target.value)}
+                          rows={8}
+                          className="mt-3 w-full rounded-2xl bg-black/40 border border-yellow-500/15 px-4 py-3 text-yellow-100 outline-none"
+                        />
+
+                        {copyFeedback ? <div className="mt-2 text-[11px] text-white/55">{copyFeedback}</div> : null}
+                      </div>
+                    ) : null}
                   </div>
 
                   {targetLayer ? (
