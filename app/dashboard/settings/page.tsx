@@ -1,265 +1,297 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { FaCog, FaEnvelope } from "react-icons/fa";
 
 type SubscriptionResponse = {
-  id?: number;
-  email?: string;
-  plan?: string;
-  is_active?: boolean;
-  is_admin?: boolean;
+  email?: string | null;
+  plan?: string | null;
+  plan_label?: string | null;
+  quota_remaining?: number | null;
+  quota_limit?: number | null;
+  status?: string | null;
+  subscription_status?: string | null;
 };
 
-type QuotaResponse = {
-  plan?: string;
-  tokens_used?: number;
-  tokens_limit?: number;
-  remaining?: number;
-};
+function getApiBaseUrl() {
+  return (
+    process.env.NEXT_PUBLIC_API_URL ||
+    process.env.NEXT_PUBLIC_API_BASE_URL ||
+    "http://127.0.0.1:8000"
+  ).replace(/\/+$/, "");
+}
 
-type CancelResponse = {
-  ok?: boolean;
-  email?: string;
-  cancel_mode?: string;
-  remote?: {
-    transport?: string;
-    status_code?: number;
-    response?: unknown;
-  };
-  local?: {
-    plan?: string;
-    reset_usage?: boolean;
-    source?: string;
-  };
-};
+function getAuthHeaders() {
+  if (typeof window === "undefined") return {};
 
-const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
+  const token =
+    window.localStorage.getItem("access_token") ||
+    window.localStorage.getItem("token") ||
+    window.localStorage.getItem("jwt") ||
+    window.localStorage.getItem("lgd_token") ||
+    "";
 
-function planLabel(plan?: string) {
-  const value = String(plan || "essentiel").toLowerCase();
-  if (value.includes("ult")) return "ULTIME";
-  if (value.includes("pro")) return "PRO";
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+function formatPlanLabel(plan?: string | null) {
+  const raw = String(plan || "").trim().toLowerCase();
+
+  if (raw === "ultime") return "ULTIME";
+  if (raw === "pro") return "PRO";
+  if (raw === "essentiel") return "ESSENTIEL";
+  if (raw === "free") return "ESSENTIEL";
+
   return "ESSENTIEL";
 }
 
-function planDescription(plan?: string) {
-  const value = String(plan || "essentiel").toLowerCase();
-  if (value.includes("ult")) return "Accès premium complet LGD";
-  if (value.includes("pro")) return "Accès avancé LGD";
+function formatPlanName(plan?: string | null) {
+  const raw = String(plan || "").trim().toLowerCase();
+
+  if (raw === "ultime") return "Plan Ultime LGD";
+  if (raw === "pro") return "Plan Pro LGD";
+  if (raw === "essentiel") return "Accès de base LGD";
+  if (raw === "free") return "Accès de base LGD";
+
   return "Accès de base LGD";
 }
 
-async function fetchJSON<T>(path: string, init?: RequestInit): Promise<T> {
-  const headers: Record<string, string> = {
-    Accept: "application/json",
-    ...(init?.headers as Record<string, string> | undefined),
-  };
-
-  if (typeof window !== "undefined" && !headers.Authorization) {
-    const token =
-      window.localStorage.getItem("access_token") ||
-      window.localStorage.getItem("token") ||
-      window.localStorage.getItem("jwt") ||
-      window.localStorage.getItem("lgd_token") ||
-      "";
-
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
-  }
-
-  if (init?.body && !headers["Content-Type"]) {
-    headers["Content-Type"] = "application/json";
-  }
-
-  const res = await fetch(`${API_URL}${path}`, {
-    ...init,
-    credentials: "include",
-    headers,
-  });
-
-  const text = await res.text();
-  if (!res.ok) {
-    throw new Error(text || `HTTP ${res.status}`);
-  }
-
-  try {
-    return JSON.parse(text) as T;
-  } catch {
-    return {} as T;
-  }
+function formatNumber(value?: number | null) {
+  return new Intl.NumberFormat("fr-FR").format(Number(value || 0));
 }
 
 export default function SettingsPage() {
-  const [subscription, setSubscription] = useState<SubscriptionResponse | null>(null);
-  const [quota, setQuota] = useState<QuotaResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [cancelLoading, setCancelLoading] = useState(false);
-  const [message, setMessage] = useState("");
+  const [sub, setSub] = useState<SubscriptionResponse | null>(null);
   const [error, setError] = useState("");
+  const [copySuccess, setCopySuccess] = useState(false);
 
-  const plan = useMemo(() => subscription?.plan || quota?.plan || "essentiel", [subscription, quota]);
+  const apiBaseUrl = useMemo(() => getApiBaseUrl(), []);
 
-  async function loadData() {
-    setLoading(true);
-    setError("");
+  const supportEmail = "contact@legenerateurdigital.com";
+  const userEmail = sub?.email || "";
+  const mailSubject = encodeURIComponent("Demande de résiliation abonnement LGD");
+  const mailBody = encodeURIComponent(
+    `Bonjour,
 
-    try {
-      const [sub, quotaData] = await Promise.all([
-        fetchJSON<SubscriptionResponse>("/auth/subscription"),
-        fetchJSON<QuotaResponse>("/ai-quota/global"),
-      ]);
-      setSubscription(sub);
-      setQuota(quotaData);
-    } catch (err: any) {
-      setError(String(err?.message || err || "Impossible de charger les paramètres du compte."));
-    } finally {
-      setLoading(false);
-    }
-  }
+Je souhaite résilier mon abonnement LGD.
+
+Email du compte LGD : ${userEmail || "[à compléter]"}
+Plan actuel : ${formatPlanLabel(sub?.plan)}
+Date de la demande : ${new Date().toLocaleDateString("fr-FR")}
+
+Merci de prendre en compte ma demande.
+
+Cordialement`
+  );
+
+  const mailtoUrl = `mailto:${supportEmail}?subject=${mailSubject}&body=${mailBody}`;
 
   useEffect(() => {
-    void loadData();
-  }, []);
+    let active = true;
 
-  async function handleCancel(cancelMode: "end_of_period" | "immediate") {
-    const confirmText =
-      cancelMode === "immediate"
-        ? "Confirmer le désabonnement immédiat ? L'accès payant et les quotas seront réinitialisés tout de suite."
-        : "Confirmer le désabonnement en fin de période ?";
+    async function loadSubscription() {
+      try {
+        setLoading(true);
+        setError("");
 
-    if (!window.confirm(confirmText)) return;
-
-    setCancelLoading(true);
-    setError("");
-    setMessage("");
-
-    try {
-      const result = await fetchJSON<CancelResponse>("/auth/subscription/cancel", {
-        method: "POST",
-        body: JSON.stringify({ cancel_mode: cancelMode }),
-      });
-
-      if (cancelMode === "immediate") {
-        setSubscription((prev) => ({ ...(prev || {}), plan: "essentiel" }));
-        setQuota((prev) => {
-          const limit = prev?.tokens_limit || 400000;
-          return {
-            ...(prev || {}),
-            plan: "essentiel",
-            tokens_used: 0,
-            remaining: limit,
-          };
+        const response = await fetch(`${apiBaseUrl}/auth/subscription`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            ...getAuthHeaders(),
+          },
+          credentials: "include",
+          cache: "no-store",
         });
+
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(
+            data?.detail || "Impossible de charger le statut abonnement."
+          );
+        }
+
+        if (!active) return;
+
+        setSub({
+          email: data?.email ?? "",
+          plan: data?.plan ?? "essentiel",
+          plan_label: data?.plan_label ?? formatPlanLabel(data?.plan),
+          quota_remaining: Number(data?.quota_remaining ?? 0),
+          quota_limit: Number(data?.quota_limit ?? 0),
+          status: data?.status ?? "",
+          subscription_status: data?.subscription_status ?? "",
+        });
+      } catch (err: any) {
+        if (!active) return;
+        setError(err?.message || "Erreur de chargement.");
+      } finally {
+        if (active) setLoading(false);
       }
+    }
 
-      setMessage(
-        cancelMode === "immediate"
-          ? "Désabonnement immédiat envoyé à Systeme.io et synchronisation LGD appliquée."
-          : "Demande de désabonnement envoyée à Systeme.io. La synchronisation finale sera confirmée par webhook."
-      );
+    loadSubscription();
 
-      if (result?.local?.plan) {
-        setSubscription((prev) => ({ ...(prev || {}), plan: result.local?.plan }));
-      }
+    return () => {
+      active = false;
+    };
+  }, [apiBaseUrl]);
 
-      await loadData();
-    } catch (err: any) {
-      setError(String(err?.message || err || "Impossible de traiter le désabonnement."));
-    } finally {
-      setCancelLoading(false);
+  const currentPlan = formatPlanLabel(sub?.plan);
+  const currentPlanName = formatPlanName(sub?.plan);
+  const quotaRemaining = Number(sub?.quota_remaining ?? 0);
+  const quotaLimit = Number(sub?.quota_limit ?? 0);
+
+  async function handleCopyEmail() {
+    try {
+      await navigator.clipboard.writeText(supportEmail);
+      setCopySuccess(true);
+      window.setTimeout(() => setCopySuccess(false), 2000);
+    } catch {
+      setCopySuccess(false);
     }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#0a0a0a] to-[#1a1a1a] px-6 py-[70px] text-white">
-      <div className="mx-auto flex w-full max-w-5xl flex-col items-center gap-8">
-        <div className="w-full max-w-3xl text-center">
-          <h1 className="mb-4 text-4xl font-extrabold text-[#ffb800] drop-shadow-[0_0_18px_rgba(255,184,0,0.2)]">
-            ⚙️ Paramètres du compte
-          </h1>
-          <p className="text-gray-300">
-            Gère ton abonnement LGD, vérifie ton plan actif et sécurise la synchronisation avec Systeme.io.
+    <div className="min-h-screen bg-black text-white">
+      <div className="mx-auto flex w-full max-w-7xl flex-col px-6 pb-16 pt-10 md:px-8">
+        <div className="mx-auto mb-10 flex w-full max-w-5xl flex-col items-center text-center">
+          <div className="mb-4 flex items-center gap-4">
+            <FaCog className="text-4xl text-[#cfc3d9]" />
+            <h1 className="text-4xl font-black tracking-tight text-[#f5b700] md:text-5xl">
+              Paramètres du compte
+            </h1>
+          </div>
+
+          <p className="max-w-4xl text-base text-white/85 md:text-lg">
+            Gère ton abonnement LGD, vérifie ton plan actif et consulte la
+            procédure officielle de résiliation.
           </p>
         </div>
 
-        {message ? (
-          <div className="w-full max-w-3xl rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-5 py-4 text-center text-sm text-emerald-200">
-            {message}
-          </div>
-        ) : null}
-
         {error ? (
-          <div className="w-full max-w-3xl rounded-2xl border border-red-500/30 bg-red-500/10 px-5 py-4 text-center text-sm text-red-200 whitespace-pre-wrap">
+          <div className="mx-auto mb-8 w-full max-w-4xl rounded-3xl border border-red-800 bg-red-950/40 px-6 py-5 text-center text-sm text-red-100 shadow-[0_0_24px_rgba(220,38,38,0.10)] md:text-base">
             {error}
           </div>
         ) : null}
 
-        <div className="grid w-full max-w-5xl gap-6 lg:grid-cols-2">
-          <section className="rounded-3xl border border-yellow-500/20 bg-[#111] p-8 shadow-2xl shadow-black/40">
-            <div className="mb-6 flex items-center justify-between gap-4">
+        <div className="mx-auto grid w-full max-w-5xl grid-cols-1 gap-6 lg:grid-cols-2">
+          <section className="rounded-[28px] border border-[#1f1607] bg-[#050505] p-8 shadow-[0_0_32px_rgba(245,183,0,0.08)]">
+            <div className="mb-6 flex items-start justify-between gap-4">
               <div>
-                <p className="text-sm uppercase tracking-[0.2em] text-yellow-500/70">Abonnement LGD</p>
-                <h2 className="mt-2 text-2xl font-semibold text-[#ffcc4d]">Statut du compte</h2>
+                <p className="mb-2 text-xs uppercase tracking-[0.35em] text-[#d6a300]">
+                  Abonnement LGD
+                </p>
+                <h2 className="text-3xl font-extrabold text-[#f5b700]">
+                  Statut du compte
+                </h2>
               </div>
-              <span className="rounded-full border border-yellow-400/30 bg-yellow-500/10 px-4 py-2 text-sm font-semibold text-yellow-200">
-                {planLabel(plan)}
-              </span>
+
+              <div className="rounded-full border border-[#6d5500] bg-[#231a00] px-4 py-2 text-sm font-bold text-[#ffe082]">
+                {loading ? "..." : currentPlan}
+              </div>
             </div>
 
-            <div className="space-y-4 text-sm text-gray-300">
-              <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-                <p className="text-gray-400">Compte</p>
-                <p className="mt-1 text-base font-medium text-white">
-                  {loading ? "Chargement..." : subscription?.email || "Email indisponible"}
+            <div className="space-y-5">
+              <div className="rounded-3xl border border-white/20 bg-white/[0.03] p-5">
+                <p className="mb-2 text-sm text-white/55">Compte</p>
+                <p className="text-2xl font-semibold text-white break-all">
+                  {loading ? "Chargement..." : sub?.email || "—"}
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-                <p className="text-gray-400">Plan actif</p>
-                <p className="mt-1 text-base font-medium text-white">{loading ? "Chargement..." : planDescription(plan)}</p>
+              <div className="rounded-3xl border border-white/20 bg-white/[0.03] p-5">
+                <p className="mb-2 text-sm text-white/55">Plan actif</p>
+                <p className="text-2xl font-semibold text-white">
+                  {loading ? "Chargement..." : currentPlanName}
+                </p>
               </div>
 
-              <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-                <p className="text-gray-400">Quota IA restant</p>
-                <p className="mt-1 text-base font-medium text-white">
-                  {loading ? "Chargement..." : `${Number(quota?.remaining || 0).toLocaleString("fr-FR")} / ${Number(quota?.tokens_limit || 0).toLocaleString("fr-FR")}`}
+              <div className="rounded-3xl border border-white/20 bg-white/[0.03] p-5">
+                <p className="mb-2 text-sm text-white/55">Quota IA restant</p>
+                <p className="text-2xl font-semibold text-white">
+                  {loading
+                    ? "Chargement..."
+                    : `${formatNumber(quotaRemaining)} / ${formatNumber(
+                        quotaLimit
+                      )}`}
                 </p>
               </div>
             </div>
           </section>
 
-          <section className="rounded-3xl border border-yellow-500/20 bg-[#111] p-8 shadow-2xl shadow-black/40">
-            <p className="text-sm uppercase tracking-[0.2em] text-yellow-500/70">Gestion abonnement</p>
-            <h2 className="mt-2 text-2xl font-semibold text-[#ffcc4d]">Désabonnement sécurisé</h2>
-            <p className="mt-4 text-sm leading-6 text-gray-300">
-              Le bouton déclenche l'action côté Systeme.io puis LGD synchronise ton plan et tes quotas. En mode fin de période,
-              la mise à jour finale est confirmée par webhook. En mode immédiat, LGD rebascule aussitôt sur le plan Essentiel.
+          <section className="rounded-[28px] border border-[#1f1607] bg-[#050505] p-8 shadow-[0_0_32px_rgba(245,183,0,0.08)]">
+            <div className="mb-6">
+              <p className="mb-2 text-xs uppercase tracking-[0.35em] text-[#d6a300]">
+                Gestion abonnement
+              </p>
+              <h2 className="text-3xl font-extrabold text-[#f5b700]">
+                Résiliation par email
+              </h2>
+            </div>
+
+            <p className="mb-6 text-lg leading-8 text-white/85">
+              Pour résilier ton abonnement LGD, envoie simplement ta demande à
+              notre équipe depuis l’adresse email liée à ton compte.
             </p>
 
-            <div className="mt-6 space-y-4">
-              <button
-                type="button"
-                onClick={() => handleCancel("end_of_period")}
-                disabled={cancelLoading || loading}
-                className="w-full rounded-2xl border border-yellow-400/30 bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] px-5 py-4 font-semibold text-black transition hover:-translate-y-0.5 hover:shadow-[0_0_20px_rgba(255,184,0,0.25)] disabled:cursor-not-allowed disabled:opacity-60"
+            <div className="mb-6 rounded-3xl border border-[#6d5500] bg-[#231a00]/40 p-5">
+              <p className="mb-2 text-sm uppercase tracking-[0.25em] text-[#d6a300]">
+                Adresse de contact
+              </p>
+              <p className="text-2xl font-bold text-white break-all">
+                {supportEmail}
+              </p>
+            </div>
+
+            <div className="mb-6 rounded-3xl border border-white/20 bg-white/[0.03] p-5 text-base leading-8 text-white/80">
+              <p className="mb-3 font-semibold text-white">
+                Procédure officielle :
+              </p>
+              <p>
+                1. Envoie un email de demande de résiliation à{" "}
+                <span className="font-semibold text-[#f5bf21]">{supportEmail}</span>.
+              </p>
+              <p>
+                2. Utilise de préférence l’adresse email de ton compte LGD pour
+                faciliter la vérification.
+              </p>
+              <p>
+                3. L’abonnement sera ensuite résilié manuellement depuis le
+                tableau de bord Systeme.io.
+              </p>
+              <p>
+                4. Une fois la résiliation effectuée, LGD se synchronisera via
+                webhook pour mettre à jour ton plan et tes quotas.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-4">
+              <a
+                href={mailtoUrl}
+                className="flex w-full items-center justify-center gap-3 rounded-3xl bg-[#f5bf21] px-6 py-5 text-center text-2xl font-extrabold text-black transition hover:brightness-105"
               >
-                {cancelLoading ? "Traitement..." : "Se désabonner en fin de période"}
-              </button>
+                <FaEnvelope className="text-xl" />
+                Envoyer la demande de résiliation
+              </a>
 
               <button
                 type="button"
-                onClick={() => handleCancel("immediate")}
-                disabled={cancelLoading || loading}
-                className="w-full rounded-2xl border border-red-500/30 bg-red-500/10 px-5 py-4 font-semibold text-red-200 transition hover:-translate-y-0.5 hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-60"
+                onClick={handleCopyEmail}
+                className="w-full rounded-3xl border border-white/25 bg-white/[0.03] px-6 py-5 text-center text-xl font-bold text-white transition hover:bg-white/[0.06]"
               >
-                {cancelLoading ? "Traitement..." : "Se désabonner immédiatement"}
+                {copySuccess
+                  ? "Adresse email copiée"
+                  : "Copier l’adresse email de contact"}
               </button>
             </div>
 
-            <div className="mt-6 rounded-2xl border border-white/8 bg-white/5 p-4 text-xs leading-6 text-gray-400">
-              Sécurité LGD : l'utilisateur authentifié est vérifié côté backend avant toute demande d'annulation. Le plan et les quotas
-              sont resynchronisés uniquement pour l'utilisateur connecté ou via le webhook Systeme.io signé.
+            <div className="mt-6 rounded-3xl border border-white/25 bg-white/[0.02] p-5 text-base leading-8 text-white/65">
+              Sécurité LGD : aucune annulation automatique n’est simulée côté
+              application. Toute résiliation passe par une demande email,
+              traitée manuellement, puis synchronisée proprement dans LGD.
             </div>
           </section>
         </div>
