@@ -1,17 +1,23 @@
 "use client";
 
 import { Suspense, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { loginUser } from "@/lib/auth";
 
 function ResetPasswordContent() {
+  const router = useRouter();
   const params = useSearchParams();
   const token = params.get("token");
 
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
 
   const handleSubmit = async () => {
+    if (!token || loading) return;
+
+    setLoading(true);
     setError("");
 
     try {
@@ -29,12 +35,31 @@ function ResetPasswordContent() {
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        throw new Error(data?.detail || "Impossible de réinitialiser le mot de passe.");
+        throw new Error(
+          data?.detail || "Impossible de réinitialiser le mot de passe."
+        );
       }
 
+      const email = String(data?.email || "").trim();
+
+      if (!email) {
+        throw new Error("Email introuvable après réinitialisation.");
+      }
+
+      await loginUser(email, password);
+
       setDone(true);
+
+      window.setTimeout(() => {
+        router.replace("/dashboard");
+        router.refresh();
+      }, 800);
     } catch (err: any) {
-      setError(err?.message || "Impossible de réinitialiser le mot de passe.");
+      setError(
+        err?.message || "Impossible de réinitialiser le mot de passe."
+      );
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -47,7 +72,7 @@ function ResetPasswordContent() {
 
         {done ? (
           <p className="text-green-400">
-            Mot de passe mis à jour. Vous pouvez maintenant vous connecter.
+            Mot de passe mis à jour. Connexion automatique...
           </p>
         ) : (
           <>
@@ -57,6 +82,7 @@ function ResetPasswordContent() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full rounded-xl border border-[#C9A14A]/20 bg-[#E9EEF7] px-4 py-3 text-black outline-none transition focus:border-[#D4AF37]/60 focus:ring-2 focus:ring-[#D4AF37]/15"
+              disabled={loading}
             />
 
             {error ? (
@@ -67,9 +93,10 @@ function ResetPasswordContent() {
 
             <button
               onClick={handleSubmit}
-              className="mt-4 w-full rounded-xl border border-[#D4AF37]/35 bg-gradient-to-r from-[#B8892D] via-[#D4AF37] to-[#B8892D] px-4 py-3 font-semibold text-black transition hover:brightness-105"
+              disabled={loading || !password.trim() || !token}
+              className="mt-4 w-full rounded-xl border border-[#D4AF37]/35 bg-gradient-to-r from-[#B8892D] via-[#D4AF37] to-[#B8892D] px-4 py-3 font-semibold text-black transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-70"
             >
-              Valider
+              {loading ? "Validation..." : "Valider"}
             </button>
           </>
         )}
