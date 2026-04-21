@@ -119,6 +119,15 @@ export default function LoginContent() {
             />
           </div>
 
+          <div className="w-full text-right mt-2">
+  <a
+    href="/auth/forgot-password"
+    className="text-sm text-[#d4af37] hover:underline"
+  >
+    Mot de passe oublié ?
+  </a>
+</div>
+
           {error ? (
             <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
               {error}
