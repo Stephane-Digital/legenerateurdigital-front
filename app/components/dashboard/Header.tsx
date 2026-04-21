@@ -14,6 +14,7 @@ const EDITOR_PATH = "/dashboard/automatisations/reseaux_sociaux/editor-intellige
 const COACH_PATH = "/dashboard/coach-ia";
 const LEADS_PATH = "/dashboard/lead-engine";
 const EMAIL_CAMPAIGNS_PATH = "/dashboard/email-campaigns";
+const SETTINGS_PATH = "/dashboard/settings";
 
 function planLabel(plan: Plan) {
   if (plan === "ultime") return "ULTIME";
@@ -154,6 +155,7 @@ export default function Header() {
             </>
           )}
           <a href={PLANS_URL} className="px-4 py-2 rounded-xl text-white/80 hover:text-yellow-400 transition-colors" onClick={openPlans}>Plans</a>
+          <Link href={SETTINGS_PATH} className={linkClasses(SETTINGS_PATH)}>Paramètres</Link>
           <span className={badgeClasses}>{loadingPlan ? "PLAN : ..." : `PLAN : ${planLabel(plan)}`}</span>
           {plan !== "ultime" && <button className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] text-black font-semibold hover:-translate-y-0.5 transition-all" onClick={openPlans}>Upgrade</button>}
         </nav>
@@ -197,6 +199,7 @@ export default function Header() {
                     </>
                   )}
                   <a href={PLANS_URL} className={drawerBtn} onClick={openPlans}><span>Plans</span><span className="text-white/40">→</span></a>
+                  <button className={isActive(pathname, SETTINGS_PATH) ? drawerBtnActive : drawerBtn} onClick={() => go(SETTINGS_PATH)}><span>Paramètres</span><span className="text-white/40">→</span></button>
                 </div>
               </div>
             </motion.div>
