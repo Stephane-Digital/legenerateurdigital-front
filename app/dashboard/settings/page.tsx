@@ -211,7 +211,7 @@ Cordialement`
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <div className="mx-auto w-full max-w-6xl px-5 pb-12 pt-5 md:px-6">
+      <div className="mx-auto w-full max-w-6xl px-5 pb-12 pt-16 md:px-6">
         <div className="mx-auto mb-7 flex max-w-4xl flex-col items-center text-center">
           <div className="mb-3 flex items-center gap-3">
             <FaCog className="text-2xl text-[#cfc3d9]" />
