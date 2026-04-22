@@ -292,7 +292,7 @@ Cordialement`
               <p className="mb-2 text-[11px] uppercase tracking-[0.28em] text-[#d6a300]">
                 Adresse de contact
               </p>
-              <p className="break-all text-[11px] font-semibold text-white md:text-xl">
+              <p className="break-all text-[11px] small-caps text-white md:text-xl">
                 {supportEmail}
               </p>
             </div>
