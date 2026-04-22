@@ -133,7 +133,7 @@ export default function RegisterPage() {
               Essai gratuit 7 jours 🚀
             </h2>
 
-            <p className="text-white/80 mb-6 leading-relaxed">
+            <p className="text-white mb-6 leading-relaxed">
               Découvre LGD gratuitement pendant 7 jours, sans carte bancaire.
               Teste les fonctionnalités clés et lance ton business avec l’IA.
             </p>
@@ -146,7 +146,7 @@ export default function RegisterPage() {
               <div>⏱️ Reprise du compte à tout moment</div>
             </div>
 
-            <p className="text-white/60 text-sm leading-relaxed">
+            <p className="text-white text-sm leading-relaxed">
               💛 À la fin de ton essai, ton travail reste sauvegardé.
               Tu peux revenir à tout moment et activer ton plan Essentielle, Pro , Ultime.
             </p>
