@@ -279,7 +279,7 @@ Cordialement`
               <p className="mb-1 text-[11px] uppercase tracking-[0.32em] text-[#d6a300]">
                 Gestion abonnement
               </p>
-              <h2 className="text-xl font-bold text-[#f5b700] md:text-2xl">
+              <h2 className="text-xl font-semibold text-[#f5b700] md:text-2xl">
                 Résiliation par email
               </h2>
             </div>
@@ -292,7 +292,7 @@ Cordialement`
               <p className="mb-2 text-[11px] uppercase tracking-[0.28em] text-[#d6a300]">
                 Adresse de contact
               </p>
-              <p className="break-all text-lg font-bold text-white md:text-xl">
+              <p className="break-all text-[11px] font-semibold text-white md:text-xl">
                 {supportEmail}
               </p>
             </div>
