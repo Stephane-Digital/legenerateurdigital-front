@@ -2,12 +2,17 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import Image from "next/image";
+import {
+  FaLock,
+  FaShieldAlt,
+  FaUsers,
+} from "react-icons/fa";
 
 export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [logoError, setLogoError] = useState(false);
 
   const SIO_TRIAL_URL =
     process.env.NEXT_PUBLIC_SYSTEMEIO_TRIAL_URL ||
@@ -15,23 +20,27 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center px-4 relative overflow-hidden">
-
-      {/* 🔥 BACKGROUND GLOW */}
       <div className="absolute top-[-100px] left-[-100px] w-[400px] h-[400px] bg-[#f5b700]/10 blur-3xl rounded-full" />
       <div className="absolute bottom-[-100px] right-[-100px] w-[400px] h-[400px] bg-purple-600/10 blur-3xl rounded-full" />
 
-      {/* ========================= */}
-      {/* 🔥 HEADER LGD */}
-      {/* ========================= */}
       <div className="text-center mb-10 relative z-10">
-
-        <Image
-          src="/logo-lgd.png"
-          alt="LGD"
-          width={180}
-          height={80}
-          className="mx-auto mb-4"
-        />
+        {!logoError ? (
+          <img
+            src="/logo-lgd.png"
+            alt="LGD"
+            className="mx-auto mb-4 h-auto w-[220px] md:w-[280px] object-contain"
+            onError={() => setLogoError(true)}
+          />
+        ) : (
+          <div className="mx-auto mb-4">
+            <div className="text-5xl md:text-6xl font-black tracking-tight text-[#f5b700]">
+              LGD
+            </div>
+            <div className="text-white/85 text-sm md:text-base font-bold tracking-[0.18em] uppercase">
+              Le Générateur Digital
+            </div>
+          </div>
+        )}
 
         <h1 className="text-4xl md:text-5xl font-black">
           Ton succès <span className="text-[#f5b700]">commence ici.</span>
@@ -42,22 +51,13 @@ export default function RegisterPage() {
         </p>
       </div>
 
-      {/* ========================= */}
-      {/* 📦 GRID */}
-      {/* ========================= */}
       <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-8 relative z-10">
-
-        {/* ========================= */}
-        {/* 🔐 FORMULAIRE REGISTER */}
-        {/* ========================= */}
         <div className="bg-[#050505] border border-white/10 rounded-2xl p-8 backdrop-blur">
-
           <h2 className="text-2xl font-bold mb-6 text-[#f5b700]">
             Créer un compte LGD
           </h2>
 
           <form className="space-y-4">
-
             <input
               type="text"
               placeholder="Nom et prénom"
@@ -88,7 +88,6 @@ export default function RegisterPage() {
             >
               Créer mon compte
             </button>
-
           </form>
 
           <p className="text-sm text-white/60 mt-4 text-center">
@@ -97,13 +96,38 @@ export default function RegisterPage() {
               Se connecter
             </Link>
           </p>
+
+          <div className="mt-8 grid grid-cols-3 gap-4">
+            <div className="flex flex-col items-center rounded-2xl border border-white/10 bg-white/[0.02] px-3 py-5 text-center">
+              <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-black/50 text-white/90">
+                <FaShieldAlt />
+              </div>
+              <div className="text-sm md:text-base font-medium text-white/90">
+                Sécurisé
+              </div>
+            </div>
+
+            <div className="flex flex-col items-center rounded-2xl border border-white/10 bg-white/[0.02] px-3 py-5 text-center">
+              <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-black/50 text-white/90">
+                <FaLock />
+              </div>
+              <div className="text-sm md:text-base font-medium text-white/90">
+                Confidentiel
+              </div>
+            </div>
+
+            <div className="flex flex-col items-center rounded-2xl border border-white/10 bg-white/[0.02] px-3 py-5 text-center">
+              <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-black/50 text-white/90">
+                <FaUsers />
+              </div>
+              <div className="text-sm md:text-base font-medium text-white/90">
+                Accès immédiat
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* ========================= */}
-        {/* 🚀 BLOC ESSAI GRATUIT */}
-        {/* ========================= */}
         <div className="bg-gradient-to-br from-[#0a0a0a] to-[#1a1a1a] border border-[#f5b700]/20 rounded-2xl p-8 flex flex-col justify-between shadow-[0_0_40px_rgba(245,183,0,0.15)]">
-
           <div>
             <h2 className="text-3xl font-black text-[#f5b700] mb-4">
               Essai gratuit 7 jours
@@ -132,13 +156,13 @@ export default function RegisterPage() {
             <a
               href={SIO_TRIAL_URL}
               target="_blank"
+              rel="noopener noreferrer"
               className="block w-full text-center bg-gradient-to-r from-purple-600 to-[#f5b700] text-white font-bold py-3 rounded-xl hover:opacity-90 transition"
             >
               Activer mon essai gratuit 🚀
             </a>
           </div>
         </div>
-
       </div>
     </div>
   );
