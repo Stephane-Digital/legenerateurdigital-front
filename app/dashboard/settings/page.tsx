@@ -251,7 +251,7 @@ Cordialement`
             <div className="space-y-4">
               <div className="rounded-[22px] border border-white/15 bg-white/[0.03] p-4">
                 <p className="mb-1 text-sm text-white/55">Compte</p>
-                <p className="break-all text-[8px] font-small-caps text-white md:text-xl">
+                <p className="break-all text-sm font-small-caps text-white md:text-xl">
                   {loading ? "Chargement..." : state.email || "—"}
                 </p>
               </div>
