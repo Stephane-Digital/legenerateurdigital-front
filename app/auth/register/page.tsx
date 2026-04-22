@@ -130,7 +130,7 @@ export default function RegisterPage() {
         <div className="bg-gradient-to-br from-[#0a0a0a] to-[#1a1a1a] border border-[#f5b700]/20 rounded-2xl p-8 flex flex-col justify-between shadow-[0_0_40px_rgba(245,183,0,0.15)]">
           <div>
             <h2 className="text-3xl font-black text-[#f5b700] mb-4">
-              Essai gratuit 7 jours
+              Essai gratuit 7 jours 🚀
             </h2>
 
             <p className="text-white/80 mb-6 leading-relaxed">
@@ -139,16 +139,16 @@ export default function RegisterPage() {
             </p>
 
             <div className="space-y-3 text-sm text-white/70 mb-6">
-              <div>✔ 7 jours gratuits</div>
-              <div>✔ Sans carte bancaire</div>
-              <div>✔ 10 000 jetons IA / jour</div>
-              <div>✔ Mémoire LGD activée</div>
-              <div>✔ Reprise du compte à tout moment</div>
+              <div>🗓️ 7 jours gratuits</div>
+              <div>💳 Sans carte bancaire</div>
+              <div>🎫 10 000 jetons IA / jour</div>
+              <div>🧠 Mémoire LGD activée</div>
+              <div>⏱️ Reprise du compte à tout moment</div>
             </div>
 
             <p className="text-white/60 text-sm leading-relaxed">
-              À la fin de ton essai, ton travail reste sauvegardé.
-              Tu peux revenir à tout moment et activer un plan premium.
+              💛 À la fin de ton essai, ton travail reste sauvegardé.
+              Tu peux revenir à tout moment et activer ton plan Essentielle, Pro , Ultime.
             </p>
           </div>
 
