@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { Suspense, FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
   FaArrowRight,
   FaCheckCircle,
@@ -32,7 +32,7 @@ type PendingAccessResponse = {
   ends_at?: string | null;
 };
 
-export default function ActivateAccountPage() {
+function ActivateAccountInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -288,10 +288,7 @@ export default function ActivateAccountPage() {
             ) : null}
 
             <p className="mt-6 text-center text-sm text-white/60">
-              Déjà activé ?{" "}
-              <Link href="/auth/login" className="font-semibold text-[#f5b700]">
-                Se connecter
-              </Link>
+              Déjà activé ? <Link href="/auth/login" className="font-semibold text-[#f5b700]">Se connecter</Link>
             </p>
           </section>
 
@@ -380,5 +377,19 @@ export default function ActivateAccountPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ActivateAccountPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#030303] text-white flex items-center justify-center">
+          Chargement de l’activation LGD...
+        </div>
+      }
+    >
+      <ActivateAccountInner />
+    </Suspense>
   );
 }
