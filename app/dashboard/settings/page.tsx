@@ -238,7 +238,7 @@ Cordialement`
                 <p className="mb-1 text-[11px] uppercase tracking-[0.32em] text-[#d6a300]">
                   Abonnement LGD
                 </p>
-                <h2 className="text-xl font-extrabold text-[#f5b700] md:text-2xl">
+                <h2 className="text-xl font-semibold text-[#f5b700] md:text-2xl">
                   Statut du compte
                 </h2>
               </div>
