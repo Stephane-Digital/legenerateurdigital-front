@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import {
   FaArrowRight,
@@ -20,24 +19,11 @@ import {
   FaUsers,
 } from "react-icons/fa";
 
-function getApiBaseUrl() {
-  return (
-    process.env.NEXT_PUBLIC_API_URL ||
-    process.env.NEXT_PUBLIC_API_BASE_URL ||
-    "http://127.0.0.1:8000"
-  ).replace(/\/+$/, "");
-}
-
 export default function RegisterPage() {
-  const router = useRouter();
-  const apiBaseUrl = useMemo(() => getApiBaseUrl(), []);
-
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
   const trialUrl = useMemo(() => {
     return (
@@ -45,80 +31,6 @@ export default function RegisterPage() {
       "https://legenerateurdigital.systeme.io/lgd"
     );
   }, []);
-
-  async function handleRegister(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (loading) return;
-
-    setError("");
-
-    const cleanName = fullName.trim();
-    const cleanEmail = email.trim().toLowerCase();
-    const cleanPassword = password;
-
-    if (!cleanName || !cleanEmail || !cleanPassword) {
-      setError("Merci de remplir le nom, l’email et le mot de passe.");
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      const registerRes = await fetch(`${apiBaseUrl}/auth/register`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          email: cleanEmail,
-          password: cleanPassword,
-          full_name: cleanName,
-        }),
-      });
-
-      const registerData = await registerRes.json().catch(() => ({}));
-
-      if (!registerRes.ok) {
-        throw new Error(registerData?.detail || "Impossible de créer le compte.");
-      }
-
-      const loginRes = await fetch(`${apiBaseUrl}/auth/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          email: cleanEmail,
-          password: cleanPassword,
-        }),
-      });
-
-      const loginData = await loginRes.json().catch(() => ({}));
-
-      if (!loginRes.ok) {
-        throw new Error(loginData?.detail || "Compte créé, mais connexion automatique impossible.");
-      }
-
-      const token =
-        loginData?.access_token ||
-        loginData?.token ||
-        loginData?.user?.access_token ||
-        "";
-
-      if (typeof window !== "undefined" && token) {
-        window.localStorage.setItem("access_token", token);
-        window.localStorage.setItem("lgd_token", token);
-      }
-
-      router.push("/dashboard");
-    } catch (err: any) {
-      setError(err?.message || "Une erreur est survenue.");
-    } finally {
-      setLoading(false);
-    }
-  }
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#030303] text-white">
@@ -130,82 +42,77 @@ export default function RegisterPage() {
         <div className="absolute inset-0 opacity-[0.08] [background-image:linear-gradient(rgba(255,255,255,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.06)_1px,transparent_1px)] [background-size:42px_42px]" />
       </div>
 
-      <div className="relative mx-auto flex min-h-screen max-w-[1280px] flex-col px-6 pb-10 pt-8 md:px-10 lg:px-12">
-        <div className="mx-auto mb-8 flex max-w-5xl flex-col items-center text-center">
-          <div className="mb-4 inline-flex items-center justify-center rounded-[28px] border border-[#f5b700]/35 bg-black/55 px-7 py-3 shadow-[0_0_35px_rgba(245,183,0,0.12)] backdrop-blur">
+      <div className="relative mx-auto flex min-h-screen max-w-7xl flex-col px-5 pb-10 pt-10 md:px-8 lg:px-10">
+        <div className="mx-auto mb-10 flex max-w-4xl flex-col items-center text-center">
+          <div className="mb-4 inline-flex items-center justify-center rounded-[28px] border border-[#f5b700]/35 bg-black/55 px-6 py-3 shadow-[0_0_35px_rgba(245,183,0,0.12)] backdrop-blur">
             <div className="text-center">
-              <div className="text-5xl font-black tracking-tight text-[#f5b700] md:text-6xl">
+              <div className="text-4xl font-black tracking-tight text-[#f5b700] md:text-5xl">
                 LGD
               </div>
-              <div className="mt-1 text-[11px] font-semibold uppercase tracking-[0.34em] text-white/85">
+              <div className="mt-1 text-[11px] font-semibold uppercase tracking-[0.34em] text-white/80">
                 Le Générateur Digital
               </div>
             </div>
           </div>
 
-          <h1 className="max-w-5xl text-[54px] font-black leading-[1.02] tracking-tight text-white md:text-[68px]">
+          <h1 className="max-w-4xl text-4xl font-black tracking-tight text-white md:text-6xl">
             Ton succès <span className="text-[#f5b700]">commence ici.</span>
           </h1>
 
-          <p className="mt-3 max-w-4xl text-lg leading-8 text-white/78 md:text-[22px]">
-            Crée ton compte LGD et construis ton système digital avec l’IA.
+          <p className="mt-3 max-w-3xl text-base leading-7 text-white/78 md:text-xl">
+            Crée ton compte LGD et construis ton système digital avec l’IA, ou démarre
+            gratuitement pendant 7 jours pour tester la plateforme sans carte bancaire.
           </p>
         </div>
 
-        {error ? (
-          <div className="mx-auto mb-6 w-full max-w-4xl rounded-[24px] border border-red-700/50 bg-red-950/40 px-5 py-4 text-center text-base text-red-100">
-            {error}
-          </div>
-        ) : null}
-
-        <div className="mx-auto grid w-full max-w-[1220px] grid-cols-1 gap-8 xl:grid-cols-[0.94fr_1.06fr]">
-          <section className="rounded-[34px] border border-white/12 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] p-8 shadow-[0_0_30px_rgba(0,0,0,0.45)] backdrop-blur md:p-10">
-            <div className="mb-8 flex items-start gap-5">
-              <div className="flex h-[84px] w-[84px] items-center justify-center rounded-[24px] border border-[#f5b700]/30 bg-[linear-gradient(180deg,rgba(245,191,33,0.22),rgba(245,191,33,0.06))] text-[34px] text-[#f5b700] shadow-[0_0_24px_rgba(245,183,0,0.15)]">
+        <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-8 xl:grid-cols-[0.9fr_1.1fr]">
+          <section className="rounded-[34px] border border-white/12 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] p-6 shadow-[0_0_30px_rgba(0,0,0,0.45)] backdrop-blur md:p-8">
+            <div className="mb-7 flex items-start gap-4">
+              <div className="flex h-16 w-16 items-center justify-center rounded-[20px] border border-[#f5b700]/30 bg-[linear-gradient(180deg,rgba(245,191,33,0.22),rgba(245,191,33,0.06))] text-2xl text-[#f5b700] shadow-[0_0_24px_rgba(245,183,0,0.15)]">
                 <FaUser />
               </div>
 
               <div>
-                <h2 className="text-[38px] font-black leading-none text-white md:text-[48px]">
+                <h2 className="text-3xl font-black text-white md:text-4xl">
                   Créer un compte <span className="text-[#f5b700]">LGD</span>
                 </h2>
-                <p className="mt-3 text-lg text-white/72 md:text-[24px]">
+                <p className="mt-1 text-base text-white/72 md:text-lg">
                   Rejoins la communauté et passe à l’action.
                 </p>
               </div>
             </div>
 
-            <form onSubmit={handleRegister} className="space-y-5">
-              <div className="group flex items-center gap-4 rounded-[22px] border border-white/14 bg-black/45 px-6 py-5 transition focus-within:border-[#f5b700]/45 focus-within:shadow-[0_0_0_1px_rgba(245,183,0,0.18)]">
+            <form className="space-y-5">
+              <div className="group flex items-center gap-3 rounded-[22px] border border-white/14 bg-black/45 px-5 py-4 transition focus-within:border-[#f5b700]/45 focus-within:shadow-[0_0_0_1px_rgba(245,183,0,0.18)]">
                 <FaUser className="shrink-0 text-white/45 group-focus-within:text-[#f5b700]" />
                 <input
                   type="text"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   placeholder="Nom et prénom"
-                  className="w-full bg-transparent text-[20px] text-white outline-none placeholder:text-white/45"
+                  className="w-full bg-transparent text-lg text-white outline-none placeholder:text-white/45"
                 />
               </div>
 
-              <div className="group flex items-center gap-4 rounded-[22px] border border-white/14 bg-black/45 px-6 py-5 transition focus-within:border-[#f5b700]/45 focus-within:shadow-[0_0_0_1px_rgba(245,183,0,0.18)]">
+              <div className="group flex items-center gap-3 rounded-[22px] border border-white/14 bg-black/45 px-5 py-4 transition focus-within:border-[#f5b700]/45 focus-within:shadow-[0_0_0_1px_rgba(245,183,0,0.18)]">
                 <FaEnvelope className="shrink-0 text-white/45 group-focus-within:text-[#f5b700]" />
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Email"
-                  className="w-full bg-transparent text-[20px] text-white outline-none placeholder:text-white/45"
+                  className="w-full bg-transparent text-lg text-white outline-none placeholder:text-white/45"
                 />
               </div>
 
-              <div className="group flex items-center gap-4 rounded-[22px] border border-white/14 bg-black/45 px-6 py-5 transition focus-within:border-[#f5b700]/45 focus-within:shadow-[0_0_0_1px_rgba(245,183,0,0.18)]">
+              <div className="group flex items-center gap-3 rounded-[22px] border border-white/14 bg-black/45 px-5 py-4 transition focus-within:border-[#f5b700]/45 focus-within:shadow-[0_0_0_1px_rgba(245,183,0,0.18)]">
                 <FaLock className="shrink-0 text-white/45 group-focus-within:text-[#f5b700]" />
                 <input
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Mot de passe"
-                  className="w-full bg-transparent text-[20px] text-white outline-none placeholder:text-white/45"
+                  className="w-full bg-transparent text-lg text-white outline-none placeholder:text-white/45"
                 />
                 <button
                   type="button"
@@ -219,21 +126,20 @@ export default function RegisterPage() {
 
               <button
                 type="submit"
-                disabled={loading}
-                className="flex w-full items-center justify-center gap-3 rounded-[22px] bg-[#f5bf21] px-6 py-5 text-center text-[24px] font-black text-black transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-70"
+                className="flex w-full items-center justify-center gap-3 rounded-[22px] bg-[#f5bf21] px-6 py-4 text-center text-2xl font-black text-black transition hover:brightness-105"
               >
-                {loading ? "Création..." : "Créer mon compte"}
+                Créer mon compte
                 <FaArrowRight className="text-lg" />
               </button>
             </form>
 
-            <div className="my-8 flex items-center gap-4">
+            <div className="my-7 flex items-center gap-4">
               <div className="h-px flex-1 bg-white/10" />
               <span className="text-base uppercase tracking-[0.22em] text-white/35">ou</span>
               <div className="h-px flex-1 bg-white/10" />
             </div>
 
-            <p className="text-center text-[22px] text-white/72">
+            <p className="text-center text-xl text-white/72">
               Déjà un compte ?{" "}
               <Link href="/auth/login" className="font-bold text-[#f5b700] hover:brightness-110">
                 Se connecter
@@ -245,26 +151,26 @@ export default function RegisterPage() {
                 <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-black/45 text-white/85">
                   <FaShieldAlt />
                 </div>
-                <div className="text-[20px] font-semibold text-white">Sécurisé</div>
+                <div className="text-lg font-semibold text-white">Sécurisé</div>
               </div>
 
               <div className="flex flex-col items-center rounded-[20px] border border-white/10 bg-white/[0.02] px-4 py-5 text-center">
                 <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-black/45 text-white/85">
                   <FaLock />
                 </div>
-                <div className="text-[20px] font-semibold text-white">Confidentiel</div>
+                <div className="text-lg font-semibold text-white">Confidentiel</div>
               </div>
 
               <div className="flex flex-col items-center rounded-[20px] border border-white/10 bg-white/[0.02] px-4 py-5 text-center">
                 <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-black/45 text-white/85">
                   <FaUsers />
                 </div>
-                <div className="text-[20px] font-semibold text-white">Accès immédiat</div>
+                <div className="text-lg font-semibold text-white">Accès immédiat</div>
               </div>
             </div>
           </section>
 
-          <section className="relative overflow-hidden rounded-[34px] border border-[#f5b700]/35 bg-[linear-gradient(180deg,rgba(245,183,0,0.08),rgba(255,255,255,0.02))] p-8 shadow-[0_0_35px_rgba(245,183,0,0.14)] backdrop-blur md:p-10">
+          <section className="relative overflow-hidden rounded-[34px] border border-[#f5b700]/35 bg-[linear-gradient(180deg,rgba(245,183,0,0.08),rgba(255,255,255,0.02))] p-6 shadow-[0_0_35px_rgba(245,183,0,0.14)] backdrop-blur md:p-8">
             <div className="pointer-events-none absolute inset-0">
               <div className="absolute right-8 top-8 h-48 w-48 rounded-full bg-[#f5b700]/10 blur-3xl" />
               <div className="absolute bottom-8 left-6 h-44 w-44 rounded-full bg-[#7c3aed]/14 blur-3xl" />
@@ -273,26 +179,26 @@ export default function RegisterPage() {
 
             <div className="relative grid grid-cols-1 gap-8 lg:grid-cols-[1.05fr_0.95fr]">
               <div>
-                <div className="mb-6 flex flex-wrap items-center gap-4">
-                  <div className="flex h-[84px] w-[84px] items-center justify-center rounded-[24px] border border-[#f5b700]/35 bg-black/35 text-[38px] text-[#f5b700] shadow-[0_0_24px_rgba(245,183,0,0.12)]">
+                <div className="mb-5 flex flex-wrap items-center gap-4">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-[20px] border border-[#f5b700]/35 bg-black/35 text-3xl text-[#f5b700] shadow-[0_0_24px_rgba(245,183,0,0.12)]">
                     <FaRocket />
                   </div>
 
                   <div className="min-w-0">
-                    <h2 className="text-[42px] font-black leading-none text-white md:text-[58px]">
+                    <h2 className="text-4xl font-black leading-none text-white md:text-6xl">
                       Essai gratuit
                       <span className="mt-2 block text-[#f5b700]">7 jours</span>
                     </h2>
                   </div>
 
-                  <span className="rounded-full border border-[#c084fc]/40 bg-[#4c1d95]/45 px-5 py-2 text-[18px] font-semibold text-white shadow-[0_0_18px_rgba(124,58,237,0.18)]">
+                  <span className="rounded-full border border-[#c084fc]/40 bg-[#4c1d95]/45 px-4 py-2 text-base font-semibold text-white shadow-[0_0_18px_rgba(124,58,237,0.18)]">
                     Sans carte bancaire
                   </span>
                 </div>
 
-                <p className="mb-7 max-w-2xl text-[22px] leading-9 text-white/82">
-                  Découvre LGD gratuitement pendant 7 jours, sans carte bancaire.
-                  Teste les fonctionnalités clés, utilise l’IA et commence à construire
+                <p className="mb-7 max-w-2xl text-lg leading-8 text-white/82 md:text-xl">
+                  Teste LGD gratuitement et découvre tout le potentiel de l’IA pour
+                  booster ton business, créer plus vite et garder le contrôle sur
                   ton système digital.
                 </p>
 
@@ -331,8 +237,8 @@ export default function RegisterPage() {
                           <Icon />
                         </div>
                         <div>
-                          <div className="text-[20px] font-bold text-white">{item.title}</div>
-                          <div className="mt-1 text-[17px] leading-7 text-white/68">{item.text}</div>
+                          <div className="text-xl font-bold text-white">{item.title}</div>
+                          <div className="mt-1 text-base leading-7 text-white/68">{item.text}</div>
                         </div>
                       </div>
                     );
@@ -345,10 +251,10 @@ export default function RegisterPage() {
                       <FaHeart />
                     </div>
                     <div>
-                      <div className="text-[28px] font-black leading-tight text-white">
-                        À la fin de ton essai, ton travail <span className="text-[#f5b700]">reste sauvegardé.</span>
+                      <div className="text-2xl font-black text-white">
+                        À la fin de ton essai, ton travail reste <span className="text-[#f5b700]">sauvegardé.</span>
                       </div>
-                      <p className="mt-2 text-[20px] leading-8 text-white/78">
+                      <p className="mt-2 text-lg leading-8 text-white/78">
                         Tu peux revenir à tout moment et activer un plan pour reprendre
                         exactement là où tu t’étais arrêté.
                       </p>
@@ -358,16 +264,14 @@ export default function RegisterPage() {
 
                 <a
                   href={trialUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-7 flex w-full items-center justify-center gap-3 rounded-[22px] bg-[linear-gradient(90deg,#6d28d9_0%,#f59e0b_55%,#f5bf21_100%)] px-6 py-5 text-center text-[24px] font-black text-white transition hover:brightness-110"
+                  className="mt-7 flex w-full items-center justify-center gap-3 rounded-[22px] bg-[linear-gradient(90deg,#6d28d9_0%,#f59e0b_55%,#f5bf21_100%)] px-6 py-5 text-center text-2xl font-black text-white transition hover:brightness-110"
                 >
                   Activer mon essai gratuit
                   <FaArrowRight className="text-lg" />
                 </a>
 
-                <div className="mt-3 text-center text-[15px] text-white/58">
-                  Aucun paiement requis • Annulation à tout moment
+                <div className="mt-3 text-center text-sm text-white/58">
+                  Accès immédiat après inscription
                 </div>
               </div>
 
