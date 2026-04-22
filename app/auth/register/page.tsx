@@ -18,6 +18,8 @@ export default function RegisterPage() {
     process.env.NEXT_PUBLIC_SYSTEMEIO_TRIAL_URL ||
     "https://legenerateurdigital.systeme.io/lgd";
 
+  const SIO_REGISTER_URL = "https://legenerateurdigital.systeme.io/lgd";
+
   return (
     <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center px-4 relative overflow-hidden">
       <div className="absolute top-[-100px] left-[-100px] w-[400px] h-[400px] bg-[#f5b700]/10 blur-3xl rounded-full" />
@@ -57,7 +59,13 @@ export default function RegisterPage() {
             Créer un compte LGD
           </h2>
 
-          <form className="space-y-4">
+          <form
+            className="space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              window.open(SIO_REGISTER_URL, "_blank", "noopener,noreferrer");
+            }}
+          >
             <input
               type="text"
               placeholder="Nom et prénom"
