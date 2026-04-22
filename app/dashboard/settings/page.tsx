@@ -297,8 +297,8 @@ Cordialement`
               </p>
             </div>
 
-            <div className="mb-5 rounded-[22px] border border-white/15 bg-white/[0.03] p-4 text-sm leading-7 text-white/82 md:text-base">
-              Envoie ta demande de résiliation à <span className="font-semibold text-[#f5bf21]">{supportEmail}</span> depuis l’adresse email de ton compte LGD pour faciliter la vérification.
+            <div className="mb-5 rounded-[22px] border border-white/15 bg-white/[0.03] p-4 text-[5px] leading-7 text-white/82 md:text-base">
+              Envoie ta demande de résiliation à <span className="font small-caps text-[#f5bf21]">{supportEmail}</span> depuis l’adresse email de ton compte LGD pour faciliter la vérification.
             </div>
 
             <div className="flex flex-col gap-3">
