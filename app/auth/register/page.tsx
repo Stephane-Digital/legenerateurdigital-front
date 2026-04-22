@@ -138,7 +138,7 @@ export default function RegisterPage() {
               Teste les fonctionnalités clés et lance ton business avec l’IA.
             </p>
 
-            <div className="space-y-3 text-sm text-white/70 mb-6">
+            <div className="space-y-3 text-sm text-white mb-6">
               <div>🗓️ 7 jours gratuits</div>
               <div>💳 Sans carte bancaire</div>
               <div>🎫 10 000 jetons IA / jour</div>
