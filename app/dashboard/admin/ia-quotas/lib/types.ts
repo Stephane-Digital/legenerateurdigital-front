@@ -1,7 +1,7 @@
 /* app/dashboard/admin/ia-quotas/lib/types.ts
    LGD — Admin Quotas IA (frontend types)
 */
-export type AdminQuotaPlan = "essentiel" | "pro" | "ultime";
+export type AdminQuotaPlan = "azur" | "essentiel" | "pro" | "ultime";
 export type AdminQuotaFeature = "global" | "coach" | "posts" | "carrousel" | "audit";
 export type AdminQuotaFeatureStrict = AdminQuotaFeature;
 
