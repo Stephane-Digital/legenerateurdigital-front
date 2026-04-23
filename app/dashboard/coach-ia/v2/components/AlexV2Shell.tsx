@@ -151,9 +151,16 @@ import {
   evolveContextAfterLog,
 } from "../lib/engine";
 
-function planLabelFrom(plan?: string) {
+function planLabelFrom(plan?: string, limit?: number) {
+  const n = Number(limit || 0);
+  if (n === 70_000) return "AZUR";
+  if (n === 2_500_000) return "Ultime";
+  if (n === 1_000_000) return "Pro";
+  if (n === 400_000) return "Essentiel";
+
   if (!plan) return "";
   const p = plan.toLowerCase();
+  if (p.includes("azur") || p.includes("trial") || p.includes("starter") || p.includes("decouverte") || p.includes("découverte")) return "AZUR";
   if (p.includes("ult")) return "Ultime";
   if (p.includes("pro")) return "Pro";
   return "Essentiel";
@@ -255,13 +262,19 @@ export default function AlexV2Shell() {
     process.env.NEXT_PUBLIC_SYSTEME_PLANS_URL || "https://legenerateurdigital.systeme.io/plans";
 
   const planMonthlyLimit = useMemo(() => {
+    const n = Number(limit || 0);
+    if (n > 0) return n;
     const p = (planLabel || "").toLowerCase();
+    if (p.includes("azur")) return 70_000;
     if (p.includes("ult")) return 2_500_000;
     if (p.includes("pro")) return 1_000_000;
     return 400_000;
-  }, [planLabel]);
+  }, [planLabel, limit]);
 
-  const planDailySoft = useMemo(() => Math.round(planMonthlyLimit / 30), [planMonthlyLimit]);
+  const planDailySoft = useMemo(() => {
+    if (planMonthlyLimit === 70_000) return 10_000;
+    return Math.round(planMonthlyLimit / 30);
+  }, [planMonthlyLimit]);
 
   const remainingValue = useMemo(() => {
     const r = Number.isFinite(remaining) ? remaining : 0;
@@ -269,7 +282,7 @@ export default function AlexV2Shell() {
   }, [remaining]);
 
   // ===== init from localStorage (BOOT)
-  
+
   useEffect(() => {
     try {
       const key = "lgd_dashboard_daily_progress";
@@ -435,9 +448,11 @@ useEffect(() => {
     setQuotaLoading(true);
     try {
       const q = await coachQuota();
-      setUsed(Number(q.tokens_used || 0));
-      setLimit(Number(q.tokens_limit || 0));
-      setPlanLabel(planLabelFrom(q.plan));
+      const nextUsed = Number(q.tokens_used || 0);
+      const nextLimit = Number(q.tokens_limit || 0);
+      setUsed(nextUsed);
+      setLimit(nextLimit);
+      setPlanLabel(planLabelFrom(String(q.display_plan || q.plan || ""), nextLimit));
     } catch (e: any) {
       const msg = String(e?.message || e || "");
       if (msg.includes("UNAUTH") || msg.includes("401")) {
