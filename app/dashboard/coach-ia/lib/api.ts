@@ -7,6 +7,9 @@
 export type CoachQuotaDTO = {
   feature?: string;
   plan?: string;
+  display_plan?: string;
+  plan_key?: string;
+  daily_limit?: number;
   tokens_used?: number;
   tokens_limit?: number;
   remaining?: number;
@@ -20,9 +23,6 @@ export type CoachNextActionDTO = {
   cta_hint?: string;
 };
 
-// ✅ Important (LGD): default must match the backend cookie host.
-// If the backend cookie is set on 127.0.0.1 but we call localhost (or the reverse),
-// the browser won't send the auth cookie => 401.
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
 
 async function fetchJSON<T>(path: string, init?: RequestInit): Promise<T> {
@@ -31,7 +31,6 @@ async function fetchJSON<T>(path: string, init?: RequestInit): Promise<T> {
     ...(init?.headers as any),
   };
 
-  // Ajoute Content-Type JSON uniquement si un body est présent et si rien n'est déjà défini
   if (init?.body && !headers["Content-Type"]) {
     headers["Content-Type"] = "application/json";
   }
@@ -44,7 +43,6 @@ async function fetchJSON<T>(path: string, init?: RequestInit): Promise<T> {
 
   const text = await res.text();
   if (!res.ok) {
-    // Standardize auth failure so UI can react cleanly.
     if (res.status === 401) throw new Error("UNAUTH");
     throw new Error(text || `HTTP ${res.status}`);
   }
@@ -58,30 +56,58 @@ async function fetchJSON<T>(path: string, init?: RequestInit): Promise<T> {
 
 export async function coachQuota(): Promise<{
   plan: string;
+  display_plan: string;
+  plan_key: string;
+  daily_limit: number;
   tokens_used: number;
   tokens_limit: number;
   remaining: number;
 }> {
-  // ✅ endpoint principal (Coach V2)
   try {
     const q = await fetchJSON<CoachQuotaDTO>("/ai-quota/global");
+    const tokensLimit = Number(q.tokens_limit || 0);
+    const displayPlan =
+      String(q.display_plan || q.plan || "").trim() ||
+      (tokensLimit === 70_000 ? "azur" : "");
+    const daily =
+      Number(q.daily_limit || 0) > 0
+        ? Number(q.daily_limit || 0)
+        : tokensLimit === 70_000
+          ? 10_000
+          : Math.round(tokensLimit / 30);
+
     return {
-      plan: String(q.plan || ""),
+      plan: String(q.plan || displayPlan || ""),
+      display_plan: displayPlan,
+      plan_key: String(q.plan_key || displayPlan || q.plan || ""),
+      daily_limit: Number(daily || 0),
       tokens_used: Number(q.tokens_used || 0),
-      tokens_limit: Number(q.tokens_limit || 0),
+      tokens_limit: tokensLimit,
       remaining: Number(q.remaining || 0),
     };
   } catch (e: any) {
-    // If unauthenticated, do not spam fallback endpoints (they will 401 too).
     const msg = String(e?.message || e || "");
     if (msg.includes("UNAUTH") || msg.includes("401")) throw e;
 
-    // ✅ fallback stable
     const q = await fetchJSON<CoachQuotaDTO>("/ai-quota/");
+    const tokensLimit = Number(q.tokens_limit || 0);
+    const displayPlan =
+      String(q.display_plan || q.plan || "").trim() ||
+      (tokensLimit === 70_000 ? "azur" : "");
+    const daily =
+      Number(q.daily_limit || 0) > 0
+        ? Number(q.daily_limit || 0)
+        : tokensLimit === 70_000
+          ? 10_000
+          : Math.round(tokensLimit / 30);
+
     return {
-      plan: String(q.plan || ""),
+      plan: String(q.plan || displayPlan || ""),
+      display_plan: displayPlan,
+      plan_key: String(q.plan_key || displayPlan || q.plan || ""),
+      daily_limit: Number(daily || 0),
       tokens_used: Number(q.tokens_used || 0),
-      tokens_limit: Number(q.tokens_limit || 0),
+      tokens_limit: tokensLimit,
       remaining: Number(q.remaining || 0),
     };
   }
@@ -90,7 +116,6 @@ export async function coachQuota(): Promise<{
 function estimateTokens(text: string) {
   const t = (text || "").trim();
   if (!t) return 1;
-  // approx ~4 chars/token
   return Math.max(1, Math.ceil(t.length / 4));
 }
 
@@ -105,7 +130,6 @@ export async function coachChat(message: string): Promise<{ reply: string }> {
   const msg = (message || "").trim();
   if (!msg) return { reply: "" };
 
-  // ⚠️ Coach actuel utilise rewrite (fallback). On débite APRÈS réponse.
   const res = await fetchJSON<any>("/ai/text/rewrite", {
     method: "POST",
     body: JSON.stringify({ text: msg }),
@@ -113,7 +137,6 @@ export async function coachChat(message: string): Promise<{ reply: string }> {
 
   const reply = String(res?.reply || res?.text || "").trim();
 
-  // ✅ Débit réel si usage.total_tokens existe, sinon estimation msg+reply
   const usageTotal =
     typeof res?.usage?.total_tokens === "number" ? (res.usage.total_tokens as number) : 0;
 
@@ -121,9 +144,7 @@ export async function coachChat(message: string): Promise<{ reply: string }> {
 
   try {
     await consumeCoachQuota(amount);
-  } catch {
-    // ne jamais bloquer le coach si débit échoue
-  }
+  } catch {}
 
   return { reply };
 }
@@ -134,10 +155,10 @@ export async function coachNextAction(): Promise<CoachNextActionDTO> {
   } catch {
     return {
       title: "Définir ton objectif",
-      why: "Commence par définir clairement ton objectif business.",
-      steps: [],
-      cta_label: "Démarrer",
-      cta_hint: "Envoie ton objectif.",
+      why: "Clarifie ton cap avant d’agir.",
+      steps: ["Choisis un objectif simple", "Valide une action faisable aujourd’hui"],
+      cta_label: "Continuer",
+      cta_hint: "Passe à l’étape suivante",
     };
   }
 }
