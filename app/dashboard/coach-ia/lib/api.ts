@@ -1,9 +1,3 @@
-// app/dashboard/coach-ia/lib/api.ts
-// LGD — Coach API (cookie auth)
-// - Quota display: GET /ai-quota/global (fallback: /ai-quota/)
-// - Consume: POST /ai-quota/consume?amount=...&feature=coach
-// - Chat fallback: POST /ai/text/rewrite
-
 export type CoachQuotaDTO = {
   feature?: string;
   plan?: string;
@@ -13,14 +7,6 @@ export type CoachQuotaDTO = {
   tokens_used?: number;
   tokens_limit?: number;
   remaining?: number;
-};
-
-export type CoachNextActionDTO = {
-  title?: string;
-  why?: string;
-  steps?: string[];
-  cta_label?: string;
-  cta_hint?: string;
 };
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
@@ -54,6 +40,15 @@ async function fetchJSON<T>(path: string, init?: RequestInit): Promise<T> {
   }
 }
 
+function planFromLimit(limit?: number): string {
+  const n = Number(limit || 0);
+  if (n === 70_000) return "azur";
+  if (n === 2_500_000) return "ultime";
+  if (n === 1_000_000) return "pro";
+  if (n === 400_000) return "essentiel";
+  return "essentiel";
+}
+
 export async function coachQuota(): Promise<{
   plan: string;
   display_plan: string;
@@ -63,12 +58,13 @@ export async function coachQuota(): Promise<{
   tokens_limit: number;
   remaining: number;
 }> {
-  try {
-    const q = await fetchJSON<CoachQuotaDTO>("/ai-quota/global");
+  const makeQuota = (q: CoachQuotaDTO) => {
     const tokensLimit = Number(q.tokens_limit || 0);
+    const canonicalPlan = planFromLimit(tokensLimit);
     const displayPlan =
-      String(q.display_plan || q.plan || "").trim() ||
-      (tokensLimit === 70_000 ? "azur" : "");
+      canonicalPlan ||
+      String(q.display_plan || q.plan_key || q.plan || "").trim();
+
     const daily =
       Number(q.daily_limit || 0) > 0
         ? Number(q.daily_limit || 0)
@@ -77,39 +73,24 @@ export async function coachQuota(): Promise<{
           : Math.round(tokensLimit / 30);
 
     return {
-      plan: String(q.plan || displayPlan || ""),
+      plan: canonicalPlan,
       display_plan: displayPlan,
-      plan_key: String(q.plan_key || displayPlan || q.plan || ""),
+      plan_key: canonicalPlan,
       daily_limit: Number(daily || 0),
       tokens_used: Number(q.tokens_used || 0),
       tokens_limit: tokensLimit,
       remaining: Number(q.remaining || 0),
     };
+  };
+
+  try {
+    const q = await fetchJSON<CoachQuotaDTO>("/ai-quota/global");
+    return makeQuota(q);
   } catch (e: any) {
     const msg = String(e?.message || e || "");
     if (msg.includes("UNAUTH") || msg.includes("401")) throw e;
-
     const q = await fetchJSON<CoachQuotaDTO>("/ai-quota/");
-    const tokensLimit = Number(q.tokens_limit || 0);
-    const displayPlan =
-      String(q.display_plan || q.plan || "").trim() ||
-      (tokensLimit === 70_000 ? "azur" : "");
-    const daily =
-      Number(q.daily_limit || 0) > 0
-        ? Number(q.daily_limit || 0)
-        : tokensLimit === 70_000
-          ? 10_000
-          : Math.round(tokensLimit / 30);
-
-    return {
-      plan: String(q.plan || displayPlan || ""),
-      display_plan: displayPlan,
-      plan_key: String(q.plan_key || displayPlan || q.plan || ""),
-      daily_limit: Number(daily || 0),
-      tokens_used: Number(q.tokens_used || 0),
-      tokens_limit: tokensLimit,
-      remaining: Number(q.remaining || 0),
-    };
+    return makeQuota(q);
   }
 }
 
@@ -149,9 +130,9 @@ export async function coachChat(message: string): Promise<{ reply: string }> {
   return { reply };
 }
 
-export async function coachNextAction(): Promise<CoachNextActionDTO> {
+export async function coachNextAction(): Promise<any> {
   try {
-    return await fetchJSON<CoachNextActionDTO>("/coach/next-action");
+    return await fetchJSON<any>("/coach/next-action");
   } catch {
     return {
       title: "Définir ton objectif",
