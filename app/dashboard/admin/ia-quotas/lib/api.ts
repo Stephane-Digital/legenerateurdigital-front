@@ -1,5 +1,5 @@
 export type FeatureKey = "global" | "coach" | "editor" | "carrousel" | "posts" | "audit" | string
-export type PlanKey = "essentiel" | "pro" | "ultime" | string
+export type PlanKey = "azur" | "essentiel" | "pro" | "ultime" | string
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/$/, "")
 
