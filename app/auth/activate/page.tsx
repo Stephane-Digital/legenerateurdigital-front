@@ -206,7 +206,7 @@ function ActivateAccountInner() {
               </div>
 
               <div>
-                <h1 className="text-3xl font-black text-white md:text-4xl">
+                <h1 className="text-3xl font-semibold text-white md:text-4xl">
                   Finaliser mon compte <span className="text-[#f5b700]">LGD</span>
                 </h1>
                 <p className="mt-2 text-white/70">
@@ -299,7 +299,7 @@ function ActivateAccountInner() {
             </div>
 
             <div className="relative">
-              <h2 className="text-4xl font-black leading-none text-white md:text-5xl">
+              <h2 className="text-4xl font-semibold leading-none text-white md:text-5xl">
                 Activation <span className="block text-[#f5b700]">ultra simple</span>
               </h2>
 
