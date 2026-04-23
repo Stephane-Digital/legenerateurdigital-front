@@ -70,3 +70,4 @@ export default function FiltersBar({ feature, plan, q, onChange }: Props) {
     </div>
   );
 }
+
