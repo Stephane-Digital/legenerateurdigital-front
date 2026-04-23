@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
-type Plan = "essentiel" | "pro" | "ultime";
+type Plan = "azur" | "essentiel" | "pro" | "ultime";
 type Feature = "coach" | "posts" | "carrousel" | "audit" | "global";
 
 type QuotaRow = {
@@ -81,6 +81,7 @@ function toInt(n: any): number {
 
 function planDefaultDailyLimit(plan: Plan): number {
   // Rappel LGD (limite / jour)
+  if (plan === "azur") return 70_000;
   if (plan === "pro") return 1_000_000;
   if (plan === "ultime") return 2_500_000;
   return 400_000; // essentiel
@@ -94,6 +95,24 @@ function fmtInt(n: number): string {
 function coalesce(...vals: any[]): any {
   for (const v of vals) if (v !== undefined && v !== null) return v;
   return undefined;
+}
+
+function inferPlanFromLimit(limit: number): Plan {
+  if (limit === 70_000) return "azur";
+  if (limit === 1_000_000) return "pro";
+  if (limit === 2_500_000) return "ultime";
+  return "essentiel";
+}
+
+function normalizePlanValue(rawPlan: any, limit: number): Plan {
+  const planRaw = String(rawPlan || "").toLowerCase().trim();
+  if (planRaw === "azur" || planRaw === "trial" || planRaw === "starter" || planRaw === "decouverte" || planRaw === "découverte") return "azur";
+  if (planRaw === "pro") return "pro";
+  if (planRaw === "ultime") return "ultime";
+  if (planRaw === "essentiel") {
+    return limit === 70_000 ? "azur" : "essentiel";
+  }
+  return inferPlanFromLimit(limit);
 }
 
 export default function AdminIAQuotasShell() {
@@ -149,8 +168,25 @@ export default function AdminIAQuotasShell() {
     const user_id = toInt(coalesce(raw.user_id, raw.id, raw.userId));
     const email = String(coalesce(raw.email, raw.user_email, raw.userEmail, ""));
 
-    const planRaw = String(coalesce(raw.plan, raw.user_plan, raw.plan_name, "essentiel")).toLowerCase();
-    const plan: Plan = (planRaw === "pro" || planRaw === "ultime" || planRaw === "essentiel") ? (planRaw as Plan) : "essentiel";
+    const limitHintRaw = coalesce(
+      raw.limit_tokens,
+      raw.limitTokens,
+      raw.daily_limit_tokens,
+      raw.dailyLimitTokens,
+      raw.limit_per_day,
+      raw.limitPerDay,
+      raw.limit,
+      raw.quota_limit,
+      raw.quotaLimit,
+      raw.credits,
+      raw.tokens_limit
+    );
+    const limitHint = limitHintRaw === null || limitHintRaw === undefined ? 0 : toInt(limitHintRaw);
+
+    const plan = normalizePlanValue(
+      coalesce(raw.display_plan, raw.plan, raw.user_plan, raw.plan_name),
+      limitHint
+    );
 
     const featureRaw = String(coalesce(raw.feature, raw.module, raw.scope, "global")).toLowerCase();
     const feature: Feature =
@@ -416,6 +452,7 @@ export default function AdminIAQuotasShell() {
                   onChange={(e) => refresh({ plan: (e.target.value || undefined) as any, page: 1 })}
                 >
                   <option value="">Tous</option>
+                  <option value="azur">azur</option>
                   <option value="essentiel">essentiel</option>
                   <option value="pro">pro</option>
                   <option value="ultime">ultime</option>
