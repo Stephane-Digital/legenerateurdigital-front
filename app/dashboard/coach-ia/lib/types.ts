@@ -1,7 +1,3 @@
-// app/dashboard/coach-ia/lib/types.ts
-// Types + small normalizers (NO refactor outside coach-ia).
-// Backend remains the source of truth; these helpers just harden against older shapes.
-
 export type CoachUserPlan = "azur" | "essentiel" | "pro" | "ultime" | (string & {});
 export type CoachFocus = "jour" | "objectif" | "diagnostic" | (string & {});
 
@@ -55,6 +51,15 @@ export type CoachSession = {
   backendQuotas?: CoachQuotaResponse;
 };
 
+function planFromLimit(limit?: unknown): CoachUserPlan {
+  const n = Number(limit ?? 0);
+  if (n === 70_000) return "azur";
+  if (n === 2_500_000) return "ultime";
+  if (n === 1_000_000) return "pro";
+  if (n === 400_000) return "essentiel";
+  return "essentiel";
+}
+
 const PLAN_ALIASES: Record<string, CoachUserPlan> = {
   azur: "azur",
   trial: "azur",
@@ -73,12 +78,10 @@ const PLAN_ALIASES: Record<string, CoachUserPlan> = {
 };
 
 export function normalizeCoachUserPlan(plan: unknown, limit?: unknown): CoachUserPlan {
+  const fromLimit = planFromLimit(limit);
+  if (Number(limit ?? 0) > 0) return fromLimit;
+
   const p = String(plan ?? "essentiel").toLowerCase().trim();
-  const n = Number(limit ?? 0);
-  if (n === 70_000) return "azur";
-  if (n === 2_500_000) return "ultime";
-  if (n === 1_000_000) return "pro";
-  if (n === 400_000) return "essentiel";
   return PLAN_ALIASES[p] ?? (p as CoachUserPlan);
 }
 
@@ -153,11 +156,7 @@ export function normalizeQuota(q: any): CoachQuotaResponse {
 
   const limit = clampTokens(q.limit_tokens ?? q.tokens_limit ?? q.limitTokens ?? q.limit ?? q.credits ?? 0);
   const plan = normalizeCoachUserPlan(q.display_plan ?? q.plan_key ?? q.plan, limit);
-
-  const used = clampTokens(
-    q.tokens_used ?? q.used_tokens ?? q.usedTokens ?? q.used ?? 0
-  );
-
+  const used = clampTokens(q.tokens_used ?? q.used_tokens ?? q.usedTokens ?? q.used ?? 0);
   const remainingRaw =
     q.remaining != null ? clampTokens(q.remaining) : Math.max(0, limit - used);
 
