@@ -10,21 +10,32 @@ function formatInt(n: number) {
   }
 }
 
-function normalizePlanLabel(label?: string, limit?: number): string {
-  const l = String(label || "").toLowerCase().trim();
+function planFromLimit(limit?: number): string {
   const safeLimit = Number(limit || 0);
-
-  if (l.includes("azur") || l.includes("trial") || l.includes("starter")) return "AZUR";
-  if (l.includes("ult")) return "ULTIME";
-  if (l.includes("pro")) return "PRO";
-  if (l.includes("ess")) return "ESSENTIEL";
-
   if (safeLimit === 70_000) return "AZUR";
   if (safeLimit === 2_500_000) return "ULTIME";
   if (safeLimit === 1_000_000) return "PRO";
   if (safeLimit === 400_000) return "ESSENTIEL";
+  return "ESSENTIEL";
+}
 
-  return label || "ESSENTIEL";
+function normalizePlanLabel(label?: string, limit?: number): string {
+  const safeLimit = Number(limit || 0);
+  const l = String(label || "").toLowerCase().trim();
+
+  // ✅ SOURCE DE VÉRITÉ COACH = limit d'abord
+  if (safeLimit > 0) {
+    return planFromLimit(safeLimit);
+  }
+
+  if (l.includes("azur") || l.includes("trial") || l.includes("starter") || l.includes("découverte") || l.includes("decouverte")) {
+    return "AZUR";
+  }
+  if (l.includes("ult")) return "ULTIME";
+  if (l.includes("pro")) return "PRO";
+  if (l.includes("ess")) return "ESSENTIEL";
+
+  return "ESSENTIEL";
 }
 
 function plansUrl() {
