@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
-type Plan = "none" | "essentiel" | "pro" | "ultime";
+type Plan = "none" | "azur" | "essentiel" | "pro" | "ultime";
 
 const PLANS_URL = process.env.NEXT_PUBLIC_SYSTEMEIO_PLANS_URL ?? "https://legenerateurdigital.systeme.io/lgd";
 const DASHBOARD_PATH = "/dashboard";
@@ -14,20 +14,32 @@ const EDITOR_PATH = "/dashboard/automatisations/reseaux_sociaux/editor-intellige
 const COACH_PATH = "/dashboard/coach-ia";
 const LEADS_PATH = "/dashboard/lead-engine";
 const EMAIL_CAMPAIGNS_PATH = "/dashboard/email-campaigns";
-const SETTINGS_PATH = "/dashboard/settings";
 
 function planLabel(plan: Plan) {
   if (plan === "ultime") return "ULTIME";
   if (plan === "pro") return "PRO";
   if (plan === "essentiel") return "ESSENTIEL";
+  if (plan === "azur") return "AZUR";
   return "AUCUN";
 }
 
-function normalizePlan(input: any): Plan {
+function normalizePlan(input: any, tokensLimit?: any): Plan {
   const v = String(input || "").toLowerCase().trim();
+  const limit = Number(tokensLimit || 0);
+
   if (v === "ultime") return "ultime";
   if (v === "pro") return "pro";
-  if (v === "essentiel") return "essentiel";
+  if (v === "essentiel") {
+    if (limit === 70000) return "azur";
+    return "essentiel";
+  }
+  if (v === "trial" || v === "azur" || v === "azur" || v === "découverte") return "azur";
+
+  if (limit === 70000) return "azur";
+  if (limit === 2500000) return "ultime";
+  if (limit === 1000000) return "pro";
+  if (limit === 400000) return "essentiel";
+
   return "none";
 }
 
@@ -36,6 +48,12 @@ function getPlanFromLocalStorage(): Plan {
   if (window.localStorage.getItem("lgd_plan_ultime") === "active") return "ultime";
   if (window.localStorage.getItem("lgd_plan_pro") === "active") return "pro";
   if (window.localStorage.getItem("lgd_plan_essentiel") === "active") return "essentiel";
+  if (
+    window.localStorage.getItem("lgd_plan_starter") === "active" ||
+    window.localStorage.getItem("lgd_plan_trial") === "active"
+  ) {
+    return "azur";
+  }
   return "none";
 }
 
@@ -79,7 +97,10 @@ export default function Header() {
         }
 
         const data = await res.json();
-        const p = normalizePlan(data?.plan ?? data?.current_plan ?? data?.subscription_plan ?? data?.user_plan);
+        const p = normalizePlan(
+          data?.display_plan ?? data?.plan ?? data?.current_plan ?? data?.subscription_plan ?? data?.user_plan,
+          data?.tokens_limit ?? data?.credits ?? data?.remaining
+        );
         if (alive) setPlan(p);
       } catch {
         if (alive) setPlan("none");
@@ -94,7 +115,7 @@ export default function Header() {
     };
   }, []);
 
-  const hasPaidAccess = useMemo(() => plan !== "none", [plan]);
+  const hasModuleAccess = useMemo(() => plan !== "none", [plan]);
   const linkClasses = (path: string) =>
     `px-4 py-2 rounded-xl transition-colors ${isActive(pathname, path) ? "bg-yellow-500 text-black font-semibold" : "text-white/80 hover:text-yellow-400"}`;
 
@@ -105,6 +126,8 @@ export default function Header() {
       ? "px-3 py-1 rounded-full text-[11px] font-semibold border border-yellow-500/60 text-yellow-200 bg-[#0b0b0b]"
       : plan === "essentiel"
       ? "px-3 py-1 rounded-full text-[11px] font-semibold border border-yellow-600/30 text-yellow-200 bg-[#0b0b0b]"
+      : plan === "azur"
+      ? "px-3 py-1 rounded-full text-[11px] font-semibold border border-yellow-500/50 text-yellow-100 bg-[#0b0b0b]"
       : "px-3 py-1 rounded-full text-[11px] font-semibold border border-yellow-600/20 text-white/60 bg-[#0b0b0b]";
 
   const drawerBtn = "w-full inline-flex items-center justify-between px-4 py-4 rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] text-white/90 hover:bg-[#111111] transition-all";
@@ -139,7 +162,7 @@ export default function Header() {
         <nav className="hidden md:flex items-center gap-3">
           <Link href={DASHBOARD_PATH} className={linkClasses(DASHBOARD_PATH)}>Dashboard</Link>
           <Link href={AFFILIATION_PATH} className={linkClasses(AFFILIATION_PATH)}>Affiliation</Link>
-          {hasPaidAccess ? (
+          {hasModuleAccess ? (
             <>
               <Link href={EDITOR_PATH} className={linkClasses(EDITOR_PATH)}>Éditeur</Link>
               <Link href={LEADS_PATH} className={linkClasses(LEADS_PATH)}>Leads IA</Link>
@@ -155,7 +178,6 @@ export default function Header() {
             </>
           )}
           <a href={PLANS_URL} className="px-4 py-2 rounded-xl text-white/80 hover:text-yellow-400 transition-colors" onClick={openPlans}>Plans</a>
-          <Link href={SETTINGS_PATH} className={linkClasses(SETTINGS_PATH)}>Paramètres</Link>
           <span className={badgeClasses}>{loadingPlan ? "PLAN : ..." : `PLAN : ${planLabel(plan)}`}</span>
           {plan !== "ultime" && <button className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] text-black font-semibold hover:-translate-y-0.5 transition-all" onClick={openPlans}>Upgrade</button>}
         </nav>
@@ -183,7 +205,7 @@ export default function Header() {
                 <div className="mt-6 grid grid-cols-1 gap-3">
                   <button className={isActive(pathname, DASHBOARD_PATH) ? drawerBtnActive : drawerBtn} onClick={() => go(DASHBOARD_PATH)}><span>Dashboard</span><span className="text-white/40">→</span></button>
                   <button className={isActive(pathname, AFFILIATION_PATH) ? drawerBtnActive : drawerBtn} onClick={() => go(AFFILIATION_PATH)}><span>Affiliation</span><span className="text-white/40">→</span></button>
-                  {hasPaidAccess ? (
+                  {hasModuleAccess ? (
                     <>
                       <button className={isActive(pathname, EDITOR_PATH) ? drawerBtnActive : drawerBtn} onClick={() => go(EDITOR_PATH)}><span>Éditeur</span><span className="text-white/40">→</span></button>
                       <button className={isActive(pathname, LEADS_PATH) ? drawerBtnActive : drawerBtn} onClick={() => go(LEADS_PATH)}><span>Leads IA</span><span className="text-white/40">→</span></button>
@@ -199,7 +221,6 @@ export default function Header() {
                     </>
                   )}
                   <a href={PLANS_URL} className={drawerBtn} onClick={openPlans}><span>Plans</span><span className="text-white/40">→</span></a>
-                  <button className={isActive(pathname, SETTINGS_PATH) ? drawerBtnActive : drawerBtn} onClick={() => go(SETTINGS_PATH)}><span>Paramètres</span><span className="text-white/40">→</span></button>
                 </div>
               </div>
             </motion.div>
