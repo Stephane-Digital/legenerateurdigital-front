@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
 import {
   FaArrowRight,
   FaCheckCircle,
@@ -32,6 +32,14 @@ type PendingAccessResponse = {
   ends_at?: string | null;
 };
 
+type ActivateTokenResponse = {
+  email?: string;
+  access_type?: string | null;
+  plan?: string | null;
+  expires_at?: string | null;
+  used?: boolean;
+};
+
 function ActivateAccountInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -39,6 +47,10 @@ function ActivateAccountInner() {
   const apiBaseUrl = useMemo(() => getApiBaseUrl(), []);
   const initialEmail = useMemo(
     () => (searchParams.get("email") || "").trim().toLowerCase(),
+    [searchParams]
+  );
+  const activationToken = useMemo(
+    () => (searchParams.get("token") || "").trim(),
     [searchParams]
   );
 
@@ -52,6 +64,7 @@ function ActivateAccountInner() {
 
   const [pendingInfo, setPendingInfo] = useState<PendingAccessResponse | null>(null);
   const [accessChecked, setAccessChecked] = useState(false);
+  const [tokenChecked, setTokenChecked] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -107,6 +120,62 @@ function ActivateAccountInner() {
     }
   }
 
+  async function checkToken(tokenValue: string) {
+    const cleanToken = (tokenValue || "").trim();
+
+    setError("");
+    setSuccess("");
+    setAccessChecked(false);
+    setPendingInfo(null);
+
+    if (!cleanToken) {
+      return;
+    }
+
+    try {
+      setChecking(true);
+
+      const res = await fetch(
+        `${apiBaseUrl}/auth/activate-token?token=${encodeURIComponent(cleanToken)}`,
+        {
+          method: "GET",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          cache: "no-store",
+        }
+      );
+
+      const data: ActivateTokenResponse = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(
+          (data as any)?.detail || "Lien d’activation invalide, expiré ou déjà utilisé."
+        );
+      }
+
+      const cleanEmail = String(data?.email || "").trim().toLowerCase();
+
+      setEmail(cleanEmail);
+      setPendingInfo({
+        email: cleanEmail,
+        has_access: true,
+        status: "token_valid",
+        access_type: data?.access_type || "activation sécurisée",
+        plan: data?.plan || null,
+        starts_at: null,
+        ends_at: data?.expires_at || null,
+      });
+      setAccessChecked(true);
+      setTokenChecked(true);
+      setSuccess("Lien sécurisé validé. Tu peux maintenant finaliser ton compte LGD.");
+    } catch (err: any) {
+      setError(err?.message || "Impossible de valider le lien sécurisé.");
+      setTokenChecked(true);
+    } finally {
+      setChecking(false);
+    }
+  }
+
   async function handleActivate(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
@@ -140,6 +209,23 @@ function ActivateAccountInner() {
 
       if (!registerRes.ok) {
         throw new Error(registerData?.detail || "Impossible d’activer le compte.");
+      }
+
+      if (activationToken) {
+        const consumeRes = await fetch(`${apiBaseUrl}/auth/consume-token`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ token: activationToken }),
+        });
+
+        const consumeData = await consumeRes.json().catch(() => ({}));
+
+        if (!consumeRes.ok) {
+          throw new Error(
+            consumeData?.detail || "Compte créé, mais impossible de valider le lien sécurisé."
+          );
+        }
       }
 
       const loginRes = await fetch(`${apiBaseUrl}/auth/login`, {
@@ -183,11 +269,16 @@ function ActivateAccountInner() {
   }
 
   useEffect(() => {
+    if (activationToken) {
+      checkToken(activationToken);
+      return;
+    }
+
     if (initialEmail) {
       checkAccess(initialEmail);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialEmail]);
+  }, [initialEmail, activationToken]);
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#030303] text-white">
@@ -206,7 +297,7 @@ function ActivateAccountInner() {
               </div>
 
               <div>
-                <h1 className="text-3xl font-semibold text-white md:text-4xl">
+                <h1 className="text-3xl font-black text-white md:text-4xl">
                   Finaliser mon compte <span className="text-[#f5b700]">LGD</span>
                 </h1>
                 <p className="mt-2 text-white/70">
@@ -227,14 +318,20 @@ function ActivateAccountInner() {
                 />
               </div>
 
-              <button
-                type="button"
-                onClick={() => checkAccess()}
-                disabled={checking}
-                className="flex w-full items-center justify-center gap-3 rounded-[18px] border border-[#f5b700]/35 bg-black/30 px-5 py-3 font-bold text-[#f5b700] transition hover:bg-[#f5b700]/8 disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                {checking ? "Vérification..." : "Vérifier mon accès"}
-              </button>
+              {!activationToken ? (
+                <button
+                  type="button"
+                  onClick={() => checkAccess()}
+                  disabled={checking}
+                  className="flex w-full items-center justify-center gap-3 rounded-[18px] border border-[#f5b700]/35 bg-black/30 px-5 py-3 font-bold text-[#f5b700] transition hover:bg-[#f5b700]/8 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {checking ? "Vérification..." : "Vérifier mon accès"}
+                </button>
+              ) : (
+                <div className="rounded-[18px] border border-[#f5b700]/25 bg-[#f5b700]/8 px-5 py-3 text-sm text-[#f8d66f]">
+                  {checking ? "Vérification du lien sécurisé..." : "Lien sécurisé détecté."}
+                </div>
+              )}
 
               <div className="group flex items-center gap-3 rounded-[20px] border border-white/14 bg-black/45 px-5 py-4">
                 <FaUser className="shrink-0 text-white/45" />
@@ -267,7 +364,7 @@ function ActivateAccountInner() {
 
               <button
                 type="submit"
-                disabled={activating}
+                disabled={activating || checking}
                 className="flex w-full items-center justify-center gap-3 rounded-[20px] bg-[#f5bf21] px-6 py-4 text-center text-xl font-black text-black transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {activating ? "Activation..." : "Activer mon compte"}
@@ -299,7 +396,7 @@ function ActivateAccountInner() {
             </div>
 
             <div className="relative">
-              <h2 className="text-4xl font-semibold leading-none text-white md:text-5xl">
+              <h2 className="text-4xl font-black leading-none text-white md:text-5xl">
                 Activation <span className="block text-[#f5b700]">ultra simple</span>
               </h2>
 
@@ -317,7 +414,9 @@ function ActivateAccountInner() {
                   <div>
                     <div className="text-lg font-bold text-white">1. Vérifie ton email</div>
                     <div className="mt-1 text-white/65">
-                      Utilise exactement l’adresse email renseignée lors de l’achat ou de l’essai.
+                      {activationToken
+                        ? "Le lien contient un token unique et sécurisé."
+                        : "Utilise exactement l’adresse email renseignée lors de l’achat ou de l’essai."}
                     </div>
                   </div>
                 </div>
@@ -368,6 +467,30 @@ function ActivateAccountInner() {
                     <div className="rounded-[16px] border border-white/10 bg-black/20 px-4 py-3">
                       <div className="text-white/55">Email</div>
                       <div className="font-bold text-white break-all">{pendingInfo.email || email}</div>
+                    </div>
+                  </div>
+                </div>
+              ) : tokenChecked && activationToken && !error ? (
+                <div className="mt-8 rounded-[22px] border border-[#f5b700]/18 bg-[linear-gradient(180deg,rgba(255,186,8,0.08),rgba(255,255,255,0.02))] px-5 py-5">
+                  <div className="text-sm uppercase tracking-[0.24em] text-[#f5b700]/85">
+                    lien sécurisé validé
+                  </div>
+                  <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="rounded-[16px] border border-white/10 bg-black/20 px-4 py-3">
+                      <div className="text-white/55">Type d’accès</div>
+                      <div className="font-bold text-white">{pendingInfo?.access_type || "activation sécurisée"}</div>
+                    </div>
+                    <div className="rounded-[16px] border border-white/10 bg-black/20 px-4 py-3">
+                      <div className="text-white/55">Plan</div>
+                      <div className="font-bold text-white">{pendingInfo?.plan || "—"}</div>
+                    </div>
+                    <div className="rounded-[16px] border border-white/10 bg-black/20 px-4 py-3">
+                      <div className="text-white/55">Statut</div>
+                      <div className="font-bold text-white">token_valid</div>
+                    </div>
+                    <div className="rounded-[16px] border border-white/10 bg-black/20 px-4 py-3">
+                      <div className="text-white/55">Email</div>
+                      <div className="font-bold text-white break-all">{pendingInfo?.email || email}</div>
                     </div>
                   </div>
                 </div>
