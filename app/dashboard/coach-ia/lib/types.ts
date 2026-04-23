@@ -2,7 +2,7 @@
 // Types + small normalizers (NO refactor outside coach-ia).
 // Backend remains the source of truth; these helpers just harden against older shapes.
 
-export type CoachUserPlan = "essentiel" | "pro" | "ultime" | (string & {});
+export type CoachUserPlan = "azur" | "essentiel" | "pro" | "ultime" | (string & {});
 export type CoachFocus = "jour" | "objectif" | "diagnostic" | (string & {});
 
 export type CoachMessageRole = "user" | "assistant" | "system";
@@ -11,9 +11,7 @@ export type CoachMessage = {
   id: string;
   role: CoachMessageRole;
   content: string;
-  /** Canonical (client) */
   createdAt: number;
-  /** Backward-compat (older drafts) */
   created_at?: number;
 };
 
@@ -30,23 +28,21 @@ export type CoachDay = {
 
 export type CoachActionPlan = {
   days: CoachDay[];
-  /** Canonical */
   selectedDay?: number;
-  /** Backward-compat */
   selected_day?: number;
 };
 
 export type CoachQuotaResponse = {
-  // Canonical fields we will use everywhere in UI
   plan?: CoachUserPlan;
+  display_plan?: string;
+  plan_key?: string;
+  daily_limit?: number;
   limit_tokens?: number;
   tokens_limit?: number;
   tokens_used?: number;
   used_tokens?: number;
   remaining?: number;
   feature?: string;
-
-  // Allow extra fields without breaking
   [k: string]: any;
 };
 
@@ -56,49 +52,50 @@ export type CoachSession = {
   userName: string;
   messages: CoachMessage[];
   actionPlan: CoachActionPlan;
-
-  // Optional backend snapshot
   backendQuotas?: CoachQuotaResponse;
 };
 
 const PLAN_ALIASES: Record<string, CoachUserPlan> = {
-  // essential / essent(i)el
+  azur: "azur",
+  trial: "azur",
+  starter: "azur",
+  decouverte: "azur",
+  découverte: "azur",
   essential: "essentiel",
   essentiel: "essentiel",
   ess: "essentiel",
   basic: "essentiel",
-
-  // pro
   pro: "pro",
   professional: "pro",
-
-  // ultimate / ultime
   ultimate: "ultime",
   ultime: "ultime",
   premium: "ultime",
 };
 
-export function normalizeCoachUserPlan(plan: unknown): CoachUserPlan {
+export function normalizeCoachUserPlan(plan: unknown, limit?: unknown): CoachUserPlan {
   const p = String(plan ?? "essentiel").toLowerCase().trim();
+  const n = Number(limit ?? 0);
+  if (n === 70_000) return "azur";
+  if (n === 2_500_000) return "ultime";
+  if (n === 1_000_000) return "pro";
+  if (n === 400_000) return "essentiel";
   return PLAN_ALIASES[p] ?? (p as CoachUserPlan);
 }
 
-export function planLabel(plan: CoachUserPlan | undefined): string {
-  const p = normalizeCoachUserPlan(plan);
+export function planLabel(plan: CoachUserPlan | undefined, limit?: number): string {
+  const p = normalizeCoachUserPlan(plan, limit);
+  if (p === "azur") return "AZUR";
   if (p === "pro") return "Pro";
   if (p === "ultime") return "Ultime";
   return "Essentiel";
 }
 
-/**
- * Default token limits per plan (fallback only when backend quota is unavailable).
- * IMPORTANT: Admin IA-Quotas remains the source of truth; this is just a UI fallback.
- */
 export function planTokenLimit(plan: CoachUserPlan | undefined): number {
   const p = normalizeCoachUserPlan(plan);
-  if (p === "ultime") return 2_000_000;
-  if (p === "pro") return 800_000;
-  return 200_000;
+  if (p === "azur") return 70_000;
+  if (p === "ultime") return 2_500_000;
+  if (p === "pro") return 1_000_000;
+  return 400_000;
 }
 
 export function normalizeMessage(m: any): CoachMessage {
@@ -151,17 +148,11 @@ export function clampTokens(v: unknown): number {
   return Math.max(0, Math.floor(n));
 }
 
-/**
- * Normalize quota response from backend/admin services.
- * Accepts multiple field names to stay compatible with earlier API shapes.
- */
 export function normalizeQuota(q: any): CoachQuotaResponse {
   if (!q || typeof q !== "object") return {};
 
-  const plan = q.plan != null ? normalizeCoachUserPlan(q.plan) : undefined;
-
-  const limit =
-    clampTokens(q.limit_tokens ?? q.tokens_limit ?? q.limitTokens ?? q.limit ?? 0);
+  const limit = clampTokens(q.limit_tokens ?? q.tokens_limit ?? q.limitTokens ?? q.limit ?? q.credits ?? 0);
+  const plan = normalizeCoachUserPlan(q.display_plan ?? q.plan_key ?? q.plan, limit);
 
   const used = clampTokens(
     q.tokens_used ?? q.used_tokens ?? q.usedTokens ?? q.used ?? 0
@@ -173,7 +164,11 @@ export function normalizeQuota(q: any): CoachQuotaResponse {
   return {
     ...q,
     plan,
+    display_plan: q.display_plan ?? (plan === "azur" ? "azur" : plan),
+    plan_key: q.plan_key ?? plan,
+    daily_limit: clampTokens(q.daily_limit ?? (limit === 70_000 ? 10_000 : Math.round(limit / 30))),
     limit_tokens: limit,
+    tokens_limit: limit,
     tokens_used: used,
     remaining: remainingRaw,
   };
