@@ -10,11 +10,21 @@ function formatInt(n: number) {
   }
 }
 
-function planTotalsFromLabel(label?: string): { total: number; name: string } {
-  const l = (label || "").toLowerCase();
-  if (l.includes("ult")) return { name: "Ultime", total: 2_500_000 };
-  if (l.includes("pro")) return { name: "Pro", total: 1_000_000 };
-  return { name: label || "Essentiel", total: 400_000 };
+function normalizePlanLabel(label?: string, limit?: number): string {
+  const l = String(label || "").toLowerCase().trim();
+  const safeLimit = Number(limit || 0);
+
+  if (l.includes("azur") || l.includes("trial") || l.includes("starter")) return "AZUR";
+  if (l.includes("ult")) return "ULTIME";
+  if (l.includes("pro")) return "PRO";
+  if (l.includes("ess")) return "ESSENTIEL";
+
+  if (safeLimit === 70_000) return "AZUR";
+  if (safeLimit === 2_500_000) return "ULTIME";
+  if (safeLimit === 1_000_000) return "PRO";
+  if (safeLimit === 400_000) return "ESSENTIEL";
+
+  return label || "ESSENTIEL";
 }
 
 function plansUrl() {
@@ -27,17 +37,24 @@ export default function QuotaMeter(props: {
   remaining: number;
   loading?: boolean;
   planLabel?: string;
+  dailyLimit?: number;
 }) {
-  const { used, limit, remaining, loading, planLabel } = props;
-
-  // Backend is the source of truth, but we also display plan totals for UX.
-  const plan = planTotalsFromLabel(planLabel);
-  const totalMonthly = plan.total;
-  const dailySoft = Math.round(totalMonthly / 30);
+  const { used, limit, remaining, loading, planLabel, dailyLimit } = props;
 
   const safeLimit = Number.isFinite(limit) ? limit : 0;
   const safeUsed = Number.isFinite(used) ? used : 0;
   const safeRemaining = Number.isFinite(remaining) ? remaining : Math.max(safeLimit - safeUsed, 0);
+
+  const displayPlan = normalizePlanLabel(planLabel, safeLimit);
+  const totalMonthly = safeLimit > 0 ? safeLimit : 0;
+  const resolvedDaily =
+    Number.isFinite(dailyLimit as number) && Number(dailyLimit || 0) > 0
+      ? Number(dailyLimit)
+      : displayPlan === "AZUR"
+        ? 10_000
+        : totalMonthly > 0
+          ? Math.round(totalMonthly / 30)
+          : 0;
 
   const ratio = safeLimit > 0 ? Math.min(100, Math.max(0, (safeUsed / safeLimit) * 100)) : 0;
 
@@ -47,13 +64,15 @@ export default function QuotaMeter(props: {
         <div>
           <div className="text-sm text-white/70">IA-Quotas</div>
           <div className="mt-1 text-[13px] text-white/90">
-            Plan :{" "}
-            <span className="font-semibold text-yellow-300">
-              {plan.name}
-            </span>{" "}
-            <span className="text-white/55">({formatInt(totalMonthly)}/mois)</span>
+            Plan:{" "}
+            <span className="font-semibold text-yellow-300">{displayPlan}</span>{" "}
+            <span className="text-white/55">
+              ({loading ? "…" : safeLimit > 0 ? `${formatInt(totalMonthly)}/mois` : "—"})
+            </span>
           </div>
-          <div className="mt-0.5 text-[12px] text-white/65">Quota / jour : {formatInt(dailySoft)}</div>
+          <div className="mt-0.5 text-[12px] text-white/65">
+            Quota / jour : {loading ? "…" : resolvedDaily > 0 ? formatInt(resolvedDaily) : "—"}
+          </div>
           <div className="mt-0.5 text-[12px] text-white/65">
             Restant : {loading ? "…" : safeLimit > 0 ? formatInt(safeRemaining) : "—"}
           </div>
