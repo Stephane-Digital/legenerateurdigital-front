@@ -24,7 +24,7 @@ import {
   FaUserAstronaut,
 } from "react-icons/fa";
 
-type Plan = "none" | "essentiel" | "pro" | "ultime";
+type Plan = "none" | "azur" | "trial" | "essentiel" | "pro" | "ultime";
 
 type ModalKey =
   | "editor"
@@ -60,6 +60,8 @@ function planLabel(plan: Plan) {
   if (plan === "ultime") return "ULTIME";
   if (plan === "pro") return "PRO";
   if (plan === "essentiel") return "ESSENTIEL";
+  if (plan === "azur") return "AZUR";
+  if (plan === "trial") return "TRIAL";
   return "AUCUN";
 }
 
@@ -87,6 +89,8 @@ async function fetchPlanFromBackend(): Promise<Plan> {
   if (p.includes("ultime")) return "ultime";
   if (p.includes("pro")) return "pro";
   if (p.includes("essentiel")) return "essentiel";
+  if (p.includes("azur")) return "azur";
+  if (p.includes("trial")) return "trial";
   return "none";
 }
 
