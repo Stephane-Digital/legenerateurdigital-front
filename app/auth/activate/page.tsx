@@ -40,6 +40,23 @@ type ActivateTokenResponse = {
   used?: boolean;
 };
 
+type ConsumeTokenResponse = {
+  access_token?: string;
+  token?: string;
+  user?: {
+    id?: number | string;
+    email?: string;
+    plan?: string | null;
+    access_token?: string;
+    token?: string;
+  };
+  email?: string;
+  plan?: string | null;
+  status?: string;
+  message?: string;
+  detail?: string;
+};
+
 function ActivateAccountInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -176,6 +193,104 @@ function ActivateAccountInner() {
     }
   }
 
+  function persistAuthToken(data: ConsumeTokenResponse) {
+    const token =
+      data?.access_token ||
+      data?.token ||
+      data?.user?.access_token ||
+      data?.user?.token ||
+      "";
+
+    if (typeof window !== "undefined" && token) {
+      window.localStorage.setItem("access_token", token);
+      window.localStorage.setItem("lgd_token", token);
+      window.localStorage.setItem("token", token);
+    }
+  }
+
+  async function activateWithSecureToken({
+    cleanEmail,
+    cleanName,
+    cleanPassword,
+  }: {
+    cleanEmail: string;
+    cleanName: string;
+    cleanPassword: string;
+  }) {
+    const consumeRes = await fetch(`${apiBaseUrl}/auth/consume-token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        token: activationToken,
+        email: cleanEmail,
+        full_name: cleanName,
+        password: cleanPassword,
+      }),
+    });
+
+    const consumeData: ConsumeTokenResponse = await consumeRes.json().catch(() => ({}));
+
+    if (!consumeRes.ok) {
+      throw new Error(
+        consumeData?.detail ||
+          consumeData?.message ||
+          "Token invalide, expiré ou déjà utilisé."
+      );
+    }
+
+    persistAuthToken(consumeData);
+    return consumeData;
+  }
+
+  async function activateWithLegacyEmail({
+    cleanEmail,
+    cleanName,
+    cleanPassword,
+  }: {
+    cleanEmail: string;
+    cleanName: string;
+    cleanPassword: string;
+  }) {
+    const registerRes = await fetch(`${apiBaseUrl}/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        email: cleanEmail,
+        password: cleanPassword,
+        full_name: cleanName,
+      }),
+    });
+
+    const registerData = await registerRes.json().catch(() => ({}));
+
+    if (!registerRes.ok) {
+      throw new Error(registerData?.detail || "Impossible d’activer le compte.");
+    }
+
+    const loginRes = await fetch(`${apiBaseUrl}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        email: cleanEmail,
+        password: cleanPassword,
+      }),
+    });
+
+    const loginData = await loginRes.json().catch(() => ({}));
+
+    if (!loginRes.ok) {
+      throw new Error(
+        loginData?.detail || "Compte activé, mais connexion automatique impossible."
+      );
+    }
+
+    persistAuthToken(loginData);
+    return loginData;
+  }
+
   async function handleActivate(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
@@ -191,70 +306,28 @@ function ActivateAccountInner() {
       return;
     }
 
+    if (cleanPassword.length < 6) {
+      setError("Ton mot de passe doit contenir au moins 6 caractères.");
+      return;
+    }
+
+    if (activationToken && !accessChecked) {
+      setError("Le lien sécurisé doit être validé avant l’activation du compte.");
+      return;
+    }
+
+    if (!activationToken && !pendingInfo?.has_access) {
+      setError("Vérifie d’abord ton accès avant d’activer ton compte.");
+      return;
+    }
+
     try {
       setActivating(true);
 
-      const registerRes = await fetch(`${apiBaseUrl}/auth/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          email: cleanEmail,
-          password: cleanPassword,
-          full_name: cleanName,
-        }),
-      });
-
-      const registerData = await registerRes.json().catch(() => ({}));
-
-      if (!registerRes.ok) {
-        throw new Error(registerData?.detail || "Impossible d’activer le compte.");
-      }
-
       if (activationToken) {
-        const consumeRes = await fetch(`${apiBaseUrl}/auth/consume-token`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ token: activationToken }),
-        });
-
-        const consumeData = await consumeRes.json().catch(() => ({}));
-
-        if (!consumeRes.ok) {
-          throw new Error(
-            consumeData?.detail || "Compte créé, mais impossible de valider le lien sécurisé."
-          );
-        }
-      }
-
-      const loginRes = await fetch(`${apiBaseUrl}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          email: cleanEmail,
-          password: cleanPassword,
-        }),
-      });
-
-      const loginData = await loginRes.json().catch(() => ({}));
-
-      if (!loginRes.ok) {
-        throw new Error(
-          loginData?.detail || "Compte activé, mais connexion automatique impossible."
-        );
-      }
-
-      const token =
-        loginData?.access_token ||
-        loginData?.token ||
-        loginData?.user?.access_token ||
-        "";
-
-      if (typeof window !== "undefined" && token) {
-        window.localStorage.setItem("access_token", token);
-        window.localStorage.setItem("lgd_token", token);
+        await activateWithSecureToken({ cleanEmail, cleanName, cleanPassword });
+      } else {
+        await activateWithLegacyEmail({ cleanEmail, cleanName, cleanPassword });
       }
 
       setSuccess("Compte activé avec succès. Redirection vers le dashboard...");
