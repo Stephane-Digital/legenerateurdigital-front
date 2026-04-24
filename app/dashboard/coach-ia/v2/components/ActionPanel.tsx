@@ -8,22 +8,18 @@ export default function ActionPanel(props: {
   quota: { loading: boolean; used: number; limit: number; remaining: number; planLabel: string };
   onOpenParcours: () => void;
   onResume: () => void;
-  onResetAlex?: () => void | Promise<void>;
 }) {
-  const { today, onResume, onResetAlex } = props;
+  const { today, onResume } = props;
 
-  async function onResetLocal() {
+  function onResetLocal() {
     const ok = window.confirm(
-      "Réinitialiser Alex V2 pour ce compte ?\n\nCela efface le contexte, le plan, la mission du jour et les logs Alex."
+      "Réinitialiser Alex V2 sur CET appareil ?\n\nCela efface : contexte, plan, mission du jour et logs."
     );
     if (!ok) return;
+    resetAlexV2All();
 
-    if (onResetAlex) {
-      await onResetAlex();
-      return;
-    }
-
-    resetAlexV2All({ includeLegacy: true });
+    // ✅ Use a hard navigation to the same route to avoid any intermediate UI states.
+    // (And AlexV2Shell has an anti-flash boot gate, so no WELCOME card can appear.)
     window.location.assign("/dashboard/coach-ia/v2");
   }
 
@@ -66,11 +62,11 @@ export default function ActionPanel(props: {
           onClick={onResetLocal}
           className="mt-2 w-full rounded-2xl border border-[#3a2d12] bg-black/30 px-4 py-3 text-sm text-yellow-200 hover:bg-black/50 transition"
         >
-          Réinitialiser Alex
+          Réinitialiser Alex (local)
         </button>
 
         <div className="mt-2 text-[11px] text-white/45">
-          Astuce : si tu vois des étapes verrouillées ou une progression incohérente, ce reset remet Alex V2 à zéro pour le compte connecté.
+          Astuce : si tu vois des étapes verrouillées ou une progression incohérente, ce reset remet Alex V2 à zéro sur ton navigateur.
         </div>
       </div>
 
