@@ -40,13 +40,52 @@ async function fetchJSON<T>(path: string, init?: RequestInit): Promise<T> {
   }
 }
 
+function normalizePlan(...values: Array<string | undefined | null>): string {
+  const raw = values
+    .map((v) => String(v || "").trim().toLowerCase())
+    .filter(Boolean)
+    .join(" ");
+
+  if (!raw) return "";
+  if (
+    raw.includes("azur") ||
+    raw.includes("trial") ||
+    raw.includes("starter") ||
+    raw.includes("decouverte") ||
+    raw.includes("découverte")
+  ) {
+    return "azur";
+  }
+  if (raw.includes("ult")) return "ultime";
+  if (raw.includes("pro")) return "pro";
+  if (raw.includes("essentiel") || raw.includes("essential")) return "essentiel";
+  return "";
+}
+
 function planFromLimit(limit?: number): string {
   const n = Number(limit || 0);
   if (n === 70_000) return "azur";
   if (n === 2_500_000) return "ultime";
   if (n === 1_000_000) return "pro";
   if (n === 400_000) return "essentiel";
-  return "essentiel";
+  return "";
+}
+
+function monthlyLimitFromPlan(plan: string, fallbackLimit?: number): number {
+  const p = String(plan || "").toLowerCase();
+  if (p === "azur") return 70_000;
+  if (p === "ultime") return 2_500_000;
+  if (p === "pro") return 1_000_000;
+  if (p === "essentiel") return 400_000;
+  return Number(fallbackLimit || 0);
+}
+
+function displayPlanFrom(plan: string): string {
+  if (plan === "azur") return "AZUR";
+  if (plan === "ultime") return "Ultime";
+  if (plan === "pro") return "Pro";
+  if (plan === "essentiel") return "Essentiel";
+  return "Essentiel";
 }
 
 export async function coachQuota(): Promise<{
@@ -59,27 +98,36 @@ export async function coachQuota(): Promise<{
   remaining: number;
 }> {
   const makeQuota = (q: CoachQuotaDTO) => {
-    const tokensLimit = Number(q.tokens_limit || 0);
-    const canonicalPlan = planFromLimit(tokensLimit);
-    const displayPlan =
-      canonicalPlan ||
-      String(q.display_plan || q.plan_key || q.plan || "").trim();
+    const rawLimit = Number(q.tokens_limit || 0);
+
+    // ✅ Source de vérité LGD : le plan renvoyé par ia-quotas prime sur une limite héritée.
+    // Cas corrigé : nouveau compte AZUR affiché Essentiel dans Coach IA car l'ancien helper
+    // déduisait le plan uniquement depuis tokens_limit (=400000).
+    const canonicalPlan =
+      normalizePlan(q.display_plan, q.plan_key, q.plan) || planFromLimit(rawLimit) || "essentiel";
+
+    const tokensLimit = monthlyLimitFromPlan(canonicalPlan, rawLimit);
 
     const daily =
       Number(q.daily_limit || 0) > 0
         ? Number(q.daily_limit || 0)
-        : tokensLimit === 70_000
+        : canonicalPlan === "azur"
           ? 10_000
           : Math.round(tokensLimit / 30);
 
+    const remaining =
+      typeof q.remaining === "number"
+        ? Number(q.remaining || 0)
+        : Math.max(tokensLimit - Number(q.tokens_used || 0), 0);
+
     return {
       plan: canonicalPlan,
-      display_plan: displayPlan,
+      display_plan: displayPlanFrom(canonicalPlan),
       plan_key: canonicalPlan,
       daily_limit: Number(daily || 0),
       tokens_used: Number(q.tokens_used || 0),
       tokens_limit: tokensLimit,
-      remaining: Number(q.remaining || 0),
+      remaining,
     };
   };
 
