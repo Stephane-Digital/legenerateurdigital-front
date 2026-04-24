@@ -226,12 +226,35 @@ import {
   evolveContextAfterLog,
 } from "../lib/engine";
 
-function planLabelFrom(plan?: string) {
-  if (!plan) return "";
-  const p = plan.toLowerCase();
-  if (p.includes("ult")) return "Ultime";
-  if (p.includes("pro")) return "Pro";
-  return "Essentiel";
+function planLabelFrom(plan?: string, limit?: number) {
+  // ✅ Priorité absolue au plan réel renvoyé par IA-Quotas.
+  // Ne jamais déduire Essentiel depuis tokens_limit si le plan réel est AZUR/trial/starter.
+  if (plan) {
+    const p = String(plan).toLowerCase();
+
+    if (
+      p.includes("azur") ||
+      p.includes("trial") ||
+      p.includes("starter") ||
+      p.includes("decouverte") ||
+      p.includes("découverte")
+    ) {
+      return "AZUR";
+    }
+
+    if (p.includes("ult")) return "Ultime";
+    if (p.includes("pro")) return "Pro";
+    if (p.includes("ess")) return "Essentiel";
+  }
+
+  // Fallback seulement si aucun plan fiable n'est fourni.
+  const n = Number(limit || 0);
+  if (n === 70_000) return "AZUR";
+  if (n === 2_500_000) return "Ultime";
+  if (n === 1_000_000) return "Pro";
+  if (n === 400_000) return "Essentiel";
+
+  return "";
 }
 
 function linearDayIndex(weekIndex: number, dayIndex: number) {
@@ -332,12 +355,21 @@ export default function AlexV2Shell() {
 
   const planMonthlyLimit = useMemo(() => {
     const p = (planLabel || "").toLowerCase();
+    if (p.includes("azur")) return 70_000;
     if (p.includes("ult")) return 2_500_000;
     if (p.includes("pro")) return 1_000_000;
-    return 400_000;
-  }, [planLabel]);
+    if (p.includes("ess")) return 400_000;
 
-  const planDailySoft = useMemo(() => Math.round(planMonthlyLimit / 30), [planMonthlyLimit]);
+    const n = Number(limit || 0);
+    if (n > 0) return n;
+    return 400_000;
+  }, [planLabel, limit]);
+
+  const planDailySoft = useMemo(() => {
+    const p = (planLabel || "").toLowerCase();
+    if (p.includes("azur")) return 10_000;
+    return Math.round(planMonthlyLimit / 30);
+  }, [planLabel, planMonthlyLimit]);
 
   const remainingValue = useMemo(() => {
     const r = Number.isFinite(remaining) ? remaining : 0;
@@ -345,7 +377,7 @@ export default function AlexV2Shell() {
   }, [remaining]);
 
   // ===== init from localStorage (BOOT)
-  
+
   useEffect(() => {
     try {
       const key = "lgd_dashboard_daily_progress";
@@ -536,7 +568,7 @@ useEffect(() => {
       const q = await coachQuota();
       setUsed(Number(q.tokens_used || 0));
       setLimit(Number(q.tokens_limit || 0));
-      setPlanLabel(planLabelFrom(q.plan));
+      setPlanLabel(planLabelFrom(String(q.display_plan || q.plan_key || q.plan || ""), Number(q.tokens_limit || 0)));
     } catch (e: any) {
       const msg = String(e?.message || e || "");
       if (msg.includes("UNAUTH") || msg.includes("401")) {
