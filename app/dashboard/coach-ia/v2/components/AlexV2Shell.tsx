@@ -22,6 +22,7 @@ import {
   setV2Roadmap,
   setV2Stage,
   setV2Today,
+  resetAlexV2All,
 } from "../lib/storage";
 
 import type {
@@ -108,6 +109,80 @@ async function pushCoachV2SnapshotToServer(snapshot: CoachV2Snapshot): Promise<v
   }).catch(() => {});
 }
 
+async function clearCoachV2SnapshotOnServer(): Promise<void> {
+  const base = apiBase();
+  if (!base) return;
+
+  await fetch(`${base}/coach-profile`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
+    credentials: "include",
+    body: JSON.stringify({
+      profile: {
+        coach_v2: null,
+      },
+    }),
+  }).catch(() => {});
+}
+
+async function readCurrentAccountKey(): Promise<string> {
+  const base = apiBase();
+
+  if (base) {
+    try {
+      const res = await fetch(`${base}/auth/me`, {
+        method: "GET",
+        headers: {
+          ...getAuthHeaders(),
+        },
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      if (res.ok) {
+        const data = await res.json().catch(() => null);
+        const raw =
+          data?.email ||
+          data?.user?.email ||
+          data?.id ||
+          data?.user?.id ||
+          "";
+
+        if (raw) return String(raw).trim().toLowerCase();
+      }
+    } catch {}
+  }
+
+  if (typeof window !== "undefined") {
+    const token =
+      window.localStorage.getItem("access_token") ||
+      window.localStorage.getItem("token") ||
+      window.localStorage.getItem("jwt") ||
+      "";
+
+    if (token) return `token:${token.slice(0, 32)}`;
+  }
+
+  return "anonymous";
+}
+
+function resetAlexLocalStateForAccount(accountKey: string) {
+  try {
+    resetAlexV2All({ includeLegacy: true });
+  } catch {
+    try {
+      resetAlexV2All();
+    } catch {}
+  }
+
+  try {
+    window.localStorage.setItem("lgd_alex_v2_owner", accountKey);
+  } catch {}
+}
+
 function isISOAfter(a?: string, b?: string) {
   if (!a || !b) return false;
   return new Date(a).getTime() > new Date(b).getTime();
@@ -151,16 +226,9 @@ import {
   evolveContextAfterLog,
 } from "../lib/engine";
 
-function planLabelFrom(plan?: string, limit?: number) {
-  const n = Number(limit || 0);
-  if (n === 70_000) return "AZUR";
-  if (n === 2_500_000) return "Ultime";
-  if (n === 1_000_000) return "Pro";
-  if (n === 400_000) return "Essentiel";
-
+function planLabelFrom(plan?: string) {
   if (!plan) return "";
   const p = plan.toLowerCase();
-  if (p.includes("azur") || p.includes("trial") || p.includes("starter") || p.includes("decouverte") || p.includes("découverte")) return "AZUR";
   if (p.includes("ult")) return "Ultime";
   if (p.includes("pro")) return "Pro";
   return "Essentiel";
@@ -235,6 +303,7 @@ export default function AlexV2Shell() {
   // ✅ Anti-flash hard lock
   const [booted, setBooted] = useState(false);
   const [serverSynced, setServerSynced] = useState(false);
+  const [accountKey, setAccountKey] = useState<string>("");
 
   const lastPushedSigRef = useRef<string>("");
 
@@ -262,19 +331,13 @@ export default function AlexV2Shell() {
     process.env.NEXT_PUBLIC_SYSTEME_PLANS_URL || "https://legenerateurdigital.systeme.io/plans";
 
   const planMonthlyLimit = useMemo(() => {
-    const n = Number(limit || 0);
-    if (n > 0) return n;
     const p = (planLabel || "").toLowerCase();
-    if (p.includes("azur")) return 70_000;
     if (p.includes("ult")) return 2_500_000;
     if (p.includes("pro")) return 1_000_000;
     return 400_000;
-  }, [planLabel, limit]);
+  }, [planLabel]);
 
-  const planDailySoft = useMemo(() => {
-    if (planMonthlyLimit === 70_000) return 10_000;
-    return Math.round(planMonthlyLimit / 30);
-  }, [planMonthlyLimit]);
+  const planDailySoft = useMemo(() => Math.round(planMonthlyLimit / 30), [planMonthlyLimit]);
 
   const remainingValue = useMemo(() => {
     const r = Number.isFinite(remaining) ? remaining : 0;
@@ -282,7 +345,7 @@ export default function AlexV2Shell() {
   }, [remaining]);
 
   // ===== init from localStorage (BOOT)
-
+  
   useEffect(() => {
     try {
       const key = "lgd_dashboard_daily_progress";
@@ -298,40 +361,62 @@ export default function AlexV2Shell() {
     } catch {}
   }, []);
 useEffect(() => {
-    const ctx = getV2Context();
-    const rm = getV2Roadmap();
-    const td = getV2Today();
-    const st = getV2Stage();
-    const lg = getV2Logs();
+    let cancelled = false;
 
-    setContextState(ctx);
-    setRoadmapState(rm);
-    setTodayState(td);
-    setLogsState(lg);
+    (async () => {
+      const currentAccountKey = await readCurrentAccountKey();
+      if (cancelled) return;
 
-    if (!ctx || !rm || !td) {
-      setStageState("ONBOARDING");
-      setV2Stage("ONBOARDING");
+      setAccountKey(currentAccountKey);
+
+      try {
+        const previousOwner = window.localStorage.getItem("lgd_alex_v2_owner") || "";
+        if (previousOwner && previousOwner !== currentAccountKey) {
+          resetAlexLocalStateForAccount(currentAccountKey);
+        } else if (!previousOwner) {
+          window.localStorage.setItem("lgd_alex_v2_owner", currentAccountKey);
+        }
+      } catch {}
+
+      const ctx = getV2Context();
+      const rm = getV2Roadmap();
+      const td = getV2Today();
+      const st = getV2Stage();
+      const lg = getV2Logs();
+
+      setContextState(ctx);
+      setRoadmapState(rm);
+      setTodayState(td);
+      setLogsState(lg);
+
+      if (!ctx || !rm || !td) {
+        setStageState("ONBOARDING");
+        setV2Stage("ONBOARDING");
+        setBooted(true);
+        return;
+      }
+
+      if (st) {
+        setStageState(st);
+        setBooted(true);
+        return;
+      }
+
+      if (td?.committedAtISO && td?.startedAtISO && !td?.completedAtISO) {
+        setStageState("FEEDBACK");
+        setV2Stage("FEEDBACK");
+        setBooted(true);
+        return;
+      }
+
+      setStageState("WELCOME");
+      setV2Stage("WELCOME");
       setBooted(true);
-      return;
-    }
+    })();
 
-    if (st) {
-      setStageState(st);
-      setBooted(true);
-      return;
-    }
-
-    if (td?.committedAtISO && td?.startedAtISO && !td?.completedAtISO) {
-      setStageState("FEEDBACK");
-      setV2Stage("FEEDBACK");
-      setBooted(true);
-      return;
-    }
-
-    setStageState("WELCOME");
-    setV2Stage("WELCOME");
-    setBooted(true);
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // ===== server persistence boot sync
@@ -383,6 +468,7 @@ useEffect(() => {
   useEffect(() => {
     if (!booted) return;
     if (!serverSynced) return;
+    if (!accountKey) return;
 
     const snapshot = buildSnapshotFromState({ stage, context, roadmap, today, logs });
     if (!snapshot) return;
@@ -404,7 +490,7 @@ useEffect(() => {
     }, 800);
 
     return () => clearTimeout(t);
-  }, [booted, serverSynced, stage, context, roadmap, today, logs]);
+  }, [booted, serverSynced, accountKey, stage, context, roadmap, today, logs]);
 
   // ===== quota fetch
   useEffect(() => {
@@ -448,11 +534,9 @@ useEffect(() => {
     setQuotaLoading(true);
     try {
       const q = await coachQuota();
-      const nextUsed = Number(q.tokens_used || 0);
-      const nextLimit = Number(q.tokens_limit || 0);
-      setUsed(nextUsed);
-      setLimit(nextLimit);
-      setPlanLabel(planLabelFrom(String(q.display_plan || q.plan || ""), nextLimit));
+      setUsed(Number(q.tokens_used || 0));
+      setLimit(Number(q.tokens_limit || 0));
+      setPlanLabel(planLabelFrom(q.plan));
     } catch (e: any) {
       const msg = String(e?.message || e || "");
       if (msg.includes("UNAUTH") || msg.includes("401")) {
@@ -625,6 +709,23 @@ useEffect(() => {
     goStage("MISSION_TODAY");
   }
 
+  async function onResetAlex() {
+    const currentAccountKey = accountKey || (await readCurrentAccountKey());
+
+    resetAlexLocalStateForAccount(currentAccountKey);
+    await clearCoachV2SnapshotOnServer();
+
+    setServerSynced(false);
+    setStageState("ONBOARDING");
+    setContextState(null);
+    setRoadmapState(null);
+    setTodayState(null);
+    setLogsState([]);
+    setV2Stage("ONBOARDING");
+
+    window.location.assign("/dashboard/coach-ia/v2");
+  }
+
   function onOpenParcours() {
     setParcoursOpen(true);
   }
@@ -787,6 +888,7 @@ useEffect(() => {
             }}
             onOpenParcours={onOpenParcours}
             onResume={onSmartResume}
+            onResetAlex={onResetAlex}
           />
         </div>
       </div>
