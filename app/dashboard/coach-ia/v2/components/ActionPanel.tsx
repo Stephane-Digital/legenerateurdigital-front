@@ -5,31 +5,12 @@ import { resetAlexV2All } from "../lib/storage";
 
 export default function ActionPanel(props: {
   today: AlexToday | null;
-  onOpenCommit?: () => void;
+  quota: { loading: boolean; used: number; limit: number; remaining: number; planLabel: string };
   onOpenParcours: () => void;
-  onResume?: () => void;
+  onResume: () => void;
   onResetAlex?: () => void | Promise<void>;
-  quotaLoading?: boolean;
-  planLabel?: string;
-  used?: number;
-  limit?: number;
-  remaining?: number;
 }) {
-  const { today, onOpenCommit, onOpenParcours, onResume, onResetAlex } = props;
-
-  function handleResume() {
-    if (onResume) {
-      onResume();
-      return;
-    }
-
-    if (today?.committedAtISO && !today?.completedAtISO && onOpenCommit) {
-      onOpenCommit();
-      return;
-    }
-
-    onOpenParcours();
-  }
+  const { today, onResume, onResetAlex } = props;
 
   async function onResetLocal() {
     const ok = window.confirm(
@@ -75,7 +56,7 @@ export default function ActionPanel(props: {
         </div>
 
         <button
-          onClick={handleResume}
+          onClick={onResume}
           className="mt-4 w-full rounded-2xl bg-yellow-400 px-4 py-3 text-sm font-semibold text-black hover:bg-yellow-300 transition"
         >
           Reprendre maintenant
