@@ -8,6 +8,8 @@ import { useEffect, useMemo, useState } from "react";
 type Plan = "none" | "azur" | "essentiel" | "pro" | "ultime";
 
 const PLANS_URL = process.env.NEXT_PUBLIC_SYSTEMEIO_PLANS_URL ?? "https://legenerateurdigital.systeme.io/lgd";
+const TRIAL_URL = process.env.NEXT_PUBLIC_SYSTEMEIO_TRIAL_URL ?? PLANS_URL;
+const LOGIN_PATH = "/auth/login";
 const DASHBOARD_PATH = "/dashboard";
 const AFFILIATION_PATH = "/dashboard/affiliation";
 const EDITOR_PATH = "/dashboard/automatisations/reseaux_sociaux/editor-intelligent";
@@ -57,6 +59,17 @@ function getPlanFromLocalStorage(): Plan {
   return "none";
 }
 
+function getStoredToken() {
+  if (typeof window === "undefined") return "";
+  return (
+    window.localStorage.getItem("access_token") ||
+    window.localStorage.getItem("lgd_token") ||
+    window.localStorage.getItem("token") ||
+    window.localStorage.getItem("jwt") ||
+    ""
+  );
+}
+
 function isActive(pathname: string, path: string) {
   if (path === DASHBOARD_PATH) return pathname === DASHBOARD_PATH;
   return pathname === path || pathname.startsWith(`${path}/`);
@@ -68,13 +81,20 @@ export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [plan, setPlan] = useState<Plan>("none");
   const [loadingPlan, setLoadingPlan] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
     let alive = true;
     const fallbackPlan = getPlanFromLocalStorage();
+    const storedToken = getStoredToken();
+
+    if (storedToken) {
+      setIsAuthenticated(true);
+    }
 
     if (fallbackPlan !== "none") {
       setPlan(fallbackPlan);
+      setIsAuthenticated(true);
       setLoadingPlan(false);
       return () => {
         alive = false;
@@ -87,12 +107,18 @@ export default function Header() {
         const res = await fetch(`${apiUrl}/ai-quota/global`, {
           method: "GET",
           credentials: "include",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...(storedToken ? { Authorization: `Bearer ${storedToken}` } : {}),
+          },
           cache: "no-store",
         });
 
         if (!res.ok) {
-          if (alive) setPlan("none");
+          if (alive) {
+            setPlan("none");
+            if (!storedToken) setIsAuthenticated(false);
+          }
           return;
         }
 
@@ -101,9 +127,15 @@ export default function Header() {
           data?.display_plan ?? data?.plan ?? data?.current_plan ?? data?.subscription_plan ?? data?.user_plan,
           data?.tokens_limit ?? data?.credits ?? data?.remaining
         );
-        if (alive) setPlan(p);
+        if (alive) {
+          setPlan(p);
+          setIsAuthenticated(true);
+        }
       } catch {
-        if (alive) setPlan("none");
+        if (alive) {
+          setPlan("none");
+          if (!storedToken) setIsAuthenticated(false);
+        }
       } finally {
         if (alive) setLoadingPlan(false);
       }
@@ -148,6 +180,15 @@ export default function Header() {
     window.open(PLANS_URL, "_blank", "noopener,noreferrer");
   }
 
+  function openTrial(e?: React.MouseEvent) {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    setMenuOpen(false);
+    window.open(TRIAL_URL, "_blank", "noopener,noreferrer");
+  }
+
   function lockedToPlans(e: React.MouseEvent) {
     openPlans(e);
   }
@@ -178,12 +219,25 @@ export default function Header() {
             </>
           )}
           <a href={PLANS_URL} className="px-4 py-2 rounded-xl text-white/80 hover:text-yellow-400 transition-colors" onClick={openPlans}>Plans</a>
-          <span className={badgeClasses}>{loadingPlan ? "PLAN : ..." : `PLAN : ${planLabel(plan)}`}</span>
-          {plan !== "ultime" && <button className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] text-black font-semibold hover:-translate-y-0.5 transition-all" onClick={openPlans}>Upgrade</button>}
+          {isAuthenticated ? (
+            <>
+              <span className={badgeClasses}>{loadingPlan ? "PLAN : ..." : `PLAN : ${planLabel(plan)}`}</span>
+              {plan !== "ultime" && <button className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] text-black font-semibold hover:-translate-y-0.5 transition-all" onClick={openPlans}>Upgrade</button>}
+            </>
+          ) : (
+            <>
+              <Link href={LOGIN_PATH} className="px-4 py-2 rounded-xl border border-yellow-600/30 text-yellow-100 hover:bg-yellow-500/10 transition-all">Se connecter</Link>
+              <button className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] text-black font-semibold hover:-translate-y-0.5 transition-all" onClick={openTrial}>Essai gratuit</button>
+            </>
+          )}
         </nav>
 
         <div className="md:hidden flex items-center gap-3">
-          <span className={badgeClasses}>{loadingPlan ? "PLAN : ..." : `PLAN : ${planLabel(plan)}`}</span>
+          {isAuthenticated ? (
+            <span className={badgeClasses}>{loadingPlan ? "PLAN : ..." : `PLAN : ${planLabel(plan)}`}</span>
+          ) : (
+            <Link href={LOGIN_PATH} className="rounded-xl border border-yellow-600/30 px-3 py-2 text-xs font-semibold text-yellow-100">Connexion</Link>
+          )}
           <button className="text-yellow-400 text-2xl px-2 py-1 rounded-xl hover:bg-[#111111] transition-all" onClick={() => setMenuOpen(true)} aria-label="Ouvrir le menu">☰</button>
         </div>
       </div>
@@ -199,8 +253,17 @@ export default function Header() {
                   <button onClick={() => setMenuOpen(false)} className="px-3 py-2 rounded-xl border border-yellow-600/25 text-yellow-200 hover:bg-[#111111] transition-all" aria-label="Fermer le menu">✕</button>
                 </div>
                 <div className="mt-4 flex items-center justify-between gap-3">
-                  <span className={badgeClasses}>{loadingPlan ? "PLAN : ..." : `PLAN : ${planLabel(plan)}`}</span>
-                  {plan !== "ultime" && <button className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] text-black font-semibold" onClick={openPlans}>Upgrade</button>}
+                  {isAuthenticated ? (
+                    <>
+                      <span className={badgeClasses}>{loadingPlan ? "PLAN : ..." : `PLAN : ${planLabel(plan)}`}</span>
+                      {plan !== "ultime" && <button className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] text-black font-semibold" onClick={openPlans}>Upgrade</button>}
+                    </>
+                  ) : (
+                    <>
+                      <button className="flex-1 rounded-xl border border-yellow-600/30 px-4 py-3 text-sm font-semibold text-yellow-100" onClick={() => go(LOGIN_PATH)}>Se connecter</button>
+                      <button className="flex-1 rounded-xl bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] px-4 py-3 text-sm font-semibold text-black" onClick={openTrial}>Essai gratuit</button>
+                    </>
+                  )}
                 </div>
                 <div className="mt-6 grid grid-cols-1 gap-3">
                   <button className={isActive(pathname, DASHBOARD_PATH) ? drawerBtnActive : drawerBtn} onClick={() => go(DASHBOARD_PATH)}><span>Dashboard</span><span className="text-white/40">→</span></button>
