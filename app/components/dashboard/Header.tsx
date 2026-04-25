@@ -1,10 +1,9 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-"use client";
+import { AnimatePresence, motion } from "framer-motion";
 
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
