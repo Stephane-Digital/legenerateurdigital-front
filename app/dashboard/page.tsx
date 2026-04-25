@@ -533,63 +533,88 @@ export default function DashboardPage() {
             transition={{ delay: 0.06, duration: 0.32 }}
             className="max-w-6xl mx-auto mt-10"
           >
-            <CardLuxe className="px-6 py-8 sm:px-10 sm:py-10">
-              <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
-                <div className="text-center lg:text-left">
-                  <div className="inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-yellow-500/10 px-4 py-1 text-[12px] font-semibold text-yellow-100">
+            <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:items-stretch">
+              <CardLuxe className="h-full px-6 py-7 sm:px-8 sm:py-8">
+                <div className="flex h-full flex-col items-center text-center">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-4 py-1 text-[12px] text-white/75">
                     <FaBolt className="text-yellow-300" />
-                    Bloc C — Essai 7 jours
+                    Action prioritaire du jour
                   </div>
 
-                  <h2 className="mt-5 text-3xl font-extrabold text-[#ffb800] sm:text-4xl">
+                  <h2 className="mt-4 text-2xl sm:text-3xl font-extrabold text-[#ffb800]">
+                    Ton plan du jour est prêt
+                  </h2>
+
+                  <p className="mt-3 max-w-xl text-white/75 text-sm sm:text-base">
+                    Lance Coach Alex et exécute ton action la plus rentable aujourd’hui.
+                    LGD te guide pour passer plus vite de l’idée à l’action, puis de l’action à la vente.
+                  </p>
+
+                  <div className="mt-6 w-full max-w-md">
+                    <PrimaryButton onClick={openSystemeioPlans}>
+                      Voir les plans
+                    </PrimaryButton>
+                  </div>
+
+                  <div className="mt-7 w-full border-t border-yellow-600/15 pt-6">
+                    <div className="flex flex-col items-center text-center">
+                      <div className="inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-4 py-1 text-[12px] text-white/75">
+                        <FaRobot className="text-yellow-300" />
+                        Progression du jour
+                      </div>
+
+                      <p className="mt-3 max-w-xl text-white/70 text-sm">
+                        Clique sur une étape pour la cocher ou la décocher. Ta progression reste enregistrée
+                        même si tu recharges la page.
+                      </p>
+
+                      <div className="mt-5 grid w-full grid-cols-1 sm:grid-cols-2 gap-4">
+                        <ProgressItem done={dailyProgress.idea} label="Idée trouvée" onClick={() => toggleProgressItem("idea")} />
+                        <ProgressItem done={dailyProgress.content} label="Contenu créé" onClick={() => toggleProgressItem("content")} />
+                        <ProgressItem done={dailyProgress.email} label="Email généré" onClick={() => toggleProgressItem("email")} />
+                        <ProgressItem done={dailyProgress.offer} label="Offre envoyée" onClick={() => toggleProgressItem("offer")} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardLuxe>
+
+              <CardLuxe className="h-full px-6 py-7 sm:px-8 sm:py-8">
+                <div className="flex h-full flex-col">
+                  <h2 className="text-2xl sm:text-3xl font-extrabold text-[#ffb800]">
                     Essai gratuit 7 jours 🚀
                   </h2>
 
-                  <p className="mt-4 max-w-2xl text-sm leading-7 text-white/75 sm:text-base">
-                    Découvre LGD gratuitement pendant 7 jours, sans carte bancaire. Teste Alex IA,
-                    l’Éditeur Intelligent, Lead Engine IA et Emailing IA pour construire ton système digital avec l’IA.
+                  <p className="mt-4 text-sm leading-7 text-white/80 sm:text-base">
+                    Découvre LGD gratuitement pendant 7 jours, sans carte bancaire. Teste les fonctionnalités clés
+                    et lance ton business avec l’IA.
                   </p>
 
-                  <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4 text-sm text-white/80">
-                      ✅ 7 jours gratuits
-                    </div>
-                    <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4 text-sm text-white/80">
-                      ✅ Sans carte bancaire
-                    </div>
-                    <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4 text-sm text-white/80">
-                      ✅ 10 000 jetons IA / jour
-                    </div>
-                    <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4 text-sm text-white/80">
-                      ✅ Travail sauvegardé
-                    </div>
-                  </div>
-                </div>
-
-                <div className="rounded-3xl border border-yellow-600/25 bg-gradient-to-b from-yellow-500/10 to-[#0b0b0b] p-5 shadow-[0_0_35px_rgba(255,184,0,0.10)]">
-                  <div className="text-center text-5xl">🤖</div>
-                  <div className="mt-4 rounded-2xl border border-yellow-600/20 bg-black/25 p-5 text-center">
-                    <div className="text-lg font-extrabold text-yellow-300">Alex IA Digital Coach</div>
-                    <p className="mt-2 text-sm leading-6 text-white/70">
-                      Ton coach IA t’aide à passer de l’idée à l’action avec des modules simples,
-                      visibles et testables avant de t’abonner.
-                    </p>
+                  <div className="mt-6 space-y-3 text-sm font-semibold text-white/90">
+                    <div>🗓️ 7 jours gratuits</div>
+                    <div>💳 Sans carte bancaire</div>
+                    <div>🎫 10 000 jetons IA / jour</div>
+                    <div>🧠 Mémoire LGD activée</div>
+                    <div>⏱️ Reprise du compte à tout moment</div>
                   </div>
 
-                  <div className="mt-5 grid grid-cols-1 gap-3">
-                    <PrimaryButton onClick={goToTrial}>
+                  <div className="mt-6 rounded-2xl border border-yellow-600/20 bg-yellow-500/10 p-4 text-sm leading-6 text-white/85">
+                    💛 À la fin de ton essai, ton travail reste sauvegardé. Tu peux revenir à tout moment
+                    et activer ton plan Essentielle, Pro ou Ultime.
+                  </div>
+
+                  <div className="mt-auto pt-8">
+                    <button
+                      type="button"
+                      onClick={goToTrial}
+                      className="w-full rounded-2xl bg-gradient-to-r from-purple-600 via-pink-500 to-yellow-400 px-5 py-4 font-extrabold text-white shadow-[0_0_35px_rgba(255,184,0,0.22)] transition-all hover:-translate-y-0.5 hover:brightness-110"
+                    >
                       Activer mon essai gratuit 🚀
-                    </PrimaryButton>
-                    <SecondaryButton onClick={goToRegister}>
-                      Créer un compte LGD
-                    </SecondaryButton>
-                    <SecondaryButton onClick={goToLogin}>
-                      Se connecter
-                    </SecondaryButton>
+                    </button>
                   </div>
                 </div>
-              </div>
-            </CardLuxe>
+              </CardLuxe>
+            </div>
           </motion.div>
         )}
 
