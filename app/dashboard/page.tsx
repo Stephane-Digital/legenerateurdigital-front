@@ -47,6 +47,9 @@ type DailyProgress = {
 const SYSTEMEIO_PLANS_URL =
   process.env.NEXT_PUBLIC_SYSTEMEIO_PLANS_URL || "https://legenerateurdigital.systeme.io/lgd";
 
+const LOGIN_PATH = "/auth/login";
+const REGISTER_PATH = "/auth/register";
+
 const LGD_DAILY_PROGRESS_KEY = "lgd_dashboard_daily_progress";
 
 const DEFAULT_PROGRESS: DailyProgress = {
@@ -61,21 +64,34 @@ function planLabel(plan: Plan) {
   if (plan === "pro") return "PRO";
   if (plan === "essentiel") return "ESSENTIEL";
   if (plan === "azur") return "AZUR";
-  return "AUCUN";
+  return "VISITEUR";
+}
+
+
+function getStoredToken() {
+  if (typeof window === "undefined") return "";
+  return (
+    window.localStorage.getItem("access_token") ||
+    window.localStorage.getItem("lgd_token") ||
+    window.localStorage.getItem("token") ||
+    window.localStorage.getItem("jwt") ||
+    ""
+  );
 }
 
 async function fetchPlanFromBackend(): Promise<Plan> {
   const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
   const url = `${base}/ai-quota/global`;
 
-  const token = typeof window !== "undefined" ? (window.localStorage.getItem("access_token") || window.localStorage.getItem("lgd_token") || window.localStorage.getItem("token") || window.localStorage.getItem("jwt")) : null;
+  const token = getStoredToken();
+  if (!token) return "none";
 
   const res = await fetch(url, {
     method: "GET",
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      Authorization: `Bearer ${token}`,
     },
     cache: "no-store",
   });
@@ -83,22 +99,13 @@ async function fetchPlanFromBackend(): Promise<Plan> {
   if (!res.ok) throw new Error(`ai-quota/global ${res.status}`);
 
   const data = (await res.json()) as any;
-  const p = String(data?.display_plan ?? data?.plan ?? data?.current_plan ?? data?.subscription_plan ?? data?.user_plan ?? "").toLowerCase();
-  const limit = Number(data?.tokens_limit ?? data?.limit_tokens ?? data?.credits ?? data?.remaining ?? 0);
+  const rawPlan = String(data?.display_plan || data?.plan || data?.current_plan || "").toLowerCase();
+  const limit = Number(data?.tokens_limit || data?.limit_tokens || 0);
 
-  if (p.includes("ultime")) return "ultime";
-  if (p.includes("pro")) return "pro";
-  if (p.includes("azur") || p.includes("trial") || p.includes("starter") || p.includes("decouverte") || p.includes("découverte")) return "azur";
-  if (p.includes("essentiel")) {
-    if (limit === 70000) return "azur";
-    return "essentiel";
-  }
-
-  if (limit === 70000) return "azur";
-  if (limit === 2500000) return "ultime";
-  if (limit === 1000000) return "pro";
-  if (limit === 400000) return "essentiel";
-
+  if (rawPlan.includes("ultime")) return "ultime";
+  if (rawPlan.includes("pro")) return "pro";
+  if (rawPlan.includes("azur") || rawPlan.includes("trial") || rawPlan.includes("starter") || limit === 70000) return "azur";
+  if (rawPlan.includes("essentiel") || limit === 400000) return "essentiel";
   return "none";
 }
 
@@ -107,12 +114,14 @@ function getPlanFromLocalStorage(): Plan {
   const essentiel = localStorage.getItem("lgd_plan_essentiel");
   const pro = localStorage.getItem("lgd_plan_pro");
   const ultime = localStorage.getItem("lgd_plan_ultime");
-  const trial = localStorage.getItem("lgd_plan_trial") || localStorage.getItem("lgd_plan_starter");
+
+  const trial = localStorage.getItem("lgd_plan_trial");
+  const starter = localStorage.getItem("lgd_plan_starter");
 
   if (ultime === "active") return "ultime";
   if (pro === "active") return "pro";
+  if (trial === "active" || starter === "active") return "azur";
   if (essentiel === "active") return "essentiel";
-  if (trial === "active") return "azur";
   return "none";
 }
 
@@ -142,6 +151,14 @@ function writeDailyProgress(progress: DailyProgress) {
 
 function openSystemeioPlans() {
   window.open(SYSTEMEIO_PLANS_URL, "_blank", "noopener,noreferrer");
+}
+
+function goToLogin() {
+  window.location.href = LOGIN_PATH;
+}
+
+function goToRegister() {
+  window.location.href = REGISTER_PATH;
 }
 
 function Pill({ children }: { children: React.ReactNode }) {
@@ -198,7 +215,7 @@ function LockBadge() {
   return (
     <span className="inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-3 py-1 text-[12px] text-white/60">
       <FaLock className="text-yellow-300" />
-      Accès selon plan
+      Connecte-toi pour utiliser
     </span>
   );
 }
@@ -307,6 +324,7 @@ function ModalShell({
 export default function DashboardPage() {
   const router = useRouter();
 
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [plan, setPlan] = useState<Plan>("none");
   const [loadingPlan, setLoadingPlan] = useState(true);
   const [activeModal, setActiveModal] = useState<ModalKey | null>(null);
@@ -317,6 +335,18 @@ export default function DashboardPage() {
     let cancelled = false;
 
     async function load() {
+      const token = getStoredToken();
+      if (!token) {
+        if (!cancelled) {
+          setIsLoggedIn(false);
+          setPlan("none");
+          setLoadingPlan(false);
+        }
+        return;
+      }
+
+      if (!cancelled) setIsLoggedIn(true);
+
       try {
         const p = await fetchPlanFromBackend();
         if (!cancelled) setPlan(p);
@@ -345,7 +375,7 @@ export default function DashboardPage() {
     writeDailyProgress(dailyProgress);
   }, [dailyProgress, progressHydrated]);
 
-  const hasPaidAccess = useMemo(() => plan !== "none", [plan]);
+  const hasPaidAccess = useMemo(() => isLoggedIn, [isLoggedIn]);
 
   const heroTitle =
     "Crée du contenu • Attire des prospects • Génère tes premières ventes avec l’IA";
@@ -415,7 +445,20 @@ export default function DashboardPage() {
           </div>
 
           <div className="mt-6 text-[14px] text-white/80">
-            {loadingPlan ? (
+            {!isLoggedIn ? (
+              <span className="inline-flex flex-wrap items-center justify-center gap-3">
+                <span className="rounded-full border border-yellow-600/25 bg-yellow-500/10 px-4 py-2 text-yellow-100">
+                  Découvre LGD gratuitement, sans carte bancaire
+                </span>
+                <button
+                  type="button"
+                  onClick={goToLogin}
+                  className="rounded-full border border-yellow-600/25 px-4 py-2 text-white/80 hover:bg-yellow-500/10 transition-all"
+                >
+                  Se connecter
+                </button>
+              </span>
+            ) : loadingPlan ? (
               <span className="inline-flex items-center gap-2">
                 <span className="h-2 w-2 rounded-full bg-yellow-400 animate-pulse" />
                 Vérification du plan…
@@ -445,12 +488,13 @@ export default function DashboardPage() {
               </div>
 
               <h2 className="mt-4 text-2xl sm:text-3xl font-extrabold text-[#ffb800]">
-                Ton plan du jour est prêt
+                {isLoggedIn ? "Ton plan du jour est prêt" : "Découvre LGD gratuitement"}
               </h2>
 
               <p className="mt-3 max-w-3xl text-white/75 text-sm sm:text-base">
-                Lance Coach Alex et exécute ton action la plus rentable aujourd’hui.
-                LGD te guide pour passer plus vite de l’idée à l’action, puis de l’action à la vente.
+                {isLoggedIn
+                  ? "Lance Coach Alex et exécute ton action la plus rentable aujourd’hui. LGD te guide pour passer plus vite de l’idée à l’action, puis de l’action à la vente."
+                  : "Explore les modules LGD, découvre l’affiliation et démarre ton essai 7 jours pour tester Alex IA, l’Éditeur Intelligent, Lead Engine IA et Emailing IA."}
               </p>
 
               <div className="mt-6 w-full max-w-md">
@@ -460,11 +504,16 @@ export default function DashboardPage() {
                       go("/dashboard/coach-ia");
                       return;
                     }
-                    openSystemeioPlans();
+                    goToRegister();
                   }}
                 >
-                  {hasPaidAccess ? "Démarrer maintenant" : "Essai gratuit 7 jours"}
+                  {hasPaidAccess ? "Démarrer maintenant" : "Créer mon compte gratuit"}
                 </PrimaryButton>
+                {!isLoggedIn ? (
+                  <div className="mt-3">
+                    <SecondaryButton onClick={goToLogin}>Se connecter</SecondaryButton>
+                  </div>
+                ) : null}
               </div>
 
               <div className="mt-7 w-full max-w-4xl border-t border-yellow-600/15 pt-6">
@@ -580,7 +629,7 @@ export default function DashboardPage() {
               </div>
             </CardLuxe>
 
-            <LeadEngineBlock onDiscover={() => go("/dashboard/lead-engine")} />
+            <LeadEngineBlock onDiscover={() => (hasPaidAccess ? go("/dashboard/lead-engine") : openModal("lead_engine"))} />
           </div>
         </motion.div>
 
@@ -630,8 +679,8 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <PrimaryButton onClick={openSystemeioPlans}>Essai gratuit 7 jours</PrimaryButton>
-              <SecondaryButton onClick={closeModal}>Fermer</SecondaryButton>
+              <PrimaryButton onClick={goToRegister}>Essai gratuit 7 jours</PrimaryButton>
+              <SecondaryButton onClick={goToLogin}>Se connecter</SecondaryButton>
             </div>
           )}
         </div>
@@ -680,8 +729,8 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <PrimaryButton onClick={openSystemeioPlans}>Essai gratuit 7 jours</PrimaryButton>
-              <SecondaryButton onClick={closeModal}>Fermer</SecondaryButton>
+              <PrimaryButton onClick={goToRegister}>Essai gratuit 7 jours</PrimaryButton>
+              <SecondaryButton onClick={goToLogin}>Se connecter</SecondaryButton>
             </div>
           )}
         </div>
@@ -730,8 +779,8 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <PrimaryButton onClick={openSystemeioPlans}>Essai gratuit 7 jours</PrimaryButton>
-              <SecondaryButton onClick={closeModal}>Fermer</SecondaryButton>
+              <PrimaryButton onClick={goToRegister}>Essai gratuit 7 jours</PrimaryButton>
+              <SecondaryButton onClick={goToLogin}>Se connecter</SecondaryButton>
             </div>
           )}
         </div>
@@ -773,10 +822,14 @@ export default function DashboardPage() {
             <div>
               <PrimaryButton
                 onClick={() => {
-                  window.location.href = "/dashboard/lead-engine";
+                  if (hasPaidAccess) {
+                    window.location.href = "/dashboard/lead-engine";
+                    return;
+                  }
+                  goToRegister();
                 }}
               >
-                Créer mon Lead Engine
+                {hasPaidAccess ? "Créer mon Lead Engine" : "Essai gratuit 7 jours"}
               </PrimaryButton>
               <p className="mt-2 text-center text-xs text-white/50">
                 Génère ton premier aimant à prospects en quelques clics
