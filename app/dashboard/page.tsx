@@ -46,9 +46,12 @@ type DailyProgress = {
 
 const SYSTEMEIO_PLANS_URL =
   process.env.NEXT_PUBLIC_SYSTEMEIO_PLANS_URL || "https://legenerateurdigital.systeme.io/lgd";
+const SYSTEMEIO_TRIAL_URL =
+  process.env.NEXT_PUBLIC_SYSTEMEIO_TRIAL_URL || "https://legenerateurdigital.systeme.io/trial";
+const SYSTEMEIO_CREATE_ACCOUNT_URL =
+  process.env.NEXT_PUBLIC_SYSTEMEIO_CREATE_ACCOUNT_URL || "https://legenerateurdigital.systeme.io/lgd";
 
 const LOGIN_PATH = "/auth/login";
-const REGISTER_PATH = "/auth/register";
 
 const LGD_DAILY_PROGRESS_KEY = "lgd_dashboard_daily_progress";
 
@@ -149,16 +152,24 @@ function writeDailyProgress(progress: DailyProgress) {
   window.localStorage.setItem(LGD_DAILY_PROGRESS_KEY, JSON.stringify(progress));
 }
 
+function openExternal(url: string) {
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
 function openSystemeioPlans() {
-  window.open(SYSTEMEIO_PLANS_URL, "_blank", "noopener,noreferrer");
+  openExternal(SYSTEMEIO_PLANS_URL);
+}
+
+function goToTrial() {
+  openExternal(SYSTEMEIO_TRIAL_URL);
+}
+
+function goToRegister() {
+  openExternal(SYSTEMEIO_CREATE_ACCOUNT_URL);
 }
 
 function goToLogin() {
   window.location.href = LOGIN_PATH;
-}
-
-function goToRegister() {
-  window.location.href = REGISTER_PATH;
 }
 
 function Pill({ children }: { children: React.ReactNode }) {
@@ -444,117 +455,143 @@ export default function DashboardPage() {
             </Pill>
           </div>
 
-          <div className="mt-6 text-[14px] text-white/80">
-            {!isLoggedIn ? (
-              <span className="inline-flex flex-wrap items-center justify-center gap-3">
-                <span className="rounded-full border border-yellow-600/25 bg-yellow-500/10 px-4 py-2 text-yellow-100">
-                  Découvre LGD gratuitement, sans carte bancaire
+          {isLoggedIn ? (
+            <div className="mt-6 text-[14px] text-white/80">
+              {loadingPlan ? (
+                <span className="inline-flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-yellow-400 animate-pulse" />
+                  Vérification du plan…
                 </span>
-                <button
-                  type="button"
-                  onClick={goToLogin}
-                  className="rounded-full border border-yellow-600/25 px-4 py-2 text-white/80 hover:bg-yellow-500/10 transition-all"
-                >
-                  Se connecter
-                </button>
-              </span>
-            ) : loadingPlan ? (
-              <span className="inline-flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-yellow-400 animate-pulse" />
-                Vérification du plan…
-              </span>
-            ) : (
-              <span>
-                Plan actuel :{" "}
-                <span className="text-yellow-200 font-semibold">
-                  {planLabel(plan)}
+              ) : (
+                <span>
+                  Plan actuel :{" "}
+                  <span className="text-yellow-200 font-semibold">
+                    {planLabel(plan)}
+                  </span>
                 </span>
-              </span>
-            )}
-          </div>
+              )}
+            </div>
+          ) : null}
         </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.06, duration: 0.32 }}
-          className="max-w-6xl mx-auto mt-10"
-        >
-          <CardLuxe className="px-6 py-7 sm:px-8 sm:py-8">
-            <div className="flex flex-col items-center text-center">
-              <div className="inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-4 py-1 text-[12px] text-white/75">
-                <FaBolt className="text-yellow-300" />
-                Action prioritaire du jour
-              </div>
+        {isLoggedIn ? (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.06, duration: 0.32 }}
+            className="max-w-6xl mx-auto mt-10"
+          >
+            <CardLuxe className="px-6 py-7 sm:px-8 sm:py-8">
+              <div className="flex flex-col items-center text-center">
+                <div className="inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-4 py-1 text-[12px] text-white/75">
+                  <FaBolt className="text-yellow-300" />
+                  Action prioritaire du jour
+                </div>
 
-              <h2 className="mt-4 text-2xl sm:text-3xl font-extrabold text-[#ffb800]">
-                {isLoggedIn ? "Ton plan du jour est prêt" : "Découvre LGD gratuitement"}
-              </h2>
+                <h2 className="mt-4 text-2xl sm:text-3xl font-extrabold text-[#ffb800]">
+                  Ton plan du jour est prêt
+                </h2>
 
-              <p className="mt-3 max-w-3xl text-white/75 text-sm sm:text-base">
-                {isLoggedIn
-                  ? "Lance Coach Alex et exécute ton action la plus rentable aujourd’hui. LGD te guide pour passer plus vite de l’idée à l’action, puis de l’action à la vente."
-                  : "Explore les modules LGD, découvre l’affiliation et démarre ton essai 7 jours pour tester Alex IA, l’Éditeur Intelligent, Lead Engine IA et Emailing IA."}
-              </p>
+                <p className="mt-3 max-w-3xl text-white/75 text-sm sm:text-base">
+                  Lance Coach Alex et exécute ton action la plus rentable aujourd’hui.
+                  LGD te guide pour passer plus vite de l’idée à l’action, puis de l’action à la vente.
+                </p>
 
-              <div className="mt-6 w-full max-w-md">
-                <PrimaryButton
-                  onClick={() => {
-                    if (hasPaidAccess) {
-                      go("/dashboard/coach-ia");
-                      return;
-                    }
-                    goToRegister();
-                  }}
-                >
-                  {hasPaidAccess ? "Démarrer maintenant" : "Créer mon compte gratuit"}
-                </PrimaryButton>
-                {!isLoggedIn ? (
-                  <div className="mt-3">
-                    <SecondaryButton onClick={goToLogin}>Se connecter</SecondaryButton>
-                  </div>
-                ) : null}
-              </div>
+                <div className="mt-6 w-full max-w-md">
+                  <PrimaryButton onClick={() => go("/dashboard/coach-ia")}>
+                    Démarrer maintenant
+                  </PrimaryButton>
+                </div>
 
-              <div className="mt-7 w-full max-w-4xl border-t border-yellow-600/15 pt-6">
-                <div className="flex flex-col items-center text-center">
-                  <div className="inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-4 py-1 text-[12px] text-white/75">
-                    <FaRobot className="text-yellow-300" />
-                    Progression du jour
-                  </div>
+                <div className="mt-7 w-full max-w-4xl border-t border-yellow-600/15 pt-6">
+                  <div className="flex flex-col items-center text-center">
+                    <div className="inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-4 py-1 text-[12px] text-white/75">
+                      <FaRobot className="text-yellow-300" />
+                      Progression du jour
+                    </div>
 
-                  <p className="mt-3 max-w-3xl text-white/70 text-sm">
-                    Clique sur une étape pour la cocher ou la décocher. Ta progression reste enregistrée
-                    même si tu recharges la page.
-                  </p>
+                    <p className="mt-3 max-w-3xl text-white/70 text-sm">
+                      Clique sur une étape pour la cocher ou la décocher. Ta progression reste enregistrée
+                      même si tu recharges la page.
+                    </p>
 
-                  <div className="mt-5 grid w-full grid-cols-1 md:grid-cols-2 gap-4">
-                    <ProgressItem
-                      done={dailyProgress.idea}
-                      label="Idée trouvée"
-                      onClick={() => toggleProgressItem("idea")}
-                    />
-                    <ProgressItem
-                      done={dailyProgress.content}
-                      label="Contenu créé"
-                      onClick={() => toggleProgressItem("content")}
-                    />
-                    <ProgressItem
-                      done={dailyProgress.email}
-                      label="Email généré"
-                      onClick={() => toggleProgressItem("email")}
-                    />
-                    <ProgressItem
-                      done={dailyProgress.offer}
-                      label="Offre envoyée"
-                      onClick={() => toggleProgressItem("offer")}
-                    />
+                    <div className="mt-5 grid w-full grid-cols-1 md:grid-cols-2 gap-4">
+                      <ProgressItem done={dailyProgress.idea} label="Idée trouvée" onClick={() => toggleProgressItem("idea")} />
+                      <ProgressItem done={dailyProgress.content} label="Contenu créé" onClick={() => toggleProgressItem("content")} />
+                      <ProgressItem done={dailyProgress.email} label="Email généré" onClick={() => toggleProgressItem("email")} />
+                      <ProgressItem done={dailyProgress.offer} label="Offre envoyée" onClick={() => toggleProgressItem("offer")} />
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </CardLuxe>
-        </motion.div>
+            </CardLuxe>
+          </motion.div>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.06, duration: 0.32 }}
+            className="max-w-6xl mx-auto mt-10"
+          >
+            <CardLuxe className="px-6 py-8 sm:px-10 sm:py-10">
+              <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
+                <div className="text-center lg:text-left">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-yellow-500/10 px-4 py-1 text-[12px] font-semibold text-yellow-100">
+                    <FaBolt className="text-yellow-300" />
+                    Bloc C — Essai 7 jours
+                  </div>
+
+                  <h2 className="mt-5 text-3xl font-extrabold text-[#ffb800] sm:text-4xl">
+                    Essai gratuit 7 jours 🚀
+                  </h2>
+
+                  <p className="mt-4 max-w-2xl text-sm leading-7 text-white/75 sm:text-base">
+                    Découvre LGD gratuitement pendant 7 jours, sans carte bancaire. Teste Alex IA,
+                    l’Éditeur Intelligent, Lead Engine IA et Emailing IA pour construire ton système digital avec l’IA.
+                  </p>
+
+                  <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4 text-sm text-white/80">
+                      ✅ 7 jours gratuits
+                    </div>
+                    <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4 text-sm text-white/80">
+                      ✅ Sans carte bancaire
+                    </div>
+                    <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4 text-sm text-white/80">
+                      ✅ 10 000 jetons IA / jour
+                    </div>
+                    <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4 text-sm text-white/80">
+                      ✅ Travail sauvegardé
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-3xl border border-yellow-600/25 bg-gradient-to-b from-yellow-500/10 to-[#0b0b0b] p-5 shadow-[0_0_35px_rgba(255,184,0,0.10)]">
+                  <div className="text-center text-5xl">🤖</div>
+                  <div className="mt-4 rounded-2xl border border-yellow-600/20 bg-black/25 p-5 text-center">
+                    <div className="text-lg font-extrabold text-yellow-300">Alex IA Digital Coach</div>
+                    <p className="mt-2 text-sm leading-6 text-white/70">
+                      Ton coach IA t’aide à passer de l’idée à l’action avec des modules simples,
+                      visibles et testables avant de t’abonner.
+                    </p>
+                  </div>
+
+                  <div className="mt-5 grid grid-cols-1 gap-3">
+                    <PrimaryButton onClick={goToTrial}>
+                      Activer mon essai gratuit 🚀
+                    </PrimaryButton>
+                    <SecondaryButton onClick={goToRegister}>
+                      Créer un compte LGD
+                    </SecondaryButton>
+                    <SecondaryButton onClick={goToLogin}>
+                      Se connecter
+                    </SecondaryButton>
+                  </div>
+                </div>
+              </div>
+            </CardLuxe>
+          </motion.div>
+        )}
 
         <motion.div
           initial={{ opacity: 0 }}
@@ -679,7 +716,7 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <PrimaryButton onClick={goToRegister}>Essai gratuit 7 jours</PrimaryButton>
+              <PrimaryButton onClick={goToTrial}>Essai gratuit 7 jours</PrimaryButton>
               <SecondaryButton onClick={goToLogin}>Se connecter</SecondaryButton>
             </div>
           )}
@@ -729,7 +766,7 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <PrimaryButton onClick={goToRegister}>Essai gratuit 7 jours</PrimaryButton>
+              <PrimaryButton onClick={goToTrial}>Essai gratuit 7 jours</PrimaryButton>
               <SecondaryButton onClick={goToLogin}>Se connecter</SecondaryButton>
             </div>
           )}
@@ -779,7 +816,7 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <PrimaryButton onClick={goToRegister}>Essai gratuit 7 jours</PrimaryButton>
+              <PrimaryButton onClick={goToTrial}>Essai gratuit 7 jours</PrimaryButton>
               <SecondaryButton onClick={goToLogin}>Se connecter</SecondaryButton>
             </div>
           )}
@@ -826,7 +863,7 @@ export default function DashboardPage() {
                     window.location.href = "/dashboard/lead-engine";
                     return;
                   }
-                  goToRegister();
+                  goToTrial();
                 }}
               >
                 {hasPaidAccess ? "Créer mon Lead Engine" : "Essai gratuit 7 jours"}
