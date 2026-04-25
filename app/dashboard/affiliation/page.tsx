@@ -7,7 +7,7 @@ import CopyBlock from "./components/CopyBlock";
 import CopyField from "./components/CopyField";
 
 const AFFILIATE_LINK =
-  "https://legenerateurdigital.systeme.io/proxy/request/5613578d99b6f0ab9e0d8567e2eaad31e82f8";
+ "https://legenerateurdigital.systeme.io/sa0002231987aa1d615980fb12bbe9e2d52bd9dfd110";
 
 const LINKS = {
   canvaKit: "https://www.canva.com/design/TON_CANVA_ID/view",
