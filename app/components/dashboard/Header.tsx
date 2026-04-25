@@ -8,21 +8,21 @@ import { useEffect, useMemo, useState } from "react";
 type Plan = "none" | "azur" | "essentiel" | "pro" | "ultime";
 
 const PLANS_URL = process.env.NEXT_PUBLIC_SYSTEMEIO_PLANS_URL ?? "https://legenerateurdigital.systeme.io/lgd";
-const TRIAL_URL = process.env.NEXT_PUBLIC_SYSTEMEIO_TRIAL_URL ?? PLANS_URL;
-const LOGIN_PATH = "/auth/login";
 const DASHBOARD_PATH = "/dashboard";
 const AFFILIATION_PATH = "/dashboard/affiliation";
 const EDITOR_PATH = "/dashboard/automatisations/reseaux_sociaux/editor-intelligent";
 const COACH_PATH = "/dashboard/coach-ia";
 const LEADS_PATH = "/dashboard/lead-engine";
 const EMAIL_CAMPAIGNS_PATH = "/dashboard/email-campaigns";
+const LOGIN_PATH = "/auth/login";
+const REGISTER_PATH = "/auth/register";
 
 function planLabel(plan: Plan) {
   if (plan === "ultime") return "ULTIME";
   if (plan === "pro") return "PRO";
   if (plan === "essentiel") return "ESSENTIEL";
   if (plan === "azur") return "AZUR";
-  return "AUCUN";
+  return "VISITEUR";
 }
 
 function normalizePlan(input: any, tokensLimit?: any): Plan {
@@ -35,7 +35,7 @@ function normalizePlan(input: any, tokensLimit?: any): Plan {
     if (limit === 70000) return "azur";
     return "essentiel";
   }
-  if (v === "trial" || v === "azur" || v === "azur" || v === "découverte") return "azur";
+  if (v === "trial" || v === "azur" || v === "starter" || v === "decouverte" || v === "découverte") return "azur";
 
   if (limit === 70000) return "azur";
   if (limit === 2500000) return "ultime";
@@ -43,6 +43,17 @@ function normalizePlan(input: any, tokensLimit?: any): Plan {
   if (limit === 400000) return "essentiel";
 
   return "none";
+}
+
+function getStoredToken() {
+  if (typeof window === "undefined") return "";
+  return (
+    window.localStorage.getItem("access_token") ||
+    window.localStorage.getItem("lgd_token") ||
+    window.localStorage.getItem("token") ||
+    window.localStorage.getItem("jwt") ||
+    ""
+  );
 }
 
 function getPlanFromLocalStorage(): Plan {
@@ -59,17 +70,6 @@ function getPlanFromLocalStorage(): Plan {
   return "none";
 }
 
-function getStoredToken() {
-  if (typeof window === "undefined") return "";
-  return (
-    window.localStorage.getItem("access_token") ||
-    window.localStorage.getItem("lgd_token") ||
-    window.localStorage.getItem("token") ||
-    window.localStorage.getItem("jwt") ||
-    ""
-  );
-}
-
 function isActive(pathname: string, path: string) {
   if (path === DASHBOARD_PATH) return pathname === DASHBOARD_PATH;
   return pathname === path || pathname.startsWith(`${path}/`);
@@ -79,26 +79,29 @@ export default function Header() {
   const pathname = usePathname();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [plan, setPlan] = useState<Plan>("none");
   const [loadingPlan, setLoadingPlan] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
     let alive = true;
-    const fallbackPlan = getPlanFromLocalStorage();
-    const storedToken = getStoredToken();
+    const token = getStoredToken();
+    const hasToken = Boolean(token);
 
-    if (storedToken) {
-      setIsAuthenticated(true);
-    }
+    setIsLoggedIn(hasToken);
 
-    if (fallbackPlan !== "none") {
-      setPlan(fallbackPlan);
-      setIsAuthenticated(true);
+    if (!hasToken) {
+      setPlan("none");
       setLoadingPlan(false);
       return () => {
         alive = false;
       };
+    }
+
+    const fallbackPlan = getPlanFromLocalStorage();
+    if (fallbackPlan !== "none") {
+      setPlan(fallbackPlan);
+      setLoadingPlan(false);
     }
 
     async function loadPlan() {
@@ -109,33 +112,24 @@ export default function Header() {
           credentials: "include",
           headers: {
             "Content-Type": "application/json",
-            ...(storedToken ? { Authorization: `Bearer ${storedToken}` } : {}),
+            Authorization: `Bearer ${token}`,
           },
           cache: "no-store",
         });
 
         if (!res.ok) {
-          if (alive) {
-            setPlan("none");
-            if (!storedToken) setIsAuthenticated(false);
-          }
+          if (alive && fallbackPlan === "none") setPlan("none");
           return;
         }
 
         const data = await res.json();
         const p = normalizePlan(
           data?.display_plan ?? data?.plan ?? data?.current_plan ?? data?.subscription_plan ?? data?.user_plan,
-          data?.tokens_limit ?? data?.credits ?? data?.remaining
+          data?.tokens_limit ?? data?.limit_tokens ?? data?.credits ?? data?.remaining
         );
-        if (alive) {
-          setPlan(p);
-          setIsAuthenticated(true);
-        }
+        if (alive) setPlan(p);
       } catch {
-        if (alive) {
-          setPlan("none");
-          if (!storedToken) setIsAuthenticated(false);
-        }
+        if (alive && fallbackPlan === "none") setPlan("none");
       } finally {
         if (alive) setLoadingPlan(false);
       }
@@ -147,7 +141,7 @@ export default function Header() {
     };
   }, []);
 
-  const hasModuleAccess = useMemo(() => plan !== "none", [plan]);
+  const hasModuleAccess = useMemo(() => isLoggedIn, [isLoggedIn]);
   const linkClasses = (path: string) =>
     `px-4 py-2 rounded-xl transition-colors ${isActive(pathname, path) ? "bg-yellow-500 text-black font-semibold" : "text-white/80 hover:text-yellow-400"}`;
 
@@ -164,7 +158,6 @@ export default function Header() {
 
   const drawerBtn = "w-full inline-flex items-center justify-between px-4 py-4 rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] text-white/90 hover:bg-[#111111] transition-all";
   const drawerBtnActive = "w-full inline-flex items-center justify-between px-4 py-4 rounded-2xl border border-yellow-500 bg-[#111111] text-yellow-200";
-  const drawerBtnLocked = "w-full inline-flex items-center justify-between px-4 py-4 rounded-2xl border border-yellow-600/15 bg-[#0b0b0b] text-white/35 cursor-not-allowed select-none";
 
   function go(path: string) {
     setMenuOpen(false);
@@ -180,17 +173,16 @@ export default function Header() {
     window.open(PLANS_URL, "_blank", "noopener,noreferrer");
   }
 
-  function openTrial(e?: React.MouseEvent) {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
+  function logout() {
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem("access_token");
+      window.localStorage.removeItem("lgd_token");
+      window.localStorage.removeItem("token");
+      window.localStorage.removeItem("jwt");
     }
     setMenuOpen(false);
-    window.open(TRIAL_URL, "_blank", "noopener,noreferrer");
-  }
-
-  function lockedToPlans(e: React.MouseEvent) {
-    openPlans(e);
+    router.push(DASHBOARD_PATH);
+    router.refresh();
   }
 
   return (
@@ -203,6 +195,7 @@ export default function Header() {
         <nav className="hidden md:flex items-center gap-3">
           <Link href={DASHBOARD_PATH} className={linkClasses(DASHBOARD_PATH)}>Dashboard</Link>
           <Link href={AFFILIATION_PATH} className={linkClasses(AFFILIATION_PATH)}>Affiliation</Link>
+
           {hasModuleAccess ? (
             <>
               <Link href={EDITOR_PATH} className={linkClasses(EDITOR_PATH)}>Éditeur</Link>
@@ -210,34 +203,27 @@ export default function Header() {
               <Link href={COACH_PATH} className={linkClasses(COACH_PATH)}>Coach</Link>
               <Link href={EMAIL_CAMPAIGNS_PATH} className={linkClasses(EMAIL_CAMPAIGNS_PATH)}>Emailing IA</Link>
             </>
-          ) : (
-            <>
-              <a href={PLANS_URL} className="px-4 py-2 rounded-xl border border-yellow-600/20 text-white/35 hover:bg-[#111111] transition-all" onClick={lockedToPlans}>Éditeur 🔒</a>
-              <a href={PLANS_URL} className="px-4 py-2 rounded-xl border border-yellow-600/20 text-white/35 hover:bg-[#111111] transition-all" onClick={lockedToPlans}>Leads IA 🔒</a>
-              <a href={PLANS_URL} className="px-4 py-2 rounded-xl border border-yellow-600/20 text-white/35 hover:bg-[#111111] transition-all" onClick={lockedToPlans}>Coach 🔒</a>
-              <a href={PLANS_URL} className="px-4 py-2 rounded-xl border border-yellow-600/20 text-white/35 hover:bg-[#111111] transition-all" onClick={lockedToPlans}>Emailing IA 🔒</a>
-            </>
-          )}
+          ) : null}
+
           <a href={PLANS_URL} className="px-4 py-2 rounded-xl text-white/80 hover:text-yellow-400 transition-colors" onClick={openPlans}>Plans</a>
-          {isAuthenticated ? (
+
+          {isLoggedIn ? (
             <>
               <span className={badgeClasses}>{loadingPlan ? "PLAN : ..." : `PLAN : ${planLabel(plan)}`}</span>
-              {plan !== "ultime" && <button className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] text-black font-semibold hover:-translate-y-0.5 transition-all" onClick={openPlans}>Upgrade</button>}
+              {plan !== "ultime" ? (
+                <button className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] text-black font-semibold hover:-translate-y-0.5 transition-all" onClick={openPlans}>Upgrade</button>
+              ) : null}
             </>
           ) : (
             <>
-              <Link href={LOGIN_PATH} className="px-4 py-2 rounded-xl border border-yellow-600/30 text-yellow-100 hover:bg-yellow-500/10 transition-all">Se connecter</Link>
-              <button className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] text-black font-semibold hover:-translate-y-0.5 transition-all" onClick={openTrial}>Essai gratuit</button>
+              <Link href={LOGIN_PATH} className="px-4 py-2 rounded-xl border border-yellow-600/25 text-yellow-100 hover:bg-yellow-500/10 transition-all">Se connecter</Link>
+              <Link href={REGISTER_PATH} className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] text-black font-semibold hover:-translate-y-0.5 transition-all">Essai gratuit</Link>
             </>
           )}
         </nav>
 
         <div className="md:hidden flex items-center gap-3">
-          {isAuthenticated ? (
-            <span className={badgeClasses}>{loadingPlan ? "PLAN : ..." : `PLAN : ${planLabel(plan)}`}</span>
-          ) : (
-            <Link href={LOGIN_PATH} className="rounded-xl border border-yellow-600/30 px-3 py-2 text-xs font-semibold text-yellow-100">Connexion</Link>
-          )}
+          {isLoggedIn ? <span className={badgeClasses}>{loadingPlan ? "PLAN : ..." : `PLAN : ${planLabel(plan)}`}</span> : null}
           <button className="text-yellow-400 text-2xl px-2 py-1 rounded-xl hover:bg-[#111111] transition-all" onClick={() => setMenuOpen(true)} aria-label="Ouvrir le menu">☰</button>
         </div>
       </div>
@@ -252,22 +238,16 @@ export default function Header() {
                   <div className="text-lg font-bold bg-gradient-to-r from-yellow-500 to-yellow-300 bg-clip-text text-transparent">Menu LGD</div>
                   <button onClick={() => setMenuOpen(false)} className="px-3 py-2 rounded-xl border border-yellow-600/25 text-yellow-200 hover:bg-[#111111] transition-all" aria-label="Fermer le menu">✕</button>
                 </div>
+
                 <div className="mt-4 flex items-center justify-between gap-3">
-                  {isAuthenticated ? (
-                    <>
-                      <span className={badgeClasses}>{loadingPlan ? "PLAN : ..." : `PLAN : ${planLabel(plan)}`}</span>
-                      {plan !== "ultime" && <button className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] text-black font-semibold" onClick={openPlans}>Upgrade</button>}
-                    </>
-                  ) : (
-                    <>
-                      <button className="flex-1 rounded-xl border border-yellow-600/30 px-4 py-3 text-sm font-semibold text-yellow-100" onClick={() => go(LOGIN_PATH)}>Se connecter</button>
-                      <button className="flex-1 rounded-xl bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] px-4 py-3 text-sm font-semibold text-black" onClick={openTrial}>Essai gratuit</button>
-                    </>
-                  )}
+                  {isLoggedIn ? <span className={badgeClasses}>{loadingPlan ? "PLAN : ..." : `PLAN : ${planLabel(plan)}`}</span> : <span className={badgeClasses}>VISITEUR</span>}
+                  {isLoggedIn && plan !== "ultime" ? <button className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] text-black font-semibold" onClick={openPlans}>Upgrade</button> : null}
                 </div>
+
                 <div className="mt-6 grid grid-cols-1 gap-3">
                   <button className={isActive(pathname, DASHBOARD_PATH) ? drawerBtnActive : drawerBtn} onClick={() => go(DASHBOARD_PATH)}><span>Dashboard</span><span className="text-white/40">→</span></button>
                   <button className={isActive(pathname, AFFILIATION_PATH) ? drawerBtnActive : drawerBtn} onClick={() => go(AFFILIATION_PATH)}><span>Affiliation</span><span className="text-white/40">→</span></button>
+
                   {hasModuleAccess ? (
                     <>
                       <button className={isActive(pathname, EDITOR_PATH) ? drawerBtnActive : drawerBtn} onClick={() => go(EDITOR_PATH)}><span>Éditeur</span><span className="text-white/40">→</span></button>
@@ -275,15 +255,18 @@ export default function Header() {
                       <button className={isActive(pathname, COACH_PATH) ? drawerBtnActive : drawerBtn} onClick={() => go(COACH_PATH)}><span>Coach</span><span className="text-white/40">→</span></button>
                       <button className={isActive(pathname, EMAIL_CAMPAIGNS_PATH) ? drawerBtnActive : drawerBtn} onClick={() => go(EMAIL_CAMPAIGNS_PATH)}><span>Emailing IA</span><span className="text-white/40">→</span></button>
                     </>
-                  ) : (
-                    <>
-                      <a href={PLANS_URL} className={drawerBtnLocked} onClick={lockedToPlans}><span>Éditeur</span><span>🔒</span></a>
-                      <a href={PLANS_URL} className={drawerBtnLocked} onClick={lockedToPlans}><span>Leads IA</span><span>🔒</span></a>
-                      <a href={PLANS_URL} className={drawerBtnLocked} onClick={lockedToPlans}><span>Coach</span><span>🔒</span></a>
-                      <a href={PLANS_URL} className={drawerBtnLocked} onClick={lockedToPlans}><span>Emailing IA</span><span>🔒</span></a>
-                    </>
-                  )}
+                  ) : null}
+
                   <a href={PLANS_URL} className={drawerBtn} onClick={openPlans}><span>Plans</span><span className="text-white/40">→</span></a>
+
+                  {!isLoggedIn ? (
+                    <>
+                      <button className={drawerBtn} onClick={() => go(LOGIN_PATH)}><span>Se connecter</span><span className="text-white/40">→</span></button>
+                      <button className="w-full inline-flex items-center justify-between px-4 py-4 rounded-2xl bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] text-black font-bold" onClick={() => go(REGISTER_PATH)}><span>Essai gratuit 7 jours</span><span>→</span></button>
+                    </>
+                  ) : (
+                    <button className="w-full inline-flex items-center justify-between px-4 py-4 rounded-2xl border border-red-500/20 bg-[#0b0b0b] text-red-100/80 hover:bg-red-500/10 transition-all" onClick={logout}><span>Se déconnecter</span><span>→</span></button>
+                  )}
                 </div>
               </div>
             </motion.div>
