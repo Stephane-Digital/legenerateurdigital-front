@@ -24,7 +24,7 @@ import {
   FaUserAstronaut,
 } from "react-icons/fa";
 
-type Plan = "none" | "azur" | "trial" | "essentiel" | "pro" | "ultime";
+type Plan = "none" | "azur" | "essentiel" | "pro" | "ultime";
 
 type ModalKey =
   | "editor"
@@ -45,7 +45,7 @@ type DailyProgress = {
 };
 
 const SYSTEMEIO_PLANS_URL =
-  process.env.NEXT_PUBLIC_SYSTEMEIO_PLANS_URL || "https://legenerateurdigital.systeme.io/planslgd";
+  process.env.NEXT_PUBLIC_SYSTEMEIO_PLANS_URL || "https://legenerateurdigital.systeme.io/lgd";
 
 const LGD_DAILY_PROGRESS_KEY = "lgd_dashboard_daily_progress";
 
@@ -61,7 +61,6 @@ function planLabel(plan: Plan) {
   if (plan === "pro") return "PRO";
   if (plan === "essentiel") return "ESSENTIEL";
   if (plan === "azur") return "AZUR";
-  if (plan === "trial") return "TRIAL";
   return "AUCUN";
 }
 
@@ -69,7 +68,7 @@ async function fetchPlanFromBackend(): Promise<Plan> {
   const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
   const url = `${base}/ai-quota/global`;
 
-  const token = typeof window !== "undefined" ? window.localStorage.getItem("lgd_token") : null;
+  const token = typeof window !== "undefined" ? (window.localStorage.getItem("access_token") || window.localStorage.getItem("lgd_token") || window.localStorage.getItem("token") || window.localStorage.getItem("jwt")) : null;
 
   const res = await fetch(url, {
     method: "GET",
@@ -84,13 +83,22 @@ async function fetchPlanFromBackend(): Promise<Plan> {
   if (!res.ok) throw new Error(`ai-quota/global ${res.status}`);
 
   const data = (await res.json()) as any;
-  const p = String(data?.plan || "").toLowerCase();
+  const p = String(data?.display_plan ?? data?.plan ?? data?.current_plan ?? data?.subscription_plan ?? data?.user_plan ?? "").toLowerCase();
+  const limit = Number(data?.tokens_limit ?? data?.limit_tokens ?? data?.credits ?? data?.remaining ?? 0);
 
   if (p.includes("ultime")) return "ultime";
   if (p.includes("pro")) return "pro";
-  if (p.includes("essentiel")) return "essentiel";
-  if (p.includes("azur")) return "azur";
-  if (p.includes("trial")) return "trial";
+  if (p.includes("azur") || p.includes("trial") || p.includes("starter") || p.includes("decouverte") || p.includes("découverte")) return "azur";
+  if (p.includes("essentiel")) {
+    if (limit === 70000) return "azur";
+    return "essentiel";
+  }
+
+  if (limit === 70000) return "azur";
+  if (limit === 2500000) return "ultime";
+  if (limit === 1000000) return "pro";
+  if (limit === 400000) return "essentiel";
+
   return "none";
 }
 
@@ -99,10 +107,12 @@ function getPlanFromLocalStorage(): Plan {
   const essentiel = localStorage.getItem("lgd_plan_essentiel");
   const pro = localStorage.getItem("lgd_plan_pro");
   const ultime = localStorage.getItem("lgd_plan_ultime");
+  const trial = localStorage.getItem("lgd_plan_trial") || localStorage.getItem("lgd_plan_starter");
 
   if (ultime === "active") return "ultime";
   if (pro === "active") return "pro";
   if (essentiel === "active") return "essentiel";
+  if (trial === "active") return "azur";
   return "none";
 }
 
@@ -453,7 +463,7 @@ export default function DashboardPage() {
                     openSystemeioPlans();
                   }}
                 >
-                  {hasPaidAccess ? "Démarrer maintenant" : "Voir les plans"}
+                  {hasPaidAccess ? "Démarrer maintenant" : "Essai gratuit 7 jours"}
                 </PrimaryButton>
               </div>
 
@@ -620,7 +630,7 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <PrimaryButton onClick={openSystemeioPlans}>Voir les plans</PrimaryButton>
+              <PrimaryButton onClick={openSystemeioPlans}>Essai gratuit 7 jours</PrimaryButton>
               <SecondaryButton onClick={closeModal}>Fermer</SecondaryButton>
             </div>
           )}
@@ -670,7 +680,7 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <PrimaryButton onClick={openSystemeioPlans}>Voir les plans</PrimaryButton>
+              <PrimaryButton onClick={openSystemeioPlans}>Essai gratuit 7 jours</PrimaryButton>
               <SecondaryButton onClick={closeModal}>Fermer</SecondaryButton>
             </div>
           )}
@@ -720,7 +730,7 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <PrimaryButton onClick={openSystemeioPlans}>Voir les plans</PrimaryButton>
+              <PrimaryButton onClick={openSystemeioPlans}>Essai gratuit 7 jours</PrimaryButton>
               <SecondaryButton onClick={closeModal}>Fermer</SecondaryButton>
             </div>
           )}
