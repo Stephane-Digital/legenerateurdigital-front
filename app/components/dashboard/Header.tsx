@@ -1,9 +1,10 @@
 "use client";
 
+import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { useEffect, useState } from "react";
+import type { MouseEvent } from "react";
 
 type Plan = "none" | "azur" | "essentiel" | "pro" | "ultime";
 
@@ -95,6 +96,7 @@ export default function Header() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [plan, setPlan] = useState<Plan>("none");
   const [loadingPlan, setLoadingPlan] = useState(true);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -178,7 +180,7 @@ export default function Header() {
     router.push(path);
   }
 
-  function openPlans(e?: React.MouseEvent) {
+  function openPlans(e?: MouseEvent) {
     if (e) {
       e.preventDefault();
       e.stopPropagation();
@@ -187,24 +189,49 @@ export default function Header() {
     window.open(PLANS_URL, "_blank", "noopener,noreferrer");
   }
 
-  function logout() {
-    if (typeof window !== "undefined") {
-      window.localStorage.removeItem("access_token");
-      window.localStorage.removeItem("lgd_token");
-      window.localStorage.removeItem("token");
-      window.localStorage.removeItem("jwt");
-      window.localStorage.removeItem("lgd_plan_ultime");
-      window.localStorage.removeItem("lgd_plan_pro");
-      window.localStorage.removeItem("lgd_plan_essentiel");
-      window.localStorage.removeItem("lgd_plan_starter");
-      window.localStorage.removeItem("lgd_plan_trial");
+  function clearAuthState() {
+    if (typeof window === "undefined") return;
+
+    const keysToRemove = [
+      "access_token",
+      "lgd_token",
+      "token",
+      "jwt",
+      "refresh_token",
+      "lgd_refresh_token",
+      "lgd_user",
+      "lgd_user_email",
+      "lgd_auth_user",
+      "lgd_plan_ultime",
+      "lgd_plan_pro",
+      "lgd_plan_essentiel",
+      "lgd_plan_starter",
+      "lgd_plan_trial",
+    ];
+
+    for (const key of keysToRemove) {
+      window.localStorage.removeItem(key);
+      window.sessionStorage.removeItem(key);
     }
 
+    window.dispatchEvent(new Event("storage"));
+    window.dispatchEvent(new CustomEvent("lgd-auth-changed", { detail: { loggedIn: false } }));
+  }
+
+  function logout() {
+    if (loggingOut) return;
+
+    setLoggingOut(true);
+    clearAuthState();
     setPlan("none");
     setIsLoggedIn(false);
+    setLoadingPlan(false);
     setMenuOpen(false);
-    router.push(DASHBOARD_PATH);
-    router.refresh();
+
+    window.setTimeout(() => {
+      router.replace(LOGIN_PATH);
+      router.refresh();
+    }, 180);
   }
 
   return (
@@ -229,7 +256,16 @@ export default function Header() {
               {showUpgrade ? (
                 <button className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] text-black font-semibold hover:-translate-y-0.5 transition-all" onClick={openPlans}>Upgrade</button>
               ) : null}
-              <button className="px-4 py-2 rounded-xl border border-yellow-600/25 text-yellow-100 hover:bg-yellow-500/10 transition-all" onClick={logout}>Se déconnecter</button>
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.97 }}
+                disabled={loggingOut}
+                className="inline-flex items-center gap-2 rounded-xl border border-yellow-600/25 px-4 py-2 text-yellow-100 transition-all hover:bg-yellow-500/10 disabled:cursor-wait disabled:opacity-70"
+                onClick={logout}
+              >
+                <span className={loggingOut ? "inline-block h-2 w-2 animate-pulse rounded-full bg-yellow-300" : "inline-block h-2 w-2 rounded-full bg-yellow-500/70"} />
+                {loggingOut ? "Déconnexion..." : "Se déconnecter"}
+              </motion.button>
             </>
           ) : (
             <Link href={LOGIN_PATH} className="px-4 py-2 rounded-xl border border-yellow-600/25 text-yellow-100 hover:bg-yellow-500/10 transition-all">Se connecter</Link>
@@ -268,7 +304,10 @@ export default function Header() {
                   <a href={PLANS_URL} className={drawerBtn} onClick={openPlans}><span>Plans</span><span className="text-white/40">→</span></a>
 
                   {isLoggedIn ? (
-                    <button className={drawerBtn} onClick={logout}><span>Se déconnecter</span><span className="text-white/40">→</span></button>
+                    <button className={drawerBtn} onClick={logout} disabled={loggingOut}>
+                      <span>{loggingOut ? "Déconnexion..." : "Se déconnecter"}</span>
+                      <span className="text-white/40">→</span>
+                    </button>
                   ) : (
                     <button className={drawerBtn} onClick={() => go(LOGIN_PATH)}><span>Se connecter</span><span className="text-white/40">→</span></button>
                   )}
