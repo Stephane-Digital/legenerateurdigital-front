@@ -7,7 +7,7 @@ import AffiliationSubnav from "../components/AffiliationSubnav";
 const GOOGLE_DOCS_LINK =
   "https://docs.google.com/document/d/17VMKD7tfE1lLoMI9GGFF2NzgLy1MQxi00Rs2wPBRyxY/edit?usp=sharing";
 
-const CANVA_LINK = "https://www.canva.com/design/TON_CANVA_ID/view";
+const CANVA_LINK = "https://canva.link/t5x0lkqdf3z76v4";
 
 const buttonPrimary =
   "inline-flex items-center justify-center text-center whitespace-nowrap w-full sm:w-auto min-w-[240px] py-3 px-6 bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] text-black font-semibold rounded-2xl shadow-lg shadow-yellow-500/20 hover:shadow-yellow-400/40 hover:-translate-y-0.5 transition-all duration-300";
