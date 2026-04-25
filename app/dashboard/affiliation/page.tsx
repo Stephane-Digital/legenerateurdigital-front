@@ -10,7 +10,7 @@ const AFFILIATE_LINK =
   "https://legenerateurdigital.systeme.io/proxy/request/56789eceba9c8bb2735359ffed9beadd2f7c8";
 
 const LINKS = {
-  canvaKit: "https://www.canva.com/design/TON_CANVA_ID/view",
+  canvaKit: "https://canva.link/2mzufsnxs1dl2so",
 };
 
 const quickStartSteps = [
