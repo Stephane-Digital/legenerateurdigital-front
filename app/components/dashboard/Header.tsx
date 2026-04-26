@@ -175,8 +175,18 @@ export default function Header() {
 
   const showUpgrade = isLoggedIn && plan !== "ultime";
 
+  function isPublicNavPath(path: string) {
+    return path === DASHBOARD_PATH || path === AFFILIATION_PATH;
+  }
+
   function go(path: string) {
     setMenuOpen(false);
+
+    if (!isLoggedIn && !isPublicNavPath(path)) {
+      router.push(LOGIN_PATH);
+      return;
+    }
+
     router.push(path);
   }
 
@@ -242,11 +252,27 @@ export default function Header() {
         </Link>
 
         <nav className="hidden md:flex items-center gap-3">
-          {NAV_ITEMS.map((item) => (
-            <Link key={item.path} href={item.path} className={linkClasses(item.path)}>
-              {item.label}
-            </Link>
-          ))}
+          {NAV_ITEMS.map((item) => {
+            if (isLoggedIn || isPublicNavPath(item.path)) {
+              return (
+                <Link key={item.path} href={item.path} className={linkClasses(item.path)}>
+                  {item.label}
+                </Link>
+              );
+            }
+
+            return (
+              <button
+                key={item.path}
+                type="button"
+                onClick={() => go(item.path)}
+                className={linkClasses(item.path)}
+                title="Connecte-toi pour utiliser ce module"
+              >
+                {item.label}
+              </button>
+            );
+          })}
 
           <a href={PLANS_URL} className="px-4 py-2 rounded-xl text-white/80 hover:text-yellow-400 transition-colors" onClick={openPlans}>Plans</a>
 
