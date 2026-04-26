@@ -3,7 +3,8 @@
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import type { MouseEvent } from "react";
 
 type Plan = "none" | "azur" | "essentiel" | "pro" | "ultime";
 
@@ -14,13 +15,28 @@ const EDITOR_PATH = "/dashboard/automatisations/reseaux_sociaux/editor-intellige
 const COACH_PATH = "/dashboard/coach-ia";
 const LEADS_PATH = "/dashboard/lead-engine";
 const EMAIL_CAMPAIGNS_PATH = "/dashboard/email-campaigns";
+const LOGIN_PATH = "/auth/login";
+
+type NavItem = {
+  label: string;
+  path: string;
+};
+
+const NAV_ITEMS: NavItem[] = [
+  { label: "Dashboard", path: DASHBOARD_PATH },
+  { label: "Affiliation", path: AFFILIATION_PATH },
+  { label: "Éditeur", path: EDITOR_PATH },
+  { label: "Leads IA", path: LEADS_PATH },
+  { label: "Coach", path: COACH_PATH },
+  { label: "Emailing IA", path: EMAIL_CAMPAIGNS_PATH },
+];
 
 function planLabel(plan: Plan) {
   if (plan === "ultime") return "ULTIME";
   if (plan === "pro") return "PRO";
   if (plan === "essentiel") return "ESSENTIEL";
   if (plan === "azur") return "AZUR";
-  return "AUCUN";
+  return "VISITEUR";
 }
 
 function normalizePlan(input: any, tokensLimit?: any): Plan {
@@ -33,7 +49,7 @@ function normalizePlan(input: any, tokensLimit?: any): Plan {
     if (limit === 70000) return "azur";
     return "essentiel";
   }
-  if (v === "trial" || v === "azur" || v === "azur" || v === "découverte") return "azur";
+  if (v === "trial" || v === "azur" || v === "starter" || v === "decouverte" || v === "découverte") return "azur";
 
   if (limit === 70000) return "azur";
   if (limit === 2500000) return "ultime";
@@ -41,6 +57,17 @@ function normalizePlan(input: any, tokensLimit?: any): Plan {
   if (limit === 400000) return "essentiel";
 
   return "none";
+}
+
+function getStoredToken() {
+  if (typeof window === "undefined") return "";
+  return (
+    window.localStorage.getItem("access_token") ||
+    window.localStorage.getItem("lgd_token") ||
+    window.localStorage.getItem("token") ||
+    window.localStorage.getItem("jwt") ||
+    ""
+  );
 }
 
 function getPlanFromLocalStorage(): Plan {
@@ -66,19 +93,30 @@ export default function Header() {
   const pathname = usePathname();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [plan, setPlan] = useState<Plan>("none");
   const [loadingPlan, setLoadingPlan] = useState(true);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
     let alive = true;
-    const fallbackPlan = getPlanFromLocalStorage();
+    const token = getStoredToken();
+    const hasToken = Boolean(token);
 
-    if (fallbackPlan !== "none") {
-      setPlan(fallbackPlan);
+    setIsLoggedIn(hasToken);
+
+    if (!hasToken) {
+      setPlan("none");
       setLoadingPlan(false);
       return () => {
         alive = false;
       };
+    }
+
+    const fallbackPlan = getPlanFromLocalStorage();
+    if (fallbackPlan !== "none") {
+      setPlan(fallbackPlan);
+      setLoadingPlan(false);
     }
 
     async function loadPlan() {
@@ -87,23 +125,26 @@ export default function Header() {
         const res = await fetch(`${apiUrl}/ai-quota/global`, {
           method: "GET",
           credentials: "include",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
           cache: "no-store",
         });
 
         if (!res.ok) {
-          if (alive) setPlan("none");
+          if (alive && fallbackPlan === "none") setPlan("none");
           return;
         }
 
         const data = await res.json();
         const p = normalizePlan(
           data?.display_plan ?? data?.plan ?? data?.current_plan ?? data?.subscription_plan ?? data?.user_plan,
-          data?.tokens_limit ?? data?.credits ?? data?.remaining
+          data?.tokens_limit ?? data?.limit_tokens ?? data?.credits ?? data?.remaining
         );
         if (alive) setPlan(p);
       } catch {
-        if (alive) setPlan("none");
+        if (alive && fallbackPlan === "none") setPlan("none");
       } finally {
         if (alive) setLoadingPlan(false);
       }
@@ -115,31 +156,45 @@ export default function Header() {
     };
   }, []);
 
-  const hasModuleAccess = useMemo(() => plan !== "none", [plan]);
   const linkClasses = (path: string) =>
-    `px-4 py-2 rounded-xl transition-colors ${isActive(pathname, path) ? "bg-yellow-500 text-black font-semibold" : "text-white/80 hover:text-yellow-400"}`;
+    `group relative inline-flex items-center rounded-2xl px-4 py-2.5 text-sm font-semibold transition-all duration-300 ${
+      isActive(pathname, path)
+        ? "bg-gradient-to-r from-[#f5bf21] to-[#ffd76a] text-black shadow-[0_0_24px_rgba(245,191,33,0.24)]"
+        : "text-white/78 hover:bg-white/[0.04] hover:text-[#f5bf21]"
+    }`;
 
   const badgeClasses =
     plan === "ultime"
-      ? "px-3 py-1 rounded-full text-[11px] font-semibold bg-yellow-500 text-black"
+      ? "inline-flex items-center rounded-full bg-gradient-to-r from-[#f5bf21] to-[#ffd76a] px-3.5 py-2 text-[11px] font-black uppercase tracking-[0.08em] text-black shadow-[0_0_22px_rgba(245,191,33,0.2)]"
       : plan === "pro"
-      ? "px-3 py-1 rounded-full text-[11px] font-semibold border border-yellow-500/60 text-yellow-200 bg-[#0b0b0b]"
+      ? "inline-flex items-center rounded-full border border-[#f5bf21]/55 bg-black/45 px-3.5 py-2 text-[11px] font-black uppercase tracking-[0.08em] text-[#ffe49a]"
       : plan === "essentiel"
-      ? "px-3 py-1 rounded-full text-[11px] font-semibold border border-yellow-600/30 text-yellow-200 bg-[#0b0b0b]"
+      ? "inline-flex items-center rounded-full border border-[#f5bf21]/35 bg-black/45 px-3.5 py-2 text-[11px] font-black uppercase tracking-[0.08em] text-[#ffe49a]"
       : plan === "azur"
-      ? "px-3 py-1 rounded-full text-[11px] font-semibold border border-yellow-500/50 text-yellow-100 bg-[#0b0b0b]"
-      : "px-3 py-1 rounded-full text-[11px] font-semibold border border-yellow-600/20 text-white/60 bg-[#0b0b0b]";
+      ? "inline-flex items-center rounded-full border border-[#f5bf21]/45 bg-black/45 px-3.5 py-2 text-[11px] font-black uppercase tracking-[0.08em] text-[#fff0b7]"
+      : "inline-flex items-center rounded-full border border-white/10 bg-black/35 px-3.5 py-2 text-[11px] font-black uppercase tracking-[0.08em] text-white/55";
 
-  const drawerBtn = "w-full inline-flex items-center justify-between px-4 py-4 rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] text-white/90 hover:bg-[#111111] transition-all";
-  const drawerBtnActive = "w-full inline-flex items-center justify-between px-4 py-4 rounded-2xl border border-yellow-500 bg-[#111111] text-yellow-200";
-  const drawerBtnLocked = "w-full inline-flex items-center justify-between px-4 py-4 rounded-2xl border border-yellow-600/15 bg-[#0b0b0b] text-white/35 cursor-not-allowed select-none";
+  const drawerBtn = "w-full inline-flex items-center justify-between rounded-2xl border border-[#f5bf21]/15 bg-black/35 px-4 py-4 text-white/90 transition-all hover:border-[#f5bf21]/35 hover:bg-white/[0.04] hover:text-[#f5bf21]";
+  const drawerBtnActive = "w-full inline-flex items-center justify-between rounded-2xl border border-[#f5bf21]/55 bg-[#f5bf21]/10 px-4 py-4 text-[#ffe49a] shadow-[0_0_24px_rgba(245,191,33,0.12)]";
+
+  const showUpgrade = isLoggedIn && plan !== "ultime";
+
+  function isPublicNavPath(path: string) {
+    return path === DASHBOARD_PATH || path === AFFILIATION_PATH;
+  }
 
   function go(path: string) {
     setMenuOpen(false);
+
+    if (!isLoggedIn && !isPublicNavPath(path)) {
+      router.push(LOGIN_PATH);
+      return;
+    }
+
     router.push(path);
   }
 
-  function openPlans(e?: React.MouseEvent) {
+  function openPlans(e?: MouseEvent) {
     if (e) {
       e.preventDefault();
       e.stopPropagation();
@@ -148,49 +203,125 @@ export default function Header() {
     window.open(PLANS_URL, "_blank", "noopener,noreferrer");
   }
 
-  function lockedToPlans(e: React.MouseEvent) {
-    openPlans(e);
+  function clearAuthState() {
+    if (typeof window === "undefined") return;
+
+    const keysToRemove = [
+      "access_token",
+      "lgd_token",
+      "token",
+      "jwt",
+      "refresh_token",
+      "lgd_refresh_token",
+      "lgd_user",
+      "lgd_user_email",
+      "lgd_auth_user",
+      "lgd_plan_ultime",
+      "lgd_plan_pro",
+      "lgd_plan_essentiel",
+      "lgd_plan_starter",
+      "lgd_plan_trial",
+    ];
+
+    for (const key of keysToRemove) {
+      window.localStorage.removeItem(key);
+      window.sessionStorage.removeItem(key);
+    }
+
+    window.dispatchEvent(new Event("storage"));
+    window.dispatchEvent(new CustomEvent("lgd-auth-changed", { detail: { loggedIn: false } }));
+  }
+
+  function logout() {
+    if (loggingOut) return;
+
+    setLoggingOut(true);
+    clearAuthState();
+    setPlan("none");
+    setIsLoggedIn(false);
+    setLoadingPlan(false);
+    setMenuOpen(false);
+
+    window.setTimeout(() => {
+      router.replace(LOGIN_PATH);
+      router.refresh();
+    }, 180);
   }
 
   return (
-    <header className="fixed top-0 left-0 w-full z-50 border-b border-yellow-600/20 bg-[#0b0b0b]/95 backdrop-blur-md shadow-lg">
-      <div className="max-w-7xl mx-auto flex items-center justify-between px-5 py-4">
-        <Link
-          href={DASHBOARD_PATH}
-          className="group flex min-w-fit items-center gap-2 rounded-2xl px-1 py-1 transition-all duration-300 hover:scale-[1.01]"
-        >
-          <span className="bg-gradient-to-r from-[#f5bf21] via-[#ffe49a] to-[#ff9f1c] bg-clip-text text-lg font-black tracking-[-0.03em] text-transparent sm:text-xl">
-            Le Générateur Digital
-          </span>
-          <span className="hidden rounded-full border border-[#f5bf21]/25 bg-[#f5bf21]/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-[#f5bf21] lg:inline-flex">
-            IA
-          </span>
+    <header className="fixed left-0 top-0 z-50 w-full border-b border-[#f5bf21]/15 bg-[#050505]/88 shadow-[0_12px_50px_rgba(0,0,0,0.38)] backdrop-blur-2xl">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#f5bf21]/70 to-transparent" />
+      <div className="pointer-events-none absolute -top-20 left-1/2 h-28 w-[640px] -translate-x-1/2 rounded-full bg-[#f5bf21]/10 blur-3xl" />
+
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-5 px-5 py-3.5">
+        <Link href={DASHBOARD_PATH} className="group flex min-w-fit items-center gap-3 rounded-2xl px-1 py-1 transition-all duration-300 hover:scale-[1.01]">
+          <div className="relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl border border-[#f5bf21]/35 bg-[radial-gradient(circle_at_30%_20%,rgba(245,191,33,0.32),rgba(0,0,0,0.88)_58%)] shadow-[0_0_28px_rgba(245,191,33,0.18)]">
+            <span className="absolute inset-0 bg-gradient-to-br from-white/12 via-transparent to-[#f5bf21]/15 opacity-80" />
+            <span className="relative bg-gradient-to-r from-[#fff0a8] via-[#f5bf21] to-[#ff9f1c] bg-clip-text text-xl font-black italic tracking-[-0.08em] text-transparent">LGD</span>
+            <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-[#f5bf21] shadow-[0_0_18px_rgba(245,191,33,0.9)]" />
+          </div>
+
+          <div className="leading-tight">
+            <div className="flex items-center gap-2">
+              <span className="bg-gradient-to-r from-[#f5bf21] via-[#ffe49a] to-[#ff9f1c] bg-clip-text text-lg font-black tracking-[-0.03em] text-transparent sm:text-xl">
+                Le Générateur Digital
+              </span>
+              <span className="hidden rounded-full border border-[#f5bf21]/25 bg-[#f5bf21]/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-[#f5bf21] lg:inline-flex">IA</span>
+            </div>
+            <div className="hidden text-[10px] font-semibold uppercase tracking-[0.24em] text-white/35 lg:block">Business · IA · Conversion</div>
+          </div>
         </Link>
 
-        <nav className="hidden md:flex items-center gap-3">
-          <Link href={DASHBOARD_PATH} className={linkClasses(DASHBOARD_PATH)}>Dashboard</Link>
-          <Link href={AFFILIATION_PATH} className={linkClasses(AFFILIATION_PATH)}>Affiliation</Link>
-          {hasModuleAccess ? (
+        <nav className="hidden items-center gap-2 md:flex">
+          {NAV_ITEMS.map((item) => {
+            if (isLoggedIn || isPublicNavPath(item.path)) {
+              return (
+                <Link key={item.path} href={item.path} className={linkClasses(item.path)}>
+                  {item.label}
+                </Link>
+              );
+            }
+
+            return (
+              <button
+                key={item.path}
+                type="button"
+                onClick={() => go(item.path)}
+                className={linkClasses(item.path)}
+                title="Connecte-toi pour utiliser ce module"
+              >
+                {item.label}
+              </button>
+            );
+          })}
+
+          <a href={PLANS_URL} className="rounded-2xl px-4 py-2.5 text-sm font-semibold text-white/78 transition-all hover:bg-white/[0.04] hover:text-[#f5bf21]" onClick={openPlans}>Plans</a>
+
+          {isLoggedIn ? (
             <>
-              <Link href={EDITOR_PATH} className={linkClasses(EDITOR_PATH)}>Éditeur</Link>
-              <Link href={LEADS_PATH} className={linkClasses(LEADS_PATH)}>Leads IA</Link>
-              <Link href={COACH_PATH} className={linkClasses(COACH_PATH)}>Coach</Link>
-              <Link href={EMAIL_CAMPAIGNS_PATH} className={linkClasses(EMAIL_CAMPAIGNS_PATH)}>Emailing IA</Link>
+              <span className={badgeClasses}>{loadingPlan ? "PLAN : ..." : `PLAN : ${planLabel(plan)}`}</span>
+              {showUpgrade ? (
+                <motion.button type="button" whileHover={{ y: -1, scale: 1.02 }} whileTap={{ scale: 0.98 }} className="rounded-2xl bg-gradient-to-r from-[#f5bf21] via-[#ffd76a] to-[#ffb000] px-4 py-2.5 text-sm font-black text-black shadow-[0_0_26px_rgba(245,191,33,0.24)] transition-all" onClick={openPlans}>Upgrade</motion.button>
+              ) : null}
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.97 }}
+                disabled={loggingOut}
+                className="inline-flex items-center gap-2 rounded-2xl border border-[#f5bf21]/25 bg-black/20 px-4 py-2.5 text-sm font-bold text-[#ffe49a] transition-all hover:border-[#f5bf21]/55 hover:bg-[#f5bf21]/10 hover:shadow-[0_0_22px_rgba(245,191,33,0.12)] disabled:cursor-wait disabled:opacity-70"
+                onClick={logout}
+              >
+                <span className={loggingOut ? "inline-block h-2 w-2 animate-pulse rounded-full bg-yellow-300" : "inline-block h-2 w-2 rounded-full bg-yellow-500/70"} />
+                {loggingOut ? "Déconnexion..." : "Se déconnecter"}
+              </motion.button>
             </>
           ) : (
-            <>
-              <a href={PLANS_URL} className="px-4 py-2 rounded-xl border border-yellow-600/20 text-white/35 hover:bg-[#111111] transition-all" onClick={lockedToPlans}>Éditeur 🔒</a>
-              <a href={PLANS_URL} className="px-4 py-2 rounded-xl border border-yellow-600/20 text-white/35 hover:bg-[#111111] transition-all" onClick={lockedToPlans}>Leads IA 🔒</a>
-              <a href={PLANS_URL} className="px-4 py-2 rounded-xl border border-yellow-600/20 text-white/35 hover:bg-[#111111] transition-all" onClick={lockedToPlans}>Coach 🔒</a>
-              <a href={PLANS_URL} className="px-4 py-2 rounded-xl border border-yellow-600/20 text-white/35 hover:bg-[#111111] transition-all" onClick={lockedToPlans}>Emailing IA 🔒</a>
-            </>
+            <Link href={LOGIN_PATH} className="rounded-2xl border border-[#f5bf21]/30 bg-black/25 px-4 py-2.5 text-sm font-bold text-[#ffe49a] transition-all hover:border-[#f5bf21]/60 hover:bg-[#f5bf21]/10 hover:shadow-[0_0_22px_rgba(245,191,33,0.12)]">Se connecter</Link>
           )}
-          <a href={PLANS_URL} className="px-4 py-2 rounded-xl text-white/80 hover:text-yellow-400 transition-colors" onClick={openPlans}>Plans</a>
-          {plan !== "ultime" && <button className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] text-black font-semibold hover:-translate-y-0.5 transition-all" onClick={openPlans}>Upgrade</button>}
         </nav>
 
         <div className="md:hidden flex items-center gap-3">
-          <button className="text-yellow-400 text-2xl px-2 py-1 rounded-xl hover:bg-[#111111] transition-all" onClick={() => setMenuOpen(true)} aria-label="Ouvrir le menu">☰</button>
+          {isLoggedIn ? <span className={badgeClasses}>{loadingPlan ? "PLAN : ..." : `PLAN : ${planLabel(plan)}`}</span> : null}
+          <button className="rounded-2xl border border-[#f5bf21]/25 px-3 py-2 text-2xl text-[#f5bf21] transition-all hover:bg-[#f5bf21]/10" onClick={() => setMenuOpen(true)} aria-label="Ouvrir le menu">☰</button>
         </div>
       </div>
 
@@ -198,34 +329,41 @@ export default function Header() {
         {menuOpen && (
           <motion.div className="fixed inset-0 z-[80]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <div className="absolute inset-0 bg-black/70" onClick={() => setMenuOpen(false)} />
-            <motion.div initial={{ y: -20, opacity: 0, scale: 0.98 }} animate={{ y: 0, opacity: 1, scale: 1 }} exit={{ y: -20, opacity: 0, scale: 0.98 }} transition={{ duration: 0.18 }} className="absolute top-0 left-0 right-0 bg-[#0b0b0b]/98 backdrop-blur-md border-b border-yellow-600/20">
+            <motion.div initial={{ y: -20, opacity: 0, scale: 0.98 }} animate={{ y: 0, opacity: 1, scale: 1 }} exit={{ y: -20, opacity: 0, scale: 0.98 }} transition={{ duration: 0.18 }} className="absolute left-0 right-0 top-0 border-b border-[#f5bf21]/15 bg-[#050505]/96 shadow-[0_18px_80px_rgba(0,0,0,0.55)] backdrop-blur-2xl">
               <div className="px-5 pt-5 pb-6">
                 <div className="flex items-center justify-between">
-                  <div className="text-lg font-bold bg-gradient-to-r from-yellow-500 to-yellow-300 bg-clip-text text-transparent">Menu LGD</div>
-                  <button onClick={() => setMenuOpen(false)} className="px-3 py-2 rounded-xl border border-yellow-600/25 text-yellow-200 hover:bg-[#111111] transition-all" aria-label="Fermer le menu">✕</button>
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#f5bf21]/35 bg-[#f5bf21]/10 text-sm font-black text-[#f5bf21]">LGD</div>
+                    <div>
+                      <div className="bg-gradient-to-r from-[#f5bf21] to-[#ffe49a] bg-clip-text text-lg font-black text-transparent">Menu LGD</div>
+                      <div className="text-[10px] uppercase tracking-[0.22em] text-white/35">Business · IA · Conversion</div>
+                    </div>
+                  </div>
+                  <button onClick={() => setMenuOpen(false)} className="rounded-2xl border border-[#f5bf21]/25 px-3 py-2 text-[#ffe49a] transition-all hover:bg-[#f5bf21]/10" aria-label="Fermer le menu">✕</button>
                 </div>
+
                 <div className="mt-4 flex items-center justify-between gap-3">
-                          {plan !== "ultime" && <button className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] text-black font-semibold" onClick={openPlans}>Upgrade</button>}
+                  {isLoggedIn ? <span className={badgeClasses}>{loadingPlan ? "PLAN : ..." : `PLAN : ${planLabel(plan)}`}</span> : <span className={badgeClasses}>VISITEUR</span>}
+                  {showUpgrade ? <motion.button type="button" whileTap={{ scale: 0.98 }} className="rounded-2xl bg-gradient-to-r from-[#f5bf21] via-[#ffd76a] to-[#ffb000] px-4 py-2.5 text-sm font-black text-black shadow-[0_0_24px_rgba(245,191,33,0.2)]" onClick={openPlans}>Upgrade</motion.button> : null}
                 </div>
+
                 <div className="mt-6 grid grid-cols-1 gap-3">
-                  <button className={isActive(pathname, DASHBOARD_PATH) ? drawerBtnActive : drawerBtn} onClick={() => go(DASHBOARD_PATH)}><span>Dashboard</span><span className="text-white/40">→</span></button>
-                  <button className={isActive(pathname, AFFILIATION_PATH) ? drawerBtnActive : drawerBtn} onClick={() => go(AFFILIATION_PATH)}><span>Affiliation</span><span className="text-white/40">→</span></button>
-                  {hasModuleAccess ? (
-                    <>
-                      <button className={isActive(pathname, EDITOR_PATH) ? drawerBtnActive : drawerBtn} onClick={() => go(EDITOR_PATH)}><span>Éditeur</span><span className="text-white/40">→</span></button>
-                      <button className={isActive(pathname, LEADS_PATH) ? drawerBtnActive : drawerBtn} onClick={() => go(LEADS_PATH)}><span>Leads IA</span><span className="text-white/40">→</span></button>
-                      <button className={isActive(pathname, COACH_PATH) ? drawerBtnActive : drawerBtn} onClick={() => go(COACH_PATH)}><span>Coach</span><span className="text-white/40">→</span></button>
-                      <button className={isActive(pathname, EMAIL_CAMPAIGNS_PATH) ? drawerBtnActive : drawerBtn} onClick={() => go(EMAIL_CAMPAIGNS_PATH)}><span>Emailing IA</span><span className="text-white/40">→</span></button>
-                    </>
-                  ) : (
-                    <>
-                      <a href={PLANS_URL} className={drawerBtnLocked} onClick={lockedToPlans}><span>Éditeur</span><span>🔒</span></a>
-                      <a href={PLANS_URL} className={drawerBtnLocked} onClick={lockedToPlans}><span>Leads IA</span><span>🔒</span></a>
-                      <a href={PLANS_URL} className={drawerBtnLocked} onClick={lockedToPlans}><span>Coach</span><span>🔒</span></a>
-                      <a href={PLANS_URL} className={drawerBtnLocked} onClick={lockedToPlans}><span>Emailing IA</span><span>🔒</span></a>
-                    </>
-                  )}
+                  {NAV_ITEMS.map((item) => (
+                    <button key={item.path} className={isActive(pathname, item.path) ? drawerBtnActive : drawerBtn} onClick={() => go(item.path)}>
+                      <span>{item.label}</span><span className="text-white/40">→</span>
+                    </button>
+                  ))}
+
                   <a href={PLANS_URL} className={drawerBtn} onClick={openPlans}><span>Plans</span><span className="text-white/40">→</span></a>
+
+                  {isLoggedIn ? (
+                    <button className={drawerBtn} onClick={logout} disabled={loggingOut}>
+                      <span>{loggingOut ? "Déconnexion..." : "Se déconnecter"}</span>
+                      <span className="text-white/40">→</span>
+                    </button>
+                  ) : (
+                    <button className={drawerBtn} onClick={() => go(LOGIN_PATH)}><span>Se connecter</span><span className="text-white/40">→</span></button>
+                  )}
                 </div>
               </div>
             </motion.div>
