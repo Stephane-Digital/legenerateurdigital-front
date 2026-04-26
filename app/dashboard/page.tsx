@@ -576,7 +576,7 @@ export default function DashboardPage() {
 
                   <div className="mt-6 w-full max-w-md">
                     <PrimaryButton onClick={() => accessOrExplain("coach")}>
-                      Voir les plans
+                      Lancer Coach AlexIA
                     </PrimaryButton>
                   </div>
 
