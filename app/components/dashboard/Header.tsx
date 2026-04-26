@@ -255,12 +255,6 @@ export default function Header() {
 
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-5 px-5 py-3.5">
         <Link href={DASHBOARD_PATH} className="group flex min-w-fit items-center gap-3 rounded-2xl px-1 py-1 transition-all duration-300 hover:scale-[1.01]">
-          <div className="relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl border border-[#f5bf21]/35 bg-[radial-gradient(circle_at_30%_20%,rgba(245,191,33,0.32),rgba(0,0,0,0.88)_58%)] shadow-[0_0_28px_rgba(245,191,33,0.18)]">
-            <span className="absolute inset-0 bg-gradient-to-br from-white/12 via-transparent to-[#f5bf21]/15 opacity-80" />
-            <span className="relative bg-gradient-to-r from-[#fff0a8] via-[#f5bf21] to-[#ff9f1c] bg-clip-text text-xl font-black italic tracking-[-0.08em] text-transparent">LGD</span>
-            <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-[#f5bf21] shadow-[0_0_18px_rgba(245,191,33,0.9)]" />
-          </div>
-
           <div className="leading-tight">
             <div className="flex items-center gap-2">
               <span className="bg-gradient-to-r from-[#f5bf21] via-[#ffe49a] to-[#ff9f1c] bg-clip-text text-lg font-black tracking-[-0.03em] text-transparent sm:text-xl">
@@ -299,7 +293,6 @@ export default function Header() {
 
           {isLoggedIn ? (
             <>
-              <span className={badgeClasses}>{loadingPlan ? "PLAN : ..." : `PLAN : ${planLabel(plan)}`}</span>
               {showUpgrade ? (
                 <motion.button type="button" whileHover={{ y: -1, scale: 1.02 }} whileTap={{ scale: 0.98 }} className="rounded-2xl bg-gradient-to-r from-[#f5bf21] via-[#ffd76a] to-[#ffb000] px-4 py-2.5 text-sm font-black text-black shadow-[0_0_26px_rgba(245,191,33,0.24)] transition-all" onClick={openPlans}>Upgrade</motion.button>
               ) : null}
@@ -320,7 +313,6 @@ export default function Header() {
         </nav>
 
         <div className="md:hidden flex items-center gap-3">
-          {isLoggedIn ? <span className={badgeClasses}>{loadingPlan ? "PLAN : ..." : `PLAN : ${planLabel(plan)}`}</span> : null}
           <button className="rounded-2xl border border-[#f5bf21]/25 px-3 py-2 text-2xl text-[#f5bf21] transition-all hover:bg-[#f5bf21]/10" onClick={() => setMenuOpen(true)} aria-label="Ouvrir le menu">☰</button>
         </div>
       </div>
@@ -333,7 +325,6 @@ export default function Header() {
               <div className="px-5 pt-5 pb-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#f5bf21]/35 bg-[#f5bf21]/10 text-sm font-black text-[#f5bf21]">LGD</div>
                     <div>
                       <div className="bg-gradient-to-r from-[#f5bf21] to-[#ffe49a] bg-clip-text text-lg font-black text-transparent">Menu LGD</div>
                       <div className="text-[10px] uppercase tracking-[0.22em] text-white/35">Business · IA · Conversion</div>
@@ -342,10 +333,11 @@ export default function Header() {
                   <button onClick={() => setMenuOpen(false)} className="rounded-2xl border border-[#f5bf21]/25 px-3 py-2 text-[#ffe49a] transition-all hover:bg-[#f5bf21]/10" aria-label="Fermer le menu">✕</button>
                 </div>
 
-                <div className="mt-4 flex items-center justify-between gap-3">
-                  {isLoggedIn ? <span className={badgeClasses}>{loadingPlan ? "PLAN : ..." : `PLAN : ${planLabel(plan)}`}</span> : <span className={badgeClasses}>VISITEUR</span>}
-                  {showUpgrade ? <motion.button type="button" whileTap={{ scale: 0.98 }} className="rounded-2xl bg-gradient-to-r from-[#f5bf21] via-[#ffd76a] to-[#ffb000] px-4 py-2.5 text-sm font-black text-black shadow-[0_0_24px_rgba(245,191,33,0.2)]" onClick={openPlans}>Upgrade</motion.button> : null}
-                </div>
+                {showUpgrade ? (
+                  <div className="mt-4 flex items-center justify-end gap-3">
+                    <motion.button type="button" whileTap={{ scale: 0.98 }} className="rounded-2xl bg-gradient-to-r from-[#f5bf21] via-[#ffd76a] to-[#ffb000] px-4 py-2.5 text-sm font-black text-black shadow-[0_0_24px_rgba(245,191,33,0.2)]" onClick={openPlans}>Upgrade</motion.button>
+                  </div>
+                ) : null}
 
                 <div className="mt-6 grid grid-cols-1 gap-3">
                   {NAV_ITEMS.map((item) => (
