@@ -11,6 +11,7 @@ import {
   FaEyeSlash,
   FaKey,
   FaLock,
+  FaRedo,
   FaUser,
 } from "react-icons/fa";
 
@@ -40,23 +41,6 @@ type ActivateTokenResponse = {
   used?: boolean;
 };
 
-type ConsumeTokenResponse = {
-  access_token?: string;
-  token?: string;
-  user?: {
-    id?: number | string;
-    email?: string;
-    plan?: string | null;
-    access_token?: string;
-    token?: string;
-  };
-  email?: string;
-  plan?: string | null;
-  status?: string;
-  message?: string;
-  detail?: string;
-};
-
 function ActivateAccountInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -84,12 +68,16 @@ function ActivateAccountInner() {
   const [tokenChecked, setTokenChecked] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [tokenInvalid, setTokenInvalid] = useState(false);
+  const [tokenInvalidMessage, setTokenInvalidMessage] = useState("");
 
   async function checkAccess(targetEmail?: string) {
     const cleanEmail = (targetEmail ?? email).trim().toLowerCase();
 
     setError("");
     setSuccess("");
+    setTokenInvalid(false);
+    setTokenInvalidMessage("");
     setAccessChecked(false);
     setPendingInfo(null);
 
@@ -142,6 +130,8 @@ function ActivateAccountInner() {
 
     setError("");
     setSuccess("");
+    setTokenInvalid(false);
+    setTokenInvalidMessage("");
     setAccessChecked(false);
     setPendingInfo(null);
 
@@ -186,109 +176,24 @@ function ActivateAccountInner() {
       setTokenChecked(true);
       setSuccess("Lien sécurisé validé. Tu peux maintenant finaliser ton compte LGD.");
     } catch (err: any) {
-      setError(err?.message || "Impossible de valider le lien sécurisé.");
+      setTokenInvalid(true);
+      setTokenInvalidMessage(
+        err?.message || "Lien d’activation invalide, expiré ou déjà utilisé."
+      );
+      setError("");
+      setSuccess("");
       setTokenChecked(true);
     } finally {
       setChecking(false);
     }
   }
 
-  function persistAuthToken(data: ConsumeTokenResponse) {
-    const token =
-      data?.access_token ||
-      data?.token ||
-      data?.user?.access_token ||
-      data?.user?.token ||
-      "";
+  function handleRequestNewLink() {
+    if (typeof window === "undefined") return;
 
-    if (typeof window !== "undefined" && token) {
-      window.localStorage.setItem("access_token", token);
-      window.localStorage.setItem("lgd_token", token);
-      window.localStorage.setItem("token", token);
-    }
-  }
-
-  async function activateWithSecureToken({
-    cleanEmail,
-    cleanName,
-    cleanPassword,
-  }: {
-    cleanEmail: string;
-    cleanName: string;
-    cleanPassword: string;
-  }) {
-    const consumeRes = await fetch(`${apiBaseUrl}/auth/consume-token`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({
-        token: activationToken,
-        email: cleanEmail,
-        full_name: cleanName,
-        password: cleanPassword,
-      }),
-    });
-
-    const consumeData: ConsumeTokenResponse = await consumeRes.json().catch(() => ({}));
-
-    if (!consumeRes.ok) {
-      throw new Error(
-        consumeData?.detail ||
-          consumeData?.message ||
-          "Token invalide, expiré ou déjà utilisé."
-      );
-    }
-
-    persistAuthToken(consumeData);
-    return consumeData;
-  }
-
-  async function activateWithLegacyEmail({
-    cleanEmail,
-    cleanName,
-    cleanPassword,
-  }: {
-    cleanEmail: string;
-    cleanName: string;
-    cleanPassword: string;
-  }) {
-    const registerRes = await fetch(`${apiBaseUrl}/auth/register`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({
-        email: cleanEmail,
-        password: cleanPassword,
-        full_name: cleanName,
-      }),
-    });
-
-    const registerData = await registerRes.json().catch(() => ({}));
-
-    if (!registerRes.ok) {
-      throw new Error(registerData?.detail || "Impossible d’activer le compte.");
-    }
-
-    const loginRes = await fetch(`${apiBaseUrl}/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({
-        email: cleanEmail,
-        password: cleanPassword,
-      }),
-    });
-
-    const loginData = await loginRes.json().catch(() => ({}));
-
-    if (!loginRes.ok) {
-      throw new Error(
-        loginData?.detail || "Compte activé, mais connexion automatique impossible."
-      );
-    }
-
-    persistAuthToken(loginData);
-    return loginData;
+    // Le backend ne renvoie pas encore automatiquement un nouveau token depuis cette page.
+    // On redirige donc vers la page d’essai LGD pour relancer un accès propre et sécurisé.
+    window.open("https://legenerateurdigital.systeme.io/trial", "_blank", "noopener,noreferrer");
   }
 
   async function handleActivate(e: FormEvent<HTMLFormElement>) {
@@ -306,28 +211,70 @@ function ActivateAccountInner() {
       return;
     }
 
-    if (cleanPassword.length < 6) {
-      setError("Ton mot de passe doit contenir au moins 6 caractères.");
-      return;
-    }
-
-    if (activationToken && !accessChecked) {
-      setError("Le lien sécurisé doit être validé avant l’activation du compte.");
-      return;
-    }
-
-    if (!activationToken && !pendingInfo?.has_access) {
-      setError("Vérifie d’abord ton accès avant d’activer ton compte.");
-      return;
-    }
-
     try {
       setActivating(true);
 
+      const registerRes = await fetch(`${apiBaseUrl}/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          email: cleanEmail,
+          password: cleanPassword,
+          full_name: cleanName,
+        }),
+      });
+
+      const registerData = await registerRes.json().catch(() => ({}));
+
+      if (!registerRes.ok) {
+        throw new Error(registerData?.detail || "Impossible d’activer le compte.");
+      }
+
       if (activationToken) {
-        await activateWithSecureToken({ cleanEmail, cleanName, cleanPassword });
-      } else {
-        await activateWithLegacyEmail({ cleanEmail, cleanName, cleanPassword });
+        const consumeRes = await fetch(`${apiBaseUrl}/auth/consume-token`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ token: activationToken }),
+        });
+
+        const consumeData = await consumeRes.json().catch(() => ({}));
+
+        if (!consumeRes.ok) {
+          throw new Error(
+            consumeData?.detail || "Compte créé, mais impossible de valider le lien sécurisé."
+          );
+        }
+      }
+
+      const loginRes = await fetch(`${apiBaseUrl}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          email: cleanEmail,
+          password: cleanPassword,
+        }),
+      });
+
+      const loginData = await loginRes.json().catch(() => ({}));
+
+      if (!loginRes.ok) {
+        throw new Error(
+          loginData?.detail || "Compte activé, mais connexion automatique impossible."
+        );
+      }
+
+      const token =
+        loginData?.access_token ||
+        loginData?.token ||
+        loginData?.user?.access_token ||
+        "";
+
+      if (typeof window !== "undefined" && token) {
+        window.localStorage.setItem("access_token", token);
+        window.localStorage.setItem("lgd_token", token);
       }
 
       setSuccess("Compte activé avec succès. Redirection vers le dashboard...");
@@ -370,7 +317,7 @@ function ActivateAccountInner() {
               </div>
 
               <div>
-                <h1 className="text-2xl font-semibold text-white md:text-3xl">
+                <h1 className="text-3xl font-black text-white md:text-4xl">
                   Finaliser mon compte <span className="text-[#f5b700]">LGD</span>
                 </h1>
                 <p className="mt-2 text-white/70">
@@ -379,6 +326,40 @@ function ActivateAccountInner() {
               </div>
             </div>
 
+            {tokenInvalid && activationToken ? (
+              <div className="rounded-[24px] border border-red-700/40 bg-red-950/25 p-6 shadow-[0_0_28px_rgba(127,29,29,0.22)]">
+                <div className="flex items-start gap-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] border border-red-500/30 bg-red-500/10 text-xl text-red-200">
+                    <FaKey />
+                  </div>
+
+                  <div>
+                    <h2 className="text-xl font-black text-white">
+                      Ton lien a expiré ou a déjà été utilisé 😕
+                    </h2>
+                    <p className="mt-2 text-sm leading-6 text-red-100/80">
+                      {tokenInvalidMessage || "Ce lien d’activation n’est plus valide."}
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-white/62">
+                      Pour protéger ton accès LGD, chaque lien est personnel, temporaire et utilisable une seule fois.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleRequestNewLink}
+                  className="mt-6 flex w-full items-center justify-center gap-3 rounded-[20px] bg-[#f5bf21] px-6 py-4 text-center text-base font-black text-black transition hover:brightness-105"
+                >
+                  <FaRedo className="text-sm" />
+                  Recevoir un nouveau lien
+                </button>
+
+                <p className="mt-4 text-center text-xs text-white/48">
+                  Une nouvelle demande ouvrira la page d’essai LGD dans un nouvel onglet.
+                </p>
+              </div>
+            ) : (
             <form onSubmit={handleActivate} className="space-y-5">
               <div className="group flex items-center gap-3 rounded-[20px] border border-white/14 bg-black/45 px-5 py-4">
                 <FaEnvelope className="shrink-0 text-white/45" />
@@ -445,6 +426,7 @@ function ActivateAccountInner() {
               </button>
             </form>
 
+            )}
             {error ? (
               <div className="mt-5 rounded-[18px] border border-red-700/40 bg-red-950/35 px-4 py-3 text-sm text-red-100">
                 {error}
@@ -469,7 +451,7 @@ function ActivateAccountInner() {
             </div>
 
             <div className="relative">
-              <h2 className="text-3xl font-semibold leading-none text-white md:text-4xl">
+              <h2 className="text-4xl font-black leading-none text-white md:text-5xl">
                 Activation <span className="block text-[#f5b700]">ultra simple</span>
               </h2>
 
@@ -519,7 +501,16 @@ function ActivateAccountInner() {
                 </div>
               </div>
 
-              {accessChecked && pendingInfo?.has_access ? (
+              {tokenInvalid && activationToken ? (
+                <div className="mt-8 rounded-[22px] border border-red-700/35 bg-red-950/25 px-5 py-5">
+                  <div className="text-sm uppercase tracking-[0.24em] text-red-200/85">
+                    lien non valide
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-red-100/80">
+                    Le lien a expiré ou a déjà été utilisé. Demande un nouveau lien pour finaliser ton accès LGD.
+                  </p>
+                </div>
+              ) : accessChecked && pendingInfo?.has_access ? (
                 <div className="mt-8 rounded-[22px] border border-[#f5b700]/18 bg-[linear-gradient(180deg,rgba(255,186,8,0.08),rgba(255,255,255,0.02))] px-5 py-5">
                   <div className="text-sm uppercase tracking-[0.24em] text-[#f5b700]/85">
                     accès détecté
