@@ -570,7 +570,7 @@ export default function DashboardPage() {
                   </h2>
 
                   <p className="mt-3 max-w-xl text-white/75 text-sm sm:text-base">
-                    Lance Coach Alex et exécute ton action la plus rentable aujourd’hui.
+                    Lance Coach AlexIA et exécute ton action la plus rentable aujourd’hui.
                     LGD te guide pour passer plus vite de l’idée à l’action, puis de l’action à la vente.
                   </p>
 
