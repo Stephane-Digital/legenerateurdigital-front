@@ -407,7 +407,31 @@ export default function DashboardPage() {
   }
 
   function accessOrExplain(key: "editor" | "coach" | "emailing" | "lead_engine") {
-    openModal(key);
+    if (!isLoggedIn) {
+      openModal(key);
+      return;
+    }
+
+    if (key === "coach") {
+      go("/dashboard/coach-ia");
+      return;
+    }
+
+    if (key === "editor") {
+      markContentCreated();
+      go("/dashboard/automatisations/reseaux_sociaux/editor-intelligent");
+      return;
+    }
+
+    if (key === "emailing") {
+      go("/dashboard/email-campaigns");
+      return;
+    }
+
+    if (key === "lead_engine") {
+      go("/dashboard/lead-engine");
+      return;
+    }
   }
 
   function toggleProgressItem(key: keyof DailyProgress) {
@@ -551,7 +575,7 @@ export default function DashboardPage() {
                   </p>
 
                   <div className="mt-6 w-full max-w-md">
-                    <PrimaryButton onClick={openSystemeioPlans}>
+                    <PrimaryButton onClick={() => accessOrExplain("coach")}>
                       Voir les plans
                     </PrimaryButton>
                   </div>
@@ -658,10 +682,7 @@ export default function DashboardPage() {
 
               <div className="w-full mt-6">
                 <SecondaryButton
-                  onClick={() => {
-                    markContentCreated();
-                    accessOrExplain("editor");
-                  }}
+                  onClick={() => accessOrExplain("editor")}
                 >
                   {hasPaidAccess ? "Accéder" : "Découvrir"}
                 </SecondaryButton>
