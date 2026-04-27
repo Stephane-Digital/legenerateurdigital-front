@@ -341,6 +341,7 @@ export default function DashboardPage() {
   const [activeModal, setActiveModal] = useState<ModalKey | null>(null);
   const [dailyProgress, setDailyProgress] = useState<DailyProgress>(DEFAULT_PROGRESS);
   const [progressHydrated, setProgressHydrated] = useState(false);
+  const [cancelRequestLoading, setCancelRequestLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -450,6 +451,49 @@ export default function DashboardPage() {
     writeDailyProgress(updated);
   }
 
+  async function requestSubscriptionCancel() {
+    if (cancelRequestLoading) return;
+
+    const confirmed = window.confirm(
+      "Confirmer la demande de résiliation de ton abonnement LGD ?"
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setCancelRequestLoading(true);
+
+      const token = getStoredToken();
+      if (!token) {
+        alert("Connexion requise pour envoyer une demande de résiliation.");
+        return;
+      }
+
+      const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
+      const res = await fetch(`${base}/subscription/cancel-request`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || data?.success === false) {
+        throw new Error(data?.detail || data?.message || "Erreur lors de l’envoi.");
+      }
+
+      alert("Demande de résiliation envoyée. LGD te confirmera la prise en compte par email.");
+    } catch (error) {
+      console.error("LGD cancel subscription request error", error);
+      alert("Impossible d’envoyer la demande de résiliation pour le moment.");
+    } finally {
+      setCancelRequestLoading(false);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
       <div className="px-6 pt-[120px] pb-16">
@@ -487,11 +531,24 @@ export default function DashboardPage() {
                   Vérification du plan…
                 </span>
               ) : (
-                <span>
-                  Plan actuel :{" "}
-                  <span className="text-yellow-200 font-semibold">
-                    {planLabel(plan)}
+                <span className="inline-flex flex-col items-center gap-2">
+                  <span>
+                    Plan actuel :{" "}
+                    <span className="text-yellow-200 font-semibold">
+                      {planLabel(plan)}
+                    </span>
                   </span>
+
+                  {plan !== "none" ? (
+                    <button
+                      type="button"
+                      onClick={requestSubscriptionCancel}
+                      disabled={cancelRequestLoading}
+                      className="text-[11px] font-normal text-white/35 underline decoration-white/20 underline-offset-4 transition hover:text-yellow-300 hover:decoration-yellow-300 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {cancelRequestLoading ? "Envoi de la demande…" : "Se désabonner"}
+                    </button>
+                  ) : null}
                 </span>
               )}
             </div>
