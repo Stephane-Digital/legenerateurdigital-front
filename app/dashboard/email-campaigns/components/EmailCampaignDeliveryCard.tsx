@@ -29,10 +29,27 @@ function isTokenExpired(token: string) {
   }
 }
 
+function getStoredToken() {
+  if (typeof window === "undefined") return "";
+
+  const candidates = [
+    window.localStorage.getItem("access_token"),
+    window.localStorage.getItem("lgd_token"),
+    window.localStorage.getItem("token"),
+    window.localStorage.getItem("jwt"),
+  ];
+
+  for (const candidate of candidates) {
+    const token = (candidate || "").trim();
+    if (token && !isTokenExpired(token)) return token;
+  }
+
+  return "";
+}
+
 function getAuthHeaders() {
-  if (typeof window === "undefined") return {};
-  const token = window.localStorage.getItem("lgd_token");
-  if (!token || isTokenExpired(token)) return {};
+  const token = getStoredToken();
+  if (!token) return {};
   return { Authorization: `Bearer ${token}`, "X-LGD-Token": token };
 }
 
