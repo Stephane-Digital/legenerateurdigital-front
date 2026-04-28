@@ -329,6 +329,7 @@ export default function AlexV2Shell() {
   const [accountKey, setAccountKey] = useState<string>("");
 
   const lastPushedSigRef = useRef<string>("");
+  const quotaRefreshInFlightRef = useRef(false);
 
   // ===== data
   const [stage, setStageState] = useState<AlexStage>("WELCOME");
@@ -575,38 +576,16 @@ useEffect(() => {
 
   // ===== quota fetch
   useEffect(() => {
-    let mounted = true;
-
-    const safeRefresh = async () => {
-      if (!mounted) return;
-      await refreshQuota();
-    };
-
-    void safeRefresh();
-
-    const onFocus = () => {
-      void safeRefresh();
-    };
-
-    const onVisibility = () => {
-      if (!document.hidden) {
-        void safeRefresh();
-      }
-    };
-
-    window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", onVisibility);
-
-    return () => {
-      mounted = false;
-      window.removeEventListener("focus", onFocus);
-      document.removeEventListener("visibilitychange", onVisibility);
-    };
+    void refreshQuota();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function refreshQuota() {
+    if (quotaRefreshInFlightRef.current) return;
+
+    quotaRefreshInFlightRef.current = true;
     setQuotaLoading(true);
+
     try {
       const q = await coachQuota();
       setUsed(Number(q.tokens_used || 0));
@@ -619,6 +598,7 @@ useEffect(() => {
         return;
       }
     } finally {
+      quotaRefreshInFlightRef.current = false;
       setQuotaLoading(false);
     }
   }
@@ -693,7 +673,7 @@ useEffect(() => {
             `Structurer l’action autour du CTA : ${cta}`,
           ],
           kpiLabel: "Plan stratégique validé",
-          durationMinutes: 45,
+          durationMin: 45,
           editorPayload: {
             ...(baseToday.mission.editorPayload || {}),
             source: "cmo-ia",
@@ -983,7 +963,10 @@ useEffect(() => {
 
             <button
               type="button"
-              onClick={onSmartResume}
+              onClick={() => {
+                onSmartResume();
+                setCommitOpen(true);
+              }}
               className="inline-flex shrink-0 items-center justify-center rounded-2xl border border-yellow-400/40 bg-yellow-400 px-5 py-3 text-sm font-black text-black shadow-[0_0_22px_rgba(250,204,21,0.20)] transition hover:brightness-110"
             >
               Lancer la stratégie avec Alex
