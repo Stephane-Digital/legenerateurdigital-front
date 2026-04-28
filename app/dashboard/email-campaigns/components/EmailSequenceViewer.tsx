@@ -83,6 +83,60 @@ function buildSystemeIoSequence(emails: EmailSequenceItem[], senderDisplay: stri
     .join("\n\n==================================================\n\n");
 }
 
+function escapeHtml(value: string | number | undefined | null) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function formatBodyForHtml(body: string) {
+  return escapeHtml(body)
+    .split(/\n{2,}/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean)
+    .map((paragraph) => `<p style="margin:0 0 16px;line-height:1.7;color:#222222;">${paragraph.replace(/\n/g, "<br>")}</p>`)
+    .join("\n");
+}
+
+function buildSystemeIoHtmlEmail(email: EmailSequenceItem, senderDisplay: string) {
+  const subject = escapeHtml(email.subject);
+  const preheader = escapeHtml(email.preheader);
+  const cta = escapeHtml(email.cta || "Découvrir");
+  const sender = escapeHtml(senderDisplay);
+
+  return `<!-- LGD EMAIL JOUR ${email.day} — ${String(email.email_type || "").toUpperCase()} -->
+<!-- OBJET : ${subject} -->
+<!-- PRÉHEADER : ${preheader} -->
+
+<div style="margin:0 auto;max-width:680px;background:#ffffff;color:#222222;font-family:Arial,Helvetica,sans-serif;padding:28px;border-radius:18px;">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">
+    ${preheader}
+  </div>
+
+  ${formatBodyForHtml(email.body)}
+
+  <div style="margin:26px 0;text-align:center;">
+    <a href="{{CTA_URL}}"
+       style="display:inline-block;background:#facc15;color:#111111;text-decoration:none;font-weight:800;padding:14px 24px;border-radius:999px;">
+      ${cta}
+    </a>
+  </div>
+
+  <p style="margin:22px 0 0;line-height:1.7;color:#222222;">
+    ${sender}
+  </p>
+</div>`;
+}
+
+function buildSystemeIoHtmlSequence(emails: EmailSequenceItem[], senderDisplay: string) {
+  return emails
+    .map((email) => buildSystemeIoHtmlEmail(email, senderDisplay))
+    .join("\n\n<!-- ================================================== -->\n\n");
+}
+
 function downloadTextFile(filename: string, content: string) {
   const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -126,7 +180,15 @@ export default function EmailSequenceViewer({ formValues, sequence, onSaved, onR
     if (!safeSequence) return;
 
     await navigator.clipboard.writeText(buildSystemeIoSequence(editing, senderDisplay));
-    setCopiedMessage("Version prête à coller dans Systeme.io copiée.");
+    setCopiedMessage("Version texte prête à coller dans Systeme.io copiée.");
+    window.setTimeout(() => setCopiedMessage(null), 2400);
+  };
+
+  const copySystemeIoHtmlSequence = async () => {
+    if (!safeSequence) return;
+
+    await navigator.clipboard.writeText(buildSystemeIoHtmlSequence(editing, senderDisplay));
+    setCopiedMessage("HTML Systeme.io prêt à coller copié.");
     window.setTimeout(() => setCopiedMessage(null), 2400);
   };
 
@@ -142,6 +204,24 @@ export default function EmailSequenceViewer({ formValues, sequence, onSaved, onR
 
     downloadTextFile(`${safeName || "campagne-emailing-lgd"}.txt`, buildSystemeIoSequence(editing, senderDisplay));
     setCopiedMessage("Fichier texte exporté.");
+    window.setTimeout(() => setCopiedMessage(null), 2400);
+  };
+
+  const exportSystemeIoHtml = () => {
+    if (!safeSequence) return;
+
+    const safeName = (safeSequence.campaign_name || "campagne-emailing-lgd")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+
+    downloadTextFile(
+      `${safeName || "campagne-emailing-lgd"}-systeme-io.html`,
+      buildSystemeIoHtmlSequence(editing, senderDisplay)
+    );
+    setCopiedMessage("HTML Systeme.io exporté.");
     window.setTimeout(() => setCopiedMessage(null), 2400);
   };
 
@@ -240,10 +320,26 @@ export default function EmailSequenceViewer({ formValues, sequence, onSaved, onR
 
             <button
               type="button"
+              onClick={copySystemeIoHtmlSequence}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-yellow-400/30 bg-yellow-500/10 px-4 py-2.5 text-sm font-semibold text-yellow-200 transition hover:border-yellow-400/60 hover:bg-yellow-400/15 hover:text-yellow-300"
+            >
+              <Copy size={15} /> Copier HTML SIO
+            </button>
+
+            <button
+              type="button"
               onClick={exportSequenceTxt}
               className="inline-flex items-center justify-center gap-2 rounded-2xl border border-yellow-400/30 bg-[#181818] px-4 py-2.5 text-sm font-semibold text-yellow-100 transition hover:border-yellow-400/60 hover:bg-yellow-400/10 hover:text-yellow-300"
             >
               <Download size={15} /> Export .txt
+            </button>
+
+            <button
+              type="button"
+              onClick={exportSystemeIoHtml}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-yellow-400/30 bg-[#181818] px-4 py-2.5 text-sm font-semibold text-yellow-100 transition hover:border-yellow-400/60 hover:bg-yellow-400/10 hover:text-yellow-300"
+            >
+              <Download size={15} /> Export HTML
             </button>
 
             <button
