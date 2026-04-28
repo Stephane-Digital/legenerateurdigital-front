@@ -211,55 +211,46 @@ async function fetchPlanFromBackend(): Promise<Plan> {
 
 
 async function fetchCmoDashboardStrategy(): Promise<CmoDashboardResult> {
-  const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
-  const token = getStoredToken();
-
-  if (!token) {
-    throw new Error("Token utilisateur introuvable.");
-  }
-
-  const res = await fetch(`${base}/cmo-ai/strategy`, {
-    method: "POST",
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({
-      prompt:
-        "Agis comme le CMO IA de LGD. Choisis l'action la plus rentable à exécuter maintenant parmi Coach Alex, Emailing IA, Éditeur intelligent ou Lead Engine. Réponds en JSON avec diagnostic, priority_action, why_this_action, next_best_action et generated_content.",
-      message:
-        "Choisis la prochaine action business la plus rentable pour un utilisateur LGD qui veut créer du contenu, attirer des prospects et générer ses premières ventes avec l'IA.",
-      objective: "Aider l'utilisateur LGD à choisir l'action la plus rentable aujourd'hui pour obtenir ou accélérer ses ventes.",
-      niche: "business en ligne, marketing digital, création de contenu, prospection",
-      audience: "entrepreneurs, créateurs, indépendants et débutants qui veulent vendre avec l'IA",
-      offer: "Le Générateur Digital",
-      current_situation: "L'utilisateur arrive sur le dashboard LGD et doit savoir quoi faire maintenant.",
-      constraints: "Réponse courte, actionnable, non technique, orientée vente. Une seule priorité.",
-      preferred_channel: "Coach Alex, Emailing IA, Éditeur intelligent ou Lead Engine selon la meilleure action.",
-      tone: "premium, humain, direct, motivant",
-      user_level: "intermediate",
-    }),
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    throw new Error(`cmo-ai/strategy ${res.status}`);
-  }
-
-  const data = (await res.json()) as any;
-  return (data?.result || data || {}) as CmoDashboardResult;
+  // ✅ SAFE LGD — décision CMO front-only.
+  // L’endpoint backend /cmo-ai/strategy renvoie actuellement 400 en production.
+  // On garde donc l’expérience CMO fonctionnelle, sans spam console et sans casser les autres modules.
+  return buildFallbackCmoDashboardStrategy();
 }
 
 
 
 function getCmoModuleTarget(result: CmoDashboardResult | null): CmoModuleTarget {
+  const generated = result?.generated_content || {};
+
+  // ✅ Priorité aux champs générés réellement présents.
+  // Évite qu’un diagnostic contenant “prospects” transforme un contenu social en Lead Engine.
+  if (generated.email) {
+    return {
+      key: "emailing",
+      label: "Créer avec Emailing IA",
+      path: "/dashboard/email-campaigns",
+    };
+  }
+
+  if (generated.lead_magnet_idea) {
+    return {
+      key: "lead_engine",
+      label: "Créer avec Leads IA",
+      path: "/dashboard/lead-engine",
+    };
+  }
+
+  if (generated.post) {
+    return {
+      key: "editor",
+      label: "Créer dans l’Éditeur",
+      path: "/dashboard/automatisations/reseaux_sociaux/editor-intelligent",
+    };
+  }
+
   const text = [
     result?.priority_action,
     result?.next_best_action,
-    result?.generated_content?.email,
-    result?.generated_content?.post,
-    result?.generated_content?.lead_magnet_idea,
     result?.generated_content?.cta,
   ]
     .filter(Boolean)
@@ -274,13 +265,7 @@ function getCmoModuleTarget(result: CmoDashboardResult | null): CmoModuleTarget 
     };
   }
 
-  if (
-    text.includes("lead magnet") ||
-    text.includes("lead") ||
-    text.includes("prospect") ||
-    text.includes("landing") ||
-    text.includes("capture")
-  ) {
+  if (text.includes("lead magnet") || text.includes("landing") || text.includes("capture")) {
     return {
       key: "lead_engine",
       label: "Créer avec Leads IA",
@@ -288,13 +273,7 @@ function getCmoModuleTarget(result: CmoDashboardResult | null): CmoModuleTarget 
     };
   }
 
-  if (
-    text.includes("post") ||
-    text.includes("contenu") ||
-    text.includes("carrousel") ||
-    text.includes("publication") ||
-    text.includes("éditeur")
-  ) {
+  if (text.includes("post") || text.includes("contenu") || text.includes("carrousel") || text.includes("publication") || text.includes("éditeur")) {
     return {
       key: "editor",
       label: "Créer dans l’Éditeur",
