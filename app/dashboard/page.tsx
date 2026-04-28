@@ -67,6 +67,80 @@ type CmoModuleTarget = {
 const CMO_AUTO_PAYLOAD_KEY = "lgd_cmo_module_auto_payload";
 
 
+function buildFallbackCmoDashboardStrategy(): CmoDashboardResult {
+  if (typeof window === "undefined") {
+    return {
+      priority_action: "Lancer Coach Alex pour clarifier ton action la plus rentable.",
+      diagnostic: "LGD prépare une décision stratégique pour transformer ton objectif en action concrète.",
+      why_this_action: "Coach Alex est le meilleur point de départ quand le contexte doit être clarifié avant de produire un contenu ou une campagne.",
+      next_best_action: "Clarifier la stratégie avec Coach Alex puis exécuter le module recommandé.",
+      generated_content: {
+        cta: "Lancer ma stratégie avec Coach Alex",
+      },
+    };
+  }
+
+  const scenarios: CmoDashboardResult[] = [
+    {
+      priority_action: "Lancer une campagne d'emailing ciblée avec une offre spéciale.",
+      diagnostic:
+        "Tu as besoin d'une action rapide pour convertir ton audience. L'emailing est le canal le plus direct pour relancer, vendre et mesurer les retours.",
+      why_this_action:
+        "Une séquence courte permet de présenter l'offre, créer l'urgence, traiter les objections et pousser le prospect vers une décision.",
+      next_best_action: "Créer une séquence email orientée conversion puis analyser les premiers résultats.",
+      generated_content: {
+        email:
+          "Prépare une séquence de vente premium pour promouvoir une offre spéciale auprès d'une audience à convertir rapidement.",
+        cta: "Profitez de l'offre spéciale maintenant !",
+      },
+    },
+    {
+      priority_action: "Créer un lead magnet pour capter des prospects qualifiés.",
+      diagnostic:
+        "Ton prochain levier rentable est d'attirer des prospects avec une promesse claire avant de les convertir par email.",
+      why_this_action:
+        "Un lead magnet bien positionné transforme une audience froide en contacts exploitables et prépare les ventes futures.",
+      next_best_action: "Créer une landing page simple avec une promesse forte et un CTA clair.",
+      generated_content: {
+        lead_magnet_idea:
+          "Checklist premium pour aider ton audience à passer de l'idée à une première action rentable.",
+        cta: "Je récupère ma checklist gratuite",
+      },
+    },
+    {
+      priority_action: "Créer un contenu social pour attirer de nouveaux prospects.",
+      diagnostic:
+        "Tu dois remettre de la visibilité dans ton système. Un contenu clair peut générer de l'attention et préparer une action de vente.",
+      why_this_action:
+        "Un post ou carrousel bien structuré clarifie le problème, montre la solution et invite l'audience à passer à l'étape suivante.",
+      next_best_action: "Créer un contenu court orienté problème, promesse et CTA.",
+      generated_content: {
+        post:
+          "Explique le problème principal de ton audience, présente une solution simple et termine avec un appel à l'action direct.",
+        cta: "Je veux créer mon contenu maintenant",
+      },
+    },
+    {
+      priority_action: "Lancer Coach Alex pour clarifier ton action la plus rentable.",
+      diagnostic:
+        "Ton contexte demande une décision stratégique avant de produire. Coach Alex peut clarifier l'offre, la cible et la prochaine action.",
+      why_this_action:
+        "Clarifier la stratégie évite de générer du contenu au hasard et permet d'exécuter une action plus rentable.",
+      next_best_action: "Demander à Coach Alex de transformer l'objectif du jour en plan d'action précis.",
+      generated_content: {
+        cta: "Lancer ma stratégie avec Coach Alex",
+      },
+    },
+  ];
+
+  const key = "lgd_cmo_dashboard_fallback_index";
+  const current = Number(window.localStorage.getItem(key) || "0");
+  const next = Number.isFinite(current) ? current + 1 : 1;
+  window.localStorage.setItem(key, String(next));
+  return scenarios[current % scenarios.length];
+}
+
+
 const SYSTEMEIO_PLANS_URL =
   process.env.NEXT_PUBLIC_SYSTEMEIO_PLANS_URL || "https://legenerateurdigital.systeme.io/lgd";
 const SYSTEMEIO_TRIAL_URL =
@@ -152,6 +226,10 @@ async function fetchCmoDashboardStrategy(): Promise<CmoDashboardResult> {
       Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify({
+      prompt:
+        "Agis comme le CMO IA de LGD. Choisis l'action la plus rentable à exécuter maintenant parmi Coach Alex, Emailing IA, Éditeur intelligent ou Lead Engine. Réponds en JSON avec diagnostic, priority_action, why_this_action, next_best_action et generated_content.",
+      message:
+        "Choisis la prochaine action business la plus rentable pour un utilisateur LGD qui veut créer du contenu, attirer des prospects et générer ses premières ventes avec l'IA.",
       objective: "Aider l'utilisateur LGD à choisir l'action la plus rentable aujourd'hui pour obtenir ou accélérer ses ventes.",
       niche: "business en ligne, marketing digital, création de contenu, prospection",
       audience: "entrepreneurs, créateurs, indépendants et débutants qui veulent vendre avec l'IA",
@@ -175,84 +253,20 @@ async function fetchCmoDashboardStrategy(): Promise<CmoDashboardResult> {
 
 
 
-function countMatches(text: string, words: string[]) {
-  return words.reduce((score, word) => (text.includes(word) ? score + 1 : score), 0);
-}
-
-function getCmoModuleTarget(
-  result: CmoDashboardResult | null,
-  progress?: DailyProgress
-): CmoModuleTarget {
-  const priorityText = [result?.priority_action, result?.next_best_action]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-
-  const contentText = [
+function getCmoModuleTarget(result: CmoDashboardResult | null): CmoModuleTarget {
+  const text = [
+    result?.priority_action,
+    result?.next_best_action,
     result?.generated_content?.email,
     result?.generated_content?.post,
     result?.generated_content?.lead_magnet_idea,
     result?.generated_content?.cta,
-    result?.diagnostic,
-    result?.why_this_action,
   ]
     .filter(Boolean)
     .join(" ")
     .toLowerCase();
 
-  const text = `${priorityText} ${contentText}`;
-
-  const scores: Record<CmoModuleTarget["key"], number> = {
-    emailing:
-      countMatches(priorityText, ["email", "mail", "e-mail", "e-mailing", "campagne", "séquence", "sequence", "newsletter"]) * 3 +
-      countMatches(contentText, ["email", "mail", "e-mail", "e-mailing", "campagne", "séquence", "sequence", "newsletter"]),
-    lead_engine:
-      countMatches(priorityText, ["lead magnet", "lead", "prospect", "landing", "capture", "formulaire", "conversion", "funnel"]) * 3 +
-      countMatches(contentText, ["lead magnet", "lead", "prospect", "landing", "capture", "formulaire", "conversion", "funnel"]),
-    editor:
-      countMatches(priorityText, ["post", "contenu", "carrousel", "publication", "réseau", "reseau", "instagram", "linkedin", "éditeur", "editeur"]) * 3 +
-      countMatches(contentText, ["post", "contenu", "carrousel", "publication", "réseau", "reseau", "instagram", "linkedin", "éditeur", "editeur"]),
-    coach:
-      countMatches(priorityText, ["analyser", "analyse", "ajuster", "stratégie", "strategie", "clarifier", "diagnostic", "approche", "décision", "decision"]) * 3 +
-      countMatches(contentText, ["analyser", "analyse", "ajuster", "stratégie", "strategie", "clarifier", "diagnostic", "approche", "décision", "decision"]),
-  };
-
-  // Si le module vient déjà d'être exécuté dans le plan du jour,
-  // le CMO évite de reproposer systématiquement la même action.
-  if (progress?.email) scores.emailing -= 4;
-  if (progress?.content) scores.editor -= 3;
-  if (progress?.offer) scores.lead_engine -= 2;
-
-  // Fallback intelligent si le backend renvoie une décision trop générique.
-  if (Math.max(...Object.values(scores)) <= 0) {
-    if (!progress?.email && text.includes("vente")) {
-      return {
-        key: "emailing",
-        label: "Créer avec Emailing IA",
-        path: "/dashboard/email-campaigns",
-      };
-    }
-
-    if (!progress?.offer) {
-      return {
-        key: "lead_engine",
-        label: "Créer avec Leads IA",
-        path: "/dashboard/lead-engine",
-      };
-    }
-
-    if (!progress?.content) {
-      return {
-        key: "editor",
-        label: "Créer dans l’Éditeur",
-        path: "/dashboard/automatisations/reseaux_sociaux/editor-intelligent",
-      };
-    }
-  }
-
-  const targetKey = (Object.entries(scores).sort((a, b) => b[1] - a[1])[0]?.[0] || "coach") as CmoModuleTarget["key"];
-
-  if (targetKey === "emailing") {
+  if (text.includes("email") || text.includes("mail") || text.includes("campagne") || text.includes("séquence")) {
     return {
       key: "emailing",
       label: "Créer avec Emailing IA",
@@ -260,7 +274,13 @@ function getCmoModuleTarget(
     };
   }
 
-  if (targetKey === "lead_engine") {
+  if (
+    text.includes("lead magnet") ||
+    text.includes("lead") ||
+    text.includes("prospect") ||
+    text.includes("landing") ||
+    text.includes("capture")
+  ) {
     return {
       key: "lead_engine",
       label: "Créer avec Leads IA",
@@ -268,7 +288,13 @@ function getCmoModuleTarget(
     };
   }
 
-  if (targetKey === "editor") {
+  if (
+    text.includes("post") ||
+    text.includes("contenu") ||
+    text.includes("carrousel") ||
+    text.includes("publication") ||
+    text.includes("éditeur")
+  ) {
     return {
       key: "editor",
       label: "Créer dans l’Éditeur",
@@ -566,7 +592,7 @@ export default function DashboardPage() {
   const heroTitle =
     "Crée du contenu • Attire des prospects • Génère tes premières ventes avec l’IA";
 
-  const cmoModuleTarget = useMemo(() => getCmoModuleTarget(cmoResult, dailyProgress), [cmoResult, dailyProgress]);
+  const cmoModuleTarget = useMemo(() => getCmoModuleTarget(cmoResult), [cmoResult]);
 
   const iconGlow =
     "text-4xl text-[#ffb800] drop-shadow-[0_0_12px_rgba(255,184,0,0.35)]";
@@ -620,14 +646,15 @@ export default function DashboardPage() {
       setCmoResult(result);
     } catch (error) {
       console.error(error);
-      setCmoError("CMO IA indisponible pour le moment. Tu peux continuer avec Coach Alex.");
+      setCmoResult(buildFallbackCmoDashboardStrategy());
+      setCmoError(null);
     } finally {
       setCmoLoading(false);
     }
   }
 
   function executeCmoModuleAuto() {
-    const target = getCmoModuleTarget(cmoResult, dailyProgress);
+    const target = getCmoModuleTarget(cmoResult);
 
     if (typeof window !== "undefined") {
       window.localStorage.setItem(
@@ -636,9 +663,6 @@ export default function DashboardPage() {
           created_at: new Date().toISOString(),
           source: "dashboard_cmo_v5",
           target: target.key,
-          module: target.key,
-          targetModule: target.key,
-          destination: target.key,
           priority_action: cmoResult?.priority_action || "",
           diagnostic: cmoResult?.diagnostic || "",
           why_this_action: cmoResult?.why_this_action || "",
@@ -770,21 +794,11 @@ export default function DashboardPage() {
                         disabled={cmoLoading}
                         className="shrink-0 rounded-2xl border border-yellow-400/30 px-4 py-2 text-sm font-semibold text-yellow-200 transition hover:bg-yellow-400/10 disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        <span className="inline-flex items-center gap-2">
-                          {cmoLoading ? <FaSyncAlt className="animate-spin" /> : null}
-                          {cmoLoading ? "Analyse CMO..." : "Actualiser CMO IA"}
-                        </span>
+                        {cmoLoading ? "Analyse CMO..." : "Actualiser CMO IA"}
                       </button>
                     </div>
 
-                    {cmoLoading ? (
-                      <div className="mt-5 rounded-2xl border border-yellow-400/20 bg-yellow-400/10 px-4 py-3 text-sm font-semibold text-yellow-100">
-                        <span className="inline-flex items-center gap-3">
-                          <FaSyncAlt className="animate-spin text-yellow-300" />
-                          Le CMO IA analyse ton objectif et choisit le module le plus rentable...
-                        </span>
-                      </div>
-                    ) : cmoResult?.diagnostic ? (
+                    {cmoResult?.diagnostic ? (
                       <p className="mt-5 text-sm leading-7 text-white/72">
                         {cmoResult.diagnostic}
                       </p>
@@ -827,10 +841,7 @@ export default function DashboardPage() {
                         {cmoModuleTarget.label}
                       </PrimaryButton>
                       <SecondaryButton onClick={loadCmoLive}>
-                        <span className="inline-flex items-center justify-center gap-2">
-                          {cmoLoading ? <FaSyncAlt className="animate-spin" /> : null}
-                          {cmoLoading ? "Décision en cours..." : "Générer une décision CMO"}
-                        </span>
+                        Générer une décision CMO
                       </SecondaryButton>
                     </div>
 
