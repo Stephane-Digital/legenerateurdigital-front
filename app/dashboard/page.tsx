@@ -578,73 +578,102 @@ export default function DashboardPage() {
             className="max-w-6xl mx-auto mt-10"
           >
             <CardLuxe className="px-6 py-7 sm:px-8 sm:py-8">
-              <div className="flex flex-col items-center text-center">
-                <div className="inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-4 py-1 text-[12px] text-white/75">
-                  <FaBolt className="text-yellow-300" />
-                  Mode CMO IA
-                </div>
-
-                <h2 className="mt-4 text-2xl sm:text-3xl font-extrabold text-[#ffb800]">
-                  Ton CMO IA a pris une décision pour toi
-                </h2>
-
-                <p className="mt-3 max-w-3xl text-white/75 text-sm sm:text-base">
-                  LGD analyse ton objectif du jour, choisit l’action la plus rentable et te guide vers la prochaine étape business.
-                </p>
-
-                <div className="mt-5 w-full max-w-3xl rounded-3xl border border-yellow-600/20 bg-black/30 p-5 text-left">
-                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-yellow-300">
-                        🎯 Action prioritaire recommandée
-                      </p>
-                      <p className="mt-2 text-lg font-bold text-white">
-                        {cmoResult?.priority_action || "Lancer Coach Alex pour clarifier ton action la plus rentable."}
-                      </p>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={loadCmoLive}
-                      disabled={cmoLoading}
-                      className="rounded-2xl border border-yellow-400/30 px-4 py-2 text-sm font-semibold text-yellow-200 transition hover:bg-yellow-400/10 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {cmoLoading ? "Analyse CMO..." : "Actualiser CMO IA"}
-                    </button>
+              <div className="mx-auto w-full max-w-6xl">
+                <div className="flex flex-col items-center text-center">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-4 py-1 text-[12px] text-white/75">
+                    <FaBolt className="text-yellow-300" />
+                    Mode CMO IA
                   </div>
 
-                  {cmoResult?.diagnostic ? (
-                    <p className="mt-4 text-sm leading-7 text-white/70">
-                      {cmoResult.diagnostic}
-                    </p>
-                  ) : (
-                    <p className="mt-4 text-sm leading-7 text-white/60">
-                      Clique sur “Actualiser CMO IA” pour générer une décision stratégique live depuis le backend V5.
-                    </p>
-                  )}
+                  <h2 className="mt-4 text-2xl sm:text-4xl font-extrabold text-[#ffb800]">
+                    Ton CMO IA a pris une décision pour toi
+                  </h2>
 
-                  {cmoResult?.next_best_action ? (
-                    <div className="mt-4 rounded-2xl border border-yellow-600/15 bg-[#0b0b0b] px-4 py-3">
-                      <p className="text-xs uppercase tracking-[0.18em] text-white/45">Prochaine meilleure action</p>
-                      <p className="mt-1 text-sm font-semibold text-yellow-100">{cmoResult.next_best_action}</p>
+                  <p className="mt-3 max-w-4xl text-white/75 text-sm sm:text-base">
+                    LGD analyse ton objectif du jour, choisit l’action la plus rentable et transforme ton dashboard
+                    en centre de décision business.
+                  </p>
+                </div>
+
+                <div className="mt-7 grid grid-cols-1 gap-5 lg:grid-cols-[1.15fr_0.85fr]">
+                  <div className="rounded-3xl border border-yellow-600/20 bg-black/35 p-5 text-left shadow-[0_0_30px_rgba(255,184,0,0.06)]">
+                    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-yellow-300">
+                          🎯 Action prioritaire recommandée
+                        </p>
+                        <p className="mt-3 text-xl font-extrabold leading-snug text-white">
+                          {cmoResult?.priority_action || "Lancer Coach Alex pour clarifier ton action la plus rentable."}
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={loadCmoLive}
+                        disabled={cmoLoading}
+                        className="shrink-0 rounded-2xl border border-yellow-400/30 px-4 py-2 text-sm font-semibold text-yellow-200 transition hover:bg-yellow-400/10 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {cmoLoading ? "Analyse CMO..." : "Actualiser CMO IA"}
+                      </button>
                     </div>
-                  ) : null}
 
-                  {cmoError ? (
-                    <p className="mt-3 text-sm text-red-300">{cmoError}</p>
-                  ) : null}
+                    {cmoResult?.diagnostic ? (
+                      <p className="mt-5 text-sm leading-7 text-white/72">
+                        {cmoResult.diagnostic}
+                      </p>
+                    ) : (
+                      <p className="mt-5 text-sm leading-7 text-white/60">
+                        Clique sur “Actualiser CMO IA” pour générer une décision stratégique live depuis le backend V5.
+                      </p>
+                    )}
+
+                    {cmoResult?.why_this_action ? (
+                      <div className="mt-5 rounded-2xl border border-yellow-600/15 bg-[#0b0b0b] px-4 py-3">
+                        <p className="text-xs uppercase tracking-[0.18em] text-white/45">Pourquoi cette action</p>
+                        <p className="mt-2 text-sm leading-6 text-white/70">{cmoResult.why_this_action}</p>
+                      </div>
+                    ) : null}
+
+                    {cmoError ? (
+                      <p className="mt-4 text-sm text-red-300">{cmoError}</p>
+                    ) : null}
+                  </div>
+
+                  <div className="rounded-3xl border border-yellow-600/20 bg-[#0b0b0b]/80 p-5 text-left">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-yellow-300">
+                      ⚡ Exécution rapide
+                    </p>
+
+                    {cmoResult?.next_best_action ? (
+                      <div className="mt-4 rounded-2xl border border-yellow-600/15 bg-black/35 px-4 py-3">
+                        <p className="text-xs uppercase tracking-[0.18em] text-white/45">Prochaine meilleure action</p>
+                        <p className="mt-2 text-sm font-semibold leading-6 text-yellow-100">{cmoResult.next_best_action}</p>
+                      </div>
+                    ) : (
+                      <p className="mt-4 text-sm leading-7 text-white/60">
+                        Génère une décision CMO pour obtenir la prochaine action exacte à exécuter.
+                      </p>
+                    )}
+
+                    <div className="mt-5 grid grid-cols-1 gap-3">
+                      <PrimaryButton onClick={() => go("/dashboard/coach-ia")}>
+                        Exécuter dans Coach Alex
+                      </PrimaryButton>
+                      <SecondaryButton onClick={loadCmoLive}>
+                        Générer une décision CMO
+                      </SecondaryButton>
+                    </div>
+
+                    {cmoResult?.generated_content?.cta ? (
+                      <div className="mt-5 rounded-2xl border border-yellow-600/15 bg-black/35 px-4 py-3">
+                        <p className="text-xs uppercase tracking-[0.18em] text-white/45">CTA conseillé</p>
+                        <p className="mt-2 text-sm font-semibold text-yellow-100">{cmoResult.generated_content.cta}</p>
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
 
-                <div className="mt-6 grid w-full max-w-3xl grid-cols-1 gap-3 sm:grid-cols-2">
-                  <PrimaryButton onClick={() => go("/dashboard/coach-ia")}>
-                    Exécuter dans Coach Alex
-                  </PrimaryButton>
-                  <SecondaryButton onClick={loadCmoLive}>
-                    Générer une décision CMO
-                  </SecondaryButton>
-                </div>
-
-                <div className="mt-7 w-full max-w-4xl border-t border-yellow-600/15 pt-6">
+                <div className="mt-7 w-full border-t border-yellow-600/15 pt-6">
                   <div className="flex flex-col items-center text-center">
                     <div className="inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-4 py-1 text-[12px] text-white/75">
                       <FaRobot className="text-yellow-300" />
@@ -656,7 +685,7 @@ export default function DashboardPage() {
                       même si tu recharges la page.
                     </p>
 
-                    <div className="mt-5 grid w-full grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="mt-5 grid w-full max-w-4xl grid-cols-1 md:grid-cols-2 gap-4">
                       <ProgressItem done={dailyProgress.idea} label="Idée trouvée" onClick={() => toggleProgressItem("idea")} />
                       <ProgressItem done={dailyProgress.content} label="Contenu créé" onClick={() => toggleProgressItem("content")} />
                       <ProgressItem done={dailyProgress.email} label="Email généré" onClick={() => toggleProgressItem("email")} />
