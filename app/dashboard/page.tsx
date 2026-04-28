@@ -570,7 +570,7 @@ export default function DashboardPage() {
                 </div>
 
                 <h2 className="mt-4 text-2xl sm:text-3xl font-extrabold text-[#ffb800]">
-                  Ton plan du jour est prêt
+                  Ton CMO IA a pris une décision pour toi
                 </h2>
 
                 <p className="mt-3 max-w-3xl text-white/75 text-sm sm:text-base">
@@ -580,7 +580,10 @@ export default function DashboardPage() {
 
                 <div className="mt-6 w-full max-w-md">
                   <PrimaryButton onClick={() => go("/dashboard/coach-ia")}>
-                    Démarrer maintenant
+                    🎯 Action prioritaire du jour :
+→ 
+
+Exécuter l’action recommandée
                   </PrimaryButton>
                 </div>
 
@@ -623,7 +626,7 @@ export default function DashboardPage() {
                   </div>
 
                   <h2 className="mt-4 text-2xl sm:text-3xl font-extrabold text-[#ffb800]">
-                    Ton plan du jour est prêt
+                    Ton CMO IA a pris une décision pour toi
                   </h2>
 
                   <p className="mt-3 max-w-xl text-white/75 text-sm sm:text-base">
