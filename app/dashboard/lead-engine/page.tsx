@@ -12,6 +12,7 @@ const STORAGE_KEY = "lgd_lead_engine_builder_v4";
 const STORAGE_CTA_KEY = "lgd_lead_engine_builder_v4_cta_url";
 const STORAGE_CANVAS_HEIGHT_KEY = "lgd_lead_engine_builder_v4_canvas_height_manual";
 const STORAGE_ARCHIVES_KEY = "lgd_lead_engine_builder_v4_archives";
+const CMO_MODULE_AUTO_PAYLOAD_KEY = "lgd_cmo_module_auto_payload";
 
 const DEFAULT_CTA_URL = "https://legenerateurdigital.systeme.io/lgd";
 const EXPORT_CANVAS_WIDTH = 1080;
@@ -191,6 +192,94 @@ function buildLeadPreset(): LayerData[] {
   ];
 }
 
+
+function pickCmoString(payload: Record<string, any>, keys: string[], fallback = "") {
+  for (const key of keys) {
+    const value = payload?.[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+    if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  }
+  return fallback;
+}
+
+function isLeadEngineCmoPayload(payload: Record<string, any> | null | undefined) {
+  if (!payload || typeof payload !== "object") return false;
+  const rawModule = String(payload.module || payload.targetModule || payload.destination || "").toLowerCase();
+  const rawPath = String(payload.path || payload.href || payload.url || "").toLowerCase();
+  return (
+    rawModule.includes("lead") ||
+    rawModule.includes("funnel") ||
+    rawPath.includes("/dashboard/lead-engine")
+  );
+}
+
+function buildCmoLeadBrief(payload: Record<string, any>) {
+  const audience = pickCmoString(payload, ["audience", "target", "cible"], "une audience qualifiée");
+  const offer = pickCmoString(payload, ["offer", "offer_name", "product", "produit", "magnetName"], "une offre premium");
+  const objective = pickCmoString(payload, ["objective", "goal", "objectif"], "transformer l’attention en prospects qualifiés");
+  const promise = pickCmoString(payload, ["promise", "promesse", "mainPromise"], "obtenir un résultat clair rapidement");
+  const angle = pickCmoString(payload, ["angle", "hook", "headline"], "landing premium orientée conversion");
+  const cta = pickCmoString(payload, ["cta", "ctaText", "cta_label"], "Recevoir l’accès maintenant");
+
+  return [
+    `Audience : ${audience}`,
+    `Offre : ${offer}`,
+    `Objectif : ${objective}`,
+    `Promesse : ${promise}`,
+    `Angle : ${angle}`,
+    `CTA : ${cta}`,
+  ].join("\n");
+}
+
+function buildLeadPresetFromCmo(payload: Record<string, any>): LayerData[] {
+  const preset = buildLeadPreset();
+  const audience = pickCmoString(payload, ["audience", "target", "cible"], "ton audience idéale");
+  const offer = pickCmoString(payload, ["offer", "offer_name", "product", "produit", "magnetName"], "ton offre premium");
+  const objective = pickCmoString(payload, ["objective", "goal", "objectif"], "convertir plus de prospects qualifiés");
+  const promise = pickCmoString(payload, ["promise", "promesse", "mainPromise"], "obtenir un résultat clair et rapide");
+  const headline = pickCmoString(
+    payload,
+    ["headline", "title", "name", "campaignName", "campaign_name"],
+    `Transforme ${audience} en prospects qualifiés`
+  );
+  const subtitle = pickCmoString(
+    payload,
+    ["subtitle", "description", "brief", "context"],
+    `Une landing premium construite par le CMO IA pour présenter ${offer}, clarifier la promesse et guider ${audience} vers l’action.`
+  );
+  const cta = pickCmoString(payload, ["cta", "ctaText", "cta_label"], "Recevoir l’accès maintenant");
+
+  return preset.map((layer: any) => {
+    if (!layer || typeof layer !== "object") return layer;
+
+    if (layer.id === "lead-title") {
+      return { ...layer, text: headline } as LayerData;
+    }
+
+    if (layer.id === "lead-subtitle") {
+      return { ...layer, text: subtitle } as LayerData;
+    }
+
+    if (layer.id === "lead-cta") {
+      return { ...layer, text: cta } as LayerData;
+    }
+
+    if (layer.id === "lead-benefit-1") {
+      return { ...layer, text: `• Clarifie l’offre ${offer} pour donner envie de s’inscrire.` } as LayerData;
+    }
+
+    if (layer.id === "lead-benefit-2") {
+      return { ...layer, text: `• Convertit ${audience} avec une promesse simple : ${promise}.` } as LayerData;
+    }
+
+    if (layer.id === "lead-benefit-3") {
+      return { ...layer, text: `• Oriente chaque section vers l’objectif : ${objective}.` } as LayerData;
+    }
+
+    return layer as LayerData;
+  });
+}
+
 function safeParseLayers(raw: string | null): LayerData[] | null {
   if (!raw) return null;
   try {
@@ -308,6 +397,7 @@ export default function LeadEnginePage() {
   const [aiQuotaLoading, setAiQuotaLoading] = useState(false);
   const [aiQuotaMessage, setAiQuotaMessage] = useState("");
   const [premiumOpen, setPremiumOpen] = useState(true);
+  const [cmoLoading, setCmoLoading] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
 
@@ -363,6 +453,36 @@ export default function LeadEnginePage() {
       const savedCta = window.localStorage.getItem(STORAGE_CTA_KEY) || DEFAULT_CTA_URL;
       const savedCanvasHeight = safeParseHeight(window.localStorage.getItem(STORAGE_CANVAS_HEIGHT_KEY));
       const savedArchives = safeParseArchives(window.localStorage.getItem(STORAGE_ARCHIVES_KEY));
+
+      const cmoRawPayload = window.localStorage.getItem(CMO_MODULE_AUTO_PAYLOAD_KEY);
+      const cmoPayload = cmoRawPayload ? JSON.parse(cmoRawPayload) : null;
+
+      if (isLeadEngineCmoPayload(cmoPayload)) {
+        const cmoLayers = buildLeadPresetFromCmo(cmoPayload);
+        const cmoBrief = buildCmoLeadBrief(cmoPayload);
+        const cmoCtaUrl = normalizeExportUrl(
+          pickCmoString(cmoPayload, ["cta_url", "ctaUrl", "url", "link"], savedCta || DEFAULT_CTA_URL)
+        );
+
+        setCmoLoading(true);
+        setInitialLayers(cmoLayers);
+        setLayers(cmoLayers);
+        setCtaUrl(cmoCtaUrl);
+        setCanvasHeight(savedCanvasHeight ?? 1800);
+        setArchives(savedArchives);
+        setAiBrief(cmoBrief);
+        setAiGoal("landing_complete");
+        setAiLastGoal("landing_complete");
+        setArchiveName("Landing CMO IA");
+        setEditorKey((value) => value + 1);
+
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(cmoLayers));
+        window.localStorage.setItem(STORAGE_CTA_KEY, cmoCtaUrl);
+        window.localStorage.removeItem(CMO_MODULE_AUTO_PAYLOAD_KEY);
+
+        window.setTimeout(() => setCmoLoading(false), 900);
+        return;
+      }
 
       const nextLayers = savedLayers && savedLayers.length > 0 ? savedLayers : buildLeadPreset();
 
@@ -887,6 +1007,15 @@ export default function LeadEnginePage() {
             </button>
           </div>
         </div>
+
+        {cmoLoading && (
+          <div className="mb-6 rounded-[28px] border border-yellow-500/25 bg-gradient-to-r from-yellow-500/10 via-[#0b0b0b] to-yellow-500/10 p-5 text-center shadow-[0_0_35px_rgba(255,184,0,0.08)]">
+            <div className="inline-flex items-center justify-center gap-3 rounded-full border border-yellow-500/25 bg-black/25 px-5 py-3 text-sm font-semibold text-yellow-200">
+              <FaMagic className="animate-pulse text-yellow-300" />
+              Le CMO IA construit ta landing et prépare ton funnel de conversion…
+            </div>
+          </div>
+        )}
 
         <div className="mb-6 rounded-[28px] border border-yellow-600/20 bg-[#0b0b0b] p-5">
           <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
