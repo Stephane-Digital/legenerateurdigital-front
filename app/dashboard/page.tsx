@@ -44,6 +44,21 @@ type DailyProgress = {
   offer: boolean;
 };
 
+type CmoDashboardResult = {
+  diagnostic?: string;
+  priority_action?: string;
+  why_this_action?: string;
+  next_best_action?: string;
+  risk_to_avoid?: string;
+  generated_content?: {
+    post?: string;
+    email?: string;
+    cta?: string;
+    lead_magnet_idea?: string;
+  };
+};
+
+
 const SYSTEMEIO_PLANS_URL =
   process.env.NEXT_PUBLIC_SYSTEMEIO_PLANS_URL || "https://legenerateurdigital.systeme.io/lgd";
 const SYSTEMEIO_TRIAL_URL =
@@ -111,6 +126,45 @@ async function fetchPlanFromBackend(): Promise<Plan> {
   if (rawPlan.includes("essentiel") || limit === 400000) return "essentiel";
   return "none";
 }
+
+
+async function fetchCmoDashboardStrategy(): Promise<CmoDashboardResult> {
+  const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
+  const token = getStoredToken();
+
+  if (!token) {
+    throw new Error("Token utilisateur introuvable.");
+  }
+
+  const res = await fetch(`${base}/cmo-ai/strategy`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      objective: "Aider l'utilisateur LGD à choisir l'action la plus rentable aujourd'hui pour obtenir ou accélérer ses ventes.",
+      niche: "business en ligne, marketing digital, création de contenu, prospection",
+      audience: "entrepreneurs, créateurs, indépendants et débutants qui veulent vendre avec l'IA",
+      offer: "Le Générateur Digital",
+      current_situation: "L'utilisateur arrive sur le dashboard LGD et doit savoir quoi faire maintenant.",
+      constraints: "Réponse courte, actionnable, non technique, orientée vente. Une seule priorité.",
+      preferred_channel: "Coach Alex, Emailing IA, Éditeur intelligent ou Lead Engine selon la meilleure action.",
+      tone: "premium, humain, direct, motivant",
+      user_level: "intermediate",
+    }),
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    throw new Error(`cmo-ai/strategy ${res.status}`);
+  }
+
+  const data = (await res.json()) as any;
+  return (data?.result || data || {}) as CmoDashboardResult;
+}
+
 
 function getPlanFromLocalStorage(): Plan {
   if (typeof window === "undefined") return "none";
@@ -341,7 +395,9 @@ export default function DashboardPage() {
   const [activeModal, setActiveModal] = useState<ModalKey | null>(null);
   const [dailyProgress, setDailyProgress] = useState<DailyProgress>(DEFAULT_PROGRESS);
   const [progressHydrated, setProgressHydrated] = useState(false);
-  const [cancelRequestLoading, setCancelRequestLoading] = useState(false);
+  const [cmoResult, setCmoResult] = useState<CmoDashboardResult | null>(null);
+  const [cmoLoading, setCmoLoading] = useState(false);
+  const [cmoError, setCmoError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -435,6 +491,21 @@ export default function DashboardPage() {
     }
   }
 
+  async function loadCmoLive() {
+    setCmoLoading(true);
+    setCmoError(null);
+
+    try {
+      const result = await fetchCmoDashboardStrategy();
+      setCmoResult(result);
+    } catch (error) {
+      console.error(error);
+      setCmoError("CMO IA indisponible pour le moment. Tu peux continuer avec Coach Alex.");
+    } finally {
+      setCmoLoading(false);
+    }
+  }
+
   function toggleProgressItem(key: keyof DailyProgress) {
     setDailyProgress((prev) => ({
       ...prev,
@@ -449,49 +520,6 @@ export default function DashboardPage() {
     };
     setDailyProgress(updated);
     writeDailyProgress(updated);
-  }
-
-  async function requestSubscriptionCancel() {
-    if (cancelRequestLoading) return;
-
-    const confirmed = window.confirm(
-      "Confirmer la demande de résiliation de ton abonnement LGD ?"
-    );
-
-    if (!confirmed) return;
-
-    try {
-      setCancelRequestLoading(true);
-
-      const token = getStoredToken();
-      if (!token) {
-        alert("Connexion requise pour envoyer une demande de résiliation.");
-        return;
-      }
-
-      const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
-      const res = await fetch(`${base}/subscription/cancel-request`, {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const data = await res.json().catch(() => null);
-
-      if (!res.ok || data?.success === false) {
-        throw new Error(data?.detail || data?.message || "Erreur lors de l’envoi.");
-      }
-
-      alert("Demande de résiliation envoyée. LGD te confirmera la prise en compte par email.");
-    } catch (error) {
-      console.error("LGD cancel subscription request error", error);
-      alert("Impossible d’envoyer la demande de résiliation pour le moment.");
-    } finally {
-      setCancelRequestLoading(false);
-    }
   }
 
   return (
@@ -531,24 +559,11 @@ export default function DashboardPage() {
                   Vérification du plan…
                 </span>
               ) : (
-                <span className="inline-flex flex-col items-center gap-2">
-                  <span>
-                    Plan actuel :{" "}
-                    <span className="text-yellow-200 font-semibold">
-                      {planLabel(plan)}
-                    </span>
+                <span>
+                  Plan actuel :{" "}
+                  <span className="text-yellow-200 font-semibold">
+                    {planLabel(plan)}
                   </span>
-
-                  {plan !== "none" ? (
-                    <button
-                      type="button"
-                      onClick={requestSubscriptionCancel}
-                      disabled={cancelRequestLoading}
-                      className="text-[11px] font-normal text-white/35 underline decoration-white/20 underline-offset-4 transition hover:text-yellow-300 hover:decoration-yellow-300 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {cancelRequestLoading ? "Envoi de la demande…" : "Se désabonner"}
-                    </button>
-                  ) : null}
                 </span>
               )}
             </div>
@@ -566,7 +581,7 @@ export default function DashboardPage() {
               <div className="flex flex-col items-center text-center">
                 <div className="inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-4 py-1 text-[12px] text-white/75">
                   <FaBolt className="text-yellow-300" />
-                  Action prioritaire du jour
+                  Mode CMO IA
                 </div>
 
                 <h2 className="mt-4 text-2xl sm:text-3xl font-extrabold text-[#ffb800]">
@@ -574,17 +589,59 @@ export default function DashboardPage() {
                 </h2>
 
                 <p className="mt-3 max-w-3xl text-white/75 text-sm sm:text-base">
-                  Lance Coach Alex et exécute ton action la plus rentable aujourd’hui.
-                  LGD te guide pour passer plus vite de l’idée à l’action, puis de l’action à la vente.
+                  LGD analyse ton objectif du jour, choisit l’action la plus rentable et te guide vers la prochaine étape business.
                 </p>
 
-                <div className="mt-6 w-full max-w-md">
-                  <PrimaryButton onClick={() => go("/dashboard/coach-ia")}>
-                    🎯 Action prioritaire du jour :
-→ 
+                <div className="mt-5 w-full max-w-3xl rounded-3xl border border-yellow-600/20 bg-black/30 p-5 text-left">
+                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-yellow-300">
+                        🎯 Action prioritaire recommandée
+                      </p>
+                      <p className="mt-2 text-lg font-bold text-white">
+                        {cmoResult?.priority_action || "Lancer Coach Alex pour clarifier ton action la plus rentable."}
+                      </p>
+                    </div>
 
-Exécuter l’action recommandée
+                    <button
+                      type="button"
+                      onClick={loadCmoLive}
+                      disabled={cmoLoading}
+                      className="rounded-2xl border border-yellow-400/30 px-4 py-2 text-sm font-semibold text-yellow-200 transition hover:bg-yellow-400/10 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {cmoLoading ? "Analyse CMO..." : "Actualiser CMO IA"}
+                    </button>
+                  </div>
+
+                  {cmoResult?.diagnostic ? (
+                    <p className="mt-4 text-sm leading-7 text-white/70">
+                      {cmoResult.diagnostic}
+                    </p>
+                  ) : (
+                    <p className="mt-4 text-sm leading-7 text-white/60">
+                      Clique sur “Actualiser CMO IA” pour générer une décision stratégique live depuis le backend V5.
+                    </p>
+                  )}
+
+                  {cmoResult?.next_best_action ? (
+                    <div className="mt-4 rounded-2xl border border-yellow-600/15 bg-[#0b0b0b] px-4 py-3">
+                      <p className="text-xs uppercase tracking-[0.18em] text-white/45">Prochaine meilleure action</p>
+                      <p className="mt-1 text-sm font-semibold text-yellow-100">{cmoResult.next_best_action}</p>
+                    </div>
+                  ) : null}
+
+                  {cmoError ? (
+                    <p className="mt-3 text-sm text-red-300">{cmoError}</p>
+                  ) : null}
+                </div>
+
+                <div className="mt-6 grid w-full max-w-3xl grid-cols-1 gap-3 sm:grid-cols-2">
+                  <PrimaryButton onClick={() => go("/dashboard/coach-ia")}>
+                    Exécuter dans Coach Alex
                   </PrimaryButton>
+                  <SecondaryButton onClick={loadCmoLive}>
+                    Générer une décision CMO
+                  </SecondaryButton>
                 </div>
 
                 <div className="mt-7 w-full max-w-4xl border-t border-yellow-600/15 pt-6">
@@ -626,7 +683,7 @@ Exécuter l’action recommandée
                   </div>
 
                   <h2 className="mt-4 text-2xl sm:text-3xl font-extrabold text-[#ffb800]">
-                    Ton CMO IA a pris une décision pour toi
+                    Ton plan du jour est prêt
                   </h2>
 
                   <p className="mt-3 max-w-xl text-white/75 text-sm sm:text-base">
