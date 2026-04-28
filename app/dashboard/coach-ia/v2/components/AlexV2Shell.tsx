@@ -345,6 +345,7 @@ export default function AlexV2Shell() {
 
   // ✅ CMO AUTO — lecture douce du payload sans toucher au moteur Alex V2
   const [cmoCoachBrief, setCmoCoachBrief] = useState<string>("");
+  const [cmoCoachPayload, setCmoCoachPayload] = useState<Record<string, any> | null>(null);
 
   // ===== quota
   const [quotaLoading, setQuotaLoading] = useState(false);
@@ -422,6 +423,14 @@ export default function AlexV2Shell() {
       const objective = String(payload?.objective || payload?.goal || payload?.objectif || "structurer une stratégie de conversion");
       const channel = String(payload?.channel || payload?.canal || payload?.sourceModule || "CMO IA");
       const cta = String(payload?.cta || payload?.callToAction || "passer à l'action");
+
+      setCmoCoachPayload({
+        offer,
+        audience,
+        objective,
+        channel,
+        cta,
+      });
 
       setCmoCoachBrief(
         `CMO IA a préparé un brief stratégique : offre = ${offer}, cible = ${audience}, objectif = ${objective}, canal = ${channel}, CTA = ${cta}.`
@@ -665,6 +674,75 @@ useEffect(() => {
   }
 
   function onSmartResume() {
+    // ✅ CMO AUTO — correction ciblée
+    // Avant : la mission CMO n'était créée que si Alex n'avait aucun contexte.
+    // Résultat : avec un profil déjà initialisé, le bouton pouvait sembler ne rien faire.
+    // Maintenant : si un brief CMO existe, on crée toujours une mission CMO exploitable,
+    // en réutilisant le contexte/roadmap existants quand ils sont disponibles.
+    if (cmoCoachBrief) {
+      const ctx = context || createInitialContext({ intent: "argent_vite", level: "sans_resultat", timePerDay: 60 });
+      const rm = roadmap || createInitialRoadmap(ctx);
+      const baseToday =
+        today || buildTodayFromRoadmap({ ctx, roadmap: rm, weekIndex: 1, dayIndex: 1 });
+
+      const offer = String(
+        cmoCoachPayload?.offer ||
+          cmoCoachPayload?.offer_name ||
+          cmoCoachPayload?.product ||
+          cmoCoachPayload?.title ||
+          "ton offre"
+      );
+      const audience = String(
+        cmoCoachPayload?.audience || cmoCoachPayload?.target || cmoCoachPayload?.cible || "ton audience"
+      );
+      const objective = String(
+        cmoCoachPayload?.objective ||
+          cmoCoachPayload?.goal ||
+          cmoCoachPayload?.objectif ||
+          "transformer l’action CMO en stratégie claire"
+      );
+      const cta = String(cmoCoachPayload?.cta || cmoCoachPayload?.callToAction || "passer à l’action");
+
+      const nextToday: AlexToday = {
+        ...baseToday,
+        committedAtISO: undefined,
+        startedAtISO: undefined,
+        completedAtISO: undefined,
+        mission: {
+          ...baseToday.mission,
+          title: `Stratégie CMO IA — ${offer}`,
+          objective: `Transformer le brief CMO en plan d’action concret pour ${audience}. Objectif : ${objective}.`,
+          checklist: [
+            `Clarifier l’offre prioritaire : ${offer}`,
+            `Adapter le message à la cible : ${audience}`,
+            `Structurer l’action autour du CTA : ${cta}`,
+          ],
+          kpiLabel: "Plan stratégique validé",
+          editorPayload: {
+            ...(baseToday.mission.editorPayload || {}),
+            source: "cmo-ia",
+            offer,
+            audience,
+            objective,
+            cta,
+          },
+        },
+      };
+
+      setContextState(ctx);
+      setRoadmapState(rm);
+      setTodayState(nextToday);
+      setLogsState([]);
+
+      setV2Context(ctx);
+      setV2Roadmap(rm);
+      setV2Today(nextToday);
+
+      goStage("MISSION_TODAY");
+      setCommitOpen(true);
+      return;
+    }
+
     if (!context || !roadmap || !today) {
       goStage("ONBOARDING");
       return;
