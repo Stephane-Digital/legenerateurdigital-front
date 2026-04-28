@@ -15,11 +15,100 @@ import {
   EmailSequenceResponse,
 } from "./components/types";
 
+const CMO_AUTO_PAYLOAD_KEY = "lgd_cmo_module_auto_payload";
+
+type CmoAutoPayload = {
+  created_at?: string;
+  source?: string;
+  target?: string;
+  priority_action?: string;
+  diagnostic?: string;
+  why_this_action?: string;
+  next_best_action?: string;
+  generated_content?: {
+    post?: string;
+    email?: string;
+    cta?: string;
+    lead_magnet_idea?: string;
+  };
+};
+
+function asCleanString(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function shortText(value: string, max = 90) {
+  const clean = value.replace(/\s+/g, " ").trim();
+  if (clean.length <= max) return clean;
+  return `${clean.slice(0, max - 1).trim()}…`;
+}
+
+function inferCampaignType(payload: CmoAutoPayload): EmailCampaignFormValues["campaign_type"] {
+  const text = [
+    payload.priority_action,
+    payload.next_best_action,
+    payload.generated_content?.email,
+    payload.generated_content?.cta,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  if (text.includes("relance")) return "relance";
+  if (text.includes("lancement")) return "lancement";
+  if (text.includes("nurtur") || text.includes("éduquer") || text.includes("eduquer")) {
+    return "nurturing";
+  }
+  return "vente";
+}
+
+function buildCmoEmailValues(
+  payload: CmoAutoPayload,
+  previous: EmailCampaignFormValues
+): EmailCampaignFormValues {
+  const priorityAction = asCleanString(payload.priority_action);
+  const diagnostic = asCleanString(payload.diagnostic);
+  const whyThisAction = asCleanString(payload.why_this_action);
+  const nextBestAction = asCleanString(payload.next_best_action);
+  const emailContent = asCleanString(payload.generated_content?.email);
+  const cta = asCleanString(payload.generated_content?.cta);
+
+  return {
+    ...defaultEmailCampaignValues,
+    sender_name: previous.sender_name,
+    name: priorityAction ? `CMO IA - ${shortText(priorityAction, 70)}` : "CMO IA - Campagne prioritaire",
+    campaign_type: inferCampaignType(payload),
+    duration_days: 7,
+    offer_name: cta || shortText(nextBestAction || priorityAction, 90),
+    target_audience: diagnostic || "Audience prioritaire détectée par le CMO IA.",
+    main_promise:
+      whyThisAction ||
+      emailContent ||
+      "Transformer l’attention du prospect en action claire et mesurable.",
+    main_objective:
+      nextBestAction ||
+      priorityAction ||
+      "Créer une campagne email courte, persuasive et directement exploitable.",
+    primary_cta: cta || "Clique ici pour passer à l’action.",
+    tone: "premium",
+    sales_intensity: "modere",
+    include_nurture: true,
+    include_sales: true,
+    include_objection: true,
+    include_relaunch: true,
+    auto_cta: true,
+    optimize_subjects: true,
+    progressive_pressure: true,
+  };
+}
+
 export default function EmailCampaignsPage() {
   const [values, setValues] = useState<EmailCampaignFormValues>(defaultEmailCampaignValues);
   const [sequence, setSequence] = useState<EmailSequenceResponse | null>(null);
   const [savedCampaignId, setSavedCampaignId] = useState<number | null>(null);
   const [resetVersion, setResetVersion] = useState(0);
+  const [cmoAutoLoading, setCmoAutoLoading] = useState(false);
+  const [cmoAutoMessage, setCmoAutoMessage] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -38,6 +127,38 @@ export default function EmailCampaignsPage() {
     }
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const raw = window.localStorage.getItem(CMO_AUTO_PAYLOAD_KEY);
+      if (!raw) return;
+
+      const payload = JSON.parse(raw) as CmoAutoPayload;
+      if (!payload || payload.target !== "emailing") return;
+
+      setCmoAutoLoading(true);
+      setCmoAutoMessage("CMO IA analyse la priorité et prépare ta campagne email…");
+
+      window.setTimeout(() => {
+        setValues((previous) => buildCmoEmailValues(payload, previous));
+        setSequence(null);
+        setSavedCampaignId(null);
+        setResetVersion((prev) => prev + 1);
+        setCmoAutoLoading(false);
+        setCmoAutoMessage("Campagne pré-remplie par le CMO IA. Tu peux générer la séquence.");
+        window.localStorage.removeItem(CMO_AUTO_PAYLOAD_KEY);
+
+        window.setTimeout(() => {
+          setCmoAutoMessage(null);
+        }, 4500);
+      }, 850);
+    } catch (error) {
+      console.error("CMO auto payload email error", error);
+      setCmoAutoLoading(false);
+      setCmoAutoMessage(null);
+    }
+  }, []);
 
   const handleResetGenerator = () => {
     setValues(defaultEmailCampaignValues);
@@ -103,6 +224,29 @@ export default function EmailCampaignsPage() {
             <EmailAnalyticsButton />
           </div>
         </div>
+
+        {cmoAutoMessage && (
+          <div className="mt-6 rounded-[26px] border border-yellow-400/20 bg-gradient-to-r from-yellow-500/10 via-[#15110a] to-yellow-500/5 p-5 shadow-[0_0_42px_rgba(250,204,21,0.08)]">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-2xl bg-yellow-400/10 text-yellow-300">
+                  <Sparkles size={18} className={cmoAutoLoading ? "animate-pulse" : ""} />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-[0.18em] text-yellow-300">
+                    Mode CMO IA actif
+                  </p>
+                  <p className="mt-1 text-sm leading-6 text-zinc-300">{cmoAutoMessage}</p>
+                </div>
+              </div>
+              {cmoAutoLoading && (
+                <div className="rounded-full border border-yellow-400/20 bg-black/30 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-yellow-200">
+                  Préparation intelligente…
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="mt-8 grid grid-cols-1 gap-6 2xl:grid-cols-[1.05fr_0.95fr]">
           <EmailCampaignGenerator
