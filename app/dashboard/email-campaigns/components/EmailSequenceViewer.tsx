@@ -152,6 +152,10 @@ NOTE LGD :
     .join("\n\n==================================================\n\n");
 }
 
+function buildSingleSystemeIoEmail(email: EmailSequenceItem, senderDisplay: string) {
+  return buildSystemeIoSequence([email], senderDisplay);
+}
+
 function downloadTextFile(filename: string, content: string) {
   const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -195,7 +199,15 @@ export default function EmailSequenceViewer({ formValues, sequence, onSaved, onR
     if (!safeSequence) return;
 
     await navigator.clipboard.writeText(buildSystemeIoSequence(editing, senderDisplay));
-    setCopiedMessage("Version SIO PRO optimisée conversion copiée.");
+    setCopiedMessage("Séquence complète SIO PRO copiée.");
+    window.setTimeout(() => setCopiedMessage(null), 2400);
+  };
+
+  const copySingleSystemeIoEmail = async (email: EmailSequenceItem, index: number) => {
+    await navigator.clipboard.writeText(
+      buildSingleSystemeIoEmail({ ...email, day: index + 1 }, senderDisplay)
+    );
+    setCopiedMessage(`Email jour ${index + 1} copié au format SIO PRO.`);
     window.setTimeout(() => setCopiedMessage(null), 2400);
   };
 
@@ -294,7 +306,7 @@ export default function EmailSequenceViewer({ formValues, sequence, onSaved, onR
             <Copy size={15} /> Copier
           </button>
           <button type="button" onClick={copySystemeIoSequence} className="inline-flex items-center gap-2 rounded-2xl border border-yellow-400/20 bg-[#181818] px-4 py-2 text-sm font-medium text-yellow-100 transition hover:border-yellow-400/40 hover:text-yellow-300">
-            <Copy size={15} /> Copier SIO PRO
+            <Copy size={15} /> Copier séquence SIO
           </button>
           <button type="button" onClick={exportSequenceTxt} className="inline-flex items-center gap-2 rounded-2xl border border-yellow-400/20 bg-[#181818] px-4 py-2 text-sm font-medium text-yellow-100 transition hover:border-yellow-400/40 hover:text-yellow-300">
             <Download size={15} /> Export .txt
@@ -324,6 +336,14 @@ export default function EmailSequenceViewer({ formValues, sequence, onSaved, onR
               <span className="inline-flex items-center gap-1 rounded-full border border-yellow-400/15 bg-[#121212] px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-zinc-400">
                 <Pencil size={12} /> édition directe
               </span>
+
+              <button
+                type="button"
+                onClick={() => copySingleSystemeIoEmail(email, index)}
+                className="ml-auto inline-flex items-center gap-2 rounded-full border border-yellow-400/25 bg-yellow-500/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-yellow-200 transition hover:border-yellow-400/50 hover:bg-yellow-400/15 hover:text-yellow-300"
+              >
+                <Copy size={12} /> Copier cet email SIO
+              </button>
             </div>
 
             <div className="space-y-5">
