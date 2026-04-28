@@ -577,8 +577,8 @@ export default function DashboardPage() {
             transition={{ delay: 0.06, duration: 0.32 }}
             className="mx-auto mt-10 w-full max-w-[1200px] px-4"
           >
-            <CardLuxe className="px-6 py-8 sm:px-10 sm:py-10 shadow-[0_0_70px_rgba(255,184,0,0.10)]">
-              <div className="mx-auto w-full max-w-6xl">
+            <div className="w-full rounded-[32px] border border-yellow-600/25 bg-gradient-to-br from-[#101010] via-[#090909] to-[#15110a] px-6 py-8 shadow-[0_0_70px_rgba(255,184,0,0.10)] sm:px-10 sm:py-10">
+              <div className="mx-auto w-full max-w-none">
                 <div className="flex flex-col items-center text-center">
                   <div className="inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-4 py-1 text-[12px] text-white/75">
                     <FaBolt className="text-yellow-300" />
@@ -694,7 +694,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </div>
-            </CardLuxe>
+            </div>
           </motion.div>
         ) : (
           <motion.div
