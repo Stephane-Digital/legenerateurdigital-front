@@ -178,7 +178,14 @@ function buildCleanSystemeIoEmail(
   senderDisplay: string,
   persistentLinks: string
 ) {
-  const rawBody = String(email.body || "").trim();
+  let rawBody = String(email.body || "").trim();
+
+// 🔥 Nettoyage automatique signature IA
+rawBody = rawBody
+  .replace(/à très vite[,!\s]*lgd/gi, "")
+  .replace(/à bientôt[,!\s]*lgd/gi, "")
+  .replace(/lgd$/gi, "")
+  .trim();
   const cta = String(email.cta || "Découvrir maintenant").trim();
 
   const paragraphs = rawBody
