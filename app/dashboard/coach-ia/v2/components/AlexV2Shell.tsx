@@ -576,7 +576,6 @@ useEffect(() => {
   // ===== quota fetch
   useEffect(() => {
     let mounted = true;
-    let timer: number | null = null;
 
     const safeRefresh = async () => {
       if (!mounted) return;
@@ -584,10 +583,6 @@ useEffect(() => {
     };
 
     void safeRefresh();
-
-    timer = window.setInterval(() => {
-      void safeRefresh();
-    }, 4000);
 
     const onFocus = () => {
       void safeRefresh();
@@ -604,7 +599,6 @@ useEffect(() => {
 
     return () => {
       mounted = false;
-      if (timer) window.clearInterval(timer);
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibility);
     };
@@ -674,34 +668,15 @@ useEffect(() => {
   }
 
   function onSmartResume() {
-    // ✅ CMO AUTO — correction ciblée
-    // Avant : la mission CMO n'était créée que si Alex n'avait aucun contexte.
-    // Résultat : avec un profil déjà initialisé, le bouton pouvait sembler ne rien faire.
-    // Maintenant : si un brief CMO existe, on crée toujours une mission CMO exploitable,
-    // en réutilisant le contexte/roadmap existants quand ils sont disponibles.
     if (cmoCoachBrief) {
       const ctx = context || createInitialContext({ intent: "argent_vite", level: "sans_resultat", timePerDay: 60 });
       const rm = roadmap || createInitialRoadmap(ctx);
-      const baseToday =
-        today || buildTodayFromRoadmap({ ctx, roadmap: rm, weekIndex: 1, dayIndex: 1 });
+      const baseToday = today || buildTodayFromRoadmap({ ctx, roadmap: rm, weekIndex: 1, dayIndex: 1 });
 
-      const offer = String(
-        cmoCoachPayload?.offer ||
-          cmoCoachPayload?.offer_name ||
-          cmoCoachPayload?.product ||
-          cmoCoachPayload?.title ||
-          "ton offre"
-      );
-      const audience = String(
-        cmoCoachPayload?.audience || cmoCoachPayload?.target || cmoCoachPayload?.cible || "ton audience"
-      );
-      const objective = String(
-        cmoCoachPayload?.objective ||
-          cmoCoachPayload?.goal ||
-          cmoCoachPayload?.objectif ||
-          "transformer l’action CMO en stratégie claire"
-      );
-      const cta = String(cmoCoachPayload?.cta || cmoCoachPayload?.callToAction || "passer à l’action");
+      const offer = String(cmoCoachPayload?.offer || "ton offre");
+      const audience = String(cmoCoachPayload?.audience || "ton audience");
+      const objective = String(cmoCoachPayload?.objective || "transformer l’action CMO en stratégie claire");
+      const cta = String(cmoCoachPayload?.cta || "passer à l’action");
 
       const nextToday: AlexToday = {
         ...baseToday,
@@ -718,6 +693,7 @@ useEffect(() => {
             `Structurer l’action autour du CTA : ${cta}`,
           ],
           kpiLabel: "Plan stratégique validé",
+          durationMinutes: 45,
           editorPayload: {
             ...(baseToday.mission.editorPayload || {}),
             source: "cmo-ia",
@@ -739,7 +715,6 @@ useEffect(() => {
       setV2Today(nextToday);
 
       goStage("MISSION_TODAY");
-      setCommitOpen(true);
       return;
     }
 
