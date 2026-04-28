@@ -345,6 +345,7 @@ export default function AlexV2Shell() {
 
   // ✅ CMO AUTO — lecture douce du payload sans toucher au moteur Alex V2
   const [cmoCoachBrief, setCmoCoachBrief] = useState<string>("");
+  const [cmoCoachPayload, setCmoCoachPayload] = useState<Record<string, any> | null>(null);
 
   // ===== quota
   const [quotaLoading, setQuotaLoading] = useState(false);
@@ -422,6 +423,14 @@ export default function AlexV2Shell() {
       const objective = String(payload?.objective || payload?.goal || payload?.objectif || "structurer une stratégie de conversion");
       const channel = String(payload?.channel || payload?.canal || payload?.sourceModule || "CMO IA");
       const cta = String(payload?.cta || payload?.callToAction || "passer à l'action");
+
+      setCmoCoachPayload({
+        offer,
+        audience,
+        objective,
+        channel,
+        cta,
+      });
 
       setCmoCoachBrief(
         `CMO IA a préparé un brief stratégique : offre = ${offer}, cible = ${audience}, objectif = ${objective}, canal = ${channel}, CTA = ${cta}.`
@@ -665,6 +674,52 @@ useEffect(() => {
   }
 
   function onSmartResume() {
+    if (cmoCoachBrief && (!context || !roadmap || !today)) {
+      const ctx = createInitialContext({ intent: "argent_vite", level: "sans_resultat", timePerDay: 60 });
+      const rm = createInitialRoadmap(ctx);
+      const baseToday = buildTodayFromRoadmap({ ctx, roadmap: rm, weekIndex: 1, dayIndex: 1 });
+
+      const offer = String(cmoCoachPayload?.offer || "ton offre");
+      const audience = String(cmoCoachPayload?.audience || "ton audience");
+      const objective = String(cmoCoachPayload?.objective || "transformer l’action CMO en stratégie claire");
+      const cta = String(cmoCoachPayload?.cta || "passer à l’action");
+
+      const nextToday: AlexToday = {
+        ...baseToday,
+        mission: {
+          ...baseToday.mission,
+          title: `Stratégie CMO IA — ${offer}`,
+          objective: `Transformer le brief CMO en plan d’action concret pour ${audience}. Objectif : ${objective}.`,
+          checklist: [
+            `Clarifier l’offre prioritaire : ${offer}`,
+            `Adapter le message à la cible : ${audience}`,
+            `Structurer l’action autour du CTA : ${cta}`,
+          ],
+          kpiLabel: "Plan stratégique validé",
+          editorPayload: {
+            ...(baseToday.mission.editorPayload || {}),
+            source: "cmo-ia",
+            offer,
+            audience,
+            objective,
+            cta,
+          },
+        },
+      };
+
+      setContextState(ctx);
+      setRoadmapState(rm);
+      setTodayState(nextToday);
+      setLogsState([]);
+
+      setV2Context(ctx);
+      setV2Roadmap(rm);
+      setV2Today(nextToday);
+
+      goStage("MISSION_TODAY");
+      return;
+    }
+
     if (!context || !roadmap || !today) {
       goStage("ONBOARDING");
       return;
