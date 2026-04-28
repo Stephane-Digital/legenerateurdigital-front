@@ -575,9 +575,9 @@ export default function DashboardPage() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.06, duration: 0.32 }}
-            className="max-w-6xl mx-auto mt-10"
+            className="mx-auto mt-10 w-full max-w-[1200px] px-4"
           >
-            <CardLuxe className="px-6 py-7 sm:px-8 sm:py-8">
+            <CardLuxe className="px-6 py-8 sm:px-10 sm:py-10 shadow-[0_0_70px_rgba(255,184,0,0.10)]">
               <div className="mx-auto w-full max-w-6xl">
                 <div className="flex flex-col items-center text-center">
                   <div className="inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-4 py-1 text-[12px] text-white/75">
@@ -595,7 +595,7 @@ export default function DashboardPage() {
                   </p>
                 </div>
 
-                <div className="mt-7 grid grid-cols-1 gap-5 lg:grid-cols-[1.15fr_0.85fr]">
+                <div className="mt-7 grid grid-cols-1 gap-5 lg:grid-cols-[1.35fr_0.75fr]">
                   <div className="rounded-3xl border border-yellow-600/20 bg-black/35 p-5 text-left shadow-[0_0_30px_rgba(255,184,0,0.06)]">
                     <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                       <div>
