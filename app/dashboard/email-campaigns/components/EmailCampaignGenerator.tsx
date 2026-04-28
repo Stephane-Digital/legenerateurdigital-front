@@ -19,6 +19,54 @@ const labelClass = "mb-2 block text-sm font-medium text-yellow-200";
 const inputClass =
   "w-full rounded-2xl border border-yellow-400/10 bg-[#181818] px-4 py-3 text-sm text-white outline-none transition placeholder:text-zinc-500 focus:border-yellow-400/40 focus:ring-1 focus:ring-yellow-400/30";
 
+function isTokenExpired(token: string) {
+  try {
+    const payloadPart = token.split(".")[1];
+    if (!payloadPart) return true;
+    const payload = JSON.parse(atob(payloadPart.replace(/-/g, "+").replace(/_/g, "/")));
+    if (!payload?.exp) return false;
+    return Date.now() >= Number(payload.exp) * 1000;
+  } catch {
+    return true;
+  }
+}
+
+function getStoredToken() {
+  if (typeof window === "undefined") return "";
+
+  const candidates = [
+    window.localStorage.getItem("access_token"),
+    window.localStorage.getItem("lgd_token"),
+    window.localStorage.getItem("token"),
+    window.localStorage.getItem("jwt"),
+  ];
+
+  for (const candidate of candidates) {
+    const token = (candidate || "").trim();
+    if (token && !isTokenExpired(token)) return token;
+  }
+
+  return "";
+}
+
+function getAuthHeaders() {
+  const token = getStoredToken();
+  if (!token) return {};
+  return { Authorization: `Bearer ${token}`, "X-LGD-Token": token };
+}
+
+async function parseErrorMessage(response: Response, fallback: string) {
+  try {
+    const data = await response.json();
+    if (typeof data?.detail === "string") return data.detail;
+    if (typeof data?.message === "string") return data.message;
+    if (data?.detail) return JSON.stringify(data.detail);
+  } catch {
+    // ignore
+  }
+  return fallback;
+}
+
 export default function EmailCampaignGenerator({
   values,
   setValues,
@@ -56,19 +104,21 @@ export default function EmailCampaignGenerator({
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
+          ...getAuthHeaders(),
         },
         body: JSON.stringify(values),
       });
 
       if (!response.ok) {
-        throw new Error("Impossible de générer la séquence IA.");
+        const detail = await parseErrorMessage(response, "Impossible de générer la séquence IA.");
+        throw new Error(detail);
       }
 
       const data = (await response.json()) as EmailSequenceResponse;
       onGenerated(data);
     } catch (err) {
       console.error(err);
-      setError("La génération a échoué. Vérifie le backend puis réessaie.");
+      setError(err instanceof Error ? err.message : "La génération a échoué. Vérifie le backend puis réessaie.");
     } finally {
       setLoading(false);
     }
