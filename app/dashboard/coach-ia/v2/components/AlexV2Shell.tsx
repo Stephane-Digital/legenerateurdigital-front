@@ -18,11 +18,11 @@ import {
   getV2Roadmap,
   getV2Stage,
   getV2Today,
+  resetAlexV2All,
   setV2Context,
   setV2Roadmap,
   setV2Stage,
   setV2Today,
-  resetAlexV2All,
 } from "../lib/storage";
 
 import type {
@@ -343,6 +343,9 @@ export default function AlexV2Shell() {
   const [commitOpen, setCommitOpen] = useState(false);
   const [parcoursOpen, setParcoursOpen] = useState(false);
 
+  // ✅ CMO AUTO — lecture douce du payload sans toucher au moteur Alex V2
+  const [cmoCoachBrief, setCmoCoachBrief] = useState<string>("");
+
   // ===== quota
   const [quotaLoading, setQuotaLoading] = useState(false);
   const [used, setUsed] = useState(0);
@@ -391,6 +394,43 @@ export default function AlexV2Shell() {
       };
       window.localStorage.setItem(key, JSON.stringify(updated));
     } catch {}
+  }, []);
+
+  // ============================================================
+  // 🚀 CMO AUTO PAYLOAD — Coach IA
+  // ------------------------------------------------------------
+  // Patch volontairement minimal :
+  // - ne modifie pas le moteur Alex V2,
+  // - n'écrit pas directement dans les messages,
+  // - affiche une synthèse exploitable par le coach,
+  // - nettoie le payload après lecture.
+  // ============================================================
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem("lgd_cmo_module_auto_payload");
+      if (!raw) return;
+
+      const payload = JSON.parse(raw);
+      const moduleTarget = String(payload?.module || payload?.targetModule || payload?.destination || "").toLowerCase();
+
+      if (moduleTarget && moduleTarget !== "coach" && moduleTarget !== "coach-ia" && moduleTarget !== "coach_ia") {
+        return;
+      }
+
+      const offer = String(payload?.offer || payload?.offer_name || payload?.product || payload?.title || "ton offre");
+      const audience = String(payload?.audience || payload?.target || payload?.cible || "ton audience");
+      const objective = String(payload?.objective || payload?.goal || payload?.objectif || "structurer une stratégie de conversion");
+      const channel = String(payload?.channel || payload?.canal || payload?.sourceModule || "CMO IA");
+      const cta = String(payload?.cta || payload?.callToAction || "passer à l'action");
+
+      setCmoCoachBrief(
+        `CMO IA a préparé un brief stratégique : offre = ${offer}, cible = ${audience}, objectif = ${objective}, canal = ${channel}, CTA = ${cta}.`
+      );
+
+      window.localStorage.removeItem("lgd_cmo_module_auto_payload");
+    } catch (error) {
+      console.error("CMO Coach payload error", error);
+    }
   }, []);
 useEffect(() => {
     let cancelled = false;
@@ -880,6 +920,25 @@ useEffect(() => {
         </div>
       </div>
 
+      {cmoCoachBrief && (
+        <div className="mb-6 rounded-3xl border border-yellow-500/25 bg-gradient-to-r from-yellow-500/10 via-[#0b0f16] to-yellow-500/10 p-5 shadow-[0_0_35px_rgba(234,179,8,0.08)]">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-[0.22em] text-yellow-300/80">Mode CMO IA actif</div>
+              <div className="mt-2 text-sm leading-6 text-white/75">{cmoCoachBrief}</div>
+            </div>
+
+            <button
+              type="button"
+              onClick={onSmartResume}
+              className="inline-flex shrink-0 items-center justify-center rounded-2xl border border-yellow-400/40 bg-yellow-400 px-5 py-3 text-sm font-black text-black shadow-[0_0_22px_rgba(250,204,21,0.20)] transition hover:brightness-110"
+            >
+              Lancer la stratégie avec Alex
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         {/* LEFT */}
         <div className="lg:col-span-4">
@@ -946,4 +1005,3 @@ useEffect(() => {
     </div>
   );
 }
-
