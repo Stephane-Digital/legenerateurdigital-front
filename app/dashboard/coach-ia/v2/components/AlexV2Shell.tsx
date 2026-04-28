@@ -674,18 +674,40 @@ useEffect(() => {
   }
 
   function onSmartResume() {
-    if (cmoCoachBrief && (!context || !roadmap || !today)) {
-      const ctx = createInitialContext({ intent: "argent_vite", level: "sans_resultat", timePerDay: 60 });
-      const rm = createInitialRoadmap(ctx);
-      const baseToday = buildTodayFromRoadmap({ ctx, roadmap: rm, weekIndex: 1, dayIndex: 1 });
+    // ✅ CMO AUTO — correction ciblée
+    // Avant : la mission CMO n'était créée que si Alex n'avait aucun contexte.
+    // Résultat : avec un profil déjà initialisé, le bouton pouvait sembler ne rien faire.
+    // Maintenant : si un brief CMO existe, on crée toujours une mission CMO exploitable,
+    // en réutilisant le contexte/roadmap existants quand ils sont disponibles.
+    if (cmoCoachBrief) {
+      const ctx = context || createInitialContext({ intent: "argent_vite", level: "sans_resultat", timePerDay: 60 });
+      const rm = roadmap || createInitialRoadmap(ctx);
+      const baseToday =
+        today || buildTodayFromRoadmap({ ctx, roadmap: rm, weekIndex: 1, dayIndex: 1 });
 
-      const offer = String(cmoCoachPayload?.offer || "ton offre");
-      const audience = String(cmoCoachPayload?.audience || "ton audience");
-      const objective = String(cmoCoachPayload?.objective || "transformer l’action CMO en stratégie claire");
-      const cta = String(cmoCoachPayload?.cta || "passer à l’action");
+      const offer = String(
+        cmoCoachPayload?.offer ||
+          cmoCoachPayload?.offer_name ||
+          cmoCoachPayload?.product ||
+          cmoCoachPayload?.title ||
+          "ton offre"
+      );
+      const audience = String(
+        cmoCoachPayload?.audience || cmoCoachPayload?.target || cmoCoachPayload?.cible || "ton audience"
+      );
+      const objective = String(
+        cmoCoachPayload?.objective ||
+          cmoCoachPayload?.goal ||
+          cmoCoachPayload?.objectif ||
+          "transformer l’action CMO en stratégie claire"
+      );
+      const cta = String(cmoCoachPayload?.cta || cmoCoachPayload?.callToAction || "passer à l’action");
 
       const nextToday: AlexToday = {
         ...baseToday,
+        committedAtISO: undefined,
+        startedAtISO: undefined,
+        completedAtISO: undefined,
         mission: {
           ...baseToday.mission,
           title: `Stratégie CMO IA — ${offer}`,
