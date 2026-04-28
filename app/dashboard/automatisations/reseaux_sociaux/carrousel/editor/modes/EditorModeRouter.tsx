@@ -26,6 +26,7 @@ const LS_CARROUSEL = "lgd_editor_carrousel_draft_v5";
 
 // Dashboard progression bridge
 const LS_DASHBOARD_DAILY_PROGRESS = "lgd_dashboard_daily_progress";
+const LS_CMO_AUTO_PAYLOAD = "lgd_cmo_module_auto_payload";
 
 function safeJsonParse(raw: string | null) {
   if (!raw) return null;
@@ -38,6 +39,38 @@ function safeJsonParse(raw: string | null) {
 
 function normalizeText(t: string) {
   return (t || "").replace(/\s+/g, " ").trim();
+}
+
+function buildCmoEditorBrief(payload: any) {
+  const generated = payload?.generated_content || {};
+
+  const parts = [
+    payload?.priority_action ? `Action prioritaire : ${payload.priority_action}` : "",
+    payload?.diagnostic ? `Diagnostic CMO : ${payload.diagnostic}` : "",
+    payload?.why_this_action ? `Pourquoi maintenant : ${payload.why_this_action}` : "",
+    payload?.next_best_action ? `Prochaine meilleure action : ${payload.next_best_action}` : "",
+    generated?.post ? `Contenu suggéré : ${generated.post}` : "",
+    generated?.cta ? `CTA : ${generated.cta}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+
+  return parts || "Créer un contenu marketing clair, premium, humain et orienté conversion pour Le Générateur Digital.";
+}
+
+function detectCmoEditorMode(payload: any): Mode {
+  const generated = payload?.generated_content || {};
+  const text = [
+    payload?.priority_action,
+    payload?.next_best_action,
+    generated?.post,
+    generated?.cta,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  return text.includes("carrousel") || text.includes("carousel") ? "carrousel" : "post";
 }
 
 function extractTextAndIdFromAny(raw: string | null): { text: string; id: string } | null {
@@ -218,53 +251,54 @@ function normalizeArchivePayload(raw: any): AnyObj {
   return payload || {};
 }
 
-
-function restoreArchivedTextLineBreaks(text: any) {
-  const raw = String(text ?? "");
-  if (!raw) return "";
-  return raw
-    .replace(/\r\n/g, "\n")
-    .replace(/\r/g, "\n")
-    .replace(/([?!.:;…])\n(?=\S)/g, "$1\n\n");
-}
-
-function restoreArchivedLineBreaksInLayers(layers: any[]): any[] {
-  return (Array.isArray(layers) ? layers : []).map((layer: any) => {
-    if (!layer || typeof layer !== "object") return layer;
-    if (String(layer?.type || "").toLowerCase() !== "text") return layer;
-    return {
-      ...layer,
-      text: restoreArchivedTextLineBreaks(layer?.text ?? layer?.value ?? layer?.content ?? ""),
-    };
-  });
-}
-
 function extractArchivePostDraft(payloadLike: any) {
   const p = normalizeArchivePayload(payloadLike);
-  const layers = restoreArchivedLineBreaksInLayers(
-    (p?.layers ??
+
+  // ✅ IMPORTANT
+  // On recharge le draft archivé le plus fidèlement possible,
+  // sans le reconstruire inutilement, pour préserver :
+  // - police / fontFamily
+  // - lineHeight / spacing
+  // - width / height / scale éventuels
+  // - ui / format / ratio
+  // - tous les champs déjà validés par l’éditeur
+  if (p && typeof p === "object") {
+    const directLayers =
+      p?.layers ??
       p?.canvas?.layers ??
       p?.data?.layers ??
       p?.content?.layers ??
       p?.draft?.layers ??
       p?.draft?.canvas?.layers ??
-      [])
-  );
+      [];
 
-  return {
-    ui: p?.ui ?? p?.draft?.ui ?? undefined,
-    layers: Array.isArray(layers) ? layers : [],
-  };
+    return {
+      ...p,
+      ui:
+        p?.ui ??
+        p?.data?.ui ??
+        p?.canvas?.ui ??
+        p?.content?.ui ??
+        p?.draft?.ui ??
+        p?.draft?.canvas?.ui ??
+        undefined,
+      layers: Array.isArray(directLayers) ? directLayers : [],
+    };
+  }
+
+  return { layers: [], ui: undefined };
 }
 
 function extractArchiveCarrouselDraft(payloadLike: any) {
   const p = normalizeArchivePayload(payloadLike);
+
   const rawSlides =
     p?.slides ??
     p?.carrousel?.slides ??
     p?.draft?.slides ??
     p?.draft?.carrousel?.slides ??
     p?.data?.slides ??
+    p?.content?.slides ??
     [];
 
   const slides = (Array.isArray(rawSlides) ? rawSlides : []).map((slide: any, index: number) => {
@@ -272,17 +306,28 @@ function extractArchiveCarrouselDraft(payloadLike: any) {
       slide?.layers ??
       slide?.canvas?.layers ??
       slide?.data?.layers ??
+      slide?.content?.layers ??
       slide?.payload?.layers ??
+      slide?.elements ??
       [];
 
     return {
+      ...slide,
       id: String(slide?.id || `slide-${index + 1}`),
-      layers: Array.isArray(layers) ? restoreArchivedLineBreaksInLayers(layers) : [],
+      layers: Array.isArray(layers) ? layers : [],
     };
   });
 
   return {
-    ui: p?.ui ?? p?.draft?.ui ?? undefined,
+    ...p,
+    ui:
+      p?.ui ??
+      p?.data?.ui ??
+      p?.canvas?.ui ??
+      p?.content?.ui ??
+      p?.draft?.ui ??
+      p?.draft?.canvas?.ui ??
+      undefined,
     slides,
   };
 }
@@ -327,6 +372,7 @@ export default function EditorModeRouter() {
   const [mobileArchiveMsg, setMobileArchiveMsg] = useState("");
   const [mobileUploading, setMobileUploading] = useState(false);
   const [brief, setBrief] = useState<string>("");
+  const [cmoAutoMsg, setCmoAutoMsg] = useState<string>("");
 
   const [archiving, setArchiving] = useState(false);
   const [archiveMsg, setArchiveMsg] = useState<string>("");
@@ -475,6 +521,58 @@ export default function EditorModeRouter() {
       }
     } catch {
       // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const raw = window.localStorage.getItem(LS_CMO_AUTO_PAYLOAD);
+      if (!raw) return;
+
+      const payload = JSON.parse(raw);
+      const target = String(payload?.target || payload?.module || "").toLowerCase();
+      if (target !== "editor") return;
+
+      const cmoBrief = buildCmoEditorBrief(payload);
+      const cmoMode = detectCmoEditorMode(payload);
+      const cmoId = `cmo:${payload?.created_at || Date.now()}`;
+
+      setMode(cmoMode);
+      setBrief(cmoBrief);
+      setCmoAutoMsg(
+        cmoMode === "carrousel"
+          ? "✨ Le CMO IA prépare ton carrousel dans l’éditeur intelligent…"
+          : "✨ Le CMO IA prépare ton post dans l’éditeur intelligent…"
+      );
+
+      window.localStorage.setItem(LS_EDITOR_MODE, cmoMode);
+      window.localStorage.setItem(LS_COACH_BRIEF, cmoBrief);
+      window.localStorage.setItem(LS_BRIEF_LAST_CONSUMED, cmoId);
+      window.localStorage.removeItem(LS_EDITOR_INTELLIGENT_BRIEF);
+      window.localStorage.removeItem(LS_CMO_AUTO_PAYLOAD);
+
+      try {
+        const rawProgress = window.localStorage.getItem(LS_DASHBOARD_DAILY_PROGRESS);
+        const parsed = rawProgress ? JSON.parse(rawProgress) : {};
+        window.localStorage.setItem(
+          LS_DASHBOARD_DAILY_PROGRESS,
+          JSON.stringify({
+            idea: Boolean(parsed?.idea),
+            content: true,
+            email: Boolean(parsed?.email),
+            offer: Boolean(parsed?.offer),
+          })
+        );
+      } catch {
+        // ignore
+      }
+
+      window.setTimeout(() => setCmoAutoMsg(""), 4200);
+    } catch (e) {
+      console.error("CMO editor payload error", e);
+      window.localStorage.removeItem(LS_CMO_AUTO_PAYLOAD);
     }
   }, []);
 
@@ -762,6 +860,12 @@ export default function EditorModeRouter() {
             {archiveSelectionError ? <div className="text-xs text-red-300">{archiveSelectionError}</div> : null}
           </div>
         </div>
+
+        {cmoAutoMsg ? (
+          <div className="mx-auto mt-10 max-w-[980px] rounded-3xl border border-yellow-500/25 bg-yellow-500/10 px-6 py-4 text-center text-sm font-semibold text-yellow-100 shadow-[0_0_30px_rgba(255,184,0,0.10)]">
+            {cmoAutoMsg}
+          </div>
+        ) : null}
 
         <h1 className="mt-20 text-center text-4xl font-extrabold text-[#ffb800]">L’Éditeur Intelligent + Copilote IA– {modeLabel}</h1>
 
