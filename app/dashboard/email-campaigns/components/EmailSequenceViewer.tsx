@@ -1,6 +1,6 @@
 "use client";
 
-import { Copy, Mail, Pencil, RotateCcw, Save } from "lucide-react";
+import { Copy, Download, Mail, Pencil, RotateCcw, Save } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import type { EmailCampaignFormValues, EmailSequenceItem, EmailSequenceResponse } from "./types";
@@ -43,11 +43,56 @@ function parseErrorMessage(response: Response, fallback: string) {
     .catch(() => fallback);
 }
 
+function getStoredToken() {
+  if (typeof window === "undefined") return "";
+
+  const candidates = [
+    window.localStorage.getItem("access_token"),
+    window.localStorage.getItem("lgd_token"),
+    window.localStorage.getItem("token"),
+    window.localStorage.getItem("jwt"),
+  ];
+
+  for (const candidate of candidates) {
+    const token = (candidate || "").trim();
+    if (token && !isTokenExpired(token)) return token;
+  }
+
+  return "";
+}
+
 function getAuthHeaders() {
-  if (typeof window === "undefined") return {};
-  const token = window.localStorage.getItem("lgd_token");
-  if (!token || isTokenExpired(token)) return {};
+  const token = getStoredToken();
+  if (!token) return {};
   return { Authorization: `Bearer ${token}`, "X-LGD-Token": token };
+}
+
+function buildPlainSequence(emails: EmailSequenceItem[], senderDisplay: string) {
+  return emails
+    .map(
+      (email) => `Jour ${email.day}\nType: ${email.email_type}\nSujet: ${email.subject}\nPréheader: ${email.preheader}\n\n${email.body}\n\nCTA: ${email.cta}\n\nExpéditeur: ${senderDisplay}`
+    )
+    .join("\n\n---------------------------\n\n");
+}
+
+function buildSystemeIoSequence(emails: EmailSequenceItem[], senderDisplay: string) {
+  return emails
+    .map(
+      (email) => `EMAIL JOUR ${email.day} — ${email.email_type.toUpperCase()}\n\nOBJET : ${email.subject}\nPRÉHEADER : ${email.preheader}\n\nCONTENU À COLLER DANS SYSTEME.IO :\n${email.body}\n\nBOUTON / CTA : ${email.cta}\nSIGNATURE : ${senderDisplay}`
+    )
+    .join("\n\n==================================================\n\n");
+}
+
+function downloadTextFile(filename: string, content: string) {
+  const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 export default function EmailSequenceViewer({ formValues, sequence, onSaved, onReset }: Props) {
@@ -72,23 +117,31 @@ export default function EmailSequenceViewer({ formValues, sequence, onSaved, onR
   const copySequence = async () => {
     if (!safeSequence) return;
 
-    const blob = editing
-      .map(
-        (email) => `Jour ${email.day}
-Type: ${email.email_type}
-Sujet: ${email.subject}
-Préheader: ${email.preheader}
+    await navigator.clipboard.writeText(buildPlainSequence(editing, senderDisplay));
+    setCopiedMessage("Séquence copiée dans le presse-papiers.");
+    window.setTimeout(() => setCopiedMessage(null), 2400);
+  };
 
-${email.body}
+  const copySystemeIoSequence = async () => {
+    if (!safeSequence) return;
 
-CTA: ${email.cta}
+    await navigator.clipboard.writeText(buildSystemeIoSequence(editing, senderDisplay));
+    setCopiedMessage("Version prête à coller dans Systeme.io copiée.");
+    window.setTimeout(() => setCopiedMessage(null), 2400);
+  };
 
-Expéditeur: ${senderDisplay}`
-      )
-      .join("\n\n---------------------------\n\n");
+  const exportSequenceTxt = () => {
+    if (!safeSequence) return;
 
-    await navigator.clipboard.writeText(blob);
-    setCopiedMessage("Enregistré dans le presse papier");
+    const safeName = (safeSequence.campaign_name || "campagne-emailing-lgd")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+
+    downloadTextFile(`${safeName || "campagne-emailing-lgd"}.txt`, buildSystemeIoSequence(editing, senderDisplay));
+    setCopiedMessage("Fichier texte exporté.");
     window.setTimeout(() => setCopiedMessage(null), 2400);
   };
 
@@ -170,6 +223,12 @@ Expéditeur: ${senderDisplay}`
         <div className="flex flex-wrap items-center gap-3">
           <button type="button" onClick={copySequence} className="inline-flex items-center gap-2 rounded-2xl border border-yellow-400/20 bg-[#181818] px-4 py-2 text-sm font-medium text-yellow-100 transition hover:border-yellow-400/40 hover:text-yellow-300">
             <Copy size={15} /> Copier
+          </button>
+          <button type="button" onClick={copySystemeIoSequence} className="inline-flex items-center gap-2 rounded-2xl border border-yellow-400/20 bg-[#181818] px-4 py-2 text-sm font-medium text-yellow-100 transition hover:border-yellow-400/40 hover:text-yellow-300">
+            <Copy size={15} /> Copier SIO
+          </button>
+          <button type="button" onClick={exportSequenceTxt} className="inline-flex items-center gap-2 rounded-2xl border border-yellow-400/20 bg-[#181818] px-4 py-2 text-sm font-medium text-yellow-100 transition hover:border-yellow-400/40 hover:text-yellow-300">
+            <Download size={15} /> Export .txt
           </button>
           <button type="button" onClick={saveCampaign} disabled={saving} className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-yellow-500 via-yellow-400 to-amber-300 px-4 py-2 text-sm font-semibold text-black transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60">
             <Save size={15} /> {saving ? "Sauvegarde..." : "Sauvegarder"}
