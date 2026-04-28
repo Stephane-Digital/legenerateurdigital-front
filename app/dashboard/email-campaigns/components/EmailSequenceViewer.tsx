@@ -209,33 +209,60 @@ export default function EmailSequenceViewer({ formValues, sequence, onSaved, onR
 
   return (
     <div className={cardClass}>
-      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h2 className="text-xl font-semibold text-yellow-300">Séquence générée</h2>
-          <p className="text-sm text-zinc-400">
-            {safeSequence.campaign_name} • {safeSequence.campaign_type} • {safeSequence.duration_days} jours • {editing.length} emails
-          </p>
-          <p className="mt-2 text-xs uppercase tracking-[0.18em] text-zinc-500">
-            Expéditeur : {senderDisplay}
-          </p>
-        </div>
+      <div className="sticky top-4 z-20 mb-6 rounded-3xl border border-yellow-400/20 bg-[#101010]/95 p-4 shadow-[0_16px_40px_rgba(0,0,0,0.45)] backdrop-blur">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div className="min-w-0">
+            <h2 className="text-xl font-semibold text-yellow-300">Séquence générée</h2>
+            <p className="mt-1 text-sm text-zinc-400">
+              {safeSequence.campaign_name} • {safeSequence.campaign_type} • {safeSequence.duration_days} jours • {editing.length} emails
+            </p>
+            <p className="mt-2 text-xs uppercase tracking-[0.18em] text-zinc-500">
+              Expéditeur : {senderDisplay}
+            </p>
+          </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <button type="button" onClick={copySequence} className="inline-flex items-center gap-2 rounded-2xl border border-yellow-400/20 bg-[#181818] px-4 py-2 text-sm font-medium text-yellow-100 transition hover:border-yellow-400/40 hover:text-yellow-300">
-            <Copy size={15} /> Copier
-          </button>
-          <button type="button" onClick={copySystemeIoSequence} className="inline-flex items-center gap-2 rounded-2xl border border-yellow-400/20 bg-[#181818] px-4 py-2 text-sm font-medium text-yellow-100 transition hover:border-yellow-400/40 hover:text-yellow-300">
-            <Copy size={15} /> Copier SIO
-          </button>
-          <button type="button" onClick={exportSequenceTxt} className="inline-flex items-center gap-2 rounded-2xl border border-yellow-400/20 bg-[#181818] px-4 py-2 text-sm font-medium text-yellow-100 transition hover:border-yellow-400/40 hover:text-yellow-300">
-            <Download size={15} /> Export .txt
-          </button>
-          <button type="button" onClick={saveCampaign} disabled={saving} className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-yellow-500 via-yellow-400 to-amber-300 px-4 py-2 text-sm font-semibold text-black transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60">
-            <Save size={15} /> {saving ? "Sauvegarde..." : "Sauvegarder"}
-          </button>
-          <button type="button" onClick={onReset} className="inline-flex items-center gap-2 rounded-2xl border border-yellow-400/20 bg-[#181818] px-4 py-2 text-sm font-medium text-zinc-200 transition hover:border-yellow-400/40 hover:text-yellow-300">
-            <RotateCcw size={15} /> Régénérer
-          </button>
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end">
+            <button
+              type="button"
+              onClick={copySequence}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-yellow-400/30 bg-[#181818] px-4 py-2.5 text-sm font-semibold text-yellow-100 transition hover:border-yellow-400/60 hover:bg-yellow-400/10 hover:text-yellow-300"
+            >
+              <Copy size={15} /> Copier
+            </button>
+
+            <button
+              type="button"
+              onClick={copySystemeIoSequence}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-yellow-400/30 bg-[#181818] px-4 py-2.5 text-sm font-semibold text-yellow-100 transition hover:border-yellow-400/60 hover:bg-yellow-400/10 hover:text-yellow-300"
+            >
+              <Copy size={15} /> Copier SIO
+            </button>
+
+            <button
+              type="button"
+              onClick={exportSequenceTxt}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-yellow-400/30 bg-[#181818] px-4 py-2.5 text-sm font-semibold text-yellow-100 transition hover:border-yellow-400/60 hover:bg-yellow-400/10 hover:text-yellow-300"
+            >
+              <Download size={15} /> Export .txt
+            </button>
+
+            <button
+              type="button"
+              onClick={saveCampaign}
+              disabled={saving}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-yellow-500 via-yellow-400 to-amber-300 px-4 py-2.5 text-sm font-bold text-black shadow-[0_0_22px_rgba(250,204,21,0.22)] transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Save size={15} /> {saving ? "Sauvegarde..." : "Sauvegarder"}
+            </button>
+
+            <button
+              type="button"
+              onClick={onReset}
+              className="col-span-2 inline-flex items-center justify-center gap-2 rounded-2xl border border-zinc-600 bg-[#181818] px-4 py-2.5 text-sm font-semibold text-zinc-200 transition hover:border-yellow-400/40 hover:text-yellow-300 sm:col-span-1"
+            >
+              <RotateCcw size={15} /> Régénérer
+            </button>
+          </div>
         </div>
       </div>
 
