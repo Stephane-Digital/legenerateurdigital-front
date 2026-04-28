@@ -157,16 +157,37 @@ function buildSingleSystemeIoEmail(email: EmailSequenceItem, senderDisplay: stri
 }
 
 function buildCleanSystemeIoEmail(email: EmailSequenceItem, senderDisplay: string) {
-  const body = String(email.body || "").trim();
+  const rawBody = String(email.body || "").trim();
   const cta = String(email.cta || "Découvrir maintenant").trim();
+
+  const paragraphs = rawBody
+    .split(/\n{2,}|(?<=[.!?])\s+(?=[A-ZÀ-ÖØ-Ý])/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  const intro = paragraphs.slice(0, 2).join("\n\n");
+  const middle = paragraphs.slice(2, -1).join("\n\n");
+  const end = paragraphs.length > 2 ? paragraphs[paragraphs.length - 1] : "";
 
   return `Bonjour [Prénom],
 
-${body}
+J’espère que tu vas bien ✨
 
-👉 ${cta}
+${intro || rawBody}
+
+${middle ? `━━━━━━━━━━━━━━━━━━━━
+
+${middle}` : ""}
+
+${end ? `━━━━━━━━━━━━━━━━━━━━
+
+${end}` : ""}
+
+👉 Clique ici pour passer à l’action :
+${cta}
 
 À très vite,
+
 ${senderDisplay}`;
 }
 
@@ -221,7 +242,7 @@ export default function EmailSequenceViewer({ formValues, sequence, onSaved, onR
     await navigator.clipboard.writeText(
       buildCleanSystemeIoEmail({ ...email, day: index + 1 }, senderDisplay)
     );
-    setCopiedMessage(`Email jour ${index + 1} copié en version SIO CLEAN prête à envoyer.`);
+    setCopiedMessage(`Email jour ${index + 1} copié en version SIO CLEAN aérée et prête à envoyer.`);
     window.setTimeout(() => setCopiedMessage(null), 2400);
   };
 
