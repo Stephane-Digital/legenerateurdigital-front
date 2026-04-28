@@ -77,9 +77,78 @@ function buildPlainSequence(emails: EmailSequenceItem[], senderDisplay: string) 
 
 function buildSystemeIoSequence(emails: EmailSequenceItem[], senderDisplay: string) {
   return emails
-    .map(
-      (email) => `EMAIL JOUR ${email.day} — ${email.email_type.toUpperCase()}\n\nOBJET : ${email.subject}\nPRÉHEADER : ${email.preheader}\n\nCONTENU À COLLER DANS SYSTEME.IO :\n${email.body}\n\nBOUTON / CTA : ${email.cta}\nSIGNATURE : ${senderDisplay}`
-    )
+    .map((email) => {
+      const subjectA = email.subject || "Votre sujet principal";
+      const subjectB = "Et si tout changeait aujourd’hui ?";
+      const subjectC = "Ce que personne ne vous dit vraiment";
+
+      const ctaA = email.cta || "Découvrir maintenant";
+      const ctaB = "Voir comment ça fonctionne";
+      const ctaC = "Accéder à la méthode";
+
+      const body = String(email.body || "").trim();
+      const firstParagraph =
+        body
+          .split(/\n{2,}|\n/)
+          .map((part) => part.trim())
+          .find(Boolean) || body || "Voici le message principal à transmettre.";
+
+      return `==================================================
+EMAIL JOUR ${email.day} — ${String(email.email_type || "email").toUpperCase()}
+==================================================
+
+🧪 OBJETS À TESTER DANS SYSTEME.IO
+
+A → ${subjectA}
+B → ${subjectB}
+C → ${subjectC}
+
+--------------------------------------------------
+
+PRÉHEADER :
+${email.preheader || "Un message utile pour donner envie d’ouvrir l’email."}
+
+--------------------------------------------------
+
+VERSION COURTE — MOBILE / RAPIDE
+--------------------------------------------------
+
+Bonjour [Prénom],
+
+${firstParagraph}
+
+👉 CTA :
+${ctaA}
+
+À très vite,
+${senderDisplay}
+
+--------------------------------------------------
+
+VERSION LONGUE — STORYTELLING / CONVERSION
+--------------------------------------------------
+
+Bonjour [Prénom],
+
+${body}
+
+👉 CTA À TESTER :
+
+A → ${ctaA}
+B → ${ctaB}
+C → ${ctaC}
+
+À très vite,
+${senderDisplay}
+
+--------------------------------------------------
+NOTE LGD :
+- Copie l’objet A, B ou C dans le champ “Objet” de Systeme.io.
+- Copie le préheader dans le champ prévu si disponible.
+- Colle uniquement la version courte OU la version longue dans le corps de l’email.
+- Remplace [Prénom] par la variable Systeme.io si tu l’utilises.
+`;
+    })
     .join("\n\n==================================================\n\n");
 }
 
@@ -180,7 +249,7 @@ export default function EmailSequenceViewer({ formValues, sequence, onSaved, onR
     if (!safeSequence) return;
 
     await navigator.clipboard.writeText(buildSystemeIoSequence(editing, senderDisplay));
-    setCopiedMessage("Version texte prête à coller dans Systeme.io copiée.");
+    setCopiedMessage("Version SIO PRO optimisée conversion copiée.");
     window.setTimeout(() => setCopiedMessage(null), 2400);
   };
 
