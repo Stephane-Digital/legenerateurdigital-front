@@ -152,60 +152,6 @@ NOTE LGD :
     .join("\n\n==================================================\n\n");
 }
 
-function escapeHtml(value: string | number | undefined | null) {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
-function formatBodyForHtml(body: string) {
-  return escapeHtml(body)
-    .split(/\n{2,}/)
-    .map((paragraph) => paragraph.trim())
-    .filter(Boolean)
-    .map((paragraph) => `<p style="margin:0 0 16px;line-height:1.7;color:#222222;">${paragraph.replace(/\n/g, "<br>")}</p>`)
-    .join("\n");
-}
-
-function buildSystemeIoHtmlEmail(email: EmailSequenceItem, senderDisplay: string) {
-  const subject = escapeHtml(email.subject);
-  const preheader = escapeHtml(email.preheader);
-  const cta = escapeHtml(email.cta || "Découvrir");
-  const sender = escapeHtml(senderDisplay);
-
-  return `<!-- LGD EMAIL JOUR ${email.day} — ${String(email.email_type || "").toUpperCase()} -->
-<!-- OBJET : ${subject} -->
-<!-- PRÉHEADER : ${preheader} -->
-
-<div style="margin:0 auto;max-width:680px;background:#ffffff;color:#222222;font-family:Arial,Helvetica,sans-serif;padding:28px;border-radius:18px;">
-  <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">
-    ${preheader}
-  </div>
-
-  ${formatBodyForHtml(email.body)}
-
-  <div style="margin:26px 0;text-align:center;">
-    <a href="{{CTA_URL}}"
-       style="display:inline-block;background:#facc15;color:#111111;text-decoration:none;font-weight:800;padding:14px 24px;border-radius:999px;">
-      ${cta}
-    </a>
-  </div>
-
-  <p style="margin:22px 0 0;line-height:1.7;color:#222222;">
-    ${sender}
-  </p>
-</div>`;
-}
-
-function buildSystemeIoHtmlSequence(emails: EmailSequenceItem[], senderDisplay: string) {
-  return emails
-    .map((email) => buildSystemeIoHtmlEmail(email, senderDisplay))
-    .join("\n\n<!-- ================================================== -->\n\n");
-}
-
 function downloadTextFile(filename: string, content: string) {
   const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -253,14 +199,6 @@ export default function EmailSequenceViewer({ formValues, sequence, onSaved, onR
     window.setTimeout(() => setCopiedMessage(null), 2400);
   };
 
-  const copySystemeIoHtmlSequence = async () => {
-    if (!safeSequence) return;
-
-    await navigator.clipboard.writeText(buildSystemeIoHtmlSequence(editing, senderDisplay));
-    setCopiedMessage("HTML Systeme.io prêt à coller copié.");
-    window.setTimeout(() => setCopiedMessage(null), 2400);
-  };
-
   const exportSequenceTxt = () => {
     if (!safeSequence) return;
 
@@ -273,24 +211,6 @@ export default function EmailSequenceViewer({ formValues, sequence, onSaved, onR
 
     downloadTextFile(`${safeName || "campagne-emailing-lgd"}.txt`, buildSystemeIoSequence(editing, senderDisplay));
     setCopiedMessage("Fichier texte exporté.");
-    window.setTimeout(() => setCopiedMessage(null), 2400);
-  };
-
-  const exportSystemeIoHtml = () => {
-    if (!safeSequence) return;
-
-    const safeName = (safeSequence.campaign_name || "campagne-emailing-lgd")
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "");
-
-    downloadTextFile(
-      `${safeName || "campagne-emailing-lgd"}-systeme-io.html`,
-      buildSystemeIoHtmlSequence(editing, senderDisplay)
-    );
-    setCopiedMessage("HTML Systeme.io exporté.");
     window.setTimeout(() => setCopiedMessage(null), 2400);
   };
 
@@ -358,76 +278,33 @@ export default function EmailSequenceViewer({ formValues, sequence, onSaved, onR
 
   return (
     <div className={cardClass}>
-      <div className="sticky top-4 z-20 mb-6 rounded-3xl border border-yellow-400/20 bg-[#101010]/95 p-4 shadow-[0_16px_40px_rgba(0,0,0,0.45)] backdrop-blur">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-          <div className="min-w-0">
-            <h2 className="text-xl font-semibold text-yellow-300">Séquence générée</h2>
-            <p className="mt-1 text-sm text-zinc-400">
-              {safeSequence.campaign_name} • {safeSequence.campaign_type} • {safeSequence.duration_days} jours • {editing.length} emails
-            </p>
-            <p className="mt-2 text-xs uppercase tracking-[0.18em] text-zinc-500">
-              Expéditeur : {senderDisplay}
-            </p>
-          </div>
+      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <h2 className="text-xl font-semibold text-yellow-300">Séquence générée</h2>
+          <p className="text-sm text-zinc-400">
+            {safeSequence.campaign_name} • {safeSequence.campaign_type} • {safeSequence.duration_days} jours • {editing.length} emails
+          </p>
+          <p className="mt-2 text-xs uppercase tracking-[0.18em] text-zinc-500">
+            Expéditeur : {senderDisplay}
+          </p>
+        </div>
 
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end">
-            <button
-              type="button"
-              onClick={copySequence}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-yellow-400/30 bg-[#181818] px-4 py-2.5 text-sm font-semibold text-yellow-100 transition hover:border-yellow-400/60 hover:bg-yellow-400/10 hover:text-yellow-300"
-            >
-              <Copy size={15} /> Copier
-            </button>
-
-            <button
-              type="button"
-              onClick={copySystemeIoSequence}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-yellow-400/30 bg-[#181818] px-4 py-2.5 text-sm font-semibold text-yellow-100 transition hover:border-yellow-400/60 hover:bg-yellow-400/10 hover:text-yellow-300"
-            >
-              <Copy size={15} /> Copier SIO
-            </button>
-
-            <button
-              type="button"
-              onClick={copySystemeIoHtmlSequence}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-yellow-400/30 bg-yellow-500/10 px-4 py-2.5 text-sm font-semibold text-yellow-200 transition hover:border-yellow-400/60 hover:bg-yellow-400/15 hover:text-yellow-300"
-            >
-              <Copy size={15} /> Copier HTML SIO
-            </button>
-
-            <button
-              type="button"
-              onClick={exportSequenceTxt}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-yellow-400/30 bg-[#181818] px-4 py-2.5 text-sm font-semibold text-yellow-100 transition hover:border-yellow-400/60 hover:bg-yellow-400/10 hover:text-yellow-300"
-            >
-              <Download size={15} /> Export .txt
-            </button>
-
-            <button
-              type="button"
-              onClick={exportSystemeIoHtml}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-yellow-400/30 bg-[#181818] px-4 py-2.5 text-sm font-semibold text-yellow-100 transition hover:border-yellow-400/60 hover:bg-yellow-400/10 hover:text-yellow-300"
-            >
-              <Download size={15} /> Export HTML
-            </button>
-
-            <button
-              type="button"
-              onClick={saveCampaign}
-              disabled={saving}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-yellow-500 via-yellow-400 to-amber-300 px-4 py-2.5 text-sm font-bold text-black shadow-[0_0_22px_rgba(250,204,21,0.22)] transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <Save size={15} /> {saving ? "Sauvegarde..." : "Sauvegarder"}
-            </button>
-
-            <button
-              type="button"
-              onClick={onReset}
-              className="col-span-2 inline-flex items-center justify-center gap-2 rounded-2xl border border-zinc-600 bg-[#181818] px-4 py-2.5 text-sm font-semibold text-zinc-200 transition hover:border-yellow-400/40 hover:text-yellow-300 sm:col-span-1"
-            >
-              <RotateCcw size={15} /> Régénérer
-            </button>
-          </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <button type="button" onClick={copySequence} className="inline-flex items-center gap-2 rounded-2xl border border-yellow-400/20 bg-[#181818] px-4 py-2 text-sm font-medium text-yellow-100 transition hover:border-yellow-400/40 hover:text-yellow-300">
+            <Copy size={15} /> Copier
+          </button>
+          <button type="button" onClick={copySystemeIoSequence} className="inline-flex items-center gap-2 rounded-2xl border border-yellow-400/20 bg-[#181818] px-4 py-2 text-sm font-medium text-yellow-100 transition hover:border-yellow-400/40 hover:text-yellow-300">
+            <Copy size={15} /> Copier SIO PRO
+          </button>
+          <button type="button" onClick={exportSequenceTxt} className="inline-flex items-center gap-2 rounded-2xl border border-yellow-400/20 bg-[#181818] px-4 py-2 text-sm font-medium text-yellow-100 transition hover:border-yellow-400/40 hover:text-yellow-300">
+            <Download size={15} /> Export .txt
+          </button>
+          <button type="button" onClick={saveCampaign} disabled={saving} className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-yellow-500 via-yellow-400 to-amber-300 px-4 py-2 text-sm font-semibold text-black transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60">
+            <Save size={15} /> {saving ? "Sauvegarde..." : "Sauvegarder"}
+          </button>
+          <button type="button" onClick={onReset} className="inline-flex items-center gap-2 rounded-2xl border border-yellow-400/20 bg-[#181818] px-4 py-2 text-sm font-medium text-zinc-200 transition hover:border-yellow-400/40 hover:text-yellow-300">
+            <RotateCcw size={15} /> Régénérer
+          </button>
         </div>
       </div>
 
