@@ -58,6 +58,14 @@ type CmoDashboardResult = {
   };
 };
 
+type CmoModuleTarget = {
+  key: "coach" | "emailing" | "editor" | "lead_engine";
+  label: string;
+  path: string;
+};
+
+const CMO_AUTO_PAYLOAD_KEY = "lgd_cmo_module_auto_payload";
+
 
 const SYSTEMEIO_PLANS_URL =
   process.env.NEXT_PUBLIC_SYSTEMEIO_PLANS_URL || "https://legenerateurdigital.systeme.io/lgd";
@@ -163,6 +171,64 @@ async function fetchCmoDashboardStrategy(): Promise<CmoDashboardResult> {
 
   const data = (await res.json()) as any;
   return (data?.result || data || {}) as CmoDashboardResult;
+}
+
+
+
+function getCmoModuleTarget(result: CmoDashboardResult | null): CmoModuleTarget {
+  const text = [
+    result?.priority_action,
+    result?.next_best_action,
+    result?.generated_content?.email,
+    result?.generated_content?.post,
+    result?.generated_content?.lead_magnet_idea,
+    result?.generated_content?.cta,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  if (text.includes("email") || text.includes("mail") || text.includes("campagne") || text.includes("séquence")) {
+    return {
+      key: "emailing",
+      label: "Créer avec Emailing IA",
+      path: "/dashboard/email-campaigns",
+    };
+  }
+
+  if (
+    text.includes("lead magnet") ||
+    text.includes("lead") ||
+    text.includes("prospect") ||
+    text.includes("landing") ||
+    text.includes("capture")
+  ) {
+    return {
+      key: "lead_engine",
+      label: "Créer avec Leads IA",
+      path: "/dashboard/lead-engine",
+    };
+  }
+
+  if (
+    text.includes("post") ||
+    text.includes("contenu") ||
+    text.includes("carrousel") ||
+    text.includes("publication") ||
+    text.includes("éditeur")
+  ) {
+    return {
+      key: "editor",
+      label: "Créer dans l’Éditeur",
+      path: "/dashboard/automatisations/reseaux_sociaux/editor-intelligent",
+    };
+  }
+
+  return {
+    key: "coach",
+    label: "Exécuter dans Coach Alex",
+    path: "/dashboard/coach-ia",
+  };
 }
 
 
@@ -448,6 +514,8 @@ export default function DashboardPage() {
   const heroTitle =
     "Crée du contenu • Attire des prospects • Génère tes premières ventes avec l’IA";
 
+  const cmoModuleTarget = useMemo(() => getCmoModuleTarget(cmoResult), [cmoResult]);
+
   const iconGlow =
     "text-4xl text-[#ffb800] drop-shadow-[0_0_12px_rgba(255,184,0,0.35)]";
 
@@ -504,6 +572,40 @@ export default function DashboardPage() {
     } finally {
       setCmoLoading(false);
     }
+  }
+
+  function executeCmoModuleAuto() {
+    const target = getCmoModuleTarget(cmoResult);
+
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(
+        CMO_AUTO_PAYLOAD_KEY,
+        JSON.stringify({
+          created_at: new Date().toISOString(),
+          source: "dashboard_cmo_v5",
+          target: target.key,
+          priority_action: cmoResult?.priority_action || "",
+          diagnostic: cmoResult?.diagnostic || "",
+          why_this_action: cmoResult?.why_this_action || "",
+          next_best_action: cmoResult?.next_best_action || "",
+          generated_content: cmoResult?.generated_content || {},
+        })
+      );
+    }
+
+    if (target.key === "editor") {
+      markContentCreated();
+    }
+
+    if (target.key === "emailing") {
+      setDailyProgress((prev) => {
+        const updated = { ...prev, email: true };
+        writeDailyProgress(updated);
+        return updated;
+      });
+    }
+
+    go(target.path);
   }
 
   function toggleProgressItem(key: keyof DailyProgress) {
@@ -656,13 +758,17 @@ export default function DashboardPage() {
                     )}
 
                     <div className="mt-5 grid grid-cols-1 gap-3">
-                      <PrimaryButton onClick={() => go("/dashboard/coach-ia")}>
-                        Exécuter dans Coach Alex
+                      <PrimaryButton onClick={executeCmoModuleAuto}>
+                        {cmoModuleTarget.label}
                       </PrimaryButton>
                       <SecondaryButton onClick={loadCmoLive}>
                         Générer une décision CMO
                       </SecondaryButton>
                     </div>
+
+                    <p className="mt-3 text-center text-xs leading-5 text-white/45">
+                      Le CMO prépare le contexte puis ouvre automatiquement le module le plus adapté.
+                    </p>
 
                     {cmoResult?.generated_content?.cta ? (
                       <div className="mt-5 rounded-2xl border border-yellow-600/15 bg-black/35 px-4 py-3">
