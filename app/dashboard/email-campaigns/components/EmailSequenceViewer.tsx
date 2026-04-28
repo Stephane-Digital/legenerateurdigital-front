@@ -156,7 +156,28 @@ function buildSingleSystemeIoEmail(email: EmailSequenceItem, senderDisplay: stri
   return buildSystemeIoSequence([email], senderDisplay);
 }
 
-function buildCleanSystemeIoEmail(email: EmailSequenceItem, senderDisplay: string) {
+function formatPersistentLinks(rawLinks: string) {
+  const links = rawLinks
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (!links.length) return "";
+
+  return `
+
+━━━━━━━━━━━━━━━━━━━━
+
+🔗 Liens utiles :
+
+${links.map((link) => `• ${link}`).join("\n")}`;
+}
+
+function buildCleanSystemeIoEmail(
+  email: EmailSequenceItem,
+  senderDisplay: string,
+  persistentLinks: string
+) {
   const rawBody = String(email.body || "").trim();
   const cta = String(email.cta || "Découvrir maintenant").trim();
 
@@ -168,6 +189,7 @@ function buildCleanSystemeIoEmail(email: EmailSequenceItem, senderDisplay: strin
   const intro = paragraphs.slice(0, 2).join("\n\n");
   const middle = paragraphs.slice(2, -1).join("\n\n");
   const end = paragraphs.length > 2 ? paragraphs[paragraphs.length - 1] : "";
+  const usefulLinks = formatPersistentLinks(persistentLinks);
 
   return `Bonjour [Prénom],
 
@@ -184,7 +206,7 @@ ${end ? `━━━━━━━━━━━━━━━━━━━━
 ${end}` : ""}
 
 👉 Clique ici pour passer à l’action :
-${cta}
+${cta}${usefulLinks}
 
 À très vite,
 
@@ -208,6 +230,7 @@ export default function EmailSequenceViewer({ formValues, sequence, onSaved, onR
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
   const [copiedMessage, setCopiedMessage] = useState<string | null>(null);
   const [editing, setEditing] = useState<EmailSequenceItem[]>([]);
+  const [persistentLinks, setPersistentLinks] = useState("");
 
   const safeSequence = useMemo(() => {
     if (!sequence) return null;
@@ -240,7 +263,7 @@ export default function EmailSequenceViewer({ formValues, sequence, onSaved, onR
 
   const copySingleSystemeIoEmail = async (email: EmailSequenceItem, index: number) => {
     await navigator.clipboard.writeText(
-      buildCleanSystemeIoEmail({ ...email, day: index + 1 }, senderDisplay)
+      buildCleanSystemeIoEmail({ ...email, day: index + 1 }, senderDisplay, persistentLinks)
     );
     setCopiedMessage(`Email jour ${index + 1} copié en version SIO CLEAN aérée et prête à envoyer.`);
     window.setTimeout(() => setCopiedMessage(null), 2400);
@@ -357,6 +380,33 @@ export default function EmailSequenceViewer({ formValues, sequence, onSaved, onR
 
       {copiedMessage && <div className="mb-4 rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">{copiedMessage}</div>}
       {savedMessage && <div className="mb-4 rounded-2xl border border-yellow-400/15 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-200">{savedMessage}</div>}
+
+      <div className="mb-5 rounded-2xl border border-yellow-400/15 bg-[#141414] p-4">
+        <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-yellow-300">
+              Liens persistants
+            </p>
+            <p className="mt-1 text-xs leading-5 text-zinc-500">
+              Ajoute un ou plusieurs liens, un par ligne. Ils seront injectés automatiquement dans chaque email copié avec “Copier SIO CLEAN”.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setPersistentLinks("")}
+            className="self-start rounded-full border border-yellow-400/20 px-3 py-1.5 text-xs font-semibold text-zinc-300 transition hover:border-yellow-400/40 hover:text-yellow-300 md:self-auto"
+          >
+            Effacer les liens
+          </button>
+        </div>
+
+        <textarea
+          className={`${inputClass} mt-3 min-h-[92px]`}
+          value={persistentLinks}
+          onChange={(event) => setPersistentLinks(event.target.value)}
+          placeholder={"Exemples :\nPage de vente : https://...\nCalendrier : https://...\nBonus : https://..."}
+        />
+      </div>
 
       <div className="max-h-[760px] space-y-4 overflow-y-auto pr-2">
         {editing.map((email, index) => (
