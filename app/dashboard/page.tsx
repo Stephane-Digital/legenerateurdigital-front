@@ -175,20 +175,84 @@ async function fetchCmoDashboardStrategy(): Promise<CmoDashboardResult> {
 
 
 
-function getCmoModuleTarget(result: CmoDashboardResult | null): CmoModuleTarget {
-  const text = [
-    result?.priority_action,
-    result?.next_best_action,
+function countMatches(text: string, words: string[]) {
+  return words.reduce((score, word) => (text.includes(word) ? score + 1 : score), 0);
+}
+
+function getCmoModuleTarget(
+  result: CmoDashboardResult | null,
+  progress?: DailyProgress
+): CmoModuleTarget {
+  const priorityText = [result?.priority_action, result?.next_best_action]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  const contentText = [
     result?.generated_content?.email,
     result?.generated_content?.post,
     result?.generated_content?.lead_magnet_idea,
     result?.generated_content?.cta,
+    result?.diagnostic,
+    result?.why_this_action,
   ]
     .filter(Boolean)
     .join(" ")
     .toLowerCase();
 
-  if (text.includes("email") || text.includes("mail") || text.includes("campagne") || text.includes("séquence")) {
+  const text = `${priorityText} ${contentText}`;
+
+  const scores: Record<CmoModuleTarget["key"], number> = {
+    emailing:
+      countMatches(priorityText, ["email", "mail", "e-mail", "e-mailing", "campagne", "séquence", "sequence", "newsletter"]) * 3 +
+      countMatches(contentText, ["email", "mail", "e-mail", "e-mailing", "campagne", "séquence", "sequence", "newsletter"]),
+    lead_engine:
+      countMatches(priorityText, ["lead magnet", "lead", "prospect", "landing", "capture", "formulaire", "conversion", "funnel"]) * 3 +
+      countMatches(contentText, ["lead magnet", "lead", "prospect", "landing", "capture", "formulaire", "conversion", "funnel"]),
+    editor:
+      countMatches(priorityText, ["post", "contenu", "carrousel", "publication", "réseau", "reseau", "instagram", "linkedin", "éditeur", "editeur"]) * 3 +
+      countMatches(contentText, ["post", "contenu", "carrousel", "publication", "réseau", "reseau", "instagram", "linkedin", "éditeur", "editeur"]),
+    coach:
+      countMatches(priorityText, ["analyser", "analyse", "ajuster", "stratégie", "strategie", "clarifier", "diagnostic", "approche", "décision", "decision"]) * 3 +
+      countMatches(contentText, ["analyser", "analyse", "ajuster", "stratégie", "strategie", "clarifier", "diagnostic", "approche", "décision", "decision"]),
+  };
+
+  // Si le module vient déjà d'être exécuté dans le plan du jour,
+  // le CMO évite de reproposer systématiquement la même action.
+  if (progress?.email) scores.emailing -= 4;
+  if (progress?.content) scores.editor -= 3;
+  if (progress?.offer) scores.lead_engine -= 2;
+
+  // Fallback intelligent si le backend renvoie une décision trop générique.
+  if (Math.max(...Object.values(scores)) <= 0) {
+    if (!progress?.email && text.includes("vente")) {
+      return {
+        key: "emailing",
+        label: "Créer avec Emailing IA",
+        path: "/dashboard/email-campaigns",
+      };
+    }
+
+    if (!progress?.offer) {
+      return {
+        key: "lead_engine",
+        label: "Créer avec Leads IA",
+        path: "/dashboard/lead-engine",
+      };
+    }
+
+    if (!progress?.content) {
+      return {
+        key: "editor",
+        label: "Créer dans l’Éditeur",
+        path: "/dashboard/automatisations/reseaux_sociaux/editor-intelligent",
+      };
+    }
+  }
+
+  const targetKey = (Object.entries(scores).sort((a, b) => b[1] - a[1])[0]?.[0] || "coach") as CmoModuleTarget["key"];
+
+  if (targetKey === "emailing") {
     return {
       key: "emailing",
       label: "Créer avec Emailing IA",
@@ -196,13 +260,7 @@ function getCmoModuleTarget(result: CmoDashboardResult | null): CmoModuleTarget 
     };
   }
 
-  if (
-    text.includes("lead magnet") ||
-    text.includes("lead") ||
-    text.includes("prospect") ||
-    text.includes("landing") ||
-    text.includes("capture")
-  ) {
+  if (targetKey === "lead_engine") {
     return {
       key: "lead_engine",
       label: "Créer avec Leads IA",
@@ -210,13 +268,7 @@ function getCmoModuleTarget(result: CmoDashboardResult | null): CmoModuleTarget 
     };
   }
 
-  if (
-    text.includes("post") ||
-    text.includes("contenu") ||
-    text.includes("carrousel") ||
-    text.includes("publication") ||
-    text.includes("éditeur")
-  ) {
+  if (targetKey === "editor") {
     return {
       key: "editor",
       label: "Créer dans l’Éditeur",
@@ -514,7 +566,7 @@ export default function DashboardPage() {
   const heroTitle =
     "Crée du contenu • Attire des prospects • Génère tes premières ventes avec l’IA";
 
-  const cmoModuleTarget = useMemo(() => getCmoModuleTarget(cmoResult), [cmoResult]);
+  const cmoModuleTarget = useMemo(() => getCmoModuleTarget(cmoResult, dailyProgress), [cmoResult, dailyProgress]);
 
   const iconGlow =
     "text-4xl text-[#ffb800] drop-shadow-[0_0_12px_rgba(255,184,0,0.35)]";
@@ -575,7 +627,7 @@ export default function DashboardPage() {
   }
 
   function executeCmoModuleAuto() {
-    const target = getCmoModuleTarget(cmoResult);
+    const target = getCmoModuleTarget(cmoResult, dailyProgress);
 
     if (typeof window !== "undefined") {
       window.localStorage.setItem(
@@ -584,6 +636,9 @@ export default function DashboardPage() {
           created_at: new Date().toISOString(),
           source: "dashboard_cmo_v5",
           target: target.key,
+          module: target.key,
+          targetModule: target.key,
+          destination: target.key,
           priority_action: cmoResult?.priority_action || "",
           diagnostic: cmoResult?.diagnostic || "",
           why_this_action: cmoResult?.why_this_action || "",
@@ -715,11 +770,21 @@ export default function DashboardPage() {
                         disabled={cmoLoading}
                         className="shrink-0 rounded-2xl border border-yellow-400/30 px-4 py-2 text-sm font-semibold text-yellow-200 transition hover:bg-yellow-400/10 disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        {cmoLoading ? "Analyse CMO..." : "Actualiser CMO IA"}
+                        <span className="inline-flex items-center gap-2">
+                          {cmoLoading ? <FaSyncAlt className="animate-spin" /> : null}
+                          {cmoLoading ? "Analyse CMO..." : "Actualiser CMO IA"}
+                        </span>
                       </button>
                     </div>
 
-                    {cmoResult?.diagnostic ? (
+                    {cmoLoading ? (
+                      <div className="mt-5 rounded-2xl border border-yellow-400/20 bg-yellow-400/10 px-4 py-3 text-sm font-semibold text-yellow-100">
+                        <span className="inline-flex items-center gap-3">
+                          <FaSyncAlt className="animate-spin text-yellow-300" />
+                          Le CMO IA analyse ton objectif et choisit le module le plus rentable...
+                        </span>
+                      </div>
+                    ) : cmoResult?.diagnostic ? (
                       <p className="mt-5 text-sm leading-7 text-white/72">
                         {cmoResult.diagnostic}
                       </p>
@@ -762,7 +827,10 @@ export default function DashboardPage() {
                         {cmoModuleTarget.label}
                       </PrimaryButton>
                       <SecondaryButton onClick={loadCmoLive}>
-                        Générer une décision CMO
+                        <span className="inline-flex items-center justify-center gap-2">
+                          {cmoLoading ? <FaSyncAlt className="animate-spin" /> : null}
+                          {cmoLoading ? "Décision en cours..." : "Générer une décision CMO"}
+                        </span>
                       </SecondaryButton>
                     </div>
 
