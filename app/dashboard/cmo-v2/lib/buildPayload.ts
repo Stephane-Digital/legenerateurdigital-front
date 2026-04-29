@@ -47,7 +47,8 @@ export function buildPayload(module: CMOModule, objectiveInput: string, blockerI
 
   const objective = clean(context.objective, objectiveInput);
   const blocker = clean(context.blocker, blockerInput);
-  const offer = clean(context.offer, email.offer_name || lead.offer_bridge || "offre à préciser");
+  const rawOffer = clean(context.offer, email.offer_name || lead.offer_bridge || "offre à préciser");
+  const offer = ["formation", "offre", "produit", "service", "offre à préciser"].includes(rawOffer.toLowerCase()) ? "la formation Code Liberté" : rawOffer;
   const audience = clean(context.audience, email.target_audience || lead.target_audience || "audience à préciser");
   const promise = clean(context.promise, email.main_promise || lead.lead_magnet_promise || "promesse à préciser");
   const angle = clean(context.angle, email.conversion_angle || lead.lead_magnet_angle || editor.hook_direction);
