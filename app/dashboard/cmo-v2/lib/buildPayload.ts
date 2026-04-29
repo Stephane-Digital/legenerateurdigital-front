@@ -1,12 +1,12 @@
-import type { CMOModule, CMOPayload, CMOStrategy, CMOTarget } from "../types";
-import { buildStrategy } from "./buildStrategy";
+import type { CMODispatchResult, CMOModule, CMOPayload, CMOTarget } from "../types";
+import { buildFallbackDispatch, normalizeDispatchResult } from "./buildStrategy";
 
-function clean(value: string, fallback = "") {
+function clean(value: unknown, fallback = "") {
   const text = String(value || "").replace(/\s+/g, " ").trim();
   return text || fallback;
 }
 
-function shortText(value: string, max = 90) {
+function shortText(value: unknown, max = 90) {
   const text = clean(value);
   if (text.length <= max) return text;
   return `${text.slice(0, max - 1).trim()}…`;
@@ -20,128 +20,112 @@ function detectCampaignType(text: string): "vente" | "relance" | "lancement" | "
   return "vente";
 }
 
-function moduleToTarget(module: CMOModule): CMOTarget {
+export function moduleToTarget(module: CMOModule): CMOTarget {
   if (module === "email") return "emailing";
   if (module === "lead") return "lead_engine";
   return module;
 }
 
-function extractOffer(objective: string) {
-  const text = clean(objective);
-  const lower = text.toLowerCase();
-
-  const patterns = [
-    /vendre\s+(?:ma|mon|mes|la|le|les|un|une|des)\s+([^,.!?]+)/i,
-    /promouvoir\s+(?:ma|mon|mes|la|le|les|un|une|des)\s+([^,.!?]+)/i,
-    /lancer\s+(?:ma|mon|mes|la|le|les|un|une|des)\s+([^,.!?]+)/i,
-  ];
-
-  for (const pattern of patterns) {
-    const match = text.match(pattern);
-    if (match?.[1]) return shortText(match[1], 80);
-  }
-
-  if (lower.includes("formation")) return "formation";
-  return shortText(text, 80);
+export function targetToModule(target: CMOTarget): CMOModule {
+  if (target === "emailing") return "email";
+  if (target === "lead_engine") return "lead";
+  return target;
 }
 
-export function buildPayload(
-  module: CMOModule,
-  objectiveInput: string,
-  blockerInput: string,
-  liveStrategy?: CMOStrategy | null
-): CMOPayload {
-  const objective = clean(objectiveInput, "Créer une action marketing utile aujourd’hui.");
-  const blocker = clean(blockerInput, "Le besoin doit être clarifié avant de produire le contenu.");
+export function buildPayload(module: CMOModule, objectiveInput: string, blockerInput: string, dispatchInput?: unknown): CMOPayload {
   const target = moduleToTarget(module);
-  const offer = extractOffer(objective);
-  const strategy = liveStrategy ?? buildStrategy(objective, blocker);
+  const dispatch: CMODispatchResult = dispatchInput
+    ? normalizeDispatchResult(dispatchInput, objectiveInput, blockerInput, target)
+    : buildFallbackDispatch(objectiveInput, blockerInput, target);
 
-  const cta = strategy.cta || (offer && offer !== objective ? `Découvrir ${offer}` : "Passer à l’action maintenant");
-  const audience = strategy.target || `Audience concernée par cet objectif : ${objective}`;
-  const promise =
-    strategy.promise ||
-    `Transformer ce besoin utilisateur en action claire, personnalisée et directement exploitable malgré le blocage : ${blocker}`;
+  const context = dispatch.context;
+  const email = dispatch.module_payloads.emailing;
+  const lead = dispatch.module_payloads.lead_engine;
+  const editor = dispatch.module_payloads.editor;
+  const coach = dispatch.module_payloads.coach;
 
-  const priorityByModule: Record<CMOModule, string> = {
-    email: `Créer une campagne emailing orientée sur ${offer}.`,
-    lead: `Créer une ressource de capture alignée avec ${offer}.`,
-    editor: `Créer un contenu social clair pour présenter ${offer}.`,
-    coach: `Clarifier la stratégie autour de ${offer}.`,
-  };
-
-  const nextByModule: Record<CMOModule, string> = {
-    email: `Rédiger une séquence email contextualisée pour vendre ${offer}, avec sujet, promesse, objections et CTA.`,
-    lead: `Créer un lead magnet ou une landing page qui répond au blocage : ${blocker}`,
-    editor: `Créer un post ou carrousel qui part du blocage, présente l’offre et pousse vers le CTA.`,
-    coach: `Transformer l’objectif en plan d’action priorisé, étape par étape.`,
-  };
-
-  const diagnostic = `Objectif exprimé par l’utilisateur : ${objective}. Blocage actuel : ${blocker}.`;
-  const whyThisAction = `Cette action est pertinente parce qu’elle part d’une demande réelle de l’utilisateur, de son offre et de son frein actuel, au lieu de générer un contenu générique.`;
-  const nextBestAction = nextByModule[module];
+  const objective = clean(context.objective, objectiveInput);
+  const blocker = clean(context.blocker, blockerInput);
+  const offer = clean(context.offer, email.offer_name || lead.offer_bridge || "offre à préciser");
+  const audience = clean(context.audience, email.target_audience || lead.target_audience || "audience à préciser");
+  const promise = clean(context.promise, email.main_promise || lead.lead_magnet_promise || "promesse à préciser");
+  const angle = clean(context.angle, email.conversion_angle || lead.lead_magnet_angle || editor.hook_direction);
+  const cta = clean(context.cta, email.primary_cta || lead.cta_label || "Passer à l’action");
 
   return {
     created_at: new Date().toISOString(),
-    source: "cmo_v2_assisted",
+    source: "cmo_dispatch_system",
     target,
     module,
     targetModule: target,
     destination: target,
-    priority_action: priorityByModule[module],
-    diagnostic,
-    why_this_action: whyThisAction,
-    next_best_action: nextBestAction,
+    cmo_mode: "dispatch_only",
+    content_generation: "module_only",
+
+    priority_action: dispatch.decision.priority_action,
+    diagnostic: dispatch.diagnostic,
+    why_this_action: dispatch.decision.reason,
+    next_best_action: dispatch.decision.priority_action,
+
     objective,
     blocker,
     audience,
     offer,
     promise,
-    angle: strategy.angle || priorityByModule[module],
+    angle,
     cta,
-    tone: "premium",
-    strategy,
-    generated_content: {
-      post: `${priorityByModule[module]}\n\n${diagnostic}\n\n${cta}`,
-      email: `Bonjour,\n\nTu m’as demandé de travailler sur : ${objective}\n\nLe point à débloquer : ${blocker}\n\nVoici l’angle prioritaire : ${promise}\n\n${cta}`,
-      cta,
-      lead_magnet_idea: `Checklist rapide pour résoudre : ${blocker}`,
-    },
+    tone: clean(context.tone, "premium, humain, direct"),
+    dispatch,
+
     content_ready: {
       email: {
-        campaignName: `CMO IA - ${shortText(objective, 70)}`,
-        campaignType: detectCampaignType(`${objective} ${blocker}`),
+        campaignName: `CMO Dispatch - ${shortText(offer || objective, 70)}`,
+        campaignType: detectCampaignType(`${objective} ${blocker} ${angle}`),
         offerName: offer,
         targetAudience: audience,
         mainPromise: promise,
-        mainObjective: nextBestAction,
+        mainObjective: email.campaign_goal,
         primaryCta: cta,
-        suggestedSubject: `${offer} : une approche claire et naturelle`,
-        previewText: shortText(`${strategy.angle} — ${promise}`, 120),
-        firstEmailBody: `Bonjour,\n\nTu m’as demandé de créer une campagne pour : ${objective}\n\nJe pars donc de ton blocage principal : ${blocker}\n\nL’angle retenu est : ${strategy.angle}\n\nLa promesse centrale : ${promise}\n\nLe mécanisme d’exécution : ${strategy.mechanism}\n\n${cta}`,
+        suggestedSubject: `${shortText(offer, 48)} : ${shortText(promise, 58)}`,
+        previewText: shortText(angle, 120),
+        firstEmailBody: [
+          `Brief CMO Dispatch pour Emailing IA.`,
+          `Objectif : ${email.campaign_goal}`,
+          `Offre : ${offer}`,
+          `Cible : ${audience}`,
+          `Blocage : ${email.main_blocker}`,
+          `Angle : ${email.conversion_angle}`,
+          `Promesse : ${email.main_promise}`,
+          `CTA : ${email.primary_cta}`,
+          `Direction de séquence : ${(email.sequence_direction || []).join(" / ")}`,
+        ].join("\n"),
+        cmoBrief: email,
       },
       lead: {
-        magnetName: `Checklist ${shortText(offer, 45)}`,
-        headline: `Résous ce blocage : ${shortText(blocker, 80)}`,
-        promise,
-        angle: strategy.angle || priorityByModule[module],
-        audience,
-        offer,
-        cta: "Recevoir la ressource",
+        magnetName: `Ressource - ${shortText(offer, 45)}`,
+        headline: shortText(lead.lead_magnet_angle || angle, 90),
+        promise: lead.lead_magnet_promise || promise,
+        angle: lead.lead_magnet_angle || angle,
+        audience: lead.target_audience || audience,
+        offer: lead.offer_bridge || offer,
+        cta: lead.cta_label || "Recevoir la ressource",
+        cmoBrief: lead,
       },
       editor: {
-        format: "post",
-        hook: strategy.angle || `Tu veux ${shortText(objective, 70)} ?`,
-        body: `${diagnostic}\n\n${whyThisAction}\n\nPromesse : ${promise}`,
+        format: editor.format_recommendation || "post",
+        hook: editor.hook_direction || angle,
+        body: editor.body_direction || `${blocker}\n\n${promise}`,
         cta,
-        caption: `${strategy.angle || priorityByModule[module]}\n\n${diagnostic}\n\n${cta}`,
+        caption: editor.caption_direction || `${angle}\n\n${cta}`,
+        cmoBrief: editor,
       },
       coach: {
-        missionTitle: `Stratégie CMO IA — ${shortText(offer, 60)}`,
-        brief: `Objectif : ${objective}\nBlocage : ${blocker}\nOffre : ${offer}\nCible : ${audience}\nProblème : ${strategy.pain}\nDésir : ${strategy.desire}\nPromesse : ${promise}\nAngle : ${strategy.angle}\nMécanisme : ${strategy.mechanism}\nProchaine action : ${nextBestAction}\nCTA : ${cta}`,
-        briefText: `Objectif : ${objective}. Blocage : ${blocker}. Offre : ${offer}. Cible : ${audience}. Problème : ${strategy.pain}. Désir : ${strategy.desire}. Promesse : ${promise}. Angle : ${strategy.angle}. Mécanisme : ${strategy.mechanism}. CTA : ${cta}. Donne-moi un plan d’action clair, priorisé et exécutable.`,
+        missionTitle: coach.mission_title || `Plan CMO — ${shortText(offer, 60)}`,
+        brief: coach.brief,
+        briefText: `${coach.brief}\n\nSortie attendue : ${coach.expected_output}`,
         kpiLabel: "Plan stratégique validé",
-        durationMinutes: 45,
+        durationMinutes: coach.duration_minutes || 45,
+        cmoBrief: coach,
       },
     },
   };
