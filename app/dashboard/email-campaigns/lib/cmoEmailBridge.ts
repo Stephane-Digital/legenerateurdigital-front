@@ -30,8 +30,24 @@ function asRecord(value: unknown): Record<string, unknown> {
 }
 
 function text(value: unknown, fallback = ""): string {
-  const result = String(value || "").replace(/\s+/g, " ").trim();
+  const result = String(value ?? "")
+    .replace(/\*\*/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
   return result || fallback;
+}
+
+function bestOffer(...values: unknown[]): string {
+  for (const value of values) {
+    const candidate = text(value);
+    if (!candidate) continue;
+    if (!["formation", "offre", "produit", "service"].includes(candidate.toLowerCase())) return candidate;
+  }
+  for (const value of values) {
+    const candidate = text(value);
+    if (candidate) return candidate;
+  }
+  return "la formation Code Liberté";
 }
 
 export function getCMOEmailCampaignDraft(): EmailCampaignDraftFromCMO | null {
@@ -44,13 +60,13 @@ export function getCMOEmailCampaignDraft(): EmailCampaignDraftFromCMO | null {
   const dispatch = asRecord(root.dispatch);
   const context = asRecord(dispatch.context);
 
-  const offerName = text(emailReady.offerName, text(root.offer, text(context.offer, "offre à préciser")));
-  const targetAudience = text(emailReady.targetAudience, text(root.audience, text(context.audience, "audience à préciser")));
-  const mainPromise = text(emailReady.mainPromise, text(root.promise, text(context.promise, "promesse à préciser")));
-  const mainObjective = text(emailReady.mainObjective, text(root.objective, text(context.objective, "objectif à préciser")));
+  const offerName = bestOffer(emailReady.offerName, root.offer, context.offer, "la formation Code Liberté");
+  const targetAudience = text(emailReady.targetAudience, text(root.audience, text(context.audience, "prospects concernés par l’objectif")));
+  const mainPromise = text(emailReady.mainPromise, text(root.promise, text(context.promise, "avancer avec une méthode simple, progressive et rassurante")));
+  const mainObjective = text(emailReady.mainObjective, text(root.objective, text(context.objective, "vendre une offre avec un message clair")));
   const primaryCta = text(emailReady.primaryCta, text(root.cta, text(context.cta, "Passer à l’action maintenant")));
-  const pain = text(root.blocker, text(context.pain, text(context.blocker, "blocage à préciser")));
-  const angle = text(root.angle, text(context.angle, "angle à préciser"));
+  const pain = text(root.blocker, text(context.pain, text(context.blocker, "le prospect hésite à passer à l’action")));
+  const angle = text(root.angle, text(context.angle, "montrer que le passage à l’action devient plus simple avec une méthode guidée"));
   const objection = text(context.objection, pain);
   const tone = text(root.tone, text(context.tone, "premium, humain, direct"));
 
