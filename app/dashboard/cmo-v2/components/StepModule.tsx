@@ -1,43 +1,78 @@
 import type { CMOModule } from "../types";
 
-export default function StepModule({ value, onChange, onBack, onFinish }: any) {
-  const modules: CMOModule[] = ["email", "lead", "editor", "coach"];
+type Props = {
+  value: CMOModule | null;
+  onChange: (module: CMOModule) => void;
+  onBack: () => void;
+  onFinish: () => void;
+};
 
+const modules: Array<{ key: CMOModule; label: string; description: string }> = [
+  {
+    key: "email",
+    label: "Emailing IA",
+    description: "Préparer une campagne contextualisée autour de ton offre et de ton blocage.",
+  },
+  {
+    key: "lead",
+    label: "Leads IA",
+    description: "Créer une ressource ou une landing page pour capter des prospects qualifiés.",
+  },
+  {
+    key: "editor",
+    label: "Éditeur intelligent",
+    description: "Créer un post ou carrousel orienté problème, promesse et CTA.",
+  },
+  {
+    key: "coach",
+    label: "Coach Alex",
+    description: "Transformer le brief en plan d’action clair et priorisé.",
+  },
+];
+
+export default function StepModule({ value, onChange, onBack, onFinish }: Props) {
   return (
-    <div className="space-y-4">
-      <h2 className="text-yellow-400 text-lg font-semibold">
-        Sur quoi veux-tu travailler ?
-      </h2>
+    <div className="space-y-5">
+      <div>
+        <h2 className="text-xl font-bold text-yellow-400">Quel module veux-tu exploiter ?</h2>
+        <p className="mt-2 text-sm text-gray-400">
+          Le CMO prépare le contexte. Le module choisi exécute ensuite l’action.
+        </p>
+      </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        {modules.map((m) => (
+      <div className="grid gap-3 md:grid-cols-2">
+        {modules.map((item) => (
           <button
-            key={m}
-            onClick={() => onChange(m)}
-            className={`p-3 rounded-lg border ${
-              value === m
-                ? "border-yellow-400 bg-yellow-500/10"
-                : "border-gray-700"
+            key={item.key}
+            className={`rounded-2xl border p-4 text-left transition ${
+              value === item.key
+                ? "border-yellow-400 bg-yellow-400/10 shadow-[0_0_30px_rgba(250,204,21,0.12)]"
+                : "border-white/10 bg-black/40 hover:border-yellow-400/40"
             }`}
+            onClick={() => onChange(item.key)}
+            type="button"
           >
-            {m}
+            <div className="font-black text-white">{item.label}</div>
+            <div className="mt-2 text-xs leading-relaxed text-gray-400">{item.description}</div>
           </button>
         ))}
       </div>
 
-      <div className="flex gap-2">
+      <div className="grid gap-3 md:grid-cols-2">
         <button
+          className="rounded-xl border border-white/15 px-5 py-3 font-bold text-gray-200 transition hover:border-yellow-400/50 hover:text-yellow-300"
           onClick={onBack}
-          className="flex-1 border border-gray-700 text-gray-300 py-2 rounded-lg"
+          type="button"
         >
           Retour
         </button>
-
         <button
+          className="rounded-xl bg-yellow-400 px-5 py-3 font-black text-black transition hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={!value}
           onClick={onFinish}
-          className="flex-1 bg-yellow-500 hover:bg-yellow-400 text-black py-2 rounded-lg"
+          type="button"
         >
-          Lancer
+          Lancer dans le module
         </button>
       </div>
     </div>
