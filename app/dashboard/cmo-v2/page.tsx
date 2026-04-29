@@ -3,7 +3,7 @@ import CMOWizard from "./components/CMOWizard";
 export default function CMOV2Page() {
   return (
    <main className="min-h-screen bg-[#050509] px-5 pt-24 pb-10 text-white md:px-8">
-      <section className="mx-auto flex max-w-4xl flex-col items-center gap-8">
+    <section className="mx-auto flex max-w-4xl flex-col items-center gap-10">
         <div className="max-w-3xl text-center">
           <div className="text-xs font-semibold uppercase tracking-[0.22em] text-yellow-300/70">
             Le Générateur Digital
