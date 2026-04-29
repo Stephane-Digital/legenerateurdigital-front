@@ -1,4 +1,5 @@
 import type { CMODispatchResult, CMOModule, CMOPayload, CMOTarget } from "../types";
+import { buildEmailSequencePro } from "../../email-campaigns/lib/emailEnginePro";
 import { buildFallbackDispatch, normalizeDispatchResult } from "./buildStrategy";
 
 function clean(value: unknown, fallback = "") {
@@ -51,6 +52,18 @@ export function buildPayload(module: CMOModule, objectiveInput: string, blockerI
   const promise = clean(context.promise, email.main_promise || lead.lead_magnet_promise || "promesse à préciser");
   const angle = clean(context.angle, email.conversion_angle || lead.lead_magnet_angle || editor.hook_direction);
   const cta = clean(context.cta, email.primary_cta || lead.cta_label || "Passer à l’action");
+  const emailSequence = buildEmailSequencePro({
+    offer,
+    target: audience,
+    pain: clean(context.pain, email.main_blocker || blocker),
+    promise,
+    cta,
+    angle,
+    objection: clean(context.objection, email.main_blocker || blocker),
+    objective,
+    tone: clean(context.tone, email.tone || "premium, humain, direct"),
+    brand: "LGD",
+  });
 
   return {
     created_at: new Date().toISOString(),
@@ -77,6 +90,13 @@ export function buildPayload(module: CMOModule, objectiveInput: string, blockerI
     tone: clean(context.tone, "premium, humain, direct"),
     dispatch,
 
+    generated_content: {
+      email_sequence: emailSequence.days,
+      email_sequence_text: emailSequence.plainTextExport,
+      post: emailSequence.plainTextExport,
+      email: emailSequence.plainTextExport,
+    },
+
     content_ready: {
       email: {
         campaignName: `CMO Dispatch - ${shortText(offer || objective, 70)}`,
@@ -100,6 +120,8 @@ export function buildPayload(module: CMOModule, objectiveInput: string, blockerI
           `Direction de séquence : ${(email.sequence_direction || []).join(" / ")}`,
         ].join("\n"),
         cmoBrief: email,
+        emailSequence,
+        emailSequenceText: emailSequence.plainTextExport,
       },
       lead: {
         magnetName: `Ressource - ${shortText(offer, 45)}`,
