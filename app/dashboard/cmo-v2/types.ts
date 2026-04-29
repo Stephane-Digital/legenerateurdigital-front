@@ -3,6 +3,18 @@ import type { EmailSequenceDay, EmailSequencePro } from "../email-campaigns/lib/
 export type CMOModule = "email" | "lead" | "editor" | "coach";
 export type CMOTarget = "emailing" | "lead_engine" | "editor" | "coach";
 
+export type CMOStrategy = {
+  cible: string;
+  target?: string;
+  pain: string;
+  desire: string;
+  promise: string;
+  angle: string;
+  mechanism: string;
+  cta: string;
+};
+
+
 export type CMOContext = {
   objective: string;
   blocker: string;
@@ -113,6 +125,7 @@ export type CMOPayload = {
   angle?: string;
   cta?: string;
   tone?: string;
+  strategy?: CMOStrategy;
 
   dispatch: CMODispatchResult;
 
