@@ -31,6 +31,25 @@ type CmoAutoPayload = {
     cta?: string;
     lead_magnet_idea?: string;
   };
+  content_ready?: {
+    email?: {
+      campaignName?: string;
+      campaignType?: EmailCampaignFormValues["campaign_type"];
+      offerName?: string;
+      targetAudience?: string;
+      mainPromise?: string;
+      mainObjective?: string;
+      primaryCta?: string;
+      suggestedSubject?: string;
+      previewText?: string;
+      firstEmailBody?: string;
+    };
+  };
+  offer?: string;
+  audience?: string;
+  objective?: string;
+  promise?: string;
+  cta?: string;
 };
 
 function asCleanString(value: unknown) {
@@ -66,26 +85,41 @@ function buildCmoEmailValues(
   payload: CmoAutoPayload,
   previous: EmailCampaignFormValues
 ): EmailCampaignFormValues {
+  const ready = payload.content_ready?.email;
   const priorityAction = asCleanString(payload.priority_action);
   const diagnostic = asCleanString(payload.diagnostic);
   const whyThisAction = asCleanString(payload.why_this_action);
   const nextBestAction = asCleanString(payload.next_best_action);
   const emailContent = asCleanString(payload.generated_content?.email);
-  const cta = asCleanString(payload.generated_content?.cta);
+  const cta = asCleanString(ready?.primaryCta) || asCleanString(payload.cta) || asCleanString(payload.generated_content?.cta);
 
   return {
     ...defaultEmailCampaignValues,
     sender_name: previous.sender_name,
-    name: priorityAction ? `CMO IA - ${shortText(priorityAction, 70)}` : "CMO IA - Campagne prioritaire",
-    campaign_type: inferCampaignType(payload),
+    name:
+      asCleanString(ready?.campaignName) ||
+      (priorityAction ? `CMO IA - ${shortText(priorityAction, 70)}` : "CMO IA - Campagne prioritaire"),
+    campaign_type: ready?.campaignType || inferCampaignType(payload),
     duration_days: 7,
-    offer_name: cta || shortText(nextBestAction || priorityAction, 90),
-    target_audience: diagnostic || "Audience prioritaire détectée par le CMO IA.",
+    offer_name:
+      asCleanString(ready?.offerName) ||
+      asCleanString(payload.offer) ||
+      cta ||
+      shortText(nextBestAction || priorityAction, 90),
+    target_audience:
+      asCleanString(ready?.targetAudience) ||
+      asCleanString(payload.audience) ||
+      diagnostic ||
+      "Audience prioritaire détectée par le CMO IA.",
     main_promise:
+      asCleanString(ready?.mainPromise) ||
+      asCleanString(payload.promise) ||
       whyThisAction ||
       emailContent ||
       "Transformer l’attention du prospect en action claire et mesurable.",
     main_objective:
+      asCleanString(ready?.mainObjective) ||
+      asCleanString(payload.objective) ||
       nextBestAction ||
       priorityAction ||
       "Créer une campagne email courte, persuasive et directement exploitable.",
