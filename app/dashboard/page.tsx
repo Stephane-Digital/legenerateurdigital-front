@@ -1,6 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
@@ -62,70 +63,6 @@ type CmoModuleTarget = {
   key: "coach" | "emailing" | "editor" | "lead_engine";
   label: string;
   path: string;
-};
-
-type CmoReadyEmail = {
-  campaignName: string;
-  campaignType: "vente" | "relance" | "lancement" | "nurturing";
-  offerName: string;
-  targetAudience: string;
-  mainPromise: string;
-  mainObjective: string;
-  primaryCta: string;
-  suggestedSubject: string;
-  previewText: string;
-  firstEmailBody: string;
-};
-
-type CmoAutoPayloadV2 = {
-  created_at: string;
-  source: "dashboard_cmo_v2";
-  target: CmoModuleTarget["key"];
-  module: CmoModuleTarget["key"];
-  targetModule: CmoModuleTarget["key"];
-  destination: CmoModuleTarget["key"];
-  priority_action: string;
-  diagnostic: string;
-  why_this_action: string;
-  next_best_action: string;
-  audience: string;
-  offer: string;
-  objective: string;
-  promise: string;
-  angle: string;
-  cta: string;
-  tone: string;
-  generated_content: {
-    post: string;
-    email: string;
-    cta: string;
-    lead_magnet_idea: string;
-  };
-  content_ready: {
-    email: CmoReadyEmail;
-    lead: {
-      magnetName: string;
-      headline: string;
-      promise: string;
-      angle: string;
-      audience: string;
-      offer: string;
-      cta: string;
-    };
-    editor: {
-      format: "post" | "carrousel";
-      hook: string;
-      body: string;
-      cta: string;
-      caption: string;
-    };
-    coach: {
-      missionTitle: string;
-      brief: string;
-      kpiLabel: string;
-      durationMinutes: number;
-    };
-  };
 };
 
 const CMO_AUTO_PAYLOAD_KEY = "lgd_cmo_module_auto_payload";
@@ -347,131 +284,6 @@ function getCmoModuleTarget(
   };
 }
 
-
-
-function cleanCmoText(value: unknown, fallback: string) {
-  const text = typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
-  return text || fallback;
-}
-
-function buildCmoModuleAutoPayload(
-  target: CmoModuleTarget,
-  result: CmoDashboardResult | null
-): CmoAutoPayloadV2 {
-  const priorityAction = cleanCmoText(
-    result?.priority_action,
-    target.key === "emailing"
-      ? "Lancer une campagne emailing ciblée avec une offre spéciale."
-      : target.key === "lead_engine"
-        ? "Créer un lead magnet simple pour capter des prospects qualifiés."
-        : target.key === "editor"
-          ? "Créer un contenu social orienté problème, promesse et CTA."
-          : "Lancer Coach Alex pour clarifier l’action la plus rentable."
-  );
-
-  const diagnostic = cleanCmoText(
-    result?.diagnostic,
-    target.key === "emailing"
-      ? "Ton audience a besoin d’un message clair, direct et orienté conversion pour passer à l’action."
-      : target.key === "lead_engine"
-        ? "Ton audience doit recevoir une ressource utile avant d’être prête à acheter."
-        : target.key === "editor"
-          ? "Tu dois remettre de la visibilité dans ton système avec un contenu court, lisible et actionnable."
-          : "Tu as besoin de clarifier l’offre, la cible et le canal prioritaire avant d’exécuter."
-  );
-
-  const whyThisAction = cleanCmoText(
-    result?.why_this_action,
-    target.key === "emailing"
-      ? "L’emailing est le canal le plus direct pour transformer une intention en action. Une offre claire, un angle urgent et un CTA simple peuvent déclencher des ventes rapidement."
-      : target.key === "lead_engine"
-        ? "Un lead magnet bien positionné transforme l’attention froide en contact qualifié et prépare la vente sans pression."
-        : target.key === "editor"
-          ? "Un post ou carrousel bien structuré clarifie le problème, montre la solution et invite l’audience à l’étape suivante."
-          : "Quand plusieurs actions sont possibles, le coach permet de choisir le levier le plus rentable selon l’objectif, la cible et l’offre."
-  );
-
-  const nextBestAction = cleanCmoText(
-    result?.next_best_action,
-    target.key === "emailing"
-      ? "Rédiger une séquence email courte avec sujet, préheader, promesse, objection, relance et CTA."
-      : target.key === "lead_engine"
-        ? "Créer une landing page de capture avec promesse forte, bénéfices et CTA clair."
-        : target.key === "editor"
-          ? "Créer un contenu court orienté problème, promesse et CTA."
-          : "Analyser l’offre, la cible, le canal prioritaire et la prochaine action concrète."
-  );
-
-  const cta = cleanCmoText(result?.generated_content?.cta, "Profitez de l’offre maintenant !");
-  const offer = target.key === "lead_engine" ? "Diagnostic express de positionnement" : cta;
-  const audience = diagnostic;
-  const promise = whyThisAction;
-  const objective = nextBestAction;
-
-  const emailReady: CmoReadyEmail = {
-    campaignName: `CMO IA - ${priorityAction}`,
-    campaignType: target.key === "emailing" && priorityAction.toLowerCase().includes("relance") ? "relance" : "vente",
-    offerName: offer,
-    targetAudience: audience,
-    mainPromise: promise,
-    mainObjective: objective,
-    primaryCta: cta,
-    suggestedSubject: "Ton plan d’action est prêt",
-    previewText: "Une action simple pour transformer l’attention en vente.",
-    firstEmailBody: `Bonjour,\n\n${diagnostic}\n\n${whyThisAction}\n\nLa prochaine étape est simple : ${nextBestAction}\n\n${cta}`,
-  };
-
-  return {
-    created_at: new Date().toISOString(),
-    source: "dashboard_cmo_v2",
-    target: target.key,
-    module: target.key,
-    targetModule: target.key,
-    destination: target.key,
-    priority_action: priorityAction,
-    diagnostic,
-    why_this_action: whyThisAction,
-    next_best_action: nextBestAction,
-    audience,
-    offer,
-    objective,
-    promise,
-    angle: priorityAction,
-    cta,
-    tone: "premium",
-    generated_content: {
-      post: `${priorityAction}\n\n${diagnostic}\n\n${cta}`,
-      email: emailReady.firstEmailBody,
-      cta,
-      lead_magnet_idea: "Diagnostic express : identifie ton offre, ta cible et ton action de vente prioritaire en moins de 15 minutes.",
-    },
-    content_ready: {
-      email: emailReady,
-      lead: {
-        magnetName: "Diagnostic express de positionnement",
-        headline: "Clarifie ton offre et attire des prospects prêts à agir",
-        promise: "Obtiens une direction claire pour transformer ton audience en prospects qualifiés.",
-        angle: priorityAction,
-        audience,
-        offer: "Diagnostic express de positionnement",
-        cta: "Recevoir mon diagnostic",
-      },
-      editor: {
-        format: "post",
-        hook: priorityAction,
-        body: `${diagnostic}\n\n${whyThisAction}`,
-        cta,
-        caption: `${priorityAction}\n\n${diagnostic}\n\n${cta}`,
-      },
-      coach: {
-        missionTitle: `Stratégie CMO IA — ${target.key === "coach" ? "ton offre" : priorityAction}`,
-        brief: `Offre : ${offer}\nCible : ${audience}\nObjectif : ${objective}\nPromesse : ${promise}\nCTA : ${cta}`,
-        kpiLabel: "Plan stratégique validé",
-        durationMinutes: 45,
-      },
-    },
-  };
-}
 
 function getPlanFromLocalStorage(): Plan {
   if (typeof window === "undefined") return "none";
@@ -821,7 +633,19 @@ export default function DashboardPage() {
     if (typeof window !== "undefined") {
       window.localStorage.setItem(
         CMO_AUTO_PAYLOAD_KEY,
-        JSON.stringify(buildCmoModuleAutoPayload(target, cmoResult))
+        JSON.stringify({
+          created_at: new Date().toISOString(),
+          source: "dashboard_cmo_v5",
+          target: target.key,
+          module: target.key,
+          targetModule: target.key,
+          destination: target.key,
+          priority_action: cmoResult?.priority_action || "",
+          diagnostic: cmoResult?.diagnostic || "",
+          why_this_action: cmoResult?.why_this_action || "",
+          next_best_action: cmoResult?.next_best_action || "",
+          generated_content: cmoResult?.generated_content || {},
+        })
       );
     }
 
@@ -1003,12 +827,12 @@ export default function DashboardPage() {
                       <PrimaryButton onClick={executeCmoModuleAuto}>
                         {cmoModuleTarget.label}
                       </PrimaryButton>
-                      <SecondaryButton onClick={loadCmoLive}>
-                        <span className="inline-flex items-center justify-center gap-2">
-                          {cmoLoading ? <FaSyncAlt className="animate-spin" /> : null}
-                          {cmoLoading ? "Décision en cours..." : "Générer une décision CMO"}
-                        </span>
-                      </SecondaryButton>
+                      <Link
+                        href="/dashboard/cmo-v2"
+                        className="w-full rounded-2xl px-5 py-3 text-center font-semibold border border-yellow-600/25 bg-[#0b0b0b] text-white/85 hover:bg-yellow-500/10 transition-all"
+                      >
+                        Générer avec CMO IA
+                      </Link>
                     </div>
 
                     <p className="mt-3 text-center text-xs leading-5 text-white/45">
