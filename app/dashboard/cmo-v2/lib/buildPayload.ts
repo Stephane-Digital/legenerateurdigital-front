@@ -1,4 +1,4 @@
-import type { CMOModule, CMOPayload, CMOTarget } from "../types";
+import type { CMOModule, CMOPayload, CMOStrategy, CMOTarget } from "../types";
 import { buildStrategy } from "./buildStrategy";
 
 function clean(value: string, fallback = "") {
@@ -48,13 +48,14 @@ function extractOffer(objective: string) {
 export function buildPayload(
   module: CMOModule,
   objectiveInput: string,
-  blockerInput: string
+  blockerInput: string,
+  liveStrategy?: CMOStrategy | null
 ): CMOPayload {
   const objective = clean(objectiveInput, "Créer une action marketing utile aujourd’hui.");
   const blocker = clean(blockerInput, "Le besoin doit être clarifié avant de produire le contenu.");
   const target = moduleToTarget(module);
   const offer = extractOffer(objective);
-  const strategy = buildStrategy(objective, blocker);
+  const strategy = liveStrategy ?? buildStrategy(objective, blocker);
 
   const cta = strategy.cta || (offer && offer !== objective ? `Découvrir ${offer}` : "Passer à l’action maintenant");
   const audience = strategy.target || `Audience concernée par cet objectif : ${objective}`;
@@ -115,9 +116,9 @@ export function buildPayload(
         mainPromise: promise,
         mainObjective: nextBestAction,
         primaryCta: cta,
-        suggestedSubject: `${offer} : ton plan d’action est prêt`,
-        previewText: `Une séquence orientée sur ton objectif réel : ${shortText(objective, 90)}`,
-        firstEmailBody: `Bonjour,\n\nTu m’as demandé de créer une campagne pour : ${objective}\n\nJe pars donc de ton blocage principal : ${blocker}\n\nL’objectif de cette séquence est simple : présenter ${offer}, créer de la confiance, lever les objections et guider vers une action claire.\n\n${cta}`,
+        suggestedSubject: `${offer} : une approche claire et naturelle`,
+        previewText: shortText(`${strategy.angle} — ${promise}`, 120),
+        firstEmailBody: `Bonjour,\n\nTu m’as demandé de créer une campagne pour : ${objective}\n\nJe pars donc de ton blocage principal : ${blocker}\n\nL’angle retenu est : ${strategy.angle}\n\nLa promesse centrale : ${promise}\n\nLe mécanisme d’exécution : ${strategy.mechanism}\n\n${cta}`,
       },
       lead: {
         magnetName: `Checklist ${shortText(offer, 45)}`,
@@ -131,14 +132,14 @@ export function buildPayload(
       editor: {
         format: "post",
         hook: strategy.angle || `Tu veux ${shortText(objective, 70)} ?`,
-        body: `${diagnostic}\n\n${whyThisAction}`,
+        body: `${diagnostic}\n\n${whyThisAction}\n\nPromesse : ${promise}`,
         cta,
-        caption: `${priorityByModule[module]}\n\n${diagnostic}\n\n${cta}`,
+        caption: `${strategy.angle || priorityByModule[module]}\n\n${diagnostic}\n\n${cta}`,
       },
       coach: {
         missionTitle: `Stratégie CMO IA — ${shortText(offer, 60)}`,
-        brief: `Objectif : ${objective}\nBlocage : ${blocker}\nOffre : ${offer}\nCible : ${audience}\nProblème : ${strategy.pain}\nPromesse : ${promise}\nAngle : ${strategy.angle}\nMécanisme : ${strategy.mechanism}\nProchaine action : ${nextBestAction}\nCTA : ${cta}`,
-        briefText: `Objectif : ${objective}. Blocage : ${blocker}. Offre : ${offer}. Cible : ${audience}. Problème : ${strategy.pain}. Promesse : ${promise}. Angle : ${strategy.angle}. Mécanisme : ${strategy.mechanism}. CTA : ${cta}. Donne-moi un plan d’action clair, priorisé et exécutable.`,
+        brief: `Objectif : ${objective}\nBlocage : ${blocker}\nOffre : ${offer}\nCible : ${audience}\nProblème : ${strategy.pain}\nDésir : ${strategy.desire}\nPromesse : ${promise}\nAngle : ${strategy.angle}\nMécanisme : ${strategy.mechanism}\nProchaine action : ${nextBestAction}\nCTA : ${cta}`,
+        briefText: `Objectif : ${objective}. Blocage : ${blocker}. Offre : ${offer}. Cible : ${audience}. Problème : ${strategy.pain}. Désir : ${strategy.desire}. Promesse : ${promise}. Angle : ${strategy.angle}. Mécanisme : ${strategy.mechanism}. CTA : ${cta}. Donne-moi un plan d’action clair, priorisé et exécutable.`,
         kpiLabel: "Plan stratégique validé",
         durationMinutes: 45,
       },
