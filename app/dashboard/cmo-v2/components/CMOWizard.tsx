@@ -3,17 +3,16 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { buildPayload } from "../lib/buildPayload";
-import { buildStrategy } from "../lib/buildStrategy";
-import { generateStrategyWithAI } from "../lib/generateStrategy";
-import type { CMOModule, CMOStrategy } from "../types";
+import { buildPayload, moduleToTarget } from "../lib/buildPayload";
+import { requestCMODispatch } from "../lib/cmoDispatchClient";
+import { buildFallbackDispatch } from "../lib/buildStrategy";
+import { saveCMOPayload } from "../lib/storage";
+import type { CMODispatchResult, CMOModule } from "../types";
 
 import StepBlocker from "./StepBlocker";
 import StepGoal from "./StepGoal";
 import StepModule from "./StepModule";
 import StepStrategy from "./StepStrategy";
-
-const CMO_PAYLOAD_KEY = "lgd_cmo_module_auto_payload";
 
 const routes: Record<CMOModule, string> = {
   email: "/dashboard/email-campaigns",
@@ -29,10 +28,10 @@ export default function CMOWizard() {
   const [objective, setObjective] = useState("");
   const [blocker, setBlocker] = useState("");
   const [module, setModule] = useState<CMOModule | null>(null);
-  const [strategy, setStrategy] = useState<CMOStrategy | null>(null);
-  const [isLiveStrategy, setIsLiveStrategy] = useState(false);
-  const [loadingStrategy, setLoadingStrategy] = useState(false);
+  const [dispatch, setDispatch] = useState<CMODispatchResult | null>(null);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [safeModeNotice, setSafeModeNotice] = useState("");
 
   const goStep2 = () => {
     if (!objective.trim()) {
@@ -60,21 +59,28 @@ export default function CMOWizard() {
       return;
     }
 
+    const targetModule = moduleToTarget(module);
+    setLoading(true);
     setError("");
-    setLoadingStrategy(true);
+    setSafeModeNotice("");
 
-    const liveStrategy = await generateStrategyWithAI(objective, blocker);
-
-    if (liveStrategy) {
-      setStrategy(liveStrategy);
-      setIsLiveStrategy(true);
-    } else {
-      setStrategy(buildStrategy(objective, blocker));
-      setIsLiveStrategy(false);
+    try {
+      const liveDispatch = await requestCMODispatch({ objective, blocker, targetModule });
+      const payload = buildPayload(module, objective, blocker, liveDispatch);
+      setDispatch(payload.dispatch);
+      setStep(4);
+    } catch (err) {
+      const fallback = buildFallbackDispatch(objective, blocker, targetModule);
+      setDispatch(fallback);
+      setSafeModeNotice(
+        err instanceof Error
+          ? `Mode SAFE activé : ${err.message}`
+          : "Mode SAFE activé : l’API CMO Dispatch est indisponible."
+      );
+      setStep(4);
+    } finally {
+      setLoading(false);
     }
-
-    setLoadingStrategy(false);
-    setStep(4);
   };
 
   const handleFinish = () => {
@@ -83,10 +89,9 @@ export default function CMOWizard() {
       return;
     }
 
-    const finalStrategy = strategy ?? buildStrategy(objective, blocker);
-    const payload = buildPayload(module, objective, blocker, finalStrategy);
-
-    window.localStorage.setItem(CMO_PAYLOAD_KEY, JSON.stringify(payload));
+    const finalDispatch = dispatch || buildFallbackDispatch(objective, blocker, moduleToTarget(module));
+    const payload = buildPayload(module, objective, blocker, finalDispatch);
+    saveCMOPayload(payload);
     router.push(routes[module]);
   };
 
@@ -111,15 +116,19 @@ export default function CMOWizard() {
         </div>
       )}
 
-      {loadingStrategy && (
-        <div className="mb-5 rounded-xl border border-yellow-400/25 bg-yellow-400/10 px-4 py-3 text-sm font-semibold text-yellow-100">
-          Le CMO IA analyse ton objectif, ton blocage et prépare une stratégie exploitable…
+      {safeModeNotice && (
+        <div className="mb-5 rounded-xl border border-yellow-500/25 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-100/80">
+          {safeModeNotice}
         </div>
       )}
 
-      {step === 1 && (
-        <StepGoal value={objective} onChange={setObjective} onNext={goStep2} />
+      {loading && step !== 4 && (
+        <div className="mb-5 rounded-xl border border-yellow-500/20 bg-white/[0.03] px-4 py-3 text-sm text-white/65">
+          Analyse CMO en cours : objectif, blocage, offre, promesse, angle, CTA et payload module.
+        </div>
       )}
+
+      {step === 1 && <StepGoal value={objective} onChange={setObjective} onNext={goStep2} />}
 
       {step === 2 && (
         <StepBlocker
@@ -142,14 +151,13 @@ export default function CMOWizard() {
             setStep(2);
           }}
           onFinish={goStep4}
-          loading={loadingStrategy}
         />
       )}
 
-      {step === 4 && strategy && (
+      {step === 4 && dispatch && (
         <StepStrategy
-          strategy={strategy}
-          isLive={isLiveStrategy}
+          dispatch={dispatch}
+          loading={loading}
           onBack={() => {
             setError("");
             setStep(3);
