@@ -36,7 +36,7 @@ export type CMOPayload = {
   cta?: string;
   tone?: string;
 
-  // 🔥 AJOUT CRITIQUE (corrige ton erreur build)
+  // 🔥 AJOUT CRITIQUE (corrige ton erreur)
   strategy?: CMOStrategy;
 
   generated_content?: {
@@ -66,4 +66,24 @@ export type CMOPayload = {
       promise?: string;
       angle?: string;
       audience?: string;
-     
+      offer?: string;
+      cta?: string;
+    };
+
+    editor?: {
+      format?: "post" | "carrousel";
+      hook?: string;
+      body?: string;
+      cta?: string;
+      caption?: string;
+    };
+
+    coach?: {
+      missionTitle?: string;
+      brief?: string;
+      briefText?: string;
+      kpiLabel?: string;
+      durationMinutes?: number;
+    };
+  };
+};
