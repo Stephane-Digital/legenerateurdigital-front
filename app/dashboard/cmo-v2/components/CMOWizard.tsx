@@ -2,21 +2,21 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+
 import { buildPayload } from "../lib/buildPayload";
 import type { CMOModule } from "../types";
-import StepBlocker from "./StepBlocker";
+
 import StepGoal from "./StepGoal";
+import StepBlocker from "./StepBlocker";
 import StepModule from "./StepModule";
 
 export default function CMOWizard() {
+  const router = useRouter();
+
   const [step, setStep] = useState(1);
   const [objective, setObjective] = useState("");
   const [blocker, setBlocker] = useState("");
   const [module, setModule] = useState<CMOModule | null>(null);
-  const router = useRouter();
-
-  const next = () => setStep((s) => s + 1);
-  const back = () => setStep((s) => s - 1);
 
   const handleFinish = () => {
     if (!module) return;
@@ -28,7 +28,7 @@ export default function CMOWizard() {
       JSON.stringify(payload)
     );
 
-    const routes: Record<CMOModule, string> = {
+    const routes = {
       email: "/dashboard/email-campaigns",
       lead: "/dashboard/lead-engine",
       editor:
@@ -40,23 +40,25 @@ export default function CMOWizard() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="bg-[#0B0B0F] border border-yellow-500/20 rounded-2xl p-6 shadow-xl space-y-6">
       {step === 1 && (
-        <StepGoal value={objective} onChange={setObjective} onNext={next} />
+        <StepGoal value={objective} onChange={setObjective} onNext={() => setStep(2)} />
       )}
+
       {step === 2 && (
         <StepBlocker
           value={blocker}
           onChange={setBlocker}
-          onNext={next}
-          onBack={back}
+          onNext={() => setStep(3)}
+          onBack={() => setStep(1)}
         />
       )}
+
       {step === 3 && (
         <StepModule
           value={module}
           onChange={setModule}
-          onBack={back}
+          onBack={() => setStep(2)}
           onFinish={handleFinish}
         />
       )}
