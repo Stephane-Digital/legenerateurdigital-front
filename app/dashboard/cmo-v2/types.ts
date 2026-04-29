@@ -36,7 +36,6 @@ export type CMOPayload = {
   cta?: string;
   tone?: string;
 
-  // 🔥 AJOUT CRITIQUE (corrige ton erreur)
   strategy?: CMOStrategy;
 
   generated_content?: {
