@@ -1,7 +1,15 @@
 export type CMOModule = "email" | "lead" | "editor" | "coach";
 
 export type CMOTarget = "emailing" | "lead_engine" | "editor" | "coach";
-
+export type CMOStrategy = {
+  target: string;
+  pain: string;
+  desire: string;
+  promise: string;
+  angle: string;
+  mechanism: string;
+  cta: string;
+};
 export type CMOPayload = {
   created_at: string;
   source: "cmo_v2_assisted";
