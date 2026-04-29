@@ -65,7 +65,8 @@ function fallbackModulePayloads(context: CMOContext): CMOModulePayloads {
 export function buildFallbackDispatch(objectiveInput: string, blockerInput: string, targetModule?: CMOTarget): CMODispatchResult {
   const objective = clean(objectiveInput, "Clarifier une action marketing rentable.");
   const blocker = clean(blockerInput, "Le blocage principal doit être clarifié.");
-  const offer = objective.toLowerCase().includes("formation") ? "formation" : "offre à préciser";
+  const offerMatch = objective.match(/vendre\s+(?:ma|mon|mes|la|le|les|un|une|des)\s+([^,.!?]+)/i);
+  const offer = offerMatch?.[1]?.trim() || (objective.toLowerCase().includes("formation") ? "la formation Code Liberté" : "offre à préciser");
   const audience = "prospects concernés par l’objectif";
 
   const context: CMOContext = {
