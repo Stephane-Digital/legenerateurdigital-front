@@ -1,6 +1,16 @@
 export type CMOModule = "email" | "lead" | "editor" | "coach";
 export type CMOTarget = "emailing" | "lead_engine" | "editor" | "coach";
 
+export type CMOStrategy = {
+  target: string;
+  pain: string;
+  desire: string;
+  promise: string;
+  angle: string;
+  mechanism: string;
+  cta: string;
+};
+
 export type CMOContext = {
   objective: string;
   blocker: string;
@@ -90,13 +100,14 @@ export type CMODispatchResult = {
 
 export type CMOPayload = {
   created_at: string;
-  source: "cmo_dispatch_system";
+  source: "cmo_dispatch_system" | "cmo_v2_assisted";
   target: CMOTarget;
   module: CMOModule;
   targetModule: CMOTarget;
   destination: CMOTarget;
-  cmo_mode: "dispatch_only";
-  content_generation: "module_only";
+
+  cmo_mode?: "dispatch_only";
+  content_generation?: "module_only";
 
   priority_action: string;
   diagnostic: string;
@@ -112,47 +123,62 @@ export type CMOPayload = {
   cta?: string;
   tone?: string;
 
-  dispatch: CMODispatchResult;
+  // Compatibilité SAFE avec l'ancien CMO V2 déjà présent dans ton repo.
+  // Le nouveau dispatch peut l'ignorer, mais les anciens appels buildPayload
+  // peuvent encore envoyer strategy pendant la transition.
+  strategy?: CMOStrategy;
 
-  content_ready: {
-    email: {
-      campaignName: string;
-      campaignType: "vente" | "relance" | "lancement" | "nurturing";
-      offerName: string;
-      targetAudience: string;
-      mainPromise: string;
-      mainObjective: string;
-      primaryCta: string;
-      suggestedSubject: string;
-      previewText: string;
-      firstEmailBody: string;
-      cmoBrief: CMOEmailPayload;
+  // Compatibilité SAFE avec les anciens modules qui lisent encore generated_content.
+  // Le CMO Dispatch ne doit plus produire le contenu final, mais on conserve
+  // ce champ optionnel pour ne pas casser les branchements existants.
+  generated_content?: {
+    post?: string;
+    email?: string;
+    cta?: string;
+    lead_magnet_idea?: string;
+  };
+
+  dispatch?: CMODispatchResult;
+
+  content_ready?: {
+    email?: {
+      campaignName?: string;
+      campaignType?: "vente" | "relance" | "lancement" | "nurturing";
+      offerName?: string;
+      targetAudience?: string;
+      mainPromise?: string;
+      mainObjective?: string;
+      primaryCta?: string;
+      suggestedSubject?: string;
+      previewText?: string;
+      firstEmailBody?: string;
+      cmoBrief?: CMOEmailPayload;
     };
-    lead: {
-      magnetName: string;
-      headline: string;
-      promise: string;
-      angle: string;
-      audience: string;
-      offer: string;
-      cta: string;
-      cmoBrief: CMOLeadPayload;
+    lead?: {
+      magnetName?: string;
+      headline?: string;
+      promise?: string;
+      angle?: string;
+      audience?: string;
+      offer?: string;
+      cta?: string;
+      cmoBrief?: CMOLeadPayload;
     };
-    editor: {
-      format: "post" | "carrousel";
-      hook: string;
-      body: string;
-      cta: string;
-      caption: string;
-      cmoBrief: CMOEditorPayload;
+    editor?: {
+      format?: "post" | "carrousel";
+      hook?: string;
+      body?: string;
+      cta?: string;
+      caption?: string;
+      cmoBrief?: CMOEditorPayload;
     };
-    coach: {
-      missionTitle: string;
-      brief: string;
-      briefText: string;
-      kpiLabel: string;
-      durationMinutes: number;
-      cmoBrief: CMOCoachPayload;
+    coach?: {
+      missionTitle?: string;
+      brief?: string;
+      briefText?: string;
+      kpiLabel?: string;
+      durationMinutes?: number;
+      cmoBrief?: CMOCoachPayload;
     };
   };
 };
