@@ -1,69 +1,130 @@
-import type { CMOStrategy } from "../types";
+import type { CMOContext, CMODispatchResult, CMOModulePayloads, CMOTarget } from "../types";
 
-function clean(value: string, fallback = "") {
+function clean(value: unknown, fallback = "") {
   const text = String(value || "").replace(/\s+/g, " ").trim();
   return text || fallback;
 }
 
-function extractOffer(objective: string) {
-  const text = clean(objective);
-  const patterns = [
-    /vendre\s+(?:ma|mon|mes|la|le|les|un|une|des)\s+([^,.!?]+)/i,
-    /promouvoir\s+(?:ma|mon|mes|la|le|les|un|une|des)\s+([^,.!?]+)/i,
-    /lancer\s+(?:ma|mon|mes|la|le|les|un|une|des)\s+([^,.!?]+)/i,
-  ];
-
-  for (const pattern of patterns) {
-    const match = text.match(pattern);
-    if (match?.[1]) return match[1].trim();
-  }
-
-  return text || "ton offre";
+function normalizeTarget(value: unknown): CMOTarget {
+  const text = clean(value).toLowerCase();
+  if (["email", "emailing", "email_campaigns"].includes(text)) return "emailing";
+  if (["lead", "lead_engine", "lead-engine", "landing"].includes(text)) return "lead_engine";
+  if (["editor", "editeur", "éditeur", "post", "carrousel"].includes(text)) return "editor";
+  if (["coach", "coach_ia", "coach-ia"].includes(text)) return "coach";
+  return "coach";
 }
 
-export function buildStrategy(objectiveInput: string, blockerInput: string): CMOStrategy {
-  const objective = clean(objectiveInput, "Créer une action marketing utile aujourd’hui.");
-  const blocker = clean(blockerInput, "Le message doit être clarifié avant de produire le contenu.");
-  const combined = `${objective} ${blocker}`.toLowerCase();
-  const offer = extractOffer(objective);
-  const wantsSoftSelling =
-    combined.includes("pas agressif") ||
-    combined.includes("sans être agressif") ||
-    combined.includes("douce") ||
-    combined.includes("soft") ||
-    combined.includes("naturel");
+function fallbackModulePayloads(context: CMOContext): CMOModulePayloads {
+  return {
+    emailing: {
+      module: "emailing",
+      campaign_goal: context.objective,
+      offer_name: context.offer,
+      target_audience: context.audience,
+      main_blocker: context.blocker,
+      conversion_angle: context.angle,
+      main_promise: context.promise,
+      primary_cta: context.cta,
+      tone: context.tone,
+      sequence_direction: [
+        "Email 1 : faire résonner le problème et poser le coût de l’inaction.",
+        "Email 2 : présenter le mécanisme et la promesse de l’offre.",
+        "Email 3 : lever l’objection principale et pousser vers le CTA.",
+      ],
+    },
+    lead_engine: {
+      module: "lead_engine",
+      lead_goal: `Capturer des prospects intéressés par ${context.offer}`,
+      lead_magnet_angle: context.angle,
+      lead_magnet_promise: context.promise,
+      target_audience: context.audience,
+      problem_to_solve: context.blocker,
+      offer_bridge: context.offer,
+      cta_label: "Recevoir la ressource",
+      landing_direction: "Hero clair, bénéfice immédiat, 3 points de valeur, preuve simple, formulaire, CTA.",
+    },
+    editor: {
+      module: "editor",
+      creative_goal: context.objective,
+      format_recommendation: "post",
+      hook_direction: context.angle,
+      body_direction: `Montrer le blocage (${context.blocker}), révéler la promesse (${context.promise}), puis guider vers ${context.cta}.`,
+      visual_direction: "Visuel premium sombre/doré, message central court, contraste fort, CTA lisible.",
+      caption_direction: "Caption courte : problème, prise de conscience, promesse, CTA.",
+    },
+    coach: {
+      module: "coach",
+      mission_title: `Plan CMO — ${context.offer}`,
+      brief: `Objectif : ${context.objective}\nBlocage : ${context.blocker}\nOffre : ${context.offer}\nCible : ${context.audience}\nAngle : ${context.angle}\nPromesse : ${context.promise}\nCTA : ${context.cta}`,
+      expected_output: "Plan d’action priorisé, prochaines étapes, risques à éviter, critères de validation.",
+      duration_minutes: 45,
+    },
+  };
+}
 
-  if (wantsSoftSelling) {
-    return {
-      target: `Prospects intéressés par ${offer}, mais sensibles aux messages trop commerciaux`,
-      pain: "Ils ont besoin d’être rassurés avant d’acheter et rejettent la pression commerciale",
-      desire: "Comprendre la valeur de l’offre et se projeter sans se sentir forcés",
-      promise: `Présenter ${offer} avec une approche claire, utile et non agressive`,
-      angle: "Vente douce : créer de la confiance avant de proposer l’action",
-      mechanism: "Séquence pédagogique : problème → prise de conscience → preuve → invitation naturelle",
-      cta: `Découvrir ${offer}`,
-    };
-  }
+export function buildFallbackDispatch(objectiveInput: string, blockerInput: string, targetModule?: CMOTarget): CMODispatchResult {
+  const objective = clean(objectiveInput, "Clarifier une action marketing rentable.");
+  const blocker = clean(blockerInput, "Le blocage principal doit être clarifié.");
+  const offer = objective.toLowerCase().includes("formation") ? "formation" : "offre à préciser";
+  const audience = "prospects concernés par l’objectif";
 
-  if (combined.includes("email") || combined.includes("emailing")) {
-    return {
-      target: `Audience concernée par ${offer}`,
-      pain: blocker,
-      desire: "Comprendre rapidement pourquoi l’offre peut l’aider et passer à l’action",
-      promise: `Transformer l’intérêt autour de ${offer} en action concrète`,
-      angle: "Séquence email claire : bénéfice concret, objection levée, CTA simple",
-      mechanism: "Emails courts orientés confiance, preuve et décision",
-      cta: `Découvrir ${offer}`,
-    };
-  }
+  const context: CMOContext = {
+    objective,
+    blocker,
+    offer,
+    audience,
+    pain: blocker,
+    desire: "obtenir un résultat concret sans perdre de temps",
+    angle: `Partir du blocage réel pour rendre ${offer} plus désirable.`,
+    promise: `Aider la cible à avancer malgré : ${blocker}.`,
+    mechanism: "brief CMO structuré puis génération par module spécialisé",
+    objection: "peur de ne pas obtenir de résultat concret",
+    cta: "Passer à l’action maintenant",
+    tone: "premium, humain, direct",
+  };
 
   return {
-    target: `Audience concernée par ${offer}`,
-    pain: blocker,
-    desire: "Obtenir une solution claire et facile à comprendre",
-    promise: `Transformer ${offer} en action marketing concrète`,
-    angle: "Clarifier le problème, rendre l’offre évidente, puis guider vers l’action",
-    mechanism: "Message simple : situation actuelle → coût du blocage → solution → prochaine étape",
-    cta: `Découvrir ${offer}`,
+    diagnostic: `Objectif : ${objective}. Blocage : ${blocker}. Le CMO prépare maintenant un brief structuré au lieu de générer un contenu générique.`,
+    decision: {
+      recommended_module: normalizeTarget(targetModule || "coach"),
+      priority_action: "Envoyer un contexte marketing propre au module cible.",
+      reason: "Le module spécialisé produira un meilleur résultat avec offre, cible, angle, promesse et CTA clairement cadrés.",
+    },
+    context,
+    module_payloads: fallbackModulePayloads(context),
+    assumptions: ["Fallback front utilisé si l’API CMO Dispatch n’est pas disponible."],
+    warnings: [],
+    meta: {
+      module: "CMO IA Dispatch",
+      mode: "frontend_safe_fallback",
+      content_generation: "disabled_at_cmo_level",
+    },
+  };
+}
+
+export function normalizeDispatchResult(raw: unknown, objective: string, blocker: string, targetModule?: CMOTarget): CMODispatchResult {
+  const fallback = buildFallbackDispatch(objective, blocker, targetModule);
+  const data = raw && typeof raw === "object" ? (raw as Partial<CMODispatchResult>) : {};
+  const context = data.context && typeof data.context === "object" ? { ...fallback.context, ...data.context } : fallback.context;
+  const basePayloads = fallbackModulePayloads(context as CMOContext);
+  const incomingPayloads = data.module_payloads && typeof data.module_payloads === "object" ? data.module_payloads : {};
+
+  return {
+    diagnostic: clean(data.diagnostic, fallback.diagnostic),
+    decision: {
+      recommended_module: normalizeTarget(data.decision?.recommended_module || targetModule || fallback.decision.recommended_module),
+      priority_action: clean(data.decision?.priority_action, fallback.decision.priority_action),
+      reason: clean(data.decision?.reason, fallback.decision.reason),
+    },
+    context: context as CMOContext,
+    module_payloads: {
+      emailing: { ...basePayloads.emailing, ...(incomingPayloads as Partial<CMOModulePayloads>).emailing },
+      lead_engine: { ...basePayloads.lead_engine, ...(incomingPayloads as Partial<CMOModulePayloads>).lead_engine },
+      editor: { ...basePayloads.editor, ...(incomingPayloads as Partial<CMOModulePayloads>).editor },
+      coach: { ...basePayloads.coach, ...(incomingPayloads as Partial<CMOModulePayloads>).coach },
+    },
+    assumptions: Array.isArray(data.assumptions) && data.assumptions.length ? data.assumptions : fallback.assumptions,
+    warnings: Array.isArray(data.warnings) ? data.warnings : fallback.warnings,
+    meta: data.meta || fallback.meta,
   };
 }
