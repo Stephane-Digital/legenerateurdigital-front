@@ -1,3 +1,5 @@
+import CMOWizard from "./components/CMOWizard";
+
 export default function CMOV2Page() {
   return (
     <div className="min-h-[calc(100vh-120px)] flex items-center justify-center px-6">
