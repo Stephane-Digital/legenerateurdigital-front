@@ -64,6 +64,70 @@ type CmoModuleTarget = {
   path: string;
 };
 
+type CmoReadyEmail = {
+  campaignName: string;
+  campaignType: "vente" | "relance" | "lancement" | "nurturing";
+  offerName: string;
+  targetAudience: string;
+  mainPromise: string;
+  mainObjective: string;
+  primaryCta: string;
+  suggestedSubject: string;
+  previewText: string;
+  firstEmailBody: string;
+};
+
+type CmoAutoPayloadV2 = {
+  created_at: string;
+  source: "dashboard_cmo_v2";
+  target: CmoModuleTarget["key"];
+  module: CmoModuleTarget["key"];
+  targetModule: CmoModuleTarget["key"];
+  destination: CmoModuleTarget["key"];
+  priority_action: string;
+  diagnostic: string;
+  why_this_action: string;
+  next_best_action: string;
+  audience: string;
+  offer: string;
+  objective: string;
+  promise: string;
+  angle: string;
+  cta: string;
+  tone: string;
+  generated_content: {
+    post: string;
+    email: string;
+    cta: string;
+    lead_magnet_idea: string;
+  };
+  content_ready: {
+    email: CmoReadyEmail;
+    lead: {
+      magnetName: string;
+      headline: string;
+      promise: string;
+      angle: string;
+      audience: string;
+      offer: string;
+      cta: string;
+    };
+    editor: {
+      format: "post" | "carrousel";
+      hook: string;
+      body: string;
+      cta: string;
+      caption: string;
+    };
+    coach: {
+      missionTitle: string;
+      brief: string;
+      kpiLabel: string;
+      durationMinutes: number;
+    };
+  };
+};
+
 const CMO_AUTO_PAYLOAD_KEY = "lgd_cmo_module_auto_payload";
 
 
@@ -137,91 +201,42 @@ async function fetchPlanFromBackend(): Promise<Plan> {
 
 
 async function fetchCmoDashboardStrategy(): Promise<CmoDashboardResult> {
-  // ✅ CMO SAFE — aucune dépendance à /cmo-ai/strategy.
-  // L'ancien endpoint renvoie 400 en production si le payload ne correspond pas exactement.
-  // On garde l'expérience CMO + moulinette, sans casser le Dashboard ni Coach Alex.
-  const scenarios: CmoDashboardResult[] = [
-    {
-      diagnostic:
-        "Tu dois relancer rapidement l'attention de ton audience avec une offre claire et un message orienté conversion.",
-      priority_action:
-        "Lancer une campagne d'emailing ciblée avec une offre spéciale.",
-      why_this_action:
-        "L'emailing est le canal le plus direct pour transformer une intention en action. Une offre claire, un angle urgent et un CTA simple peuvent déclencher des ventes rapidement.",
-      next_best_action:
-        "Créer une séquence courte avec sujet, préheader, promesse, objections et CTA.",
-      generated_content: {
-        email:
-          "Campagne CMO IA : créer une séquence d'emails pour promouvoir une offre spéciale et relancer les prospects chauds.",
-        cta: "Profitez de l'offre maintenant !",
-        lead_magnet_idea: "Checklist express pour passer de l'idée à la vente.",
-        post: "Une offre claire + un message direct = une action plus facile pour ton prospect.",
-      },
-    },
-    {
-      diagnostic:
-        "Tu as besoin de transformer ton trafic en contacts qualifiés avant de vendre plus fort.",
-      priority_action:
-        "Créer un Lead Magnet avec une page de capture orientée conversion.",
-      why_this_action:
-        "Un lead magnet permet de capter les prospects avant qu'ils soient prêts à acheter. Il crée une première preuve de valeur et prépare la vente suivante.",
-      next_best_action:
-        "Construire une promesse simple, une cible précise et un CTA de capture.",
-      generated_content: {
-        lead_magnet_idea: "Mini-guide : 5 actions pour obtenir ses premiers prospects avec l'IA.",
-        cta: "Télécharger le guide gratuit",
-        email: "Relancer les nouveaux leads avec une séquence courte de bienvenue.",
-        post: "Tu n'as pas besoin de plus de trafic, tu as besoin d'une meilleure capture.",
-      },
-    },
-    {
-      diagnostic:
-        "Ta visibilité doit être renforcée avec un contenu simple, utile et directement relié à une action de vente.",
-      priority_action:
-        "Créer un contenu social court pour attirer de nouveaux prospects.",
-      why_this_action:
-        "Un contenu clair peut attirer l'attention, faire comprendre ton offre et envoyer les bonnes personnes vers l'étape suivante.",
-      next_best_action:
-        "Créer un post ou carrousel avec problème, promesse, solution et CTA.",
-      generated_content: {
-        post: "Ton audience n'a pas besoin d'un outil de plus : elle a besoin de savoir quoi faire maintenant.",
-        cta: "Découvrir la méthode LGD",
-        lead_magnet_idea: "Template de post orienté conversion.",
-        email: "Transformer ce contenu en email de relance.",
-      },
-    },
-    {
-      diagnostic:
-        "La meilleure priorité est de clarifier la stratégie avant d'exécuter pour éviter de disperser tes actions.",
-      priority_action:
-        "Lancer Coach Alex pour clarifier l'action la plus rentable.",
-      why_this_action:
-        "Quand plusieurs actions sont possibles, le coach permet de choisir le levier le plus rentable selon l'objectif, la cible et l'offre.",
-      next_best_action:
-        "Analyser l'offre, la cible, le canal prioritaire et la prochaine action concrète.",
-      generated_content: {
-        cta: "Lancer la stratégie avec Coach Alex",
-        post: "La clarté précède l'exécution rentable.",
-        email: "Clarifier l'angle de vente avant d'envoyer la campagne.",
-        lead_magnet_idea: "Diagnostic express de positionnement.",
-      },
-    },
-  ];
+  const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
+  const token = getStoredToken();
 
-  await new Promise((resolve) => window.setTimeout(resolve, 850));
-
-  let nextIndex = 0;
-  try {
-    const raw = window.localStorage.getItem("lgd_cmo_safe_rotation_index");
-    const currentIndex = raw ? Number.parseInt(raw, 10) : -1;
-    nextIndex = Number.isFinite(currentIndex) ? (currentIndex + 1) % scenarios.length : 0;
-    window.localStorage.setItem("lgd_cmo_safe_rotation_index", String(nextIndex));
-  } catch {
-    nextIndex = Math.floor(Math.random() * scenarios.length);
+  if (!token) {
+    throw new Error("Token utilisateur introuvable.");
   }
 
-  return scenarios[nextIndex];
+  const res = await fetch(`${base}/cmo-ai/strategy`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      objective: "Aider l'utilisateur LGD à choisir l'action la plus rentable aujourd'hui pour obtenir ou accélérer ses ventes.",
+      niche: "business en ligne, marketing digital, création de contenu, prospection",
+      audience: "entrepreneurs, créateurs, indépendants et débutants qui veulent vendre avec l'IA",
+      offer: "Le Générateur Digital",
+      current_situation: "L'utilisateur arrive sur le dashboard LGD et doit savoir quoi faire maintenant.",
+      constraints: "Réponse courte, actionnable, non technique, orientée vente. Une seule priorité.",
+      preferred_channel: "Coach Alex, Emailing IA, Éditeur intelligent ou Lead Engine selon la meilleure action.",
+      tone: "premium, humain, direct, motivant",
+      user_level: "intermediate",
+    }),
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    throw new Error(`cmo-ai/strategy ${res.status}`);
+  }
+
+  const data = (await res.json()) as any;
+  return (data?.result || data || {}) as CmoDashboardResult;
 }
+
 
 
 function countMatches(text: string, words: string[]) {
@@ -332,6 +347,131 @@ function getCmoModuleTarget(
   };
 }
 
+
+
+function cleanCmoText(value: unknown, fallback: string) {
+  const text = typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
+  return text || fallback;
+}
+
+function buildCmoModuleAutoPayload(
+  target: CmoModuleTarget,
+  result: CmoDashboardResult | null
+): CmoAutoPayloadV2 {
+  const priorityAction = cleanCmoText(
+    result?.priority_action,
+    target.key === "emailing"
+      ? "Lancer une campagne emailing ciblée avec une offre spéciale."
+      : target.key === "lead_engine"
+        ? "Créer un lead magnet simple pour capter des prospects qualifiés."
+        : target.key === "editor"
+          ? "Créer un contenu social orienté problème, promesse et CTA."
+          : "Lancer Coach Alex pour clarifier l’action la plus rentable."
+  );
+
+  const diagnostic = cleanCmoText(
+    result?.diagnostic,
+    target.key === "emailing"
+      ? "Ton audience a besoin d’un message clair, direct et orienté conversion pour passer à l’action."
+      : target.key === "lead_engine"
+        ? "Ton audience doit recevoir une ressource utile avant d’être prête à acheter."
+        : target.key === "editor"
+          ? "Tu dois remettre de la visibilité dans ton système avec un contenu court, lisible et actionnable."
+          : "Tu as besoin de clarifier l’offre, la cible et le canal prioritaire avant d’exécuter."
+  );
+
+  const whyThisAction = cleanCmoText(
+    result?.why_this_action,
+    target.key === "emailing"
+      ? "L’emailing est le canal le plus direct pour transformer une intention en action. Une offre claire, un angle urgent et un CTA simple peuvent déclencher des ventes rapidement."
+      : target.key === "lead_engine"
+        ? "Un lead magnet bien positionné transforme l’attention froide en contact qualifié et prépare la vente sans pression."
+        : target.key === "editor"
+          ? "Un post ou carrousel bien structuré clarifie le problème, montre la solution et invite l’audience à l’étape suivante."
+          : "Quand plusieurs actions sont possibles, le coach permet de choisir le levier le plus rentable selon l’objectif, la cible et l’offre."
+  );
+
+  const nextBestAction = cleanCmoText(
+    result?.next_best_action,
+    target.key === "emailing"
+      ? "Rédiger une séquence email courte avec sujet, préheader, promesse, objection, relance et CTA."
+      : target.key === "lead_engine"
+        ? "Créer une landing page de capture avec promesse forte, bénéfices et CTA clair."
+        : target.key === "editor"
+          ? "Créer un contenu court orienté problème, promesse et CTA."
+          : "Analyser l’offre, la cible, le canal prioritaire et la prochaine action concrète."
+  );
+
+  const cta = cleanCmoText(result?.generated_content?.cta, "Profitez de l’offre maintenant !");
+  const offer = target.key === "lead_engine" ? "Diagnostic express de positionnement" : cta;
+  const audience = diagnostic;
+  const promise = whyThisAction;
+  const objective = nextBestAction;
+
+  const emailReady: CmoReadyEmail = {
+    campaignName: `CMO IA - ${priorityAction}`,
+    campaignType: target.key === "emailing" && priorityAction.toLowerCase().includes("relance") ? "relance" : "vente",
+    offerName: offer,
+    targetAudience: audience,
+    mainPromise: promise,
+    mainObjective: objective,
+    primaryCta: cta,
+    suggestedSubject: "Ton plan d’action est prêt",
+    previewText: "Une action simple pour transformer l’attention en vente.",
+    firstEmailBody: `Bonjour,\n\n${diagnostic}\n\n${whyThisAction}\n\nLa prochaine étape est simple : ${nextBestAction}\n\n${cta}`,
+  };
+
+  return {
+    created_at: new Date().toISOString(),
+    source: "dashboard_cmo_v2",
+    target: target.key,
+    module: target.key,
+    targetModule: target.key,
+    destination: target.key,
+    priority_action: priorityAction,
+    diagnostic,
+    why_this_action: whyThisAction,
+    next_best_action: nextBestAction,
+    audience,
+    offer,
+    objective,
+    promise,
+    angle: priorityAction,
+    cta,
+    tone: "premium",
+    generated_content: {
+      post: `${priorityAction}\n\n${diagnostic}\n\n${cta}`,
+      email: emailReady.firstEmailBody,
+      cta,
+      lead_magnet_idea: "Diagnostic express : identifie ton offre, ta cible et ton action de vente prioritaire en moins de 15 minutes.",
+    },
+    content_ready: {
+      email: emailReady,
+      lead: {
+        magnetName: "Diagnostic express de positionnement",
+        headline: "Clarifie ton offre et attire des prospects prêts à agir",
+        promise: "Obtiens une direction claire pour transformer ton audience en prospects qualifiés.",
+        angle: priorityAction,
+        audience,
+        offer: "Diagnostic express de positionnement",
+        cta: "Recevoir mon diagnostic",
+      },
+      editor: {
+        format: "post",
+        hook: priorityAction,
+        body: `${diagnostic}\n\n${whyThisAction}`,
+        cta,
+        caption: `${priorityAction}\n\n${diagnostic}\n\n${cta}`,
+      },
+      coach: {
+        missionTitle: `Stratégie CMO IA — ${target.key === "coach" ? "ton offre" : priorityAction}`,
+        brief: `Offre : ${offer}\nCible : ${audience}\nObjectif : ${objective}\nPromesse : ${promise}\nCTA : ${cta}`,
+        kpiLabel: "Plan stratégique validé",
+        durationMinutes: 45,
+      },
+    },
+  };
+}
 
 function getPlanFromLocalStorage(): Plan {
   if (typeof window === "undefined") return "none";
@@ -677,39 +817,14 @@ export default function DashboardPage() {
 
   function executeCmoModuleAuto() {
     const target = getCmoModuleTarget(cmoResult, dailyProgress);
-    const normalizedModule =
-      target.key === "emailing"
-        ? "email"
-        : target.key === "lead_engine"
-          ? "lead"
-          : target.key === "editor"
-            ? "editor"
-            : "coach";
 
     if (typeof window !== "undefined") {
       window.localStorage.setItem(
         CMO_AUTO_PAYLOAD_KEY,
-        JSON.stringify({
-          created_at: new Date().toISOString(),
-          source: "dashboard_cmo_v5_safe",
-          target: target.key,
-          module: normalizedModule,
-          targetModule: target.key,
-          destination: target.key,
-          route: target.path,
-          objective: cmoResult?.priority_action || "Créer l'action marketing la plus rentable maintenant.",
-          audience: cmoResult?.diagnostic || "Entrepreneurs, créateurs et indépendants qui veulent vendre avec l'IA.",
-          offer: cmoResult?.generated_content?.lead_magnet_idea || cmoResult?.generated_content?.cta || "Le Générateur Digital",
-          tone: "premium",
-          language: "fr",
-          priority_action: cmoResult?.priority_action || "",
-          diagnostic: cmoResult?.diagnostic || "",
-          why_this_action: cmoResult?.why_this_action || "",
-          next_best_action: cmoResult?.next_best_action || "",
-          generated_content: cmoResult?.generated_content || {},
-        })
+        JSON.stringify(buildCmoModuleAutoPayload(target, cmoResult))
       );
     }
+
     if (target.key === "editor") {
       markContentCreated();
     }
@@ -852,7 +967,7 @@ export default function DashboardPage() {
                       </p>
                     ) : (
                       <p className="mt-5 text-sm leading-7 text-white/60">
-                        Clique sur “Actualiser CMO IA” pour générer une décision stratégique CMO stable et prête à exécuter.
+                        Clique sur “Actualiser CMO IA” pour générer une décision stratégique live depuis le backend V5.
                       </p>
                     )}
 
