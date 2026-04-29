@@ -99,7 +99,7 @@ export function buildPayload(
     angle: strategy.angle || priorityByModule[module],
     cta,
     tone: "premium",
-    strategy,
+ strategy,
     generated_content: {
       post: `${priorityByModule[module]}\n\n${diagnostic}\n\n${cta}`,
       email: `Bonjour,\n\nTu m’as demandé de travailler sur : ${objective}\n\nLe point à débloquer : ${blocker}\n\nVoici l’angle prioritaire : ${promise}\n\n${cta}`,
