@@ -1,20 +1,30 @@
-export default function StepGoal({ value, onChange, onNext }: any) {
+type Props = {
+  value: string;
+  onChange: (value: string) => void;
+  onNext: () => void;
+};
+
+export default function StepGoal({ value, onChange, onNext }: Props) {
   return (
-    <div className="space-y-4">
-      <h2 className="text-yellow-400 text-lg font-semibold">
-        Ton objectif aujourd’hui ?
-      </h2>
+    <div className="space-y-5">
+      <div>
+        <h2 className="text-xl font-bold text-yellow-400">Ton objectif aujourd’hui ?</h2>
+        <p className="mt-2 text-sm text-gray-400">
+          Exemple : “Je veux vendre ma formation Code Liberté avec une campagne emailing.”
+        </p>
+      </div>
 
       <textarea
-        className="w-full p-3 bg-black border border-yellow-500/20 rounded-lg text-white focus:outline-none focus:border-yellow-400"
-        rows={4}
+        className="min-h-[140px] w-full rounded-2xl border border-yellow-500/20 bg-black/70 p-4 text-sm font-semibold text-white outline-none transition placeholder:text-gray-600 focus:border-yellow-400"
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder="Décris ton objectif, ton offre, ton canal ou ce que tu veux obtenir."
       />
 
       <button
+        className="w-full rounded-xl bg-yellow-400 px-5 py-3 font-black text-black transition hover:bg-yellow-300"
         onClick={onNext}
-        className="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-semibold py-2 rounded-lg transition"
+        type="button"
       >
         Continuer
       </button>
