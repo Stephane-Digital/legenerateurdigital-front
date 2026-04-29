@@ -5,7 +5,8 @@ import { useState } from "react";
 
 import { buildPayload } from "../lib/buildPayload";
 import { buildStrategy } from "../lib/buildStrategy";
-import type { CMOModule } from "../types";
+import { generateStrategyWithAI } from "../lib/generateStrategy";
+import type { CMOModule, CMOStrategy } from "../types";
 
 import StepBlocker from "./StepBlocker";
 import StepGoal from "./StepGoal";
@@ -28,7 +29,9 @@ export default function CMOWizard() {
   const [objective, setObjective] = useState("");
   const [blocker, setBlocker] = useState("");
   const [module, setModule] = useState<CMOModule | null>(null);
-  const [strategy, setStrategy] = useState<ReturnType<typeof buildStrategy> | null>(null);
+  const [strategy, setStrategy] = useState<CMOStrategy | null>(null);
+  const [isLiveStrategy, setIsLiveStrategy] = useState(false);
+  const [loadingStrategy, setLoadingStrategy] = useState(false);
   const [error, setError] = useState("");
 
   const goStep2 = () => {
@@ -51,15 +54,26 @@ export default function CMOWizard() {
     setStep(3);
   };
 
-  const goStep4 = () => {
+  const goStep4 = async () => {
     if (!module) {
       setError("Choisis le module à exploiter maintenant.");
       return;
     }
 
-    const nextStrategy = buildStrategy(objective, blocker);
-    setStrategy(nextStrategy);
     setError("");
+    setLoadingStrategy(true);
+
+    const liveStrategy = await generateStrategyWithAI(objective, blocker);
+
+    if (liveStrategy) {
+      setStrategy(liveStrategy);
+      setIsLiveStrategy(true);
+    } else {
+      setStrategy(buildStrategy(objective, blocker));
+      setIsLiveStrategy(false);
+    }
+
+    setLoadingStrategy(false);
     setStep(4);
   };
 
@@ -69,7 +83,9 @@ export default function CMOWizard() {
       return;
     }
 
-    const payload = buildPayload(module, objective, blocker);
+    const finalStrategy = strategy ?? buildStrategy(objective, blocker);
+    const payload = buildPayload(module, objective, blocker, finalStrategy);
+
     window.localStorage.setItem(CMO_PAYLOAD_KEY, JSON.stringify(payload));
     router.push(routes[module]);
   };
@@ -92,6 +108,12 @@ export default function CMOWizard() {
       {error && (
         <div className="mb-5 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
           {error}
+        </div>
+      )}
+
+      {loadingStrategy && (
+        <div className="mb-5 rounded-xl border border-yellow-400/25 bg-yellow-400/10 px-4 py-3 text-sm font-semibold text-yellow-100">
+          Le CMO IA analyse ton objectif, ton blocage et prépare une stratégie exploitable…
         </div>
       )}
 
@@ -120,12 +142,14 @@ export default function CMOWizard() {
             setStep(2);
           }}
           onFinish={goStep4}
+          loading={loadingStrategy}
         />
       )}
 
       {step === 4 && strategy && (
         <StepStrategy
           strategy={strategy}
+          isLive={isLiveStrategy}
           onBack={() => {
             setError("");
             setStep(3);
