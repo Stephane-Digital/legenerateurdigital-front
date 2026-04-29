@@ -4,8 +4,7 @@ export type CMOModule = "email" | "lead" | "editor" | "coach";
 export type CMOTarget = "emailing" | "lead_engine" | "editor" | "coach";
 
 export type CMOStrategy = {
-  cible: string;
-  target?: string;
+  target: string;
   pain: string;
   desire: string;
   promise: string;
@@ -13,7 +12,6 @@ export type CMOStrategy = {
   mechanism: string;
   cta: string;
 };
-
 
 export type CMOContext = {
   objective: string;
@@ -125,7 +123,6 @@ export type CMOPayload = {
   angle?: string;
   cta?: string;
   tone?: string;
-  strategy?: CMOStrategy;
 
   dispatch: CMODispatchResult;
 
