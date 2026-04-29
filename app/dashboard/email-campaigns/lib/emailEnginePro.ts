@@ -47,43 +47,82 @@ export type EmailSequencePro = {
 };
 
 const DEFAULTS: EmailEngineContext = {
-  offer: "ton offre",
-  target: "les bonnes personnes",
-  pain: "elles hésitent à passer à l’action",
-  promise: "obtenir un résultat clair sans se sentir perdues",
+  offer: "l’offre",
+  target: "les prospects concernés",
+  pain: "ils hésitent à passer à l’action parce qu’ils manquent de clarté",
+  promise: "avancer avec une méthode simple, progressive et rassurante",
   cta: "Passer à l’action maintenant",
-  angle: "partir du blocage réel pour rendre l’offre plus désirable",
+  angle: "montrer qu’il est possible d’avancer sans être expert dès le départ",
   objection: "peur de ne pas obtenir de résultat concret",
-  objective: "vendre une offre avec un message clair",
+  objective: "vendre une offre avec un message clair et orienté conversion",
   tone: "premium, humain, direct",
   brand: "LGD",
 };
 
+function rawText(value: unknown): string {
+  return String(value ?? "")
+    .replace(/\*\*/g, "")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 function clean(value: unknown, fallback: string): string {
-  const text = String(value || "").replace(/\s+/g, " ").trim();
+  const text = rawText(value);
   return text || fallback;
 }
 
+function cleanBlock(value: string): string {
+  return rawText(value)
+    .replace(/\n\s*Bonjour \[Prénom\],\s*\n\s*Bonjour,?/gi, "\nBonjour [Prénom],")
+    .replace(/\n\s*Bonjour,\s*\n\s*Bonjour,?/gi, "\nBonjour,")
+    .replace(/👉 CTA\s*:\s*\n\s*👉/gi, "👉")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 function ensureSentence(value: string): string {
-  const text = value.trim();
+  const text = clean(value, "").trim();
   if (!text) return text;
   return /[.!?…]$/.test(text) ? text : `${text}.`;
 }
 
 function stripTrailingPunctuation(value: string): string {
-  return value.trim().replace(/[.!?…]+$/g, "");
+  return clean(value, "").replace(/[.!?…]+$/g, "").trim();
+}
+
+function short(value: string, max = 85): string {
+  const text = clean(value, "");
+  if (text.length <= max) return text;
+  return `${text.slice(0, max - 1).trim()}…`;
+}
+
+function notGenericOffer(value: string): string {
+  const text = clean(value, DEFAULTS.offer);
+  const lower = text.toLowerCase();
+  if (["formation", "offre", "produit", "service"].includes(lower)) return "la formation Code Liberté";
+  return text;
 }
 
 function normalizeContext(input: Partial<EmailEngineContext>): EmailEngineContext {
+  const offer = notGenericOffer(clean(input.offer, DEFAULTS.offer));
+  const target = clean(input.target, DEFAULTS.target);
+  const pain = clean(input.pain, clean(input.objection, DEFAULTS.pain));
+  const promise = clean(input.promise, DEFAULTS.promise);
+  const cta = clean(input.cta, DEFAULTS.cta);
+  const angle = clean(input.angle, DEFAULTS.angle);
+  const objection = clean(input.objection, pain || DEFAULTS.objection);
+  const objective = clean(input.objective, DEFAULTS.objective);
+
   return {
-    offer: clean(input.offer, DEFAULTS.offer),
-    target: clean(input.target, DEFAULTS.target),
-    pain: clean(input.pain, DEFAULTS.pain),
-    promise: clean(input.promise, DEFAULTS.promise),
-    cta: clean(input.cta, DEFAULTS.cta),
-    angle: clean(input.angle, DEFAULTS.angle),
-    objection: clean(input.objection, DEFAULTS.objection),
-    objective: clean(input.objective, DEFAULTS.objective),
+    offer,
+    target,
+    pain,
+    promise,
+    cta,
+    angle,
+    objection,
+    objective,
     tone: clean(input.tone, DEFAULTS.tone || "premium, humain, direct"),
     brand: clean(input.brand, DEFAULTS.brand || "LGD"),
   };
@@ -93,7 +132,7 @@ function detectCampaignType(ctx: EmailEngineContext): EmailCampaignType {
   const text = `${ctx.objective} ${ctx.angle} ${ctx.pain}`.toLowerCase();
   if (text.includes("relance")) return "relance";
   if (text.includes("lancement")) return "lancement";
-  if (text.includes("nurture") || text.includes("éduquer") || text.includes("eduquer")) return "nurturing";
+  if (text.includes("nurture") || text.includes("nurturing") || text.includes("éduquer") || text.includes("eduquer")) return "nurturing";
   return "vente";
 }
 
@@ -115,17 +154,57 @@ function dayNote() {
   ].join("\n");
 }
 
-function buildDay1(ctx: EmailEngineContext): EmailSequenceDay {
+function finalizeDay(day: EmailSequenceDay): EmailSequenceDay {
+  const fallbackShort = cleanBlock([
+    "Bonjour [Prénom],",
+    "",
+    "Le plus important n’est pas d’être prêt à 100%, mais d’avancer avec une méthode claire.",
+    "",
+    `👉 ${day.ctaVariants.a}`,
+    "",
+    "À très vite,",
+    "LGD",
+  ].join("\n"));
+
+  const fallbackLong = cleanBlock([
+    "Bonjour [Prénom],",
+    "",
+    "Vous n’avez pas besoin de tout maîtriser pour commencer. Vous avez surtout besoin d’un chemin clair, d’un premier pas simple et d’un message qui vous aide à avancer sans vous disperser.",
+    "",
+    `👉 ${day.ctaVariants.a}`,
+    "",
+    "À très vite,",
+    "LGD",
+  ].join("\n"));
+
+  const shortMobile = cleanBlock(day.shortMobile);
+  const longStory = cleanBlock(day.longStory);
+
   return {
+    ...day,
+    subjects: {
+      a: clean(day.subjects.a, "Votre prochaine étape commence ici"),
+      b: clean(day.subjects.b, "Et si tout devenait plus simple aujourd’hui ?"),
+      c: clean(day.subjects.c, "Ce que vous devez comprendre avant de vous lancer"),
+    },
+    preheader: clean(day.preheader, "Une méthode simple pour avancer sans rester bloqué."),
+    shortMobile: shortMobile.length >= 120 && !/^formation$/i.test(shortMobile) ? shortMobile : fallbackShort,
+    longStory: longStory.length >= 350 && !/^formation$/i.test(longStory) ? longStory : fallbackLong,
+    systemeIoNote: cleanBlock(day.systemeIoNote || dayNote()),
+  };
+}
+
+function buildDay1(ctx: EmailEngineContext): EmailSequenceDay {
+  return finalizeDay({
     day: 1,
     type: "nurture",
     label: "EMAIL JOUR 1 — NURTURE",
     subjects: {
-      a: `Le déclic pour avancer avec ${ctx.offer}`,
+      a: `Vous pouvez avancer avec ${short(ctx.offer, 42)}`,
       b: "Et si tout devenait plus simple aujourd’hui ?",
-      c: `Ce que ${ctx.target} doivent comprendre avant de se lancer`,
+      c: "Ce que personne ne vous dit avant de se lancer",
     },
-    preheader: `Découvrez comment dépasser ${stripTrailingPunctuation(ctx.objection)} sans rester bloqué.`,
+    preheader: `Le premier pas pour dépasser ${stripTrailingPunctuation(ctx.objection)}.`,
     shortMobile: [
       "Bonjour [Prénom],",
       "",
@@ -133,7 +212,7 @@ function buildDay1(ctx: EmailEngineContext): EmailSequenceDay {
       "",
       `Le vrai sujet, c’est ce blocage : ${ensureSentence(ctx.pain)}`,
       "",
-      `La bonne approche consiste à avancer avec une méthode claire, étape par étape, pour ${stripTrailingPunctuation(ctx.promise)}.`,
+      `La bonne approche consiste à suivre une méthode claire pour ${stripTrailingPunctuation(ctx.promise)}.`,
       "",
       `👉 ${ctx.cta}`,
       "",
@@ -143,17 +222,17 @@ function buildDay1(ctx: EmailEngineContext): EmailSequenceDay {
     longStory: [
       "Bonjour [Prénom],",
       "",
-      `Si vous pensez à ${ctx.offer}, vous avez peut-être déjà ressenti ce moment de doute : l’envie est là, mais quelque chose freine le passage à l’action.`,
+      `Vous avez peut-être déjà eu envie d’avancer avec ${ctx.offer}, puis une pensée vous a retenu.`,
       "",
-      `Ce frein est souvent simple à nommer : ${ensureSentence(ctx.pain)}`,
+      `Ce frein est souvent très concret : ${ensureSentence(ctx.pain)}`,
       "",
-      "Et c’est précisément là que beaucoup de personnes abandonnent trop tôt. Elles imaginent qu’il faut être déjà expert, avoir tout compris, ou attendre le moment parfait.",
+      "Et c’est exactement là que beaucoup de personnes s’arrêtent. Elles pensent qu’il faut être déjà expert, avoir tout compris, avoir les bons outils, ou attendre le moment parfait.",
       "",
-      "Mais le moment parfait arrive rarement. Ce qui change tout, c’est d’avoir une direction claire, une méthode simple et un premier pas concret.",
+      "Mais le moment parfait arrive rarement. Ce qui change tout, c’est d’avoir un cadre simple, une méthode progressive et un premier pas clair.",
       "",
-      `C’est l’objectif de ${ctx.offer} : vous aider à ${stripTrailingPunctuation(ctx.promise)}, sans vous laisser bloquer par ${stripTrailingPunctuation(ctx.objection)}.`,
+      `${ctx.offer} existe pour vous aider à ${stripTrailingPunctuation(ctx.promise)}, sans rester bloqué par ${stripTrailingPunctuation(ctx.objection)}.`,
       "",
-      `Aujourd’hui, retenez surtout ceci : ${ensureSentence(ctx.angle)}`,
+      `L’angle à retenir aujourd’hui : ${ensureSentence(ctx.angle)}`,
       "",
       `👉 ${ctx.cta}`,
       "",
@@ -162,26 +241,26 @@ function buildDay1(ctx: EmailEngineContext): EmailSequenceDay {
     ].join("\n"),
     ctaVariants: ctaVariants(ctx),
     systemeIoNote: dayNote(),
-  };
+  });
 }
 
 function buildDay2(ctx: EmailEngineContext): EmailSequenceDay {
-  return {
+  return finalizeDay({
     day: 2,
     type: "nurture",
     label: "EMAIL JOUR 2 — NURTURE",
     subjects: {
       a: "La peur coûte souvent plus cher que l’action",
       b: "Ce blocage peut disparaître plus vite que vous le pensez",
-      c: `Avant de renoncer à ${ctx.offer}, lisez ceci`,
+      c: `Avant de renoncer à ${short(ctx.offer, 42)}, lisez ceci`,
     },
     preheader: `Transformez ${stripTrailingPunctuation(ctx.objection)} en décision concrète.`,
     shortMobile: [
       "Bonjour [Prénom],",
       "",
-      `Le risque n’est pas seulement d’essayer ${ctx.offer}.`,
+      "Le risque n’est pas seulement d’essayer.",
       "",
-      "Le vrai risque, c’est de rester au même endroit pendant encore des mois, alors que vous savez déjà que quelque chose doit changer.",
+      "Le vrai risque, c’est de rester au même endroit pendant encore des mois alors que vous savez déjà que quelque chose doit changer.",
       "",
       `Si ${ctx.pain}, une méthode claire peut vous aider à reprendre le contrôle.`,
       "",
@@ -195,9 +274,9 @@ function buildDay2(ctx: EmailEngineContext): EmailSequenceDay {
       "",
       "La peur donne souvent l’impression de nous protéger.",
       "",
-      "Elle nous pousse à attendre, à comparer, à remettre à plus tard, à chercher encore une information avant d’agir.",
+      "Elle nous pousse à attendre, comparer, remettre à plus tard, chercher encore une information, regarder ce que font les autres, puis repousser la décision.",
       "",
-      `Mais quand l’objectif est ${stripTrailingPunctuation(ctx.objective)}, cette attente finit souvent par devenir le vrai problème.`,
+      `Mais quand votre objectif est de ${stripTrailingPunctuation(ctx.objective)}, cette attente devient souvent le vrai problème.`,
       "",
       `Votre blocage n’est pas anormal : ${ensureSentence(ctx.pain)}`,
       "",
@@ -214,28 +293,28 @@ function buildDay2(ctx: EmailEngineContext): EmailSequenceDay {
     ].join("\n"),
     ctaVariants: ctaVariants(ctx),
     systemeIoNote: dayNote(),
-  };
+  });
 }
 
 function buildDay3(ctx: EmailEngineContext): EmailSequenceDay {
-  return {
+  return finalizeDay({
     day: 3,
     type: "objection",
     label: "EMAIL JOUR 3 — OBJECTION",
     subjects: {
       a: "Vous n’avez pas besoin d’être prêt à 100%",
       b: "Le bon moment n’arrive pas tout seul",
-      c: `L’objection qui bloque ${ctx.target}`,
+      c: `L’objection qui bloque ${short(ctx.target, 42)}`,
     },
     preheader: `Répondez à ${stripTrailingPunctuation(ctx.objection)} avec une méthode claire.`,
     shortMobile: [
       "Bonjour [Prénom],",
       "",
-      `Vous vous dites peut-être : “Et si je n’y arrive pas ?”`,
+      "Vous vous dites peut-être : “Et si je n’y arrive pas ?”",
       "",
       `C’est exactement l’objection à dépasser : ${ensureSentence(ctx.objection)}`,
       "",
-      `Avec ${ctx.offer}, l’objectif n’est pas d’être parfait, mais d’avancer avec un cadre qui rend le passage à l’action beaucoup plus simple.`,
+      `Avec ${ctx.offer}, l’objectif n’est pas d’être parfait. L’objectif est d’avancer avec un cadre qui rend le passage à l’action plus simple.`,
       "",
       `👉 ${ctx.cta}`,
       "",
@@ -249,7 +328,7 @@ function buildDay3(ctx: EmailEngineContext): EmailSequenceDay {
       "",
       `Pour ${ctx.target}, cette attente prend souvent la forme suivante : ${ensureSentence(ctx.objection)}`,
       "",
-      "Le problème, c’est que la confiance ne vient presque jamais avant l’action. Elle vient après les premiers pas, les premiers essais, les premiers résultats visibles.",
+      "Le problème, c’est que la confiance ne vient presque jamais avant l’action. Elle vient après les premiers pas, les premiers essais et les premiers résultats visibles.",
       "",
       `${ctx.offer} sert justement à transformer ce flou en progression concrète.`,
       "",
@@ -264,20 +343,20 @@ function buildDay3(ctx: EmailEngineContext): EmailSequenceDay {
     ].join("\n"),
     ctaVariants: ctaVariants(ctx),
     systemeIoNote: dayNote(),
-  };
+  });
 }
 
 function buildDay4(ctx: EmailEngineContext): EmailSequenceDay {
-  return {
+  return finalizeDay({
     day: 4,
     type: "vente",
     label: "EMAIL JOUR 4 — VENTE",
     subjects: {
-      a: `${ctx.offer} : passez du doute à l’action`,
+      a: `${short(ctx.offer, 42)} : passez du doute à l’action`,
       b: "Voilà ce qui peut changer maintenant",
       c: "La méthode pour avancer sans vous disperser",
     },
-    preheader: `Découvrez comment ${ctx.offer} aide à ${stripTrailingPunctuation(ctx.promise)}.`,
+    preheader: `Découvrez comment avancer vers ${stripTrailingPunctuation(ctx.promise)}.`,
     shortMobile: [
       "Bonjour [Prénom],",
       "",
@@ -295,7 +374,7 @@ function buildDay4(ctx: EmailEngineContext): EmailSequenceDay {
     longStory: [
       "Bonjour [Prénom],",
       "",
-      `Vous pouvez continuer à chercher des réponses partout, ou vous pouvez décider d’avancer avec une méthode structurée.`,
+      "Vous pouvez continuer à chercher des réponses partout, ou vous pouvez décider d’avancer avec une méthode structurée.",
       "",
       `Si ${ctx.pain}, ce n’est pas parce que vous manquez de potentiel. C’est souvent parce que vous n’avez pas encore le bon cadre pour transformer l’envie en action.`,
       "",
@@ -319,26 +398,26 @@ function buildDay4(ctx: EmailEngineContext): EmailSequenceDay {
     ].join("\n"),
     ctaVariants: ctaVariants(ctx),
     systemeIoNote: dayNote(),
-  };
+  });
 }
 
 function buildDay5(ctx: EmailEngineContext): EmailSequenceDay {
-  return {
+  return finalizeDay({
     day: 5,
     type: "nurture",
     label: "EMAIL JOUR 5 — NURTURE",
     subjects: {
       a: "L’erreur qui bloque les bons projets",
       b: "Ce n’est pas un manque de motivation",
-      c: `Pourquoi ${ctx.target} restent souvent bloqués`,
+      c: `Pourquoi ${short(ctx.target, 42)} restent bloqués`,
     },
     preheader: "Le vrai problème n’est pas toujours celui que l’on croit.",
     shortMobile: [
       "Bonjour [Prénom],",
       "",
-      "L’erreur la plus fréquente, c’est de croire qu’il faut plus d’informations avant d’agir.",
+      "L’erreur la plus fréquente, c’est de croire qu’il faut encore plus d’informations avant d’agir.",
       "",
-      `Mais si ${ctx.pain}, ce qu’il faut surtout, c’est une séquence claire de décisions simples.`,
+      `Mais si ${ctx.pain}, ce qu’il faut surtout, c’est une suite claire de décisions simples.`,
       "",
       `${ctx.offer} vous aide à avancer sans attendre que tout soit parfait.`,
       "",
@@ -369,11 +448,11 @@ function buildDay5(ctx: EmailEngineContext): EmailSequenceDay {
     ].join("\n"),
     ctaVariants: ctaVariants(ctx),
     systemeIoNote: dayNote(),
-  };
+  });
 }
 
 function buildDay6(ctx: EmailEngineContext): EmailSequenceDay {
-  return {
+  return finalizeDay({
     day: 6,
     type: "relance",
     label: "EMAIL JOUR 6 — RELANCE",
@@ -389,6 +468,8 @@ function buildDay6(ctx: EmailEngineContext): EmailSequenceDay {
       `Avant de remettre votre décision à plus tard, posez-vous une question simple : voulez-vous encore laisser ${stripTrailingPunctuation(ctx.objection)} décider à votre place ?`,
       "",
       `Si la réponse est non, ${ctx.offer} peut vous aider à avancer avec un cadre clair.`,
+      "",
+      `La prochaine étape est simple : ${ensureSentence(ctx.promise)}`,
       "",
       `👉 ${ctx.cta}`,
       "",
@@ -423,18 +504,18 @@ function buildDay6(ctx: EmailEngineContext): EmailSequenceDay {
     ].join("\n"),
     ctaVariants: ctaVariants(ctx),
     systemeIoNote: dayNote(),
-  };
+  });
 }
 
 function buildDay7(ctx: EmailEngineContext): EmailSequenceDay {
-  return {
+  return finalizeDay({
     day: 7,
     type: "vente",
     label: "EMAIL JOUR 7 — VENTE",
     subjects: {
       a: "Dernier rappel : votre prochaine étape est prête",
       b: "Ne laissez pas cette décision repartir à zéro",
-      c: `${ctx.offer} : le moment de passer à l’action`,
+      c: `${short(ctx.offer, 42)} : le moment de passer à l’action`,
     },
     preheader: `Dernière invitation pour avancer vers ${stripTrailingPunctuation(ctx.promise)}.`,
     shortMobile: [
@@ -444,7 +525,7 @@ function buildDay7(ctx: EmailEngineContext): EmailSequenceDay {
       "",
       `Si vous voulez vraiment ${stripTrailingPunctuation(ctx.promise)}, le plus important est de ne pas repartir dans l’attente.`,
       "",
-      `👉 ${ctx.cta}`,
+      `Votre prochaine étape : ${ctx.cta}`,
       "",
       "À très vite,",
       ctx.brand || "LGD",
@@ -473,44 +554,45 @@ function buildDay7(ctx: EmailEngineContext): EmailSequenceDay {
     ].join("\n"),
     ctaVariants: ctaVariants(ctx),
     systemeIoNote: dayNote(),
-  };
+  });
 }
 
 function formatDay(day: EmailSequenceDay): string {
-  return [
+  const cleaned = finalizeDay(day);
+  return cleanBlock([
     "==================================================",
-    day.label,
+    cleaned.label,
     "==================================================",
     "",
     "🧪 OBJETS À TESTER DANS SYSTEME.IO",
     "",
-    `A → ${day.subjects.a}`,
-    `B → ${day.subjects.b}`,
-    `C → ${day.subjects.c}`,
+    `A → ${cleaned.subjects.a}`,
+    `B → ${cleaned.subjects.b}`,
+    `C → ${cleaned.subjects.c}`,
     "",
     "--------------------------------------------------",
     "PRÉHEADER :",
-    day.preheader,
+    cleaned.preheader,
     "",
     "--------------------------------------------------",
     "VERSION COURTE — MOBILE / RAPIDE",
     "--------------------------------------------------",
-    day.shortMobile,
+    cleaned.shortMobile,
     "",
     "--------------------------------------------------",
     "VERSION LONGUE — STORYTELLING / CONVERSION",
     "--------------------------------------------------",
-    day.longStory,
+    cleaned.longStory,
     "",
     "👉 CTA À TESTER :",
     "",
-    `A → ${day.ctaVariants.a}`,
-    `B → ${day.ctaVariants.b}`,
-    `C → ${day.ctaVariants.c}`,
+    `A → ${cleaned.ctaVariants.a}`,
+    `B → ${cleaned.ctaVariants.b}`,
+    `C → ${cleaned.ctaVariants.c}`,
     "",
     "--------------------------------------------------",
-    day.systemeIoNote,
-  ].join("\n");
+    cleaned.systemeIoNote,
+  ].join("\n"));
 }
 
 export function buildEmailSequencePro(input: Partial<EmailEngineContext>): EmailSequencePro {
@@ -523,7 +605,7 @@ export function buildEmailSequencePro(input: Partial<EmailEngineContext>): Email
     buildDay5(ctx),
     buildDay6(ctx),
     buildDay7(ctx),
-  ];
+  ].map(finalizeDay);
 
   return {
     campaignName: `CMO Dispatch - ${ctx.offer}`,
