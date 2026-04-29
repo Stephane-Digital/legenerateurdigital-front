@@ -791,7 +791,7 @@ export default function DashboardPage() {
                       </p>
                     ) : (
                       <p className="mt-5 text-sm leading-7 text-white/60">
-                        Clique sur “Actualiser CMO IA” pour générer une décision stratégique live depuis le backend V5.
+                        Clique sur “Actualiser CMO IA” pour générer une décision stratégique.
                       </p>
                     )}
 
