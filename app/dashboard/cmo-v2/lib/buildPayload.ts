@@ -1,4 +1,5 @@
 import type { CMOModule, CMOPayload, CMOTarget } from "../types";
+import { buildStrategy } from "./buildStrategy";
 
 function clean(value: string, fallback = "") {
   const text = String(value || "").replace(/\s+/g, " ").trim();
@@ -53,9 +54,13 @@ export function buildPayload(
   const blocker = clean(blockerInput, "Le besoin doit être clarifié avant de produire le contenu.");
   const target = moduleToTarget(module);
   const offer = extractOffer(objective);
-  const cta = offer && offer !== objective ? `Découvrir ${offer}` : "Passer à l’action maintenant";
-  const audience = `Audience concernée par cet objectif : ${objective}`;
-  const promise = `Transformer ce besoin utilisateur en action claire, personnalisée et directement exploitable malgré le blocage : ${blocker}`;
+  const strategy = buildStrategy(objective, blocker);
+
+  const cta = strategy.cta || (offer && offer !== objective ? `Découvrir ${offer}` : "Passer à l’action maintenant");
+  const audience = strategy.target || `Audience concernée par cet objectif : ${objective}`;
+  const promise =
+    strategy.promise ||
+    `Transformer ce besoin utilisateur en action claire, personnalisée et directement exploitable malgré le blocage : ${blocker}`;
 
   const priorityByModule: Record<CMOModule, string> = {
     email: `Créer une campagne emailing orientée sur ${offer}.`,
@@ -91,9 +96,10 @@ export function buildPayload(
     audience,
     offer,
     promise,
-    angle: priorityByModule[module],
+    angle: strategy.angle || priorityByModule[module],
     cta,
     tone: "premium",
+    strategy,
     generated_content: {
       post: `${priorityByModule[module]}\n\n${diagnostic}\n\n${cta}`,
       email: `Bonjour,\n\nTu m’as demandé de travailler sur : ${objective}\n\nLe point à débloquer : ${blocker}\n\nVoici l’angle prioritaire : ${promise}\n\n${cta}`,
@@ -117,22 +123,22 @@ export function buildPayload(
         magnetName: `Checklist ${shortText(offer, 45)}`,
         headline: `Résous ce blocage : ${shortText(blocker, 80)}`,
         promise,
-        angle: priorityByModule[module],
+        angle: strategy.angle || priorityByModule[module],
         audience,
         offer,
         cta: "Recevoir la ressource",
       },
       editor: {
         format: "post",
-        hook: `Tu veux ${shortText(objective, 70)} ?`,
+        hook: strategy.angle || `Tu veux ${shortText(objective, 70)} ?`,
         body: `${diagnostic}\n\n${whyThisAction}`,
         cta,
         caption: `${priorityByModule[module]}\n\n${diagnostic}\n\n${cta}`,
       },
       coach: {
         missionTitle: `Stratégie CMO IA — ${shortText(offer, 60)}`,
-        brief: `Objectif : ${objective}\nBlocage : ${blocker}\nOffre : ${offer}\nProchaine action : ${nextBestAction}\nCTA : ${cta}`,
-        briefText: `Objectif : ${objective}. Blocage : ${blocker}. Offre : ${offer}. Donne-moi un plan d’action clair, priorisé et exécutable.`,
+        brief: `Objectif : ${objective}\nBlocage : ${blocker}\nOffre : ${offer}\nCible : ${audience}\nProblème : ${strategy.pain}\nPromesse : ${promise}\nAngle : ${strategy.angle}\nMécanisme : ${strategy.mechanism}\nProchaine action : ${nextBestAction}\nCTA : ${cta}`,
+        briefText: `Objectif : ${objective}. Blocage : ${blocker}. Offre : ${offer}. Cible : ${audience}. Problème : ${strategy.pain}. Promesse : ${promise}. Angle : ${strategy.angle}. Mécanisme : ${strategy.mechanism}. CTA : ${cta}. Donne-moi un plan d’action clair, priorisé et exécutable.`,
         kpiLabel: "Plan stratégique validé",
         durationMinutes: 45,
       },
