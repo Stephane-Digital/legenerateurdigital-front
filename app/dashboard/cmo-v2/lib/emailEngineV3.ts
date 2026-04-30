@@ -14,6 +14,7 @@ function cleanText(value: unknown, fallback = "") {
   const text = String(value || "")
     .replace(/\*\*/g, "")
     .replace(/CTA\s*:/gi, "")
+    .replace(/CORPS\s*:/gi, "")
     .replace(/Cet email vise[\s\S]*$/gi, "")
     .replace(/Le message est conçu[\s\S]*$/gi, "")
     .replace(/\[Passer à l’action maintenant\]\(#\)/gi, "Passer à l’action maintenant")
@@ -89,7 +90,7 @@ function buildLong(params: {
   return cleanText(`
 Bonjour [Prénom],
 
-${params.opener}
+💡 ${params.opener}
 
 ${body}
 
@@ -105,12 +106,24 @@ function buildNote() {
 NOTE LGD :
 - Copie l’objet A, B ou C dans le champ “Objet” de Systeme.io.
 - Copie le préheader dans le champ prévu si disponible.
-- Colle le corps de l’email dans Systeme.io.
+- Colle uniquement le CORPS DE L’EMAIL dans Systeme.io.
 - Remplace [Prénom] par la variable Systeme.io si tu l’utilises.
+- Remplace ou conserve les liens utiles selon ta page Systeme.io.
+`);
+}
+
+function buildUsefulLinks(ctas: CMOEmailSequenceItem["ctas"]) {
+  return cleanText(`
+🔗 LIENS UTILES À INSÉRER AVANT ENVOI SIO
+- ${ctas.a} : https://legenerateurdigital.systeme.io/lgd
+- ${ctas.b} : https://legenerateurdigital.systeme.io/lgd
+- ${ctas.c} : https://legenerateurdigital.systeme.io/lgd
 `);
 }
 
 function formatEmail(email: CMOEmailSequenceItem) {
+  const body = cleanText(email.long);
+
   return cleanText(`
 ==================================================
 EMAIL JOUR ${email.day} — ${email.intent.toUpperCase()}
@@ -118,27 +131,32 @@ EMAIL JOUR ${email.day} — ${email.intent.toUpperCase()}
 
 🧪 OBJETS À TESTER DANS SYSTEME.IO
 
-A → ${email.subjects.a}
-B → ${email.subjects.b}
-C → ${email.subjects.c}
+A → ${cleanText(email.subjects.a)}
+B → ${cleanText(email.subjects.b)}
+C → ${cleanText(email.subjects.c)}
 
 --------------------------------------------------
 
 PRÉHEADER :
-${email.preheader}
+${cleanText(email.preheader)}
 
 --------------------------------------------------
 
 CORPS DE L’EMAIL
 --------------------------------------------------
 
-${email.long}
+${body}
 
-👉 CTA À TESTER :
+--------------------------------------------------
 
-A → ${email.ctas.a}
-B → ${email.ctas.b}
-C → ${email.ctas.c}
+🧪 CTA À TESTER
+
+A → ${cleanText(email.ctas.a)}
+B → ${cleanText(email.ctas.b)}
+C → ${cleanText(email.ctas.c)}
+
+--------------------------------------------------
+${buildUsefulLinks(email.ctas)}
 
 --------------------------------------------------
 ${buildNote()}
@@ -151,7 +169,6 @@ function validateEmail(email: CMOEmailSequenceItem) {
     email.subjects.b,
     email.subjects.c,
     email.preheader,
-    email.short,
     email.long,
     email.ctas.a,
     email.ctas.b,
@@ -159,18 +176,20 @@ function validateEmail(email: CMOEmailSequenceItem) {
   ];
 
   const invalid = required.some((value) => !value || cleanText(value).length < 8);
-  const forbidden = [email.short, email.long, email.preheader, email.subjects.a].some((value) => {
+  const forbidden = [email.long, email.preheader, email.subjects.a].some((value) => {
     const text = cleanText(value).toLowerCase();
     return (
       text === "formation" ||
       text.includes("cet email vise") ||
       text.includes("le message est conçu") ||
-      text.includes("**")
+      text.includes("**") ||
+      text.includes("version courte") ||
+      text.includes("version longue")
     );
   });
 
   if (invalid || forbidden) {
-    throw new Error(`Email Engine V3 blocked invalid email day ${email.day}`);
+    throw new Error(`Email Engine V4 blocked invalid email day ${email.day}`);
   }
 }
 
@@ -197,9 +216,9 @@ export function generateEmailSequenceV3(context: EmailEngineV3Context) {
       day: 1,
       intent: "nurture",
       subjects: {
-        a: `Vous pouvez avancer avec ${compact(offer, "cette méthode", 54)}`,
-        b: "Et si tout devenait plus clair aujourd’hui ?",
-        c: "Le premier pas est souvent le plus simple",
+        a: `🚀 Vous pouvez avancer avec ${compact(offer, "cette méthode", 54)}`,
+        b: "✨ Et si tout devenait plus clair aujourd’hui ?",
+        c: "🎯 Le premier pas est souvent le plus simple",
       },
       preheader: `Découvrez comment ${compact(promise, "avancer sans vous sentir perdu", 92)}.`,
       short: buildShort({
@@ -223,9 +242,9 @@ export function generateEmailSequenceV3(context: EmailEngineV3Context) {
       day: 2,
       intent: "nurture",
       subjects: {
-        a: "Le mythe qui bloque votre passage à l’action",
-        b: "Vous n’avez pas besoin de tout savoir pour commencer",
-        c: "Ce que beaucoup comprennent trop tard",
+        a: "🧠 Le mythe qui bloque votre passage à l’action",
+        b: "✅ Vous n’avez pas besoin de tout savoir pour commencer",
+        c: "⚡ Ce que beaucoup comprennent trop tard",
       },
       preheader: `Votre blocage n’est pas une fatalité : ${compact(blocker, "il peut être dépassé", 90)}.`,
       short: buildShort({
@@ -249,9 +268,9 @@ export function generateEmailSequenceV3(context: EmailEngineV3Context) {
       day: 3,
       intent: "objection",
       subjects: {
-        a: "Et si votre doute n’était pas le vrai problème ?",
-        b: "La peur de se tromper peut coûter cher",
-        c: "Voici comment dépasser l’hésitation",
+        a: "🔍 Et si votre doute n’était pas le vrai problème ?",
+        b: "⏳ La peur de se tromper peut coûter cher",
+        c: "💡 Voici comment dépasser l’hésitation",
       },
       preheader: `Transformez l’objection principale en décision plus claire.`,
       short: buildShort({
@@ -275,9 +294,9 @@ export function generateEmailSequenceV3(context: EmailEngineV3Context) {
       day: 4,
       intent: "vente",
       subjects: {
-        a: `Pourquoi ${compact(offer, "cette méthode", 48)} peut tout changer`,
-        b: "Le plan simple pour passer de l’envie à l’action",
-        c: "Ce qui manque souvent pour obtenir un vrai résultat",
+        a: `🚀 Pourquoi ${compact(offer, "cette méthode", 48)} peut tout changer`,
+        b: "🧩 Le plan simple pour passer de l’envie à l’action",
+        c: "🎯 Ce qui manque souvent pour obtenir un vrai résultat",
       },
       preheader: `Découvrez le mécanisme qui transforme le blocage en progression concrète.`,
       short: buildShort({
@@ -301,9 +320,9 @@ export function generateEmailSequenceV3(context: EmailEngineV3Context) {
       day: 5,
       intent: "nurture",
       subjects: {
-        a: "Une décision simple peut débloquer la suite",
-        b: "Le déclic que beaucoup attendent trop longtemps",
-        c: "Vous êtes peut-être plus proche que vous ne pensez",
+        a: "✅ Une décision simple peut débloquer la suite",
+        b: "⚡ Le déclic que beaucoup attendent trop longtemps",
+        c: "💡 Vous êtes peut-être plus proche que vous ne pensez",
       },
       preheader: `Un message pour remettre votre objectif en mouvement.`,
       short: buildShort({
@@ -327,9 +346,9 @@ export function generateEmailSequenceV3(context: EmailEngineV3Context) {
       day: 6,
       intent: "relance",
       subjects: {
-        a: "Avant de remettre votre décision à plus tard",
-        b: "Votre prochaine étape peut rester simple",
-        c: "La checklist avant de passer à l’action",
+        a: "⏳ Avant de remettre votre décision à plus tard",
+        b: "🧭 Votre prochaine étape peut rester simple",
+        c: "📌 La checklist avant de passer à l’action",
       },
       preheader: `Faites le point rapidement avant de décider.`,
       short: buildShort({
@@ -355,9 +374,9 @@ export function generateEmailSequenceV3(context: EmailEngineV3Context) {
       day: 7,
       intent: "vente",
       subjects: {
-        a: "C’est le moment de reprendre le contrôle",
-        b: "Votre objectif mérite une vraie méthode",
-        c: "Dernier rappel avant de passer à autre chose",
+        a: "🚀 C’est le moment de reprendre le contrôle",
+        b: "🎯 Votre objectif mérite une vraie méthode",
+        c: "⏳ Dernier rappel avant de passer à autre chose",
       },
       preheader: `Une dernière invitation à transformer votre objectif en action concrète.`,
       short: buildShort({
@@ -384,7 +403,7 @@ export function generateEmailSequenceV3(context: EmailEngineV3Context) {
 
   return {
     emails,
-    sequenceText: emails.map(formatEmail).join("\n\n"),
+    sequenceText: cleanText(emails.map(formatEmail).join("\n\n")),
   };
 }
 
