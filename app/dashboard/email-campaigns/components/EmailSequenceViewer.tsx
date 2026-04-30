@@ -67,31 +67,94 @@ function getAuthHeaders() {
   return { Authorization: `Bearer ${token}`, "X-LGD-Token": token };
 }
 
+
+const DEFAULT_USEFUL_LINKS = [
+  "Page de vente / paiement : https://legenerateurdigital.systeme.io/lgd",
+  "Accès plateforme LGD : https://legenerateurdigital-front.vercel.app",
+];
+
+function cleanGeneratedText(value: unknown) {
+  return String(value ?? "")
+    .replace(/\*\*/g, "")
+    .replace(/\bCTA\s*:/gi, "")
+    .replace(/\bCORPS\s*:/gi, "")
+    .replace(/Cet email vise[\s\S]*?(?=\n{2,}|$)/gi, "")
+    .replace(/Le message est conçu[\s\S]*?(?=\n{2,}|$)/gi, "")
+    .replace(/\[Passer à l’action maintenant\]\(#\)/gi, "Passer à l’action maintenant")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function normalizeEmailBody(value: unknown) {
+  let text = cleanGeneratedText(value);
+
+  const longMatch = text.match(/VERSION LONGUE\s+—\s+STORYTELLING\s*\/\s*CONVERSION[\s\S]*?(?=👉 CTA À TESTER|NOTE LGD|$)/i);
+  if (longMatch?.[0]) {
+    text = longMatch[0]
+      .replace(/VERSION LONGUE\s+—\s+STORYTELLING\s*\/\s*CONVERSION/gi, "")
+      .replace(/^-{5,}/gm, "")
+      .trim();
+  }
+
+  text = text
+    .replace(/VERSION COURTE\s+—\s+MOBILE\s*\/\s*RAPIDE[\s\S]*?(?=VERSION LONGUE|NOTE LGD|$)/gi, "")
+    .replace(/VERSION LONGUE\s+—\s+STORYTELLING\s*\/\s*CONVERSION/gi, "")
+    .replace(/👉 CTA À TESTER[\s\S]*?(?=NOTE LGD|$)/gi, "")
+    .replace(/NOTE LGD[\s\S]*$/gi, "")
+    .replace(/^-{5,}/gm, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  return text;
+}
+
+function formatPersistentLinks(rawLinks: string) {
+  const customLinks = rawLinks
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const links = customLinks.length ? customLinks : DEFAULT_USEFUL_LINKS;
+
+  return `
+
+━━━━━━━━━━━━━━━━━━━━
+
+🔗 Liens utiles :
+
+${links.map((link) => `• ${link}`).join("\n")}`;
+}
+
 function buildPlainSequence(emails: EmailSequenceItem[], senderDisplay: string) {
   return emails
-    .map(
-      (email) => `Jour ${email.day}\nType: ${email.email_type}\nSujet: ${email.subject}\nPréheader: ${email.preheader}\n\n${email.body}\n\nCTA: ${email.cta}\n\nExpéditeur: ${senderDisplay}`
-    )
+    .map((email) => {
+      const body = normalizeEmailBody(email.body);
+      return `Jour ${email.day}
+Type: ${email.email_type}
+Sujet: ${cleanGeneratedText(email.subject)}
+Préheader: ${cleanGeneratedText(email.preheader)}
+
+${body}
+
+CTA: ${cleanGeneratedText(email.cta)}
+
+Expéditeur: ${senderDisplay}`;
+    })
     .join("\n\n---------------------------\n\n");
 }
 
 function buildSystemeIoSequence(emails: EmailSequenceItem[], senderDisplay: string) {
   return emails
     .map((email) => {
-      const subjectA = email.subject || "Votre sujet principal";
+      const subjectA = cleanGeneratedText(email.subject || "Votre sujet principal");
       const subjectB = "Et si tout changeait aujourd’hui ?";
       const subjectC = "Ce que personne ne vous dit vraiment";
 
-      const ctaA = email.cta || "Découvrir maintenant";
+      const ctaA = cleanGeneratedText(email.cta || "Découvrir maintenant");
       const ctaB = "Voir comment ça fonctionne";
       const ctaC = "Accéder à la méthode";
 
-      const body = String(email.body || "").trim();
-      const firstParagraph =
-        body
-          .split(/\n{2,}|\n/)
-          .map((part) => part.trim())
-          .find(Boolean) || body || "Voici le message principal à transmettre.";
+      const body = normalizeEmailBody(email.body);
 
       return `==================================================
 EMAIL JOUR ${email.day} — ${String(email.email_type || "email").toUpperCase()}
@@ -106,29 +169,12 @@ C → ${subjectC}
 --------------------------------------------------
 
 PRÉHEADER :
-${email.preheader || "Un message utile pour donner envie d’ouvrir l’email."}
+${cleanGeneratedText(email.preheader || "Un message utile pour donner envie d’ouvrir l’email.")}
 
 --------------------------------------------------
 
-VERSION COURTE — MOBILE / RAPIDE
+CORPS DE L’EMAIL
 --------------------------------------------------
-
-Bonjour [Prénom],
-
-${firstParagraph}
-
-👉 CTA :
-${ctaA}
-
-À très vite,
-${senderDisplay}
-
---------------------------------------------------
-
-VERSION LONGUE — STORYTELLING / CONVERSION
---------------------------------------------------
-
-Bonjour [Prénom],
 
 ${body}
 
@@ -138,79 +184,36 @@ A → ${ctaA}
 B → ${ctaB}
 C → ${ctaC}
 
-À très vite,
-${senderDisplay}
-
 --------------------------------------------------
 NOTE LGD :
 - Copie l’objet A, B ou C dans le champ “Objet” de Systeme.io.
 - Copie le préheader dans le champ prévu si disponible.
-- Colle uniquement la version courte OU la version longue dans le corps de l’email.
+- Colle le corps complet de l’email dans Systeme.io.
 - Remplace [Prénom] par la variable Systeme.io si tu l’utilises.
-`;
+
+${formatPersistentLinks("")}`;
     })
-    .join("\n\n==================================================\n\n");
+    .join("\n\n\n");
 }
 
 function buildSingleSystemeIoEmail(email: EmailSequenceItem, senderDisplay: string) {
   return buildSystemeIoSequence([email], senderDisplay);
 }
 
-function formatPersistentLinks(rawLinks: string) {
-  const links = rawLinks
-    .split(/\n+/)
-    .map((line) => line.trim())
-    .filter(Boolean);
 
-  if (!links.length) return "";
-
-  return `
-
-━━━━━━━━━━━━━━━━━━━━
-
-🔗 Liens utiles :
-
-${links.map((link) => `• ${link}`).join("\n")}`;
-}
 
 function buildCleanSystemeIoEmail(
   email: EmailSequenceItem,
   senderDisplay: string,
   persistentLinks: string
 ) {
- let rawBody = String(email.body || "").trim();
-
-// 🔥 Nettoyage automatique signature IA
-rawBody = rawBody
-  .replace(/à très vite[,!\s]*lgd/gi, "")
-  .replace(/à bientôt[,!\s]*lgd/gi, "")
-  .replace(/lgd$/gi, "")
-  .trim();
-  const cta = String(email.cta || "Découvrir maintenant").trim();
-
-  const paragraphs = rawBody
-    .split(/\n{2,}|(?<=[.!?])\s+(?=[A-ZÀ-ÖØ-Ý])/)
-    .map((part) => part.trim())
-    .filter(Boolean);
-
-  const intro = paragraphs.slice(0, 2).join("\n\n");
-  const middle = paragraphs.slice(2, -1).join("\n\n");
-  const end = paragraphs.length > 2 ? paragraphs[paragraphs.length - 1] : "";
+  const body = normalizeEmailBody(email.body);
+  const cta = cleanGeneratedText(email.cta || "Découvrir maintenant");
   const usefulLinks = formatPersistentLinks(persistentLinks);
 
   return `Bonjour [Prénom],
 
-J’espère que tu vas bien ✨
-
-${intro || rawBody}
-
-${middle ? `━━━━━━━━━━━━━━━━━━━━
-
-${middle}` : ""}
-
-${end ? `━━━━━━━━━━━━━━━━━━━━
-
-${end}` : ""}
+${body}
 
 👉 Clique ici pour passer à l’action :
 ${cta}${usefulLinks}
@@ -237,7 +240,7 @@ export default function EmailSequenceViewer({ formValues, sequence, onSaved, onR
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
   const [copiedMessage, setCopiedMessage] = useState<string | null>(null);
   const [editing, setEditing] = useState<EmailSequenceItem[]>([]);
-  const [persistentLinks, setPersistentLinks] = useState("");
+  const [persistentLinks, setPersistentLinks] = useState(DEFAULT_USEFUL_LINKS.join("\n"));
 
   const safeSequence = useMemo(() => {
     if (!sequence) return null;
@@ -246,7 +249,7 @@ export default function EmailSequenceViewer({ formValues, sequence, onSaved, onR
   }, [sequence]);
 
   useEffect(() => {
-    setEditing(safeSequence?.emails || []);
+    setEditing((safeSequence?.emails || []).map((email) => ({ ...email, body: normalizeEmailBody(email.body) })));
     setSavedMessage(null);
   }, [safeSequence]);
 
