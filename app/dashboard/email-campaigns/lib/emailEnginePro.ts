@@ -64,6 +64,7 @@ function rawText(value: unknown): string {
     .replace(/\*\*/g, "")
     .replace(/\bCTA\s*:/gi, "")
     .replace(/\bCORPS\s*:/gi, "")
+    .replace(/\[(Passer à l’action maintenant)\]\(#\)/gi, "$1")
     .replace(/[ \t]+/g, " ")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
