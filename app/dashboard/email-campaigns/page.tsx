@@ -1,619 +1,323 @@
-export type EmailCampaignType = "vente" | "relance" | "lancement" | "nurturing";
+"use client";
 
-export type EmailEngineContext = {
-  offer: string;
-  target: string;
-  pain: string;
-  promise: string;
-  cta: string;
-  angle: string;
-  objection: string;
-  objective: string;
-  tone?: string;
-  brand?: string;
-};
+import { ArrowLeft, MailCheck, Sparkles } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
 
-export type EmailDayType = "nurture" | "objection" | "vente" | "relance";
+import EmailAnalyticsButton from "./components/EmailAnalyticsButton";
+import EmailCampaignDeliveryCard from "./components/EmailCampaignDeliveryCard";
+import EmailCampaignGenerator from "./components/EmailCampaignGenerator";
+import EmailSequenceViewer from "./components/EmailSequenceViewer";
+import SavedEmailCampaignsBlock from "./components/SavedEmailCampaignsBlock";
+import {
+  defaultEmailCampaignValues,
+  EmailCampaignFormValues,
+  EmailSequenceResponse,
+} from "./components/types";
 
-export type EmailSequenceDay = {
-  day: number;
-  type: EmailDayType;
-  label: string;
-  subjects: {
-    a: string;
-    b: string;
-    c: string;
+const CMO_AUTO_PAYLOAD_KEY = "lgd_cmo_module_auto_payload";
+
+type CmoAutoPayload = {
+  created_at?: string;
+  source?: string;
+  target?: string;
+  priority_action?: string;
+  diagnostic?: string;
+  why_this_action?: string;
+  next_best_action?: string;
+  generated_content?: {
+    post?: string;
+    email?: string;
+    cta?: string;
+    lead_magnet_idea?: string;
   };
-  preheader: string;
-  shortMobile: string;
-  longStory: string;
-  ctaVariants: {
-    a: string;
-    b: string;
-    c: string;
+  content_ready?: {
+    email?: {
+      campaignName?: string;
+      campaignType?: EmailCampaignFormValues["campaign_type"];
+      offerName?: string;
+      targetAudience?: string;
+      mainPromise?: string;
+      mainObjective?: string;
+      primaryCta?: string;
+      suggestedSubject?: string;
+      previewText?: string;
+      firstEmailBody?: string;
+    };
   };
-  systemeIoNote: string;
+  offer?: string;
+  audience?: string;
+  objective?: string;
+  promise?: string;
+  cta?: string;
 };
 
-export type EmailSequencePro = {
-  campaignName: string;
-  campaignType: EmailCampaignType;
-  offer: string;
-  target: string;
-  promise: string;
-  cta: string;
-  days: EmailSequenceDay[];
-  plainTextExport: string;
-};
-
-const DEFAULTS: EmailEngineContext = {
-  offer: "l’offre",
-  target: "les prospects concernés",
-  pain: "ils hésitent à passer à l’action parce qu’ils manquent de clarté",
-  promise: "avancer avec une méthode simple, progressive et rassurante",
-  cta: "Passer à l’action maintenant",
-  angle: "montrer qu’il est possible d’avancer sans être expert dès le départ",
-  objection: "peur de ne pas obtenir de résultat concret",
-  objective: "vendre une offre avec un message clair et orienté conversion",
-  tone: "premium, humain, direct",
-  brand: "LGD",
-};
-
-function rawText(value: unknown): string {
-  return String(value ?? "")
-    .replace(/\*\*/g, "")
-    .replace(/[ \t]+/g, " ")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+function asCleanString(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
 }
 
-function clean(value: unknown, fallback: string): string {
-  const text = rawText(value);
-  return text || fallback;
+function shortText(value: string, max = 90) {
+  const clean = value.replace(/\s+/g, " ").trim();
+  if (clean.length <= max) return clean;
+  return `${clean.slice(0, max - 1).trim()}…`;
 }
 
-function cleanBlock(value: string): string {
-  return rawText(value)
-    .replace(/\n\s*Bonjour \[Prénom\],\s*\n\s*Bonjour,?/gi, "\nBonjour [Prénom],")
-    .replace(/\n\s*Bonjour,\s*\n\s*Bonjour,?/gi, "\nBonjour,")
-    .replace(/👉 CTA\s*:\s*\n\s*👉/gi, "👉")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
+function inferCampaignType(payload: CmoAutoPayload): EmailCampaignFormValues["campaign_type"] {
+  const text = [
+    payload.priority_action,
+    payload.next_best_action,
+    payload.generated_content?.email,
+    payload.generated_content?.cta,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
 
-function ensureSentence(value: string): string {
-  const text = clean(value, "").trim();
-  if (!text) return text;
-  return /[.!?…]$/.test(text) ? text : `${text}.`;
-}
-
-function stripTrailingPunctuation(value: string): string {
-  return clean(value, "").replace(/[.!?…]+$/g, "").trim();
-}
-
-function short(value: string, max = 85): string {
-  const text = clean(value, "");
-  if (text.length <= max) return text;
-  return `${text.slice(0, max - 1).trim()}…`;
-}
-
-function notGenericOffer(value: string): string {
-  const text = clean(value, DEFAULTS.offer);
-  const lower = text.toLowerCase();
-  if (["formation", "offre", "produit", "service"].includes(lower)) return "la formation Code Liberté";
-  return text;
-}
-
-function normalizeContext(input: Partial<EmailEngineContext>): EmailEngineContext {
-  const offer = notGenericOffer(clean(input.offer, DEFAULTS.offer));
-  const target = clean(input.target, DEFAULTS.target);
-  const pain = clean(input.pain, clean(input.objection, DEFAULTS.pain));
-  const promise = clean(input.promise, DEFAULTS.promise);
-  const cta = clean(input.cta, DEFAULTS.cta);
-  const angle = clean(input.angle, DEFAULTS.angle);
-  const objection = clean(input.objection, pain || DEFAULTS.objection);
-  const objective = clean(input.objective, DEFAULTS.objective);
-
-  return {
-    offer,
-    target,
-    pain,
-    promise,
-    cta,
-    angle,
-    objection,
-    objective,
-    tone: clean(input.tone, DEFAULTS.tone || "premium, humain, direct"),
-    brand: clean(input.brand, DEFAULTS.brand || "LGD"),
-  };
-}
-
-function detectCampaignType(ctx: EmailEngineContext): EmailCampaignType {
-  const text = `${ctx.objective} ${ctx.angle} ${ctx.pain}`.toLowerCase();
   if (text.includes("relance")) return "relance";
   if (text.includes("lancement")) return "lancement";
-  if (text.includes("nurture") || text.includes("nurturing") || text.includes("éduquer") || text.includes("eduquer")) return "nurturing";
+  if (text.includes("nurtur") || text.includes("éduquer") || text.includes("eduquer")) {
+    return "nurturing";
+  }
   return "vente";
 }
 
-function ctaVariants(ctx: EmailEngineContext) {
+function buildCmoEmailValues(
+  payload: CmoAutoPayload,
+  previous: EmailCampaignFormValues
+): EmailCampaignFormValues {
+  const ready = payload.content_ready?.email;
+  const priorityAction = asCleanString(payload.priority_action);
+  const diagnostic = asCleanString(payload.diagnostic);
+  const whyThisAction = asCleanString(payload.why_this_action);
+  const nextBestAction = asCleanString(payload.next_best_action);
+  const emailContent = asCleanString(payload.generated_content?.email);
+  const cta = asCleanString(ready?.primaryCta) || asCleanString(payload.cta) || asCleanString(payload.generated_content?.cta);
+
   return {
-    a: ctx.cta,
-    b: "Voir comment ça fonctionne",
-    c: "Accéder à la méthode",
+    ...defaultEmailCampaignValues,
+    sender_name: previous.sender_name,
+    name:
+      asCleanString(ready?.campaignName) ||
+      (priorityAction ? `CMO IA - ${shortText(priorityAction, 70)}` : "CMO IA - Campagne prioritaire"),
+    campaign_type: ready?.campaignType || inferCampaignType(payload),
+    duration_days: 7,
+    offer_name:
+      asCleanString(ready?.offerName) ||
+      asCleanString(payload.offer) ||
+      cta ||
+      shortText(nextBestAction || priorityAction, 90),
+    target_audience:
+      asCleanString(ready?.targetAudience) ||
+      asCleanString(payload.audience) ||
+      diagnostic ||
+      "Audience prioritaire détectée par le CMO IA.",
+    main_promise:
+      asCleanString(ready?.mainPromise) ||
+      asCleanString(payload.promise) ||
+      whyThisAction ||
+      emailContent ||
+      "Transformer l’attention du prospect en action claire et mesurable.",
+    main_objective:
+      asCleanString(ready?.mainObjective) ||
+      asCleanString(payload.objective) ||
+      nextBestAction ||
+      priorityAction ||
+      "Créer une campagne email courte, persuasive et directement exploitable.",
+    primary_cta: cta || "Clique ici pour passer à l’action.",
+    tone: "premium",
+    sales_intensity: "modere",
+    include_nurture: true,
+    include_sales: true,
+    include_objection: true,
+    include_relaunch: true,
+    auto_cta: true,
+    optimize_subjects: true,
+    progressive_pressure: true,
   };
 }
 
-function dayNote() {
-  return [
-    "LIENS UTILES :",
-    "- https://legenerateurdigital.systeme.io/lgd",
-    "- https://legenerateurdigital-front.vercel.app",
-    "",
-    "NOTE LGD :",
-    "- Copie l’objet A, B ou C dans le champ Objet de Systeme.io.",
-    "- Copie le préheader dans le champ prévu si disponible.",
-    "- Colle le corps de l’email dans Systeme.io.",
-    "- Remplace [Prénom] par la variable Systeme.io si tu l’utilises.",
-  ].join("\n");
-}
+export default function EmailCampaignsPage() {
+  const [values, setValues] = useState<EmailCampaignFormValues>(defaultEmailCampaignValues);
+  const [sequence, setSequence] = useState<EmailSequenceResponse | null>(null);
+  const [savedCampaignId, setSavedCampaignId] = useState<number | null>(null);
+  const [resetVersion, setResetVersion] = useState(0);
+  const [cmoAutoLoading, setCmoAutoLoading] = useState(false);
+  const [cmoAutoMessage, setCmoAutoMessage] = useState<string | null>(null);
 
-function finalizeDay(day: EmailSequenceDay): EmailSequenceDay {
-  const fallbackShort = cleanBlock([
-    "Bonjour [Prénom],",
-    "",
-    "Le plus important n’est pas d’être prêt à 100%, mais d’avancer avec une méthode claire.",
-    "",
-    `👉 ${day.ctaVariants.a}`,
-    "",
-    "À très vite,",
-    "LGD",
-  ].join("\n"));
+  useEffect(() => {
+    try {
+      const key = "lgd_dashboard_daily_progress";
+      const raw = window.localStorage.getItem(key);
+      const parsed = raw ? JSON.parse(raw) : {};
+      const updated = {
+        idea: Boolean(parsed?.idea),
+        content: Boolean(parsed?.content),
+        email: true,
+        offer: Boolean(parsed?.offer),
+      };
+      window.localStorage.setItem(key, JSON.stringify(updated));
+    } catch {
+      // ignore
+    }
+  }, []);
 
-  const fallbackLong = cleanBlock([
-    "Bonjour [Prénom],",
-    "",
-    "Vous n’avez pas besoin de tout maîtriser pour commencer. Vous avez surtout besoin d’un chemin clair, d’un premier pas simple et d’un message qui vous aide à avancer sans vous disperser.",
-    "",
-    `👉 ${day.ctaVariants.a}`,
-    "",
-    "À très vite,",
-    "LGD",
-  ].join("\n"));
+  useEffect(() => {
+    if (typeof window === "undefined") return;
 
-  const shortMobile = cleanBlock(day.shortMobile);
-  const longStory = cleanBlock(day.longStory);
+    try {
+      const raw = window.localStorage.getItem(CMO_AUTO_PAYLOAD_KEY);
+      if (!raw) return;
 
-  return {
-    ...day,
-    subjects: {
-      a: clean(day.subjects.a, "Votre prochaine étape commence ici"),
-      b: clean(day.subjects.b, "Et si tout devenait plus simple aujourd’hui ?"),
-      c: clean(day.subjects.c, "Ce que vous devez comprendre avant de vous lancer"),
-    },
-    preheader: clean(day.preheader, "Une méthode simple pour avancer sans rester bloqué."),
-    shortMobile: shortMobile.length >= 120 && !/^formation$/i.test(shortMobile) ? shortMobile : fallbackShort,
-    longStory: longStory.length >= 350 && !/^formation$/i.test(longStory) ? longStory : fallbackLong,
-    systemeIoNote: cleanBlock(day.systemeIoNote || dayNote()),
+      const payload = JSON.parse(raw) as CmoAutoPayload;
+      if (!payload || payload.target !== "emailing") return;
+
+      setCmoAutoLoading(true);
+      setCmoAutoMessage("CMO IA analyse la priorité et prépare ta campagne email…");
+
+      window.setTimeout(() => {
+        setValues((previous) => buildCmoEmailValues(payload, previous));
+        setSequence(null);
+        setSavedCampaignId(null);
+        setResetVersion((prev) => prev + 1);
+        setCmoAutoLoading(false);
+        setCmoAutoMessage("Campagne pré-remplie par le CMO IA. Tu peux générer la séquence.");
+        window.localStorage.removeItem(CMO_AUTO_PAYLOAD_KEY);
+
+        window.setTimeout(() => {
+          setCmoAutoMessage(null);
+        }, 4500);
+      }, 850);
+    } catch (error) {
+      console.error("CMO auto payload email error", error);
+      setCmoAutoLoading(false);
+      setCmoAutoMessage(null);
+    }
+  }, []);
+
+  const handleResetGenerator = () => {
+    setValues(defaultEmailCampaignValues);
+    setSequence(null);
+    setSavedCampaignId(null);
+    setResetVersion((prev) => prev + 1);
   };
-}
 
-function buildDay1(ctx: EmailEngineContext): EmailSequenceDay {
-  return finalizeDay({
-    day: 1,
-    type: "nurture",
-    label: "EMAIL JOUR 1 — NURTURE",
-    subjects: {
-      a: `Vous pouvez avancer avec ${short(ctx.offer, 42)}`,
-      b: "Et si tout devenait plus simple aujourd’hui ?",
-      c: "Ce que personne ne vous dit avant de se lancer",
-    },
-    preheader: `Le premier pas pour dépasser ${stripTrailingPunctuation(ctx.objection)}.`,
-    shortMobile: [
-      "Bonjour [Prénom],",
-      "",
-      `Si vous voulez avancer avec ${ctx.offer}, le vrai sujet n’est pas de tout maîtriser dès le départ.`,
-      "",
-      `Le vrai sujet, c’est ce blocage : ${ensureSentence(ctx.pain)}`,
-      "",
-      `La bonne approche consiste à suivre une méthode claire pour ${stripTrailingPunctuation(ctx.promise)}.`,
-      "",
-      `👉 ${ctx.cta}`,
-      "",
-      "À très vite,",
-      ctx.brand || "LGD",
-    ].join("\n"),
-    longStory: [
-      "Bonjour [Prénom],",
-      "",
-      `Vous avez peut-être déjà eu envie d’avancer avec ${ctx.offer}, puis une pensée vous a retenu.`,
-      "",
-      `Ce frein est souvent très concret : ${ensureSentence(ctx.pain)}`,
-      "",
-      "Et c’est exactement là que beaucoup de personnes s’arrêtent. Elles pensent qu’il faut être déjà expert, avoir tout compris, avoir les bons outils, ou attendre le moment parfait.",
-      "",
-      "Mais le moment parfait arrive rarement. Ce qui change tout, c’est d’avoir un cadre simple, une méthode progressive et un premier pas clair.",
-      "",
-      `${ctx.offer} existe pour vous aider à ${stripTrailingPunctuation(ctx.promise)}, sans rester bloqué par ${stripTrailingPunctuation(ctx.objection)}.`,
-      "",
-      `L’angle à retenir aujourd’hui : ${ensureSentence(ctx.angle)}`,
-      "",
-      `👉 ${ctx.cta}`,
-      "",
-      "À très vite,",
-      ctx.brand || "LGD",
-    ].join("\n"),
-    ctaVariants: ctaVariants(ctx),
-    systemeIoNote: dayNote(),
-  });
-}
-
-function buildDay2(ctx: EmailEngineContext): EmailSequenceDay {
-  return finalizeDay({
-    day: 2,
-    type: "nurture",
-    label: "EMAIL JOUR 2 — NURTURE",
-    subjects: {
-      a: "La peur coûte souvent plus cher que l’action",
-      b: "Ce blocage peut disparaître plus vite que vous le pensez",
-      c: `Avant de renoncer à ${short(ctx.offer, 42)}, lisez ceci`,
-    },
-    preheader: `Transformez ${stripTrailingPunctuation(ctx.objection)} en décision concrète.`,
-    shortMobile: [
-      "Bonjour [Prénom],",
-      "",
-      "Le risque n’est pas seulement d’essayer.",
-      "",
-      "Le vrai risque, c’est de rester au même endroit pendant encore des mois alors que vous savez déjà que quelque chose doit changer.",
-      "",
-      `Si ${ctx.pain}, une méthode claire peut vous aider à reprendre le contrôle.`,
-      "",
-      `👉 ${ctx.cta}`,
-      "",
-      "À très vite,",
-      ctx.brand || "LGD",
-    ].join("\n"),
-    longStory: [
-      "Bonjour [Prénom],",
-      "",
-      "La peur donne souvent l’impression de nous protéger.",
-      "",
-      "Elle nous pousse à attendre, comparer, remettre à plus tard, chercher encore une information, regarder ce que font les autres, puis repousser la décision.",
-      "",
-      `Mais quand votre objectif est de ${stripTrailingPunctuation(ctx.objective)}, cette attente devient souvent le vrai problème.`,
-      "",
-      `Votre blocage n’est pas anormal : ${ensureSentence(ctx.pain)}`,
-      "",
-      "La différence se fait lorsque vous arrêtez de vouloir tout résoudre seul et que vous suivez une structure pensée pour avancer dans le bon ordre.",
-      "",
-      `${ctx.offer} vous aide à clarifier les étapes, éviter la dispersion et vous concentrer sur ce qui permet vraiment de progresser.`,
-      "",
-      `La promesse est simple : ${ensureSentence(ctx.promise)}`,
-      "",
-      `👉 ${ctx.cta}`,
-      "",
-      "À très vite,",
-      ctx.brand || "LGD",
-    ].join("\n"),
-    ctaVariants: ctaVariants(ctx),
-    systemeIoNote: dayNote(),
-  });
-}
-
-function buildDay3(ctx: EmailEngineContext): EmailSequenceDay {
-  return finalizeDay({
-    day: 3,
-    type: "objection",
-    label: "EMAIL JOUR 3 — OBJECTION",
-    subjects: {
-      a: "Vous n’avez pas besoin d’être prêt à 100%",
-      b: "Le bon moment n’arrive pas tout seul",
-      c: `L’objection qui bloque ${short(ctx.target, 42)}`,
-    },
-    preheader: `Répondez à ${stripTrailingPunctuation(ctx.objection)} avec une méthode claire.`,
-    shortMobile: [
-      "Bonjour [Prénom],",
-      "",
-      "Vous vous dites peut-être : “Et si je n’y arrive pas ?”",
-      "",
-      `C’est exactement l’objection à dépasser : ${ensureSentence(ctx.objection)}`,
-      "",
-      `Avec ${ctx.offer}, l’objectif n’est pas d’être parfait. L’objectif est d’avancer avec un cadre qui rend le passage à l’action plus simple.`,
-      "",
-      `👉 ${ctx.cta}`,
-      "",
-      "À très vite,",
-      ctx.brand || "LGD",
-    ].join("\n"),
-    longStory: [
-      "Bonjour [Prénom],",
-      "",
-      "Il y a une idée qui bloque énormément de personnes : attendre de se sentir totalement prêt avant de commencer.",
-      "",
-      `Pour ${ctx.target}, cette attente prend souvent la forme suivante : ${ensureSentence(ctx.objection)}`,
-      "",
-      "Le problème, c’est que la confiance ne vient presque jamais avant l’action. Elle vient après les premiers pas, les premiers essais et les premiers résultats visibles.",
-      "",
-      `${ctx.offer} sert justement à transformer ce flou en progression concrète.`,
-      "",
-      `Vous ne partez pas de “je dois tout savoir”. Vous partez de : ${ensureSentence(ctx.angle)}`,
-      "",
-      `Et c’est ce qui permet de ${stripTrailingPunctuation(ctx.promise)}.`,
-      "",
-      `👉 ${ctx.cta}`,
-      "",
-      "À très vite,",
-      ctx.brand || "LGD",
-    ].join("\n"),
-    ctaVariants: ctaVariants(ctx),
-    systemeIoNote: dayNote(),
-  });
-}
-
-function buildDay4(ctx: EmailEngineContext): EmailSequenceDay {
-  return finalizeDay({
-    day: 4,
-    type: "vente",
-    label: "EMAIL JOUR 4 — VENTE",
-    subjects: {
-      a: `${short(ctx.offer, 42)} : passez du doute à l’action`,
-      b: "Voilà ce qui peut changer maintenant",
-      c: "La méthode pour avancer sans vous disperser",
-    },
-    preheader: `Découvrez comment avancer vers ${stripTrailingPunctuation(ctx.promise)}.`,
-    shortMobile: [
-      "Bonjour [Prénom],",
-      "",
-      `Si votre objectif est clair, mais que ${ctx.pain}, il vous faut plus qu’une motivation passagère.`,
-      "",
-      `Il vous faut un cadre. C’est exactement le rôle de ${ctx.offer}.`,
-      "",
-      `Vous avancez avec une direction simple : ${ensureSentence(ctx.promise)}`,
-      "",
-      `👉 ${ctx.cta}`,
-      "",
-      "À très vite,",
-      ctx.brand || "LGD",
-    ].join("\n"),
-    longStory: [
-      "Bonjour [Prénom],",
-      "",
-      "Vous pouvez continuer à chercher des réponses partout, ou vous pouvez décider d’avancer avec une méthode structurée.",
-      "",
-      `Si ${ctx.pain}, ce n’est pas parce que vous manquez de potentiel. C’est souvent parce que vous n’avez pas encore le bon cadre pour transformer l’envie en action.`,
-      "",
-      `${ctx.offer} a été pensé pour vous aider à :`,
-      "",
-      "- clarifier ce que vous devez faire en priorité,",
-      "- éviter la dispersion,",
-      "- dépasser les blocages qui ralentissent le passage à l’action,",
-      "- avancer vers un résultat concret.",
-      "",
-      `La promesse centrale : ${ensureSentence(ctx.promise)}`,
-      "",
-      `Et l’angle qui fait la différence : ${ensureSentence(ctx.angle)}`,
-      "",
-      "Ce n’est pas une invitation à attendre encore. C’est une invitation à reprendre la main maintenant.",
-      "",
-      `👉 ${ctx.cta}`,
-      "",
-      "À très vite,",
-      ctx.brand || "LGD",
-    ].join("\n"),
-    ctaVariants: ctaVariants(ctx),
-    systemeIoNote: dayNote(),
-  });
-}
-
-function buildDay5(ctx: EmailEngineContext): EmailSequenceDay {
-  return finalizeDay({
-    day: 5,
-    type: "nurture",
-    label: "EMAIL JOUR 5 — NURTURE",
-    subjects: {
-      a: "L’erreur qui bloque les bons projets",
-      b: "Ce n’est pas un manque de motivation",
-      c: `Pourquoi ${short(ctx.target, 42)} restent bloqués`,
-    },
-    preheader: "Le vrai problème n’est pas toujours celui que l’on croit.",
-    shortMobile: [
-      "Bonjour [Prénom],",
-      "",
-      "L’erreur la plus fréquente, c’est de croire qu’il faut encore plus d’informations avant d’agir.",
-      "",
-      `Mais si ${ctx.pain}, ce qu’il faut surtout, c’est une suite claire de décisions simples.`,
-      "",
-      `${ctx.offer} vous aide à avancer sans attendre que tout soit parfait.`,
-      "",
-      `👉 ${ctx.cta}`,
-      "",
-      "À très vite,",
-      ctx.brand || "LGD",
-    ].join("\n"),
-    longStory: [
-      "Bonjour [Prénom],",
-      "",
-      "Beaucoup de personnes pensent qu’elles sont bloquées parce qu’elles manquent d’informations.",
-      "",
-      "En réalité, elles ont souvent déjà assez d’informations pour commencer. Ce qui manque, c’est un chemin clair.",
-      "",
-      `Quand ${ctx.pain}, le cerveau cherche une porte de sortie : attendre, comparer, repousser, demander un avis de plus.`,
-      "",
-      "Mais cette logique entretient le doute au lieu de le réduire.",
-      "",
-      `${ctx.offer} apporte une structure pour avancer dans le bon ordre, avec une promesse simple : ${ensureSentence(ctx.promise)}`,
-      "",
-      `C’est précisément pour ${ctx.target} qui veulent avancer sans rester prisonniers de ${stripTrailingPunctuation(ctx.objection)}.`,
-      "",
-      `👉 ${ctx.cta}`,
-      "",
-      "À très vite,",
-      ctx.brand || "LGD",
-    ].join("\n"),
-    ctaVariants: ctaVariants(ctx),
-    systemeIoNote: dayNote(),
-  });
-}
-
-function buildDay6(ctx: EmailEngineContext): EmailSequenceDay {
-  return finalizeDay({
-    day: 6,
-    type: "relance",
-    label: "EMAIL JOUR 6 — RELANCE",
-    subjects: {
-      a: "Êtes-vous prêt à faire le premier vrai pas ?",
-      b: "Votre décision peut commencer ici",
-      c: "La checklist avant de passer à l’action",
-    },
-    preheader: `Faites le point avant de choisir ${ctx.offer}.`,
-    shortMobile: [
-      "Bonjour [Prénom],",
-      "",
-      `Avant de remettre votre décision à plus tard, posez-vous une question simple : voulez-vous encore laisser ${stripTrailingPunctuation(ctx.objection)} décider à votre place ?`,
-      "",
-      `Si la réponse est non, ${ctx.offer} peut vous aider à avancer avec un cadre clair.`,
-      "",
-      `La prochaine étape est simple : ${ensureSentence(ctx.promise)}`,
-      "",
-      `👉 ${ctx.cta}`,
-      "",
-      "À très vite,",
-      ctx.brand || "LGD",
-    ].join("\n"),
-    longStory: [
-      "Bonjour [Prénom],",
-      "",
-      `Vous hésitez encore à avancer avec ${ctx.offer} ?`,
-      "",
-      "C’est normal. Une décision importante mérite d’être clarifiée.",
-      "",
-      "Voici une mini-checklist pour faire le point :",
-      "",
-      `1. Votre objectif est-il clair ?\n   Aujourd’hui, l’objectif est : ${ensureSentence(ctx.objective)}`,
-      "",
-      `2. Votre blocage principal est-il identifié ?\n   Le blocage actuel : ${ensureSentence(ctx.pain)}`,
-      "",
-      `3. L’objection est-elle encore en train de décider pour vous ?\n   Objection repérée : ${ensureSentence(ctx.objection)}`,
-      "",
-      `4. Voulez-vous avancer avec une méthode qui vous aide à ${stripTrailingPunctuation(ctx.promise)} ?`,
-      "",
-      `Si oui, ${ctx.offer} est là pour vous donner une direction claire et un passage à l’action plus simple.`,
-      "",
-      "Ne laissez pas l’hésitation prendre toute la place.",
-      "",
-      `👉 ${ctx.cta}`,
-      "",
-      "À très vite,",
-      ctx.brand || "LGD",
-    ].join("\n"),
-    ctaVariants: ctaVariants(ctx),
-    systemeIoNote: dayNote(),
-  });
-}
-
-function buildDay7(ctx: EmailEngineContext): EmailSequenceDay {
-  return finalizeDay({
-    day: 7,
-    type: "vente",
-    label: "EMAIL JOUR 7 — VENTE",
-    subjects: {
-      a: "Dernier rappel : votre prochaine étape est prête",
-      b: "Ne laissez pas cette décision repartir à zéro",
-      c: `${short(ctx.offer, 42)} : le moment de passer à l’action`,
-    },
-    preheader: `Dernière invitation pour avancer vers ${stripTrailingPunctuation(ctx.promise)}.`,
-    shortMobile: [
-      "Bonjour [Prénom],",
-      "",
-      `Dernier rappel pour ${ctx.offer}.`,
-      "",
-      `Si vous voulez vraiment ${stripTrailingPunctuation(ctx.promise)}, le plus important est de ne pas repartir dans l’attente.`,
-      "",
-      `Votre prochaine étape : ${ctx.cta}`,
-      "",
-      "À très vite,",
-      ctx.brand || "LGD",
-    ].join("\n"),
-    longStory: [
-      "Bonjour [Prénom],",
-      "",
-      "Si vous avez suivi cette séquence, vous avez maintenant une vision plus claire de ce qui se joue.",
-      "",
-      `Votre objectif : ${ensureSentence(ctx.objective)}`,
-      "",
-      `Votre blocage : ${ensureSentence(ctx.pain)}`,
-      "",
-      `Votre objection principale : ${ensureSentence(ctx.objection)}`,
-      "",
-      "Et votre prochaine étape ne devrait pas être de chercher encore plus d’informations. Elle devrait être de prendre une décision simple.",
-      "",
-      `${ctx.offer} vous aide à avancer avec une méthode structurée, pour ${stripTrailingPunctuation(ctx.promise)}.`,
-      "",
-      "Vous pouvez laisser les mêmes doutes revenir demain, ou choisir de créer un premier mouvement aujourd’hui.",
-      "",
-      `👉 ${ctx.cta}`,
-      "",
-      "À très vite,",
-      ctx.brand || "LGD",
-    ].join("\n"),
-    ctaVariants: ctaVariants(ctx),
-    systemeIoNote: dayNote(),
-  });
-}
-
-function formatDay(day: EmailSequenceDay): string {
-  const cleaned = finalizeDay(day);
-  return cleanBlock([
-    "==================================================",
-    cleaned.label,
-    "==================================================",
-    "",
-    "🧪 OBJETS À TESTER DANS SYSTEME.IO",
-    "",
-    `A → ${cleaned.subjects.a}`,
-    `B → ${cleaned.subjects.b}`,
-    `C → ${cleaned.subjects.c}`,
-    "",
-    "--------------------------------------------------",
-    "PRÉHEADER :",
-    cleaned.preheader,
-    "",
-    "--------------------------------------------------",
-    "CORPS UNIQUE — STORYTELLING / CONVERSION",
-    "--------------------------------------------------",
-    cleaned.longStory,
-    "",
-    "👉 CTA À TESTER :",
-    "",
-    `A → ${cleaned.ctaVariants.a}`,
-    `B → ${cleaned.ctaVariants.b}`,
-    `C → ${cleaned.ctaVariants.c}`,
-    "",
-    "--------------------------------------------------",
-    cleaned.systemeIoNote,
-  ].join("\n"));
-}
-
-export function buildEmailSequencePro(input: Partial<EmailEngineContext>): EmailSequencePro {
-  const ctx = normalizeContext(input);
-  const days = [
-    buildDay1(ctx),
-    buildDay2(ctx),
-    buildDay3(ctx),
-    buildDay4(ctx),
-    buildDay5(ctx),
-    buildDay6(ctx),
-    buildDay7(ctx),
-  ].map(finalizeDay);
-
-  return {
-    campaignName: `CMO Dispatch - ${ctx.offer}`,
-    campaignType: detectCampaignType(ctx),
-    offer: ctx.offer,
-    target: ctx.target,
-    promise: ctx.promise,
-    cta: ctx.cta,
-    days,
-    plainTextExport: days.map(formatDay).join("\n\n\n"),
+  const handleCreateNewCampaign = () => {
+    setValues((prev) => ({
+      ...defaultEmailCampaignValues,
+      sender_name: prev.sender_name,
+    }));
+    setSequence(null);
+    setSavedCampaignId(null);
+    setResetVersion((prev) => prev + 1);
   };
+
+  const handleOpenCampaign = (
+    nextValues: EmailCampaignFormValues,
+    nextSequence: EmailSequenceResponse | null,
+    nextSavedCampaignId: number
+  ) => {
+    setValues(nextValues);
+    setSequence(nextSequence);
+    setSavedCampaignId(nextSavedCampaignId);
+    setResetVersion((prev) => prev + 1);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  return (
+    <div className="min-h-screen bg-[#0a0a0a] px-6 pb-16 pt-[40px] text-white">
+      <div className="mx-auto max-w-7xl">
+        <Link
+          href="/dashboard"
+          className="inline-flex items-center gap-2 text-sm text-yellow-400 transition hover:text-yellow-300"
+        >
+          <ArrowLeft size={16} /> Retour au dashboard
+        </Link>
+
+        <div className="mt-5 rounded-[28px] border border-yellow-400/15 bg-gradient-to-br from-[#111111] via-[#0d0d0d] to-[#141414] p-8 shadow-[0_0_50px_rgba(250,204,21,0.05)]">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-yellow-400/20 bg-yellow-500/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-yellow-300">
+                <Sparkles size={14} /> Modules IA
+              </div>
+              <h1 className="mt-4 text-3xl font-bold text-yellow-300 md:text-4xl">
+                Campagnes E-mailing IA
+              </h1>
+              <p className="mt-3 max-w-3xl text-sm leading-7 text-zinc-400 md:text-base">
+                Générez des séquences email 7, 14 ou 30 jours, sauvegardez-les dans LGD puis
+                préparez leur diffusion via Systeme.io dans un workflow premium, stable et isolé.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3 rounded-3xl border border-yellow-400/15 bg-[#171717] px-5 py-4 text-sm text-zinc-300">
+              <MailCheck size={18} className="text-yellow-300" />
+              Sortie : sujets, préheaders, corps, CTA et payload Systeme.io
+            </div>
+          </div>
+
+          <div className="mt-6 flex justify-start lg:justify-end">
+            <EmailAnalyticsButton />
+          </div>
+        </div>
+
+        {cmoAutoMessage && (
+          <div className="mt-6 rounded-[26px] border border-yellow-400/20 bg-gradient-to-r from-yellow-500/10 via-[#15110a] to-yellow-500/5 p-5 shadow-[0_0_42px_rgba(250,204,21,0.08)]">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-2xl bg-yellow-400/10 text-yellow-300">
+                  <Sparkles size={18} className={cmoAutoLoading ? "animate-pulse" : ""} />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-[0.18em] text-yellow-300">
+                    Mode CMO IA actif
+                  </p>
+                  <p className="mt-1 text-sm leading-6 text-zinc-300">{cmoAutoMessage}</p>
+                </div>
+              </div>
+              {cmoAutoLoading && (
+                <div className="rounded-full border border-yellow-400/20 bg-black/30 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-yellow-200">
+                  Préparation intelligente…
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="mt-8 grid grid-cols-1 gap-6 2xl:grid-cols-[1.05fr_0.95fr]">
+          <EmailCampaignGenerator
+            values={values}
+            setValues={setValues}
+            onGenerated={setSequence}
+            onResetGenerator={handleResetGenerator}
+            onCreateNewCampaign={handleCreateNewCampaign}
+          />
+          <EmailSequenceViewer
+            formValues={values}
+            sequence={sequence}
+            onSaved={(id) => {
+              setSavedCampaignId(id);
+              setResetVersion((prev) => prev + 1);
+            }}
+            onReset={() => {
+              setSequence(null);
+              setSavedCampaignId(null);
+            }}
+          />
+        </div>
+
+        <div className="mt-6">
+          <EmailCampaignDeliveryCard
+            key={`${savedCampaignId ?? "none"}-${resetVersion}`}
+            savedCampaignId={savedCampaignId}
+          />
+        </div>
+
+        <div className="mt-6">
+          <SavedEmailCampaignsBlock
+            resetSignal={resetVersion}
+            onOpenCampaign={handleOpenCampaign}
+          />
+        </div>
+      </div>
+    </div>
+  );
 }
