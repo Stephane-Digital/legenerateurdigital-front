@@ -177,3 +177,22 @@ export type CMOPayload = {
     };
   };
 };
+// =============================
+// EMAIL ENGINE V3 (LOCK)
+// =============================
+
+export type EmailContextV3 = {
+  offer: string;
+  target: string;
+  pain: string;
+  promise: string;
+  cta: string;
+};
+
+export type EmailV3 = {
+  day: number;
+  subject: string;
+  preheader: string;
+  short: string;
+  long: string;
+};
