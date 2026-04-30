@@ -105,7 +105,7 @@ function buildNote() {
 NOTE LGD :
 - Copie l’objet A, B ou C dans le champ “Objet” de Systeme.io.
 - Copie le préheader dans le champ prévu si disponible.
-- Colle uniquement la version courte OU la version longue dans le corps de l’email.
+- Colle le corps de l’email dans Systeme.io.
 - Remplace [Prénom] par la variable Systeme.io si tu l’utilises.
 `);
 }
@@ -129,14 +129,7 @@ ${email.preheader}
 
 --------------------------------------------------
 
-VERSION COURTE — MOBILE / RAPIDE
---------------------------------------------------
-
-${email.short}
-
---------------------------------------------------
-
-VERSION LONGUE — STORYTELLING / CONVERSION
+CORPS DE L’EMAIL
 --------------------------------------------------
 
 ${email.long}
@@ -394,5 +387,4 @@ export function generateEmailSequenceV3(context: EmailEngineV3Context) {
     sequenceText: emails.map(formatEmail).join("\n\n"),
   };
 }
-
 
