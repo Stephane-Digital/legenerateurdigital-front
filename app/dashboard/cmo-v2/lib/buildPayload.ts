@@ -13,6 +13,7 @@ import type {
 } from "../types";
 import { generateEmailSequenceV3 } from "./emailEngineV3";
 import { buildStrategy } from "./buildStrategy";
+import { generateHumanEmail } from "./emailHumanEngine";
 
 function clean(value: string, fallback = "") {
   const text = String(value || "")
@@ -187,6 +188,19 @@ export function buildPayload(
     cta,
   });
 
+  const humanEmail =
+    module === "email"
+      ? generateHumanEmail({
+          offer,
+          target: audience,
+          pain: blocker,
+          promise,
+          cta,
+        })
+      : "";
+
+  const emailOutput = humanEmail || emailSequence.sequenceText;
+
   const modulePayloads = buildModulePayloads({
     objective,
     blocker,
@@ -247,8 +261,8 @@ export function buildPayload(
     warnings: [],
     meta: {
       module: target,
-      mode: "safe_dispatch_v3_lock",
-      model: "frontend_deterministic_engine",
+      mode: "safe_dispatch_human_engine",
+      model: "frontend_human_email_engine",
       content_generation: "module_only",
     },
   };
@@ -281,8 +295,8 @@ export function buildPayload(
 
     generated_content: {
       post: `${priorityByModule[module]}\n\n${diagnostic}\n\n${cta}`,
-      email: emailSequence.sequenceText,
-      email_sequence_text: emailSequence.sequenceText,
+      email: emailOutput,
+      email_sequence_text: emailOutput,
     },
 
     content_ready: {
@@ -296,9 +310,9 @@ export function buildPayload(
         primaryCta: cta,
         suggestedSubject: firstEmail?.subjects.a || `${offer} : ton plan d’action est prêt`,
         previewText: firstEmail?.preheader || `Une séquence orientée sur ton objectif réel : ${shortText(objective, 90)}`,
-        firstEmailBody: firstEmail?.long || emailSequence.sequenceText,
+        firstEmailBody: humanEmail || firstEmail?.long || emailSequence.sequenceText,
         cmoBrief: modulePayloads.emailing,
-        emailSequenceText: emailSequence.sequenceText,
+        emailSequenceText: emailOutput,
       },
       lead: {
         magnetName: `Checklist ${shortText(offer, 45)}`,
