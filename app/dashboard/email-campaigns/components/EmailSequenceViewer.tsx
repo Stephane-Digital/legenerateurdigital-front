@@ -108,24 +108,6 @@ function normalizeEmailBody(value: unknown) {
   return text;
 }
 
-
-const DEFAULT_USEFUL_LINKS = [
-  "Page de vente / paiement : https://legenerateurdigital.systeme.io/lgd",
-  "Accès plateforme LGD : https://legenerateurdigital-front.vercel.app",
-];
-
-function cleanGeneratedText(value: unknown) {
-  return String(value ?? "")
-    .replace(/\*\*/g, "")
-    .replace(/\bCTA\s*:/gi, "")
-    .replace(/\bCORPS\s*:/gi, "")
-    .replace(/\[Passer à l’action maintenant\]\(#\)/gi, "Passer à l’action maintenant")
-    .replace(/Cet email vise[\s\S]*?(?=\n{2,}|$)/gi, "")
-    .replace(/Le message est conçu[\s\S]*?(?=\n{2,}|$)/gi, "")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
-
 function stripLegacyEmailBlocks(value: unknown) {
   let text = cleanGeneratedText(value);
 
