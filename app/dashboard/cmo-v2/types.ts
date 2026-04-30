@@ -1,6 +1,7 @@
 import type { EmailSequenceDay, EmailSequencePro } from "../email-campaigns/lib/emailEnginePro";
 
 export type CMOModule = "email" | "lead" | "editor" | "coach";
+
 export type CMOTarget = "emailing" | "lead_engine" | "editor" | "coach";
 
 export type CMOStrategy = {
@@ -177,22 +178,31 @@ export type CMOPayload = {
     };
   };
 };
-// =============================
-// EMAIL ENGINE V3 (LOCK)
-// =============================
 
-export type EmailContextV3 = {
-  offer: string;
-  target: string;
-  pain: string;
-  promise: string;
-  cta: string;
-};
+// =============================
+// EMAIL ENGINE V3 LOCK TYPES
+// =============================
+export type CMOEmailIntent = "nurture" | "objection" | "vente" | "relance";
 
-export type EmailV3 = {
+export type CMOEmailSequenceItem = {
   day: number;
-  subject: string;
+  intent: CMOEmailIntent;
+  subjects: {
+    a: string;
+    b: string;
+    c: string;
+  };
   preheader: string;
   short: string;
   long: string;
+  ctas: {
+    a: string;
+    b: string;
+    c: string;
+  };
+};
+
+export type CMOEmailSequenceV3 = {
+  emails: CMOEmailSequenceItem[];
+  sequenceText: string;
 };
