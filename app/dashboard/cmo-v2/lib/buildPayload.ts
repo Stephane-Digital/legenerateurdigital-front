@@ -70,6 +70,8 @@ function extractOffer(objective: string) {
     /lancer\s+(?:ma|mon|mes|la|le|les|un|une|des)\s+([^,.!?]+)/i,
   ];
 
+  if (lower.includes("générateur digital")) return "Le Générateur Digital";
+
   for (const pattern of patterns) {
     const match = text.match(pattern);
     if (match?.[1]) return shortText(normalizeOffer(match[1]), 80);
