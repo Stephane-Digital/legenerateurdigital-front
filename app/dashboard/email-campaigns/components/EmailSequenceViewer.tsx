@@ -108,6 +108,58 @@ function normalizeEmailBody(value: unknown) {
   return text;
 }
 
+
+const DEFAULT_USEFUL_LINKS = [
+  "Page de vente / paiement : https://legenerateurdigital.systeme.io/lgd",
+  "Accès plateforme LGD : https://legenerateurdigital-front.vercel.app",
+];
+
+function cleanGeneratedText(value: unknown) {
+  return String(value ?? "")
+    .replace(/\*\*/g, "")
+    .replace(/\bCTA\s*:/gi, "")
+    .replace(/\bCORPS\s*:/gi, "")
+    .replace(/\[Passer à l’action maintenant\]\(#\)/gi, "Passer à l’action maintenant")
+    .replace(/Cet email vise[\s\S]*?(?=\n{2,}|$)/gi, "")
+    .replace(/Le message est conçu[\s\S]*?(?=\n{2,}|$)/gi, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function stripLegacyEmailBlocks(value: unknown) {
+  let text = cleanGeneratedText(value);
+
+  const storyMatch = text.match(/VERSION LONGUE\s+—\s+STORYTELLING\s*\/\s*CONVERSION[\s\S]*?(?=👉 CTA À TESTER|NOTE LGD|$)/i);
+
+  if (storyMatch?.[0]) {
+    text = storyMatch[0]
+      .replace(/VERSION LONGUE\s+—\s+STORYTELLING\s*\/\s*CONVERSION/gi, "")
+      .replace(/^-{5,}/gm, "")
+      .trim();
+  }
+
+  return cleanGeneratedText(
+    text
+      .replace(/VERSION COURTE\s+—\s+MOBILE\s*\/\s*RAPIDE[\s\S]*?(?=VERSION LONGUE|NOTE LGD|$)/gi, "")
+      .replace(/VERSION LONGUE\s+—\s+STORYTELLING\s*\/\s*CONVERSION/gi, "")
+      .replace(/👉 CTA À TESTER[\s\S]*?(?=NOTE LGD|$)/gi, "")
+      .replace(/NOTE LGD[\s\S]*$/gi, "")
+      .replace(/^-{5,}/gm, "")
+      .replace(/\n{3,}/g, "\n\n")
+  );
+}
+
+function normalizeEmailForDisplay(email: EmailSequenceItem, index: number): EmailSequenceItem {
+  return {
+    ...email,
+    day: index + 1,
+    subject: cleanGeneratedText(email.subject),
+    preheader: cleanGeneratedText(email.preheader),
+    body: stripLegacyEmailBlocks(email.body),
+    cta: cleanGeneratedText(email.cta || "Passer à l’action maintenant"),
+  };
+}
+
 function formatPersistentLinks(rawLinks: string) {
   const customLinks = rawLinks
     .split(/\n+/)
@@ -125,10 +177,12 @@ function formatPersistentLinks(rawLinks: string) {
 ${links.map((link) => `• ${link}`).join("\n")}`;
 }
 
+
 function buildPlainSequence(emails: EmailSequenceItem[], senderDisplay: string) {
   return emails
     .map((email) => {
-      const body = normalizeEmailBody(email.body);
+      const body = stripLegacyEmailBlocks(email.body);
+
       return `Jour ${email.day}
 Type: ${email.email_type}
 Sujet: ${cleanGeneratedText(email.subject)}
@@ -150,11 +204,11 @@ function buildSystemeIoSequence(emails: EmailSequenceItem[], senderDisplay: stri
       const subjectB = "Et si tout changeait aujourd’hui ?";
       const subjectC = "Ce que personne ne vous dit vraiment";
 
-      const ctaA = cleanGeneratedText(email.cta || "Découvrir maintenant");
+      const ctaA = cleanGeneratedText(email.cta || "Passer à l’action maintenant");
       const ctaB = "Voir comment ça fonctionne";
       const ctaC = "Accéder à la méthode";
 
-      const body = normalizeEmailBody(email.body);
+      const body = stripLegacyEmailBlocks(email.body);
 
       return `==================================================
 EMAIL JOUR ${email.day} — ${String(email.email_type || "email").toUpperCase()}
@@ -207,8 +261,8 @@ function buildCleanSystemeIoEmail(
   senderDisplay: string,
   persistentLinks: string
 ) {
-  const body = normalizeEmailBody(email.body);
-  const cta = cleanGeneratedText(email.cta || "Découvrir maintenant");
+  const body = stripLegacyEmailBlocks(email.body);
+  const cta = cleanGeneratedText(email.cta || "Passer à l’action maintenant");
   const usefulLinks = formatPersistentLinks(persistentLinks);
 
   return `Bonjour [Prénom],
@@ -244,7 +298,7 @@ export default function EmailSequenceViewer({ formValues, sequence, onSaved, onR
 
   const safeSequence = useMemo(() => {
     if (!sequence) return null;
-    const emails = (sequence.emails || []).map((email, index) => ({ ...email, day: index + 1 }));
+    const emails = (sequence.emails || []).map((email, index) => normalizeEmailForDisplay(email, index));
     return { ...sequence, emails };
   }, [sequence]);
 
