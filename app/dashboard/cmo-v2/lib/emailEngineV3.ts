@@ -394,3 +394,4 @@ export function generateEmailSequenceV3(context: EmailEngineV3Context) {
     sequenceText: emails.map(formatEmail).join("\n\n"),
   };
 }
+
