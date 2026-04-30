@@ -14,12 +14,20 @@ function cleanText(value: unknown, fallback = "") {
   const text = String(value || "")
     .replace(/\*\*/g, "")
     .replace(/CTA\s*:/gi, "")
+    .replace(/CORPS\s*:/gi, "")
     .replace(/Cet email vise[\s\S]*$/gi, "")
     .replace(/Le message est conçu[\s\S]*$/gi, "")
     .replace(/\[Passer à l’action maintenant\]\(#\)/gi, "Passer à l’action maintenant")
-    .replace(/\s+\n/g, "\n")
-    .replace(/\n\s+/g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
+    .replace(/\s+
+/g, "
+")
+    .replace(/
+\s+/g, "
+")
+    .replace(/
+{3,}/g, "
+
+")
     .trim();
 
   return text || fallback;
@@ -107,16 +115,16 @@ NOTE LGD :
 - Copie le préheader dans le champ prévu si disponible.
 - Colle uniquement le CORPS DE L’EMAIL dans Systeme.io.
 - Remplace [Prénom] par la variable Systeme.io si tu l’utilises.
-- Remplace les URLs entre crochets par tes liens Systeme.io avant envoi.
+- Remplace ou conserve les liens utiles selon ta page Systeme.io.
 `);
 }
 
 function buildUsefulLinks(ctas: CMOEmailSequenceItem["ctas"]) {
   return cleanText(`
 🔗 LIENS UTILES À INSÉRER AVANT ENVOI SIO
-- ${ctas.a} : [URL_PAGE_DE_VENTE_OU_PAIEMENT]
-- ${ctas.b} : [URL_PAGE_DE_PRÉSENTATION]
-- ${ctas.c} : [URL_PAGE_DE_MÉTHODE_OU_FORMULAIRE]
+- ${ctas.a} : https://legenerateurdigital.systeme.io/lgd
+- ${ctas.b} : https://legenerateurdigital.systeme.io/lgd
+- ${ctas.c} : https://legenerateurdigital.systeme.io/lgd
 `);
 }
 
@@ -168,7 +176,6 @@ function validateEmail(email: CMOEmailSequenceItem) {
     email.subjects.b,
     email.subjects.c,
     email.preheader,
-    email.short,
     email.long,
     email.ctas.a,
     email.ctas.b,
@@ -176,18 +183,20 @@ function validateEmail(email: CMOEmailSequenceItem) {
   ];
 
   const invalid = required.some((value) => !value || cleanText(value).length < 8);
-  const forbidden = [email.short, email.long, email.preheader, email.subjects.a].some((value) => {
+  const forbidden = [email.long, email.preheader, email.subjects.a].some((value) => {
     const text = cleanText(value).toLowerCase();
     return (
       text === "formation" ||
       text.includes("cet email vise") ||
       text.includes("le message est conçu") ||
-      text.includes("**")
+      text.includes("**") ||
+      text.includes("version courte") ||
+      text.includes("version longue")
     );
   });
 
   if (invalid || forbidden) {
-    throw new Error(`Email Engine V3 blocked invalid email day ${email.day}`);
+    throw new Error(`Email Engine V4 blocked invalid email day ${email.day}`);
   }
 }
 
@@ -401,7 +410,7 @@ export function generateEmailSequenceV3(context: EmailEngineV3Context) {
 
   return {
     emails,
-    sequenceText: emails.map(formatEmail).join("\n\n"),
+    sequenceText: cleanText(emails.map(formatEmail).join("\n\n")),
   };
 }
 
