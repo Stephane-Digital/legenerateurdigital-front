@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { EmailCampaignFormValues, EmailSequenceResponse } from "../types";
+import type { EmailCampaignFormValues, EmailSequenceResponse } from "./types";
 
 type Props = {
   formValues: EmailCampaignFormValues;
