@@ -6,92 +6,84 @@ export type HumanEmailInput = {
   cta: string;
 };
 
-function pick(arr: string[]) {
-  return arr[Math.floor(Math.random() * arr.length)];
+function cleanText(value: unknown, fallback = "") {
+  const text = String(value || "")
+    .replace(/\*\*/g, "")
+    .replace(/CTA\s*:/gi, "")
+    .replace(/\s+\n/g, "\n")
+    .replace(/\n\s+/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  return text || fallback;
 }
 
 export function generateHumanEmail(input: HumanEmailInput) {
-  const { offer, target, pain, promise, cta } = input;
+  const offer = cleanText(input.offer, "Le Générateur Digital");
+  const target = cleanText(input.target, "les entrepreneurs qui veulent avancer plus simplement");
+  const pain = cleanText(
+    input.pain,
+    "tu as des idées, mais tu perds du temps à tout assembler entre plusieurs outils"
+  );
+  const promise = cleanText(
+    input.promise,
+    "tu peux avancer avec un plan plus clair, plus simple, et une vraie méthode pour passer à l’action"
+  );
+  const cta = cleanText(input.cta, "Passer à l’action maintenant");
 
-  const openers = [
-    "Je vais être honnête avec toi.",
-    "Je vais te dire un truc important.",
-    "On va être direct.",
-  ];
-
-  const mirror = [
-    `La plupart des gens dans ta situation vivent la même chose.`,
-    `Ce que tu ressens est plus courant que tu ne le penses.`,
-    `Beaucoup de personnes bloquent exactement à cet endroit.`,
-  ];
-
-  const tension = [
-    `Ce n’est pas que ça ne fonctionne pas.`,
-    `Ce n’est pas un problème de motivation.`,
-    `Ce n’est pas que tu n’es pas capable.`,
-  ];
-
-  const realProblem = [
-    `Le vrai problème, c’est : ${pain}`,
-    `Le blocage réel, c’est : ${pain}`,
-  ];
-
-  const solution = [
-    `C’est exactement ce que ${offer} permet de corriger.`,
-    `${offer} est conçu pour débloquer ça.`,
-  ];
-
-  const simplicity = [
-    "Pas besoin de tout refaire.",
-    "Pas besoin de repartir de zéro.",
-  ];
-
-  const bullets = [
-    "aller à l’essentiel",
-    "suivre un plan clair",
-    "laisser l’IA faire le plus dur",
-  ];
-
-  const email = `
+  return cleanText(`
 Bonjour [Prénom],
 
-${pick(openers)}
+Je vais être honnête avec toi.
 
-${pick(tension)}
-${pick(realProblem)}
+La plupart des personnes qui restent bloquées ne manquent pas d’idées.
 
-${pick(mirror)}
+Elles manquent surtout d’un système simple pour les transformer en actions concrètes.
 
-👉 ${pick(solution)}
+Et souvent, le vrai problème ressemble à ça :
 
----
+${pain}
 
-💡 Cette fois, l’objectif est simple :
+Ce n’est pas un manque de motivation.
+Ce n’est pas non plus parce que tu n’es pas capable.
 
-• ${bullets[0]}  
-• ${bullets[1]}  
-• ${bullets[2]}  
+C’est juste que quand tout est dispersé entre trop d’outils, trop d’idées et trop de choses à faire, on finit par repousser.
 
----
+👉 C’est exactement ce que ${offer} est conçu pour corriger.
 
-${pick(simplicity)}
+🎁 Ce que tu peux faire maintenant
 
-👉 ${promise}
-
----
+Si tu veux repartir simplement, tu peux reprendre le fil ici :
 
 👉 ${cta}
 
----
+💡 Ce qui change vraiment
+
+Cette fois, l’objectif est simple :
+
+• aller à l’essentiel
+• suivre un plan clair
+• transformer une idée en vraie action marketing
+• laisser l’IA t’aider sans te noyer sous des réponses génériques
+
+${offer} n’est pas là pour te compliquer la vie.
+
+Il est là pour t’aider à avancer plus vite, avec plus de clarté, même si tout n’est pas encore parfait.
+
+Pour ${target}, le plus important n’est pas de tout maîtriser.
+
+Le plus important, c’est de reprendre une direction claire.
+
+Et c’est exactement la promesse :
+
+${promise}
 
 Si tu veux, tu peux aussi répondre à cet email.
 Je lis tous les messages.
 
 À bientôt peut-être 👀
 
-Alex
-Coach LGD
-`;
-
-  return email.trim();
+Alex IA 🤖
+Ton Coach LGD
+`);
 }
