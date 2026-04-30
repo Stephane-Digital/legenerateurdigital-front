@@ -18,16 +18,9 @@ function cleanText(value: unknown, fallback = "") {
     .replace(/Cet email vise[\s\S]*$/gi, "")
     .replace(/Le message est conçu[\s\S]*$/gi, "")
     .replace(/\[Passer à l’action maintenant\]\(#\)/gi, "Passer à l’action maintenant")
-    .replace(/\s+
-/g, "
-")
-    .replace(/
-\s+/g, "
-")
-    .replace(/
-{3,}/g, "
-
-")
+    .replace(/\s+\n/g, "\n")
+    .replace(/\n\s+/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
 
   return text || fallback;
