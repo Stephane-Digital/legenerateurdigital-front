@@ -21,14 +21,8 @@ function cleanText(value: unknown, fallback = "") {
 export function generateHumanEmail(input: HumanEmailInput) {
   const offer = cleanText(input.offer, "Le Générateur Digital");
   const target = cleanText(input.target, "les entrepreneurs qui veulent avancer plus simplement");
-  const pain = cleanText(
-    input.pain,
-    "tu as des idées, mais tu perds du temps à tout assembler entre plusieurs outils"
-  );
-  const promise = cleanText(
-    input.promise,
-    "tu peux avancer avec un plan plus clair, plus simple, et une vraie méthode pour passer à l’action"
-  );
+  const pain = cleanText(input.pain, "tu as des idées, mais tu perds du temps à tout assembler entre plusieurs outils");
+  const promise = cleanText(input.promise, "tu peux avancer avec un plan plus clair, plus simple, et une vraie méthode pour passer à l’action");
   const cta = cleanText(input.cta, "Passer à l’action maintenant");
 
   return cleanText(`
@@ -87,4 +81,3 @@ Alex IA 🤖
 Ton Coach LGD
 `);
 }
-
