@@ -158,8 +158,7 @@ function dayNote() {
     "- Copie le préheader dans le champ prévu si disponible.",
     "- Colle le corps complet de l’email dans Systeme.io.",
     "- Remplace [Prénom] par la variable Systeme.io si tu l’utilises.",
-  ].join("
-");
+  ].join("\n");
 }
 
 function finalizeDay(day: EmailSequenceDay): EmailSequenceDay {
@@ -598,8 +597,7 @@ function formatDay(day: EmailSequenceDay): string {
     "",
     "--------------------------------------------------",
     cleaned.systemeIoNote,
-  ].join("
-"));
+  ].join("\n"));
 }
 
 export function buildEmailSequencePro(input: Partial<EmailEngineContext>): EmailSequencePro {
