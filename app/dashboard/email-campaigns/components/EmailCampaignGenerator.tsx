@@ -55,6 +55,91 @@ function getAuthHeaders() {
   return { Authorization: `Bearer ${token}`, "X-LGD-Token": token };
 }
 
+
+function cleanGeneratedText(value: unknown) {
+  return String(value ?? "")
+    .replace(/\*\*/g, "")
+    .replace(/\bCTA\s*:/gi, "")
+    .replace(/\bCORPS\s*:/gi, "")
+    .replace(/VERSION COURTE[\s\S]*?(?=VERSION LONGUE|NOTE LGD|$)/gi, "")
+    .replace(/VERSION LONGUE[\s\S]*?(?=NOTE LGD|$)/gi, "")
+    .replace(/Cet email vise[\s\S]*?(?=\n{2,}|$)/gi, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function humanEmailBody(values: EmailCampaignFormValues, day: number) {
+  const offer = cleanGeneratedText(values.offer_name || "Le Générateur Digital");
+  const target = cleanGeneratedText(values.target_audience || "les entrepreneurs qui veulent avancer plus simplement");
+  const promise = cleanGeneratedText(values.main_promise || "avancer avec un plan clair et laisser l’IA faire le plus gros du travail");
+  const cta = cleanGeneratedText(values.primary_cta || "Passer à l’action maintenant");
+
+  const openings = [
+    "Je vais être honnête avec toi.",
+    "On va aller à l’essentiel.",
+    "Je veux te partager quelque chose de simple.",
+    "La plupart des personnes ne bloquent pas par manque d’idées.",
+    "Il y a un point que beaucoup sous-estiment.",
+    "Avant de continuer, prends juste une seconde.",
+    "Dernier rappel, mais sans pression inutile.",
+  ];
+
+  const angles = [
+    "La plupart des personnes qui stagnent ne le font pas parce qu’elles ne sont pas capables… mais parce qu’elles n’ont pas encore trouvé une méthode simple et adaptée à leur situation.",
+    "Le problème n’est pas d’avoir trop peu d’outils. Le problème, c’est de passer trop de temps à tout assembler au lieu d’avancer.",
+    "Quand tout est dispersé entre les idées, les contenus, les emails et les pages, même une bonne offre peut rester bloquée.",
+    "Ce qui change vraiment, ce n’est pas d’ajouter un outil de plus. C’est d’avoir un chemin clair à suivre.",
+    "Le plus important n’est pas de tout maîtriser. Le plus important, c’est de reprendre une direction claire.",
+    "Tu peux rester dans le flou encore quelques semaines, ou reprendre une méthode simple aujourd’hui.",
+    "Si ton objectif compte vraiment, tu n’as pas besoin de perfection. Tu as besoin d’un prochain pas clair.",
+  ];
+
+  return `Bonjour [Prénom],
+
+${openings[Math.min(day - 1, openings.length - 1)]}
+
+${angles[Math.min(day - 1, angles.length - 1)]}
+
+🎁 Ce que je te propose
+
+Avec ${offer}, l’objectif est simple :
+• aller à l’essentiel
+• suivre un plan clair
+• transformer une idée en action concrète
+• laisser l’IA faire le plus gros du travail
+
+💡 Ce qui change vraiment
+
+${promise}
+
+Pour ${target}, le vrai sujet n’est pas de produire plus.
+Le vrai sujet, c’est de construire un système plus simple, plus clair, et plus facile à exécuter.
+
+👉 ${cta}
+
+Si tu veux me répondre et me dire ce qui te bloque aujourd’hui, tu peux aussi le faire.
+Je lis tous les messages.
+
+À bientôt peut-être 👀
+
+Alex IA 🤖
+Ton Coach LGD`;
+}
+
+function humanizeSequence(sequence: EmailSequenceResponse, values: EmailCampaignFormValues): EmailSequenceResponse {
+  return {
+    ...sequence,
+    emails: (sequence.emails || []).map((email, index) => ({
+      ...email,
+      day: index + 1,
+      subject: cleanGeneratedText(email.subject || `Jour ${index + 1} — avancer simplement`),
+      preheader: cleanGeneratedText(email.preheader || "Un message simple pour avancer sans te disperser."),
+      body: humanEmailBody(values, index + 1),
+      cta: cleanGeneratedText(values.primary_cta || email.cta || "Passer à l’action maintenant"),
+    })),
+  };
+}
+
 async function parseErrorMessage(response: Response, fallback: string) {
   try {
     const data = await response.json();
@@ -115,7 +200,7 @@ export default function EmailCampaignGenerator({
       }
 
       const data = (await response.json()) as EmailSequenceResponse;
-      onGenerated(data);
+      onGenerated(humanizeSequence(data, values));
     } catch (err) {
       console.error(err);
       setError(err instanceof Error ? err.message : "La génération a échoué. Vérifie le backend puis réessaie.");
