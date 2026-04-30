@@ -62,6 +62,63 @@ function shortText(value: string, max = 90) {
   return `${clean.slice(0, max - 1).trim()}…`;
 }
 
+function stripLegacyEmailBlocks(text: string) {
+  return text
+    .replace(/\*\*/g, "")
+    .replace(/VERSION COURTE[\s\S]*?(?=VERSION LONGUE|NOTE LGD|={10,}|$)/gi, "")
+    .replace(/VERSION LONGUE[\s\S]*?(?=NOTE LGD|={10,}|$)/gi, "")
+    .replace(/- Colle uniquement la version courte OU la version longue dans le corps de l’email\./gi, "- Colle le corps complet de l’email dans Systeme.io.")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function usefulLinksBlock() {
+  return [
+    "LIENS UTILES À INSÉRER AVANT ENVOI SIO :",
+    "- Page de vente / paiement : https://legenerateurdigital.systeme.io/lgd",
+    "- Accès plateforme LGD : https://legenerateurdigital-front.vercel.app",
+  ].join("\n");
+}
+
+function ensureUsefulLinks(text: string) {
+  if (/LIENS UTILES À INSÉRER AVANT ENVOI SIO/i.test(text)) return text;
+  return `${text}
+
+--------------------------------------------------
+${usefulLinksBlock()}`;
+}
+
+function sanitizeEmailSequenceResponse(sequence: EmailSequenceResponse | null): EmailSequenceResponse | null {
+  if (!sequence) return sequence;
+
+  const copy: any = { ...(sequence as any) };
+
+  const textKeys = ["plainTextExport", "plain_text_export", "export_text", "sequenceText", "plainText", "content"];
+  for (const key of textKeys) {
+    if (typeof copy[key] === "string") {
+      copy[key] = ensureUsefulLinks(stripLegacyEmailBlocks(copy[key]));
+    }
+  }
+
+  if (Array.isArray(copy.days)) {
+    copy.days = copy.days.map((day: any) => ({
+      ...day,
+      shortMobile: "",
+      short_mobile: "",
+      mobile: "",
+      systemeIoNote: `${usefulLinksBlock()}
+
+NOTE LGD :
+- Copie l’objet A, B ou C dans le champ Objet de Systeme.io.
+- Copie le préheader dans le champ prévu si disponible.
+- Colle le corps complet de l’email dans Systeme.io.
+- Remplace [Prénom] par la variable Systeme.io si tu l’utilises.`,
+    }));
+  }
+
+  return copy as EmailSequenceResponse;
+}
+
 function inferCampaignType(payload: CmoAutoPayload): EmailCampaignFormValues["campaign_type"] {
   const text = [
     payload.priority_action,
@@ -217,7 +274,7 @@ export default function EmailCampaignsPage() {
     nextSavedCampaignId: number
   ) => {
     setValues(nextValues);
-    setSequence(nextSequence);
+    setSequence(sanitizeEmailSequenceResponse(nextSequence));
     setSavedCampaignId(nextSavedCampaignId);
     setResetVersion((prev) => prev + 1);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -286,7 +343,7 @@ export default function EmailCampaignsPage() {
           <EmailCampaignGenerator
             values={values}
             setValues={setValues}
-            onGenerated={setSequence}
+            onGenerated={(nextSequence) => setSequence(sanitizeEmailSequenceResponse(nextSequence))}
             onResetGenerator={handleResetGenerator}
             onCreateNewCampaign={handleCreateNewCampaign}
           />
@@ -321,4 +378,3 @@ export default function EmailCampaignsPage() {
     </div>
   );
 }
-
