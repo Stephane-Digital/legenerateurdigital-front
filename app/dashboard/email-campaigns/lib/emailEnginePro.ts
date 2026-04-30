@@ -146,10 +146,15 @@ function ctaVariants(ctx: EmailEngineContext) {
 
 function dayNote() {
   return [
+    "LIENS UTILES :",
+    "- Page de vente / paiement : https://legenerateurdigital.systeme.io/lgd",
+    "- Accès plateforme LGD : https://legenerateurdigital-front.vercel.app",
+    "",
     "NOTE LGD :",
     "- Copie l’objet A, B ou C dans le champ Objet de Systeme.io.",
     "- Copie le préheader dans le champ prévu si disponible.",
-    "- Colle uniquement la version courte OU la version longue dans le corps de l’email.",
+    "- Colle le corps complet de l’email dans Systeme.io.",
+    "- Ajoute le lien de paiement Systeme.io sur le CTA choisi avant l’envoi.",
     "- Remplace [Prénom] par la variable Systeme.io si tu l’utilises.",
   ].join("\n");
 }
@@ -575,12 +580,7 @@ function formatDay(day: EmailSequenceDay): string {
     cleaned.preheader,
     "",
     "--------------------------------------------------",
-    "VERSION COURTE — MOBILE / RAPIDE",
-    "--------------------------------------------------",
-    cleaned.shortMobile,
-    "",
-    "--------------------------------------------------",
-    "VERSION LONGUE — STORYTELLING / CONVERSION",
+    "CORPS DE L’EMAIL",
     "--------------------------------------------------",
     cleaned.longStory,
     "",
@@ -594,7 +594,6 @@ function formatDay(day: EmailSequenceDay): string {
     cleaned.systemeIoNote,
   ].join("\n"));
 }
-
 export function buildEmailSequencePro(input: Partial<EmailEngineContext>): EmailSequencePro {
   const ctx = normalizeContext(input);
   const days = [
