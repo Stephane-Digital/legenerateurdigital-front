@@ -972,6 +972,30 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <CardLuxe className="min-h-[230px] flex flex-col items-center justify-between px-6 py-6 text-center">
               <div className="flex flex-col items-center">
+                <FaBolt className={iconGlow} />
+                <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-yellow-200">
+                  CMO IA
+                </div>
+                <h3 className="mt-3 text-xl font-bold text-[#ffb800]">
+                  CMO Dispatch System
+                </h3>
+                <p className="mt-2 text-white/70 max-w-[420px]">
+                  Analyse ton objectif, identifie le blocage, choisit le bon angle puis envoie un contexte structuré au module adapté.
+                </p>
+              </div>
+
+              <div className="w-full mt-6">
+                <Link
+                  href="/dashboard/cmo-v2"
+                  className="block w-full rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-5 py-3 text-center font-semibold text-white/85 transition-all hover:bg-yellow-500/10 hover:text-yellow-200"
+                >
+                  Accéder au CMO IA
+                </Link>
+              </div>
+            </CardLuxe>
+
+            <CardLuxe className="min-h-[230px] flex flex-col items-center justify-between px-6 py-6 text-center">
+              <div className="flex flex-col items-center">
                 <FaUserAstronaut className={iconGlow} />
                 <h3 className="mt-3 text-xl font-bold text-[#ffb800]">
                   Coach Alex V2
