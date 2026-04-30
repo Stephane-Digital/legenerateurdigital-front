@@ -12,7 +12,6 @@ import type {
   CMOTarget,
 } from "../types";
 import { generateEmailSequenceV3 } from "./emailEngineV3";
-import { generateHumanEmail } from "./emailHumanEngine";
 import { buildStrategy } from "./buildStrategy";
 
 function clean(value: string, fallback = "") {
