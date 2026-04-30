@@ -1,4 +1,4 @@
-import type { CMOContext, CMODispatchResult, CMOModulePayloads, CMOTarget } from "../types";
+import type { CMOContext, CMODispatchResult, CMOModulePayloads, CMOStrategy, CMOTarget } from "../types";
 
 function clean(value: unknown, fallback = "") {
   const text = String(value || "").replace(/\s+/g, " ").trim();
@@ -12,6 +12,77 @@ function normalizeTarget(value: unknown): CMOTarget {
   if (["editor", "editeur", "éditeur", "post", "carrousel"].includes(text)) return "editor";
   if (["coach", "coach_ia", "coach-ia"].includes(text)) return "coach";
   return "coach";
+}
+
+function extractOfferFromObjective(objectiveInput: string) {
+  const objective = clean(objectiveInput);
+  const lower = objective.toLowerCase();
+
+  const patterns = [
+    /vendre\s+(?:ma|mon|mes|la|le|les|un|une|des)\s+([^,.!?]+)/i,
+    /promouvoir\s+(?:ma|mon|mes|la|le|les|un|une|des)\s+([^,.!?]+)/i,
+    /lancer\s+(?:ma|mon|mes|la|le|les|un|une|des)\s+([^,.!?]+)/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = objective.match(pattern);
+    if (match?.[1]) {
+      return match[1]
+        .replace(/\s+à\s+des\s+.+$/i, "")
+        .replace(/\s+pour\s+des\s+.+$/i, "")
+        .replace(/\s+qui\s+.+$/i, "")
+        .trim();
+    }
+  }
+
+  if (lower.includes("code liberté")) return "formation Code Liberté";
+  if (lower.includes("formation")) return "formation";
+  if (lower.includes("accompagnement")) return "accompagnement";
+  if (lower.includes("lead magnet")) return "lead magnet";
+  return "offre à préciser";
+}
+
+function detectAudience(objectiveInput: string) {
+  const objective = clean(objectiveInput);
+  const patterns = [
+    /à\s+des\s+([^,.!?]+)/i,
+    /pour\s+des\s+([^,.!?]+)/i,
+    /aux\s+([^,.!?]+)/i,
+    /cible(?:r)?\s+([^,.!?]+)/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = objective.match(pattern);
+    if (match?.[1]) return clean(match[1], "prospects concernés par l’objectif");
+  }
+
+  return "prospects concernés par l’objectif";
+}
+
+function buildPromise(params: { offer: string; blocker: string; audience: string }) {
+  const { offer, blocker, audience } = params;
+  return clean(
+    `Aider ${audience} à avancer avec ${offer}, même si le blocage actuel est : ${blocker}`,
+    `Aider la cible à avancer malgré : ${blocker}.`
+  );
+}
+
+export function buildStrategy(objectiveInput: string, blockerInput: string): CMOStrategy {
+  const objective = clean(objectiveInput, "Clarifier une action marketing rentable.");
+  const blocker = clean(blockerInput, "Le blocage principal doit être clarifié.");
+  const offer = extractOfferFromObjective(objective);
+  const audience = detectAudience(objective);
+  const promise = buildPromise({ offer, blocker, audience });
+
+  return {
+    target: audience,
+    pain: blocker,
+    desire: "obtenir un résultat concret sans perdre de temps",
+    promise,
+    angle: `Partir du blocage réel pour rendre ${offer} plus désirable et plus rassurant.`,
+    mechanism: "brief CMO structuré puis génération par module spécialisé",
+    cta: "Passer à l’action maintenant",
+  };
 }
 
 function fallbackModulePayloads(context: CMOContext): CMOModulePayloads {
