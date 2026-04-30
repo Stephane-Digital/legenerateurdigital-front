@@ -155,8 +155,11 @@ function buildModulePayloads(params: {
 export function buildPayload(
   module: CMOModule,
   objectiveInput: string,
-  blockerInput: string
+  blockerInput: string,
+  liveDispatch?: CMODispatchResult
 ): CMOPayload {
+  void liveDispatch;
+
   const objective = clean(objectiveInput, "Créer une action marketing utile aujourd’hui.");
   const blocker = clean(blockerInput, "Le besoin doit être clarifié avant de produire le contenu.");
   const target = moduleToTarget(module);
