@@ -55,7 +55,6 @@ function getAuthHeaders() {
   return { Authorization: `Bearer ${token}`, "X-LGD-Token": token };
 }
 
-
 function cleanGeneratedText(value: unknown) {
   return String(value ?? "")
     .replace(/\*\*/g, "")
@@ -68,10 +67,10 @@ function cleanGeneratedText(value: unknown) {
     .trim();
 }
 
-function humanEmailBody(values: EmailCampaignFormValues, day: number) {
+function buildHumanEmailBody(values: EmailCampaignFormValues, day: number) {
   const offer = cleanGeneratedText(values.offer_name || "Le Générateur Digital");
-  const target = cleanGeneratedText(values.target_audience || "les entrepreneurs qui veulent avancer plus simplement");
-  const promise = cleanGeneratedText(values.main_promise || "avancer avec un plan clair et laisser l’IA faire le plus gros du travail");
+  const target = cleanGeneratedText(values.target_audience || "les entrepreneurs, freelances, coachs et créateurs qui veulent développer leur business en ligne");
+  const promise = cleanGeneratedText(values.main_promise || "avancer avec un plan clair, créer du contenu utile et transformer tes idées en actions marketing concrètes");
   const cta = cleanGeneratedText(values.primary_cta || "Passer à l’action maintenant");
 
   const openings = [
@@ -85,13 +84,13 @@ function humanEmailBody(values: EmailCampaignFormValues, day: number) {
   ];
 
   const angles = [
-    "La plupart des personnes qui stagnent ne le font pas parce qu’elles ne sont pas capables… mais parce qu’elles n’ont pas encore trouvé une méthode simple et adaptée à leur situation.",
-    "Le problème n’est pas d’avoir trop peu d’outils. Le problème, c’est de passer trop de temps à tout assembler au lieu d’avancer.",
-    "Quand tout est dispersé entre les idées, les contenus, les emails et les pages, même une bonne offre peut rester bloquée.",
-    "Ce qui change vraiment, ce n’est pas d’ajouter un outil de plus. C’est d’avoir un chemin clair à suivre.",
-    "Le plus important n’est pas de tout maîtriser. Le plus important, c’est de reprendre une direction claire.",
-    "Tu peux rester dans le flou encore quelques semaines, ou reprendre une méthode simple aujourd’hui.",
-    "Si ton objectif compte vraiment, tu n’as pas besoin de perfection. Tu as besoin d’un prochain pas clair.",
+    "La plupart des entrepreneurs qui stagnent en ligne ne manquent pas de motivation. Ils manquent surtout d’un système clair pour transformer leurs idées en contenus, leurs contenus en prospects, puis leurs prospects en ventes.",
+    "Le problème n’est pas d’avoir trop peu d’outils. Le problème, c’est de passer trop de temps à jongler entre les outils au lieu de construire une vraie machine marketing.",
+    "Quand tout est dispersé entre les idées, les posts, les emails, les pages et les offres, même un bon projet peut rester invisible.",
+    "Ce qui change vraiment, ce n’est pas d’ajouter un outil de plus. C’est d’avoir un chemin simple pour savoir quoi créer, quoi envoyer et quoi vendre.",
+    "Le plus important n’est pas de tout maîtriser. Le plus important, c’est de reprendre une direction claire pour ton business en ligne.",
+    "Tu peux rester dans le flou encore quelques semaines, ou reprendre une méthode simple aujourd’hui pour avancer sans t’éparpiller.",
+    "Si ton projet compte vraiment, tu n’as pas besoin de perfection. Tu as besoin d’un prochain pas clair, d’un message plus fort, et d’un système qui travaille avec toi.",
   ];
 
   return `Bonjour [Prénom],
@@ -103,21 +102,23 @@ ${angles[Math.min(day - 1, angles.length - 1)]}
 🎁 Ce que je te propose
 
 Avec ${offer}, l’objectif est simple :
-• aller à l’essentiel
-• suivre un plan clair
-• transformer une idée en action concrète
-• laisser l’IA faire le plus gros du travail
+• clarifier ton message
+• créer du contenu plus utile
+• structurer ton marketing digital
+• transformer tes idées en actions concrètes
+• laisser l’IA faire le plus gros du travail sans perdre ton côté humain
 
 💡 Ce qui change vraiment
 
 ${promise}
 
-Pour ${target}, le vrai sujet n’est pas de produire plus.
-Le vrai sujet, c’est de construire un système plus simple, plus clair, et plus facile à exécuter.
+Pour ${target}, le vrai sujet n’est pas de publier plus.
+
+Le vrai sujet, c’est de construire un système simple qui t’aide à avancer, à capter l’attention et à convertir avec plus de clarté.
 
 👉 ${cta}
 
-Si tu veux me répondre et me dire ce qui te bloque aujourd’hui, tu peux aussi le faire.
+Si tu veux, tu peux aussi répondre à cet email et me dire ce qui bloque aujourd’hui dans ton marketing.
 Je lis tous les messages.
 
 À bientôt peut-être 👀
@@ -133,8 +134,8 @@ function humanizeSequence(sequence: EmailSequenceResponse, values: EmailCampaign
       ...email,
       day: index + 1,
       subject: cleanGeneratedText(email.subject || `Jour ${index + 1} — avancer simplement`),
-      preheader: cleanGeneratedText(email.preheader || "Un message simple pour avancer sans te disperser."),
-      body: humanEmailBody(values, index + 1),
+      preheader: cleanGeneratedText(email.preheader || "Un message simple pour avancer dans ton business en ligne."),
+      body: buildHumanEmailBody(values, index + 1),
       cta: cleanGeneratedText(values.primary_cta || email.cta || "Passer à l’action maintenant"),
     })),
   };
