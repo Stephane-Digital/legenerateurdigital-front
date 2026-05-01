@@ -338,15 +338,6 @@ export function buildPayload(
           target: audience,
           promise,
           cta,
-          emails: humanEmailSequenceItems.map((item) => ({
-            day: item.day,
-            email_type:
-              item.day <= 2 ? "nurture" : item.day === 3 ? "objection" : item.day >= 6 ? "relance" : "vente",
-            subject: item.subject,
-            preheader: item.preheader,
-            body: item.body,
-            cta,
-          })),
           days: humanEmailSequenceItems.map((item) => ({
             day: item.day,
             type: item.day <= 2 ? "nurture" : item.day === 3 ? "objection" : item.day >= 6 ? "relance" : "vente",
