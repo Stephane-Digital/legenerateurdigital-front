@@ -13,16 +13,40 @@ export type HumanEmailSequenceItem = {
   body: string;
 };
 
+type HumanEmailContext = {
+  offer: string;
+  offerWithArticle: string;
+  target: string;
+  pain: string;
+  promise: string;
+  cta: string;
+  shortPain: string;
+  shortPromise: string;
+};
+
 function clean(value: unknown, fallback = "") {
   const text = String(value || "")
     .replace(/\*\*/g, "")
     .replace(/CTA\s*:/gi, "")
+    .replace(/Cet email vise[\s\S]*$/gi, "")
+    .replace(/Le message est conçu[\s\S]*$/gi, "")
+    .replace(/\[Passer à l’action maintenant\]\(#\)/gi, "Passer à l’action maintenant")
     .replace(/\s+\n/g, "\n")
     .replace(/\n\s+/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 
   return text || fallback;
+}
+
+function compact(value: string) {
+  return clean(value).replace(/\s+/g, " ").trim();
+}
+
+function shortText(value: string, max = 130) {
+  const text = compact(value);
+  if (text.length <= max) return text;
+  return `${text.slice(0, max - 1).trim()}…`;
 }
 
 function normalizeOffer(value: string) {
@@ -57,6 +81,7 @@ function normalizePain(value: string) {
   return text
     .replace(/^le blocage.*?:/i, "")
     .replace(/^blocage.*?:/i, "")
+    .replace(/^probl[eè]me.*?:/i, "")
     .trim();
 }
 
@@ -83,23 +108,15 @@ function startsWithVowelSound(value: string) {
 
 function withArticleOffer(offer: string) {
   if (!offer || offer === "ton offre") return "ton offre";
-  if (/^(le|la|les|l’|un|une|des|ton|ta|tes|votre|vos)\s/i.test(offer)) return offer;
+  if (/^(le|la|les|l’|l'|un|une|des|ton|ta|tes|votre|vos)\s/i.test(offer)) return offer;
   return startsWithVowelSound(offer) ? `l’${offer}` : `la solution ${offer}`;
 }
 
 function buildEmailBlock(item: HumanEmailSequenceItem) {
-  return `==================================================
-
-EMAIL ${item.day}
-
-Objet : ${item.subject}
-
-Préheader : ${item.preheader}
-
-${item.body}`;
+  return `==================================================\n\nEMAIL ${item.day}\n\nObjet : ${item.subject}\n\nPréheader : ${item.preheader}\n\n${item.body}`;
 }
 
-function buildHumanContext(input: HumanEmailInput) {
+function buildHumanContext(input: HumanEmailInput): HumanEmailContext {
   const offer = normalizeOffer(input.offer);
   const offerWithArticle = withArticleOffer(offer);
   const target = normalizeTarget(input.target);
@@ -114,237 +131,207 @@ function buildHumanContext(input: HumanEmailInput) {
     pain,
     promise,
     cta,
+    shortPain: shortText(pain, 115),
+    shortPromise: shortText(promise, 120),
   };
 }
 
-export function generateHumanEmailSequenceItems(input: HumanEmailInput): HumanEmailSequenceItem[] {
-  const { offer, offerWithArticle, target, pain, promise, cta } = buildHumanContext(input);
+function signature() {
+  return `À bientôt peut-être 👀\n\nAlex IA 🤖\nTon Coach LGD`;
+}
 
-  return [
-    {
-      day: 1,
-      subject: "Tu n’as pas besoin d’un outil de plus",
-      preheader: "Tu as surtout besoin d’un système simple pour avancer.",
-      body: `Bonjour [Prénom],
+function emailOne(ctx: HumanEmailContext): HumanEmailSequenceItem {
+  return {
+    day: 1,
+    subject: "Tu n’as pas besoin d’un outil de plus",
+    preheader: "Tu as surtout besoin d’un système simple pour avancer.",
+    body: `Bonjour [Prénom],
 
 Je vais être direct avec toi.
 
-Si aujourd’hui tu n’avances pas comme tu voudrais avec ${offerWithArticle}…
-ce n’est probablement pas parce que tu manques d’idées.
+Si aujourd’hui tu n’avances pas comme tu voudrais avec ${ctx.offerWithArticle}, ce n’est probablement pas parce que tu manques d’idées.
 
 Tu en as.
 
 Ce n’est pas non plus parce que tu manques d’outils.
-Tu en utilises sûrement déjà plusieurs :
 
-ChatGPT. Canva. Systeme.io.
+Tu as peut-être déjà ChatGPT pour écrire, Canva pour créer, Systeme.io pour publier ou vendre.
 
-👉 Le problème est ailleurs.
+Et pourtant, malgré tout ça, tu peux encore avoir cette impression frustrante :
 
-Tu passes ton temps à jongler entre tout ça,
-sans jamais vraiment construire quelque chose de stable.
+“Je fais des choses, mais rien ne s’enchaîne vraiment.”
 
-Et dans ton cas, le vrai blocage ressemble plutôt à ça :
+Le vrai blocage ressemble souvent à ça :
 
-${pain}
+${ctx.pain}
 
-Un jour tu écris un post.
-Le lendemain tu testes un email.
-Puis tu changes d’idée.
+Ce n’est pas un manque de potentiel.
 
-Et au final, rien ne s’enchaîne vraiment.
+C’est un manque de continuité.
 
-👉 C’est ça qui bloque.
+Un post part dans une direction.
+Un email raconte autre chose.
+Une page reste à moitié terminée.
+Une idée importante finit dans un brouillon.
 
-Pas ton niveau.
-Pas ton potentiel.
+Et à force, tu n’as plus un système.
 
-Juste l’absence d’un système clair.
+Tu as une pile d’actions isolées.
 
-🎁 Du coup, voilà exactement ce que je te propose
+C’est exactement ce que ${ctx.offerWithArticle} doit t’aider à remettre en ordre : partir de ce que tu veux vendre, clarifier le message, produire les bons contenus, puis créer une action simple derrière.
 
-Pas un nouvel outil.
+Pas pour faire “plus”.
 
-Pas une promesse floue.
+Pour faire plus cohérent.
 
-Mais un cadre simple pour :
+Pour ${ctx.target}, la vraie différence n’est pas de publier tous les jours ou d’écrire des emails parfaits.
 
-- savoir quoi faire aujourd’hui
-- arrêter de repartir de zéro à chaque fois
-- transformer tes idées en actions concrètes
-- construire quelque chose qui tient dans le temps
+La vraie différence, c’est d’avoir un chemin clair pour ${ctx.shortPromise}.
 
-💡 Ce qui change vraiment
+👉 ${ctx.cta}
 
-Tu arrêtes de demander :
+Tu n’as pas besoin d’en faire plus aujourd’hui.
 
-“Qu’est-ce que je dois faire ?”
+Tu as besoin d’arrêter de t’éparpiller.
 
-Et tu commences à avancer sans te poser la question en permanence.
+${signature()}`,
+  };
+}
 
-Ton contenu devient plus cohérent.
-Tes actions s’enchaînent.
-Et tu commences enfin à voir une direction.
+function emailTwo(ctx: HumanEmailContext): HumanEmailSequenceItem {
+  return {
+    day: 2,
+    subject: "Le piège, ce n’est pas le manque de motivation",
+    preheader: "C’est la dispersion qui fatigue le plus.",
+    body: `Bonjour [Prénom],
 
-Pour ${target}, ce n’est pas seulement une question de publier plus.
+Il y a un piège assez classique quand on veut développer un business en ligne.
 
-C’est surtout une question de construire un système plus clair pour ${promise}.
+On croit que le problème vient de soi.
 
-👉 ${cta}
+Pas assez régulier.
+Pas assez discipliné.
+Pas assez rapide.
+Pas assez expert.
 
-Tu n’as pas besoin d’en faire plus.
+Alors on se pousse un peu plus.
 
-Tu as juste besoin d’arrêter de t’éparpiller.
+On essaie de produire davantage.
+On ouvre encore un nouvel outil.
+On reprend une stratégie vue ailleurs.
+On recommence un tunnel, une page, une séquence, un contenu.
 
-À bientôt peut-être 👀
+Mais le problème n’est pas toujours l’effort.
 
-Alex IA 🤖
-Ton Coach LGD`,
-    },
-    {
-      day: 2,
-      subject: "Le piège, ce n’est pas le manque de motivation",
-      preheader: "C’est la dispersion qui fatigue le plus.",
-      body: `Bonjour [Prénom],
-
-Il y a un piège dans lequel beaucoup de personnes tombent.
-
-Elles pensent que si ça n’avance pas,
-c’est parce qu’elles ne sont pas assez régulières.
-
-Pas assez disciplinées.
-Pas assez organisées.
-Pas assez “expertes”.
-
-Mais souvent, ce n’est pas ça.
-
-Le vrai problème, c’est que tout repose sur ton énergie du moment.
+Souvent, le problème, c’est que tout repose sur ton énergie du moment.
 
 Quand tu es motivé, tu crées.
 Quand tu es fatigué, tu repousses.
-Quand tu doutes, tu recommences à chercher une nouvelle méthode.
+Quand tu doutes, tu repars chercher une nouvelle méthode.
 
-Et petit à petit, ${offerWithArticle} devient un projet que tu portes seul,
-au lieu de devenir un système qui t’aide à avancer.
+Et pendant ce temps, ${ctx.offerWithArticle} reste dépendante de ton humeur, au lieu de devenir un système sur lequel tu peux t’appuyer.
 
-C’est exactement ce qui arrive quand le blocage principal reste celui-ci :
+C’est là que ${ctx.shortPain} devient dangereux.
 
-${pain}
+Parce que ce blocage ne fait pas seulement perdre du temps.
 
-Tu ne manques pas forcément de volonté.
+Il casse la confiance.
 
-Tu manques surtout d’un chemin simple.
+Tu finis par te demander si ton message est bon, si ton offre est claire, si les gens vont comprendre, si tu dois tout refaire.
 
-Un chemin qui te dit :
+Alors qu’il manque surtout une structure simple :
 
-- quoi clarifier
-- quoi créer
-- quoi publier
-- quoi envoyer
-- quoi proposer ensuite
+- une intention claire
+- un message principal
+- une suite logique de contenus
+- une action à proposer
+- un CTA cohérent
 
-Parce qu’un business en ligne ne se construit pas avec des actions isolées.
+C’est beaucoup plus léger quand ce chemin est déjà posé.
 
-Il se construit avec une suite logique.
+Tu ne repars plus de zéro à chaque fois.
 
-Une idée devient un message.
-Un message devient un contenu.
-Un contenu attire une personne.
-Cette personne comprend mieux ton offre.
-Puis elle peut passer à l’action.
+Tu avances dans la bonne direction, même les jours où tu n’as pas une énergie incroyable.
 
-C’est cette continuité qui change tout.
+👉 ${ctx.cta}
 
-Et c’est exactement ce que ${offer} doit t’aider à remettre en place.
+Ce que tu construis mérite mieux qu’une stratégie qui dépend uniquement de ta motivation.
 
-Pas en ajoutant de la complexité.
+${signature()}`,
+  };
+}
 
-Mais en remettant de l’ordre dans ce que tu fais déjà.
-
-👉 ${cta}
-
-Tu n’as pas besoin de tout révolutionner aujourd’hui.
-
-Tu peux simplement commencer par remettre une direction claire.
-
-À bientôt peut-être 👀
-
-Alex IA 🤖
-Ton Coach LGD`,
-    },
-    {
-      day: 3,
-      subject: "Pourquoi ChatGPT + Canva ne suffisent pas toujours",
-      preheader: "Les outils aident. Mais ils ne remplacent pas une stratégie.",
-      body: `Bonjour [Prénom],
+function emailThree(ctx: HumanEmailContext): HumanEmailSequenceItem {
+  return {
+    day: 3,
+    subject: "Pourquoi ChatGPT + Canva ne suffisent pas toujours",
+    preheader: "Les outils aident. Mais ils ne remplacent pas une stratégie.",
+    body: `Bonjour [Prénom],
 
 ChatGPT peut t’aider à écrire.
 
-Canva peut t’aider à créer un visuel.
+Canva peut t’aider à créer un visuel propre.
 
 Systeme.io peut t’aider à mettre une page ou un tunnel en ligne.
 
-Mais aucun de ces outils ne décide à ta place :
+Ces outils sont utiles.
 
-- quel message tu dois porter
-- quelle promesse tu dois clarifier
-- quelle objection tu dois traiter
-- quelle action tu dois prioriser
-- comment relier ton contenu à ton offre
+Mais aucun d’eux ne décide à ta place ce qui doit être dit maintenant.
 
-C’est pour ça que beaucoup de personnes utilisent de très bons outils…
-sans obtenir un vrai système.
+Aucun ne sait vraiment :
+
+- quelle objection traiter aujourd’hui
+- quel angle rendre plus désirable
+- quel contenu prépare la vente
+- quel email doit rassurer
+- quel message doit ramener de la clarté
+
+C’est pour ça que beaucoup de personnes ont de très bons outils, mais un marketing encore flou.
 
 Elles créent un post ici.
 Un email là.
 Une page quand elles ont le temps.
+Une idée dès qu’elle arrive.
 
-Mais tout reste séparé.
+Mais rien ne pousse dans la même direction.
 
-Et quand tout est séparé,
-rien ne pousse vraiment dans la même direction.
+Et quand tout reste séparé, le prospect ne ressent pas une progression.
 
-Le sujet n’est donc pas de savoir si les outils gratuits sont utiles.
+Il voit des morceaux.
 
-Ils le sont.
+Pas un chemin.
 
-Le sujet, c’est de savoir si tu peux construire une vraie progression avec eux,
-sans perdre du temps, sans t’éparpiller,
-et sans repartir de zéro à chaque contenu.
+Le rôle de ${ctx.offerWithArticle}, ce n’est pas de remplacer ton intelligence ou ton intuition.
 
-Dans ton cas, le frein est clair :
+C’est de relier les pièces.
 
-${pain}
+Ton idée devient un message.
+Ton message devient un contenu.
+Ton contenu prépare une décision.
+Ta décision mène vers une action.
 
-Et c’est précisément là que ${offerWithArticle} peut faire la différence.
+C’est cette continuité qui transforme un simple outil en vrai système.
 
-Parce que l’objectif n’est pas de créer “plus”.
+Pour ${ctx.target}, l’enjeu n’est donc pas seulement de créer plus vite.
 
-L’objectif est de créer plus juste.
+L’enjeu, c’est de créer plus juste pour ${ctx.shortPromise}.
 
-Un message plus clair.
-Une suite plus cohérente.
-Une action plus simple à exécuter.
+👉 ${ctx.cta}
 
-Pour ${target}, la vraie avancée n’est pas seulement de publier régulièrement.
+Les outils peuvent accélérer.
 
-C’est de construire une logique qui aide à ${promise}.
+Mais c’est la structure qui rend l’accélération utile.
 
-👉 ${cta}
+${signature()}`,
+  };
+}
 
-Si tu veux avancer plus proprement,
-commence par arrêter de demander à chaque outil de faire toute la stratégie.
-
-À bientôt peut-être 👀
-
-Alex IA 🤖
-Ton Coach LGD`,
-    },
-    {
-      day: 4,
-      subject: "Ce qui manque souvent entre l’idée et la vente",
-      preheader: "Ce n’est pas l’envie. C’est le lien entre les étapes.",
-      body: `Bonjour [Prénom],
+function emailFour(ctx: HumanEmailContext): HumanEmailSequenceItem {
+  return {
+    day: 4,
+    subject: "Ce qui manque souvent entre l’idée et la vente",
+    preheader: "Ce n’est pas l’envie. C’est le lien entre les étapes.",
+    body: `Bonjour [Prénom],
 
 Une idée seule ne vend pas.
 
@@ -352,136 +339,116 @@ Même une bonne idée.
 
 Même une idée utile.
 
-Pour qu’une idée commence à produire un résultat,
-elle doit être transformée.
+Pour qu’elle produise un résultat, elle doit être transformée.
 
 D’abord en message clair.
-
 Puis en contenu compréhensible.
+Puis en preuve ou en explication.
+Puis en proposition.
+Puis en action simple.
 
-Puis en ressource ou en offre.
+C’est souvent entre ces étapes que tout se bloque.
 
-Puis en action simple pour la personne en face.
+Tu peux savoir ce que tu veux vendre, mais ne pas savoir comment l’amener naturellement.
 
-C’est là que beaucoup bloquent.
+Tu peux avoir une bonne promesse, mais l’exprimer trop vite.
 
-Ils ont l’idée.
-Ils ont parfois l’offre.
-Ils ont même les outils.
+Tu peux avoir une page, mais aucun contenu qui prépare vraiment la personne avant qu’elle arrive dessus.
 
-Mais il manque le lien entre chaque étape.
+Tu peux avoir des emails, mais pas de progression émotionnelle.
 
-Et sans ce lien,
-tout donne l’impression d’être urgent :
+Et là, tu te retrouves avec une sensation d’empilement.
 
-“Il faut que je publie.”
-“Il faut que je fasse une page.”
-“Il faut que j’écrive un email.”
-“Il faut que je relance.”
-“Il faut que je refasse mon offre.”
+Un contenu de plus.
+Un email de plus.
+Une page de plus.
+Une action de plus.
 
-Résultat : tu avances, mais dans tous les sens.
+Mais pas forcément plus de clarté.
 
-C’est épuisant.
+La vraie question devient alors :
 
-Et surtout, ça rend ton marketing moins lisible.
+“Est-ce que chaque élément aide vraiment la personne à faire un pas de plus ?”
 
-${offer} doit justement t’aider à remettre une structure simple dans tout ça.
+C’est précisément le rôle que ${ctx.offerWithArticle} doit jouer.
 
-Pas pour devenir parfait.
+Remettre un fil conducteur.
 
-Mais pour que chaque action serve la suivante.
+Pas un tunnel agressif.
 
-Ton contenu ne doit pas juste exister.
+Un chemin lisible.
 
-Il doit préparer la suite.
+Un chemin où ton contenu attire, ton email explique, ta page clarifie, et ton CTA arrive au bon moment.
 
-Ton email ne doit pas juste informer.
+👉 ${ctx.cta}
 
-Il doit rapprocher la personne d’une décision.
+Tu peux continuer à empiler des actions.
 
-Ta page ne doit pas juste être jolie.
+Ou commencer à construire une suite qui donne envie d’avancer.
 
-Elle doit rendre ton offre plus évidente.
+${signature()}`,
+  };
+}
 
-Et tout ça commence par une chose :
-
-clarifier le système avant d’empiler les actions.
-
-👉 ${cta}
-
-Tu peux continuer à bricoler chaque élément séparément.
-
-Ou tu peux commencer à construire une suite plus logique.
-
-À bientôt peut-être 👀
-
-Alex IA 🤖
-Ton Coach LGD`,
-    },
-    {
-      day: 5,
-      subject: "Tu n’as pas besoin d’être partout",
-      preheader: "Tu as besoin d’une direction plus simple.",
-      body: `Bonjour [Prénom],
+function emailFive(ctx: HumanEmailContext): HumanEmailSequenceItem {
+  return {
+    day: 5,
+    subject: "Tu n’as pas besoin d’être partout",
+    preheader: "Tu as besoin d’une direction plus simple.",
+    body: `Bonjour [Prénom],
 
 Tu n’as pas besoin d’être partout.
 
 Tu n’as pas besoin de publier sur tous les réseaux.
-Tu n’as pas besoin de créer dix formats.
-Tu n’as pas besoin de refaire toute ta stratégie toutes les semaines.
 
-Ce dont tu as besoin,
-c’est d’un système que tu peux réellement suivre.
+Tu n’as pas besoin de créer dix formats différents.
+
+Tu n’as pas besoin de réinventer ta stratégie chaque semaine.
+
+Ce dont tu as besoin, c’est d’un système que tu peux réellement suivre.
 
 Un système assez simple pour être utilisé même quand tu n’as pas deux heures devant toi.
 
-Un système assez clair pour ne pas dépendre uniquement de ta motivation.
+Un système assez clair pour ne pas dépendre uniquement de ton inspiration.
 
-Un système assez humain pour que ton message ne ressemble pas à un texte générique.
+Un système assez humain pour que ton message ne ressemble pas à un texte automatique.
 
-Parce que c’est ça, le danger aujourd’hui.
+Parce que c’est aussi ça, le danger aujourd’hui.
 
-À force de vouloir utiliser l’IA pour aller plus vite,
-beaucoup finissent avec des contenus propres…
-mais froids.
+À force de vouloir gagner du temps avec l’IA, beaucoup finissent avec des contenus propres, mais froids.
 
-Des emails corrects…
-mais oubliables.
+Des emails corrects, mais oubliables.
 
-Des posts bien structurés…
-mais sans vraie intention.
+Des posts bien structurés, mais sans vraie intention.
 
 Ce n’est pas ce que tu veux.
 
-Tu veux quelque chose qui garde ton côté humain,
-tout en te donnant une vraie méthode.
+Tu veux que ton marketing travaille pour toi, sans effacer ta voix.
 
-Et c’est exactement l’objectif de ${offerWithArticle} :
+Tu veux garder le fond humain, tout en ayant une méthode plus claire.
 
-t’aider à transformer tes idées en actions plus claires,
-sans perdre ce qui rend ton message vivant.
+C’est exactement l’objectif de ${ctx.offerWithArticle} : t’aider à passer de “je dois créer quelque chose” à “je sais quoi créer, pourquoi, et comment l’utiliser ensuite”.
 
-Pour ${target}, la promesse n’est pas de faire “plus de marketing”.
+Pour ${ctx.target}, ce changement compte énormément.
 
-La promesse, c’est de mieux relier ton message, ton contenu et ton offre pour ${promise}.
+Parce qu’un message vivant, cohérent et répété avec intelligence devient beaucoup plus fort qu’une série de contenus improvisés.
 
-👉 ${cta}
+👉 ${ctx.cta}
 
 Tu peux avancer sans t’éparpiller.
 
 Et tu peux le faire sans devenir quelqu’un d’autre.
 
-À bientôt peut-être 👀
+${signature()}`,
+  };
+}
 
-Alex IA 🤖
-Ton Coach LGD`,
-    },
-    {
-      day: 6,
-      subject: "Le vrai coût de la dispersion",
-      preheader: "Ce n’est pas seulement du temps perdu.",
-      body: `Bonjour [Prénom],
+function emailSix(ctx: HumanEmailContext): HumanEmailSequenceItem {
+  return {
+    day: 6,
+    subject: "Le vrai coût de la dispersion",
+    preheader: "Ce n’est pas seulement du temps perdu.",
+    body: `Bonjour [Prénom],
 
 La dispersion coûte plus cher qu’on ne le pense.
 
@@ -491,76 +458,74 @@ Elle coûte de la clarté.
 Elle coûte de l’énergie.
 Elle coûte de la confiance.
 
-Parce qu’à force de passer d’une idée à l’autre,
-tu finis par douter de ton projet.
+Parce qu’à force de passer d’une idée à l’autre, tu finis par douter de ton projet.
 
 Tu te demandes si ton offre est assez bonne.
+
 Si ton message est assez clair.
+
 Si ton contenu intéresse vraiment quelqu’un.
-Si tu devrais tout changer.
 
-Alors que parfois,
-le problème n’est pas l’offre.
+Si tu devrais changer d’angle, refaire la page, réécrire les emails, attendre encore un peu.
 
-Le problème, c’est qu’elle n’est pas portée par un système assez lisible.
+Alors que parfois, le problème n’est pas ${ctx.offer === "ton offre" ? "l’offre" : ctx.offer}.
+
+Le problème, c’est que sa valeur n’est pas portée par un système assez lisible.
 
 Une personne doit comprendre rapidement :
 
 - ce que tu proposes
 - pourquoi c’est utile maintenant
 - ce que ça change concrètement
-- pourquoi elle devrait passer à l’action
+- pourquoi elle peut te faire confiance
+- quelle action faire ensuite
 
-Si tout ça est dispersé entre plusieurs outils,
-plusieurs brouillons,
-plusieurs idées non reliées,
-la vente devient beaucoup plus difficile.
+Si ces éléments sont dispersés entre plusieurs brouillons, plusieurs outils et plusieurs idées non reliées, la décision devient difficile.
 
-Pas parce que ton projet n’a pas de valeur.
+Pas parce que la personne n’est pas intéressée.
 
-Mais parce que cette valeur n’est pas assez structurée.
+Mais parce que le chemin n’est pas assez clair.
 
-C’est là que ${offer} prend tout son sens.
+${ctx.offerWithArticle} prend tout son sens à ce moment-là.
 
-L’idée n’est pas de te rajouter une charge mentale.
+L’idée n’est pas de rajouter une charge mentale.
 
 L’idée est de réduire le flou.
 
-De t’aider à reprendre une direction.
+De reprendre une direction.
 De transformer tes idées en contenus utiles.
-Et de relier ces contenus à une vraie action.
+De relier ces contenus à une vraie action.
 
-👉 ${cta}
+👉 ${ctx.cta}
 
-Si tu sens que tu avances beaucoup sans construire assez,
-c’est peut-être le bon moment pour remettre de la structure.
+Si tu sens que tu avances beaucoup sans construire assez, c’est peut-être le bon moment pour remettre de la structure.
 
-À bientôt peut-être 👀
+${signature()}`,
+  };
+}
 
-Alex IA 🤖
-Ton Coach LGD`,
-    },
-    {
-      day: 7,
-      subject: "Dernier message : ne laisse pas ton projet rester flou",
-      preheader: "Tu peux garder tes idées dispersées, ou leur donner un vrai cadre.",
-      body: `Bonjour [Prénom],
+function emailSeven(ctx: HumanEmailContext): HumanEmailSequenceItem {
+  return {
+    day: 7,
+    subject: "Dernier message : ne laisse pas ton projet rester flou",
+    preheader: "Tu peux garder tes idées dispersées, ou leur donner un vrai cadre.",
+    body: `Bonjour [Prénom],
 
 Dernier message de cette séquence.
 
 Et je veux rester simple.
 
-Si ton projet compte vraiment pour toi,
-ne le laisse pas dépendre uniquement de ton énergie du moment.
+Si ton projet compte vraiment pour toi, ne le laisse pas dépendre uniquement de ton énergie du moment.
 
-Ne le laisse pas coincé entre des idées,
-des outils,
-des brouillons,
-des contenus commencés,
-des pages jamais terminées,
-et des actions remises à plus tard.
+Ne le laisse pas coincé entre des idées, des outils, des brouillons, des pages jamais terminées et des actions remises à plus tard.
 
-Tu peux continuer comme ça.
+Tu peux continuer à avancer comme ça.
+
+Un peu au feeling.
+
+Un peu dans l’urgence.
+
+Un peu en espérant que le prochain contenu débloque enfin quelque chose.
 
 Ou tu peux décider de remettre un cadre.
 
@@ -571,52 +536,65 @@ Un cadre utile.
 Quelque chose qui t’aide à savoir quoi faire ensuite.
 Quelque chose qui transforme ton idée en message.
 Ton message en contenu.
-Ton contenu en prospect.
-Ton prospect en opportunité de vente.
+Ton contenu en confiance.
+La confiance en action.
 
-C’est exactement la logique derrière ${offerWithArticle}.
+C’est exactement la logique derrière ${ctx.offerWithArticle}.
 
 T’aider à arrêter de repartir de zéro.
+
 T’aider à construire plus clairement.
+
 T’aider à avancer avec une méthode qui garde ton côté humain.
 
 Parce que le vrai sujet n’est pas de publier plus.
 
-Le vrai sujet, c’est de construire un système simple pour ${promise}.
+Le vrai sujet, c’est de construire un système simple pour ${ctx.shortPromise}.
 
 Et si le blocage actuel est encore celui-ci :
 
-${pain}
+${ctx.pain}
 
 Alors ce n’est pas un signe que tu dois abandonner.
 
 C’est un signe que tu dois arrêter d’avancer seul, sans structure.
 
-👉 ${cta}
+👉 ${ctx.cta}
 
 Tu n’as pas besoin d’attendre le bon moment.
 
 Tu as juste besoin d’un prochain pas clair.
 
-À bientôt peut-être 👀
+${signature()}`,
+  };
+}
 
-Alex IA 🤖
-Ton Coach LGD`,
-    },
+export function generateHumanEmailSequenceItems(input: HumanEmailInput): HumanEmailSequenceItem[] {
+  const context = buildHumanContext(input);
+  const sequence = [
+    emailOne(context),
+    emailTwo(context),
+    emailThree(context),
+    emailFour(context),
+    emailFive(context),
+    emailSix(context),
+    emailSeven(context),
   ];
+
+  return sequence.map((item, index) => ({
+    ...item,
+    day: index + 1,
+    subject: clean(item.subject, `Email ${index + 1}`),
+    preheader: clean(item.preheader),
+    body: clean(item.body),
+  }));
 }
 
 export function generateHumanEmailSequence(input: HumanEmailInput) {
-  return generateHumanEmailSequenceItems(input).map(buildEmailBlock).join("\n");
+  return generateHumanEmailSequenceItems(input).map(buildEmailBlock).join("\n\n");
 }
 
 export function generateHumanEmail(input: HumanEmailInput) {
   const firstEmail = generateHumanEmailSequenceItems(input)[0];
-  return firstEmail.body.includes("Objet :")
-    ? firstEmail.body
-    : `Objet : ${firstEmail.subject}
-
-Préheader : ${firstEmail.preheader}
-
-${firstEmail.body}`;
+  return `Objet : ${firstEmail.subject}\n\nPréheader : ${firstEmail.preheader}\n\n${firstEmail.body}`;
 }
