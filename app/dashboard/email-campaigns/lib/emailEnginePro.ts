@@ -66,6 +66,7 @@ function rawText(value: unknown): string {
     .replace(/\bCORPS\s*:/gi, "")
     .replace(/VERSION COURTE[\s\S]*?(?=VERSION LONGUE|NOTE LGD|$)/gi, "")
     .replace(/VERSION LONGUE[\s\S]*?(?=NOTE LGD|$)/gi, "")
+    .replace(/LIENS UTILES[\s\S]*?(?=NOTE LGD|$)/gi, "")
     .replace(/\[(Passer à l’action maintenant)\]\(#\)/gi, "$1")
     .replace(/[ \t]+/g, " ")
     .replace(/\n{3,}/g, "\n\n")
@@ -625,4 +626,3 @@ export function buildEmailSequencePro(input: Partial<EmailEngineContext>): Email
     plainTextExport: days.map(formatDay).join("\n\n\n"),
   };
 }
-
