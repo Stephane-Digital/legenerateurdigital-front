@@ -11,7 +11,7 @@ import type {
   CMOPayload,
   CMOTarget,
 } from "../types";
-import { generateHumanEmail } from "./emailHumanEngine";
+import { generateHumanEmail, generateHumanEmailSequence } from "./emailHumanEngine";
 import { buildStrategy } from "./buildStrategy";
 
 function clean(value: string, fallback = "") {
@@ -114,12 +114,12 @@ function buildModulePayloads(params: {
     tone,
     sequence_direction: [
       "Jour 1 : prise de conscience du blocage",
-      "Jour 2 : démystification et cadre simple",
-      "Jour 3 : objection principale",
-      "Jour 4 : présentation de la solution",
-      "Jour 5 : réactivation du désir",
-      "Jour 6 : relance structurée",
-      "Jour 7 : décision et passage à l’action",
+      "Jour 2 : dispersion et manque de système",
+      "Jour 3 : limite des outils isolés",
+      "Jour 4 : pont entre idée, contenu, prospect et vente",
+      "Jour 5 : désir d’un système simple et humain",
+      "Jour 6 : coût réel de la dispersion",
+      "Jour 7 : décision claire et passage à l’action",
     ],
   };
 
@@ -195,7 +195,18 @@ export function buildPayload(
         })
       : "";
 
-  const emailOutput = humanEmail;
+  const humanEmailSequence =
+    module === "email"
+      ? generateHumanEmailSequence({
+          offer,
+          target: audience,
+          pain: blocker,
+          promise,
+          cta,
+        })
+      : "";
+
+  const emailOutput = humanEmailSequence;
   const emailSubject = buildHumanSubject(offer);
   const emailPreheader = buildHumanPreheader(blocker);
 
@@ -211,14 +222,14 @@ export function buildPayload(
   });
 
   const priorityByModule: Record<CMOModule, string> = {
-    email: `Envoyer un contexte marketing propre au module cible.`,
+    email: `Envoyer une séquence email humaine complète au module cible.`,
     lead: `Créer une ressource de capture alignée avec ${offer}.`,
     editor: `Créer un contenu social clair pour présenter ${offer}.`,
     coach: `Clarifier la stratégie autour de ${offer}.`,
   };
 
   const nextByModule: Record<CMOModule, string> = {
-    email: `Rédiger une séquence email contextualisée pour vendre ${offer}, avec sujet, promesse, objections et CTA.`,
+    email: `Rédiger une séquence email contextualisée de 7 jours pour vendre ${offer}, avec progression psychologique, objections, désir et CTA.`,
     lead: `Créer un lead magnet ou une landing page qui répond au blocage : ${blocker}`,
     editor: `Créer un post ou carrousel qui part du blocage, présente l’offre et pousse vers le CTA.`,
     coach: `Transformer l’objectif en plan d’action priorisé, étape par étape.`,
@@ -227,6 +238,7 @@ export function buildPayload(
   const diagnostic = `Objectif : ${objective}. Blocage : ${blocker}. Le CMO prépare maintenant un brief structuré au lieu de générer un contenu générique.`;
   const whyThisAction = `Cette action est pertinente parce qu’elle part d’une demande réelle de l’utilisateur, de son offre et de son frein actuel, au lieu de générer un contenu générique.`;
   const nextBestAction = nextByModule[module];
+
   const context: CMOContext = {
     objective,
     blocker,
@@ -257,8 +269,8 @@ export function buildPayload(
     warnings: [],
     meta: {
       module: target,
-      mode: "safe_dispatch_v5_mono_human",
-      model: "frontend_human_email_engine",
+      mode: "safe_dispatch_v6_human_sequence",
+      model: "frontend_human_email_engine_v6",
       content_generation: "module_only",
     },
   };
@@ -306,7 +318,7 @@ export function buildPayload(
         primaryCta: cta,
         suggestedSubject: emailSubject,
         previewText: emailPreheader,
-        firstEmailBody: emailOutput,
+        firstEmailBody: humanEmail,
         cmoBrief: modulePayloads.emailing,
         emailSequenceText: emailOutput,
       },
