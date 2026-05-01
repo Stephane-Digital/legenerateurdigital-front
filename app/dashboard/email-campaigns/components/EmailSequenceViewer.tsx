@@ -73,39 +73,17 @@ const DEFAULT_USEFUL_LINKS = [
   "Accès plateforme LGD : https://legenerateurdigital-front.vercel.app",
 ];
 
+
 function cleanGeneratedText(value: unknown) {
   return String(value ?? "")
     .replace(/\*\*/g, "")
     .replace(/\bCTA\s*:/gi, "")
     .replace(/\bCORPS\s*:/gi, "")
+    .replace(/\[Passer à l’action maintenant\]\(#\)/gi, "Passer à l’action maintenant")
     .replace(/Cet email vise[\s\S]*?(?=\n{2,}|$)/gi, "")
     .replace(/Le message est conçu[\s\S]*?(?=\n{2,}|$)/gi, "")
-    .replace(/\[Passer à l’action maintenant\]\(#\)/gi, "Passer à l’action maintenant")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
-}
-
-function normalizeEmailBody(value: unknown) {
-  let text = cleanGeneratedText(value);
-
-  const longMatch = text.match(/VERSION LONGUE\s+—\s+STORYTELLING\s*\/\s*CONVERSION[\s\S]*?(?=👉 CTA À TESTER|NOTE LGD|$)/i);
-  if (longMatch?.[0]) {
-    text = longMatch[0]
-      .replace(/VERSION LONGUE\s+—\s+STORYTELLING\s*\/\s*CONVERSION/gi, "")
-      .replace(/^-{5,}/gm, "")
-      .trim();
-  }
-
-  text = text
-    .replace(/VERSION COURTE\s+—\s+MOBILE\s*\/\s*RAPIDE[\s\S]*?(?=VERSION LONGUE|NOTE LGD|$)/gi, "")
-    .replace(/VERSION LONGUE\s+—\s+STORYTELLING\s*\/\s*CONVERSION/gi, "")
-    .replace(/👉 CTA À TESTER[\s\S]*?(?=NOTE LGD|$)/gi, "")
-    .replace(/NOTE LGD[\s\S]*$/gi, "")
-    .replace(/^-{5,}/gm, "")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-
-  return text;
 }
 
 function stripLegacyEmailBlocks(value: unknown) {
@@ -142,6 +120,41 @@ function normalizeEmailForDisplay(email: EmailSequenceItem, index: number): Emai
   };
 }
 
+function cleanGeneratedText(value: unknown) {
+  return String(value ?? "")
+    .replace(/\*\*/g, "")
+    .replace(/\bCTA\s*:/gi, "")
+    .replace(/\bCORPS\s*:/gi, "")
+    .replace(/Cet email vise[\s\S]*?(?=\n{2,}|$)/gi, "")
+    .replace(/Le message est conçu[\s\S]*?(?=\n{2,}|$)/gi, "")
+    .replace(/\[Passer à l’action maintenant\]\(#\)/gi, "Passer à l’action maintenant")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function normalizeEmailBody(value: unknown) {
+  let text = cleanGeneratedText(value);
+
+  const longMatch = text.match(/VERSION LONGUE\s+—\s+STORYTELLING\s*\/\s*CONVERSION[\s\S]*?(?=👉 CTA À TESTER|NOTE LGD|$)/i);
+  if (longMatch?.[0]) {
+    text = longMatch[0]
+      .replace(/VERSION LONGUE\s+—\s+STORYTELLING\s*\/\s*CONVERSION/gi, "")
+      .replace(/^-{5,}/gm, "")
+      .trim();
+  }
+
+  text = text
+    .replace(/VERSION COURTE\s+—\s+MOBILE\s*\/\s*RAPIDE[\s\S]*?(?=VERSION LONGUE|NOTE LGD|$)/gi, "")
+    .replace(/VERSION LONGUE\s+—\s+STORYTELLING\s*\/\s*CONVERSION/gi, "")
+    .replace(/👉 CTA À TESTER[\s\S]*?(?=NOTE LGD|$)/gi, "")
+    .replace(/NOTE LGD[\s\S]*$/gi, "")
+    .replace(/^-{5,}/gm, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  return text;
+}
+
 function formatPersistentLinks(rawLinks: string) {
   const customLinks = rawLinks
     .split(/\n+/)
@@ -158,85 +171,6 @@ function formatPersistentLinks(rawLinks: string) {
 
 ${links.map((link) => `• ${link}`).join("\n")}`;
 }
-
-
-function buildPlainSequence(emails: EmailSequenceItem[], senderDisplay: string) {
-  return emails
-    .map((email) => {
-      const body = stripLegacyEmailBlocks(email.body);
-
-      return `Jour ${email.day}
-Type: ${email.email_type}
-Sujet: ${cleanGeneratedText(email.subject)}
-Préheader: ${cleanGeneratedText(email.preheader)}
-
-${body}
-
-CTA: ${cleanGeneratedText(email.cta)}
-
-Expéditeur: ${senderDisplay}`;
-    })
-    .join("\n\n---------------------------\n\n");
-}
-
-function buildSystemeIoSequence(emails: EmailSequenceItem[], senderDisplay: string) {
-  return emails
-    .map((email) => {
-      const subjectA = cleanGeneratedText(email.subject || "Votre sujet principal");
-      const subjectB = "Et si tout changeait aujourd’hui ?";
-      const subjectC = "Ce que personne ne vous dit vraiment";
-
-      const ctaA = cleanGeneratedText(email.cta || "Passer à l’action maintenant");
-      const ctaB = "Voir comment ça fonctionne";
-      const ctaC = "Accéder à la méthode";
-
-      const body = stripLegacyEmailBlocks(email.body);
-
-      return `==================================================
-EMAIL JOUR ${email.day} — ${String(email.email_type || "email").toUpperCase()}
-==================================================
-
-🧪 OBJETS À TESTER DANS SYSTEME.IO
-
-A → ${subjectA}
-B → ${subjectB}
-C → ${subjectC}
-
---------------------------------------------------
-
-PRÉHEADER :
-${cleanGeneratedText(email.preheader || "Un message utile pour donner envie d’ouvrir l’email.")}
-
---------------------------------------------------
-
-CORPS DE L’EMAIL
---------------------------------------------------
-
-${body}
-
-👉 CTA À TESTER :
-
-A → ${ctaA}
-B → ${ctaB}
-C → ${ctaC}
-
---------------------------------------------------
-NOTE LGD :
-- Copie l’objet A, B ou C dans le champ “Objet” de Systeme.io.
-- Copie le préheader dans le champ prévu si disponible.
-- Colle le corps complet de l’email dans Systeme.io.
-- Remplace [Prénom] par la variable Systeme.io si tu l’utilises.
-
-${formatPersistentLinks("")}`;
-    })
-    .join("\n\n\n");
-}
-
-function buildSingleSystemeIoEmail(email: EmailSequenceItem, senderDisplay: string) {
-  return buildSystemeIoSequence([email], senderDisplay);
-}
-
-
 
 function buildCleanSystemeIoEmail(
   email: EmailSequenceItem,
@@ -511,3 +445,85 @@ export default function EmailSequenceViewer({ formValues, sequence, onSaved, onR
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
