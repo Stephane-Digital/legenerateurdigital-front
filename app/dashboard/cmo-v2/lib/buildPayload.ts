@@ -11,7 +11,6 @@ import type {
   CMOPayload,
   CMOTarget,
 } from "../types";
-import { generateEmailSequenceV3 } from "./emailEngineV3";
 import { generateHumanEmail } from "./emailHumanEngine";
 import { buildStrategy } from "./buildStrategy";
 
@@ -40,6 +39,15 @@ function detectCampaignType(text: string): "vente" | "relance" | "lancement" | "
   if (lower.includes("lancement")) return "lancement";
   if (lower.includes("nurturing") || lower.includes("éduquer") || lower.includes("eduquer")) return "nurturing";
   return "vente";
+}
+
+function buildHumanSubject(offer: string) {
+  const cleanOffer = shortText(offer || "ton projet", 48);
+  return `${cleanOffer} : avançons simplement`;
+}
+
+function buildHumanPreheader(blocker: string) {
+  return `Un message simple pour sortir du blocage : ${shortText(blocker, 90)}`;
 }
 
 export function moduleToTarget(module: CMOModule): CMOTarget {
@@ -176,16 +184,6 @@ export function buildPayload(
   );
   const angle = clean(strategy.angle, `Partir du blocage réel pour rendre ${offer} plus désirable.`);
 
-  const emailSequence = generateEmailSequenceV3({
-    objective,
-    blocker,
-    offer,
-    audience,
-    promise,
-    angle,
-    cta,
-  });
-
   const humanEmail =
     module === "email"
       ? generateHumanEmail({
@@ -197,7 +195,9 @@ export function buildPayload(
         })
       : "";
 
-  const emailOutput = humanEmail || emailSequence.sequenceText;
+  const emailOutput = humanEmail;
+  const emailSubject = buildHumanSubject(offer);
+  const emailPreheader = buildHumanPreheader(blocker);
 
   const modulePayloads = buildModulePayloads({
     objective,
@@ -227,8 +227,6 @@ export function buildPayload(
   const diagnostic = `Objectif : ${objective}. Blocage : ${blocker}. Le CMO prépare maintenant un brief structuré au lieu de générer un contenu générique.`;
   const whyThisAction = `Cette action est pertinente parce qu’elle part d’une demande réelle de l’utilisateur, de son offre et de son frein actuel, au lieu de générer un contenu générique.`;
   const nextBestAction = nextByModule[module];
-  const firstEmail = emailSequence.emails[0];
-
   const context: CMOContext = {
     objective,
     blocker,
@@ -259,8 +257,8 @@ export function buildPayload(
     warnings: [],
     meta: {
       module: target,
-      mode: "safe_dispatch_v3_lock",
-      model: "frontend_deterministic_engine",
+      mode: "safe_dispatch_v5_mono_human",
+      model: "frontend_human_email_engine",
       content_generation: "module_only",
     },
   };
@@ -306,9 +304,9 @@ export function buildPayload(
         mainPromise: promise,
         mainObjective: nextBestAction,
         primaryCta: cta,
-        suggestedSubject: firstEmail?.subjects.a || `${offer} : ton plan d’action est prêt`,
-        previewText: firstEmail?.preheader || `Une séquence orientée sur ton objectif réel : ${shortText(objective, 90)}`,
-        firstEmailBody: humanEmail || firstEmail?.long || emailSequence.sequenceText,
+        suggestedSubject: emailSubject,
+        previewText: emailPreheader,
+        firstEmailBody: emailOutput,
         cmoBrief: modulePayloads.emailing,
         emailSequenceText: emailOutput,
       },
