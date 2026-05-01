@@ -12,6 +12,7 @@ import SavedEmailCampaignsBlock from "./components/SavedEmailCampaignsBlock";
 import {
   defaultEmailCampaignValues,
   EmailCampaignFormValues,
+  EmailSequenceItem,
   EmailSequenceResponse,
 } from "./components/types";
 
@@ -29,6 +30,7 @@ type CmoAutoPayload = {
     post?: string;
     email?: string;
     email_sequence_text?: string;
+    email_sequence?: EmailSequenceItem[];
     cta?: string;
     lead_magnet_idea?: string;
   };
@@ -45,6 +47,7 @@ type CmoAutoPayload = {
       previewText?: string;
       firstEmailBody?: string;
       emailSequenceText?: string;
+      emailSequence?: EmailSequenceResponse;
     };
   };
   offer?: string;
@@ -211,18 +214,58 @@ function parseCmoEmailSequence(text: string): CmoEmailItem[] {
   ];
 }
 
+function normalizeCmoEmailItems(payload: CmoAutoPayload): CmoEmailItem[] {
+  const readyEmails = payload.content_ready?.email?.emailSequence?.emails;
+  const generatedEmails = payload.generated_content?.email_sequence;
+  const source = Array.isArray(readyEmails) && readyEmails.length ? readyEmails : generatedEmails;
+
+  if (Array.isArray(source) && source.length) {
+    return source
+      .map((email, index) => ({
+        day: Number(email.day || index + 1),
+        subject: asCleanString(email.subject) || `Email ${index + 1}`,
+        preheader: asCleanString(email.preheader),
+        body: stripLegacyEmailBlocks(asCleanString(email.body)),
+      }))
+      .filter((email) => email.body)
+      .slice(0, 7);
+  }
+
+  return parseCmoEmailSequence(getCmoEmailText(payload)).slice(0, 7);
+}
+
+function buildEmailExportBlock(email: CmoEmailItem) {
+  return `==================================================
+
+EMAIL ${email.day}
+
+Objet : ${email.subject}
+
+Préheader : ${email.preheader}
+
+${email.body}`;
+}
+
 function buildCmoSequenceResponse(payload: CmoAutoPayload): EmailSequenceResponse | null {
-  const emailText = getCmoEmailText(payload);
-  if (!emailText) return null;
-
-  const emails = parseCmoEmailSequence(emailText);
-  if (!emails.length) return null;
-
   const ready = payload.content_ready?.email;
-  const plainTextExport = ensureUsefulLinks(stripLegacyEmailBlocks(emailText));
-  const cta = asCleanString(ready?.primaryCta) || asCleanString(payload.cta) || "Passer à l’action maintenant";
+  const emails = normalizeCmoEmailItems(payload);
 
-  const days = emails.map((email) => ({
+  if (emails.length < 1) return null;
+
+  const cta = asCleanString(ready?.primaryCta) || asCleanString(payload.cta) || "Passer à l’action maintenant";
+  const plainTextExport = ensureUsefulLinks(emails.map(buildEmailExportBlock).join("\n\n"));
+
+  const normalizedEmails: EmailSequenceItem[] = emails.map((email) => ({
+    day: email.day,
+    email_type:
+      email.day <= 2 ? "nurture" : email.day === 3 ? "objection" : email.day >= 6 ? "relance" : "vente",
+    subject: email.subject,
+    preheader: email.preheader,
+    body: email.body,
+    cta,
+  }));
+
+  const days = normalizedEmails.map((email) => ({
     day: email.day,
     dayNumber: email.day,
     title: `Email ${email.day}`,
@@ -255,8 +298,12 @@ NOTE LGD :
   }));
 
   return {
-    campaignName: asCleanString(ready?.campaignName) || "CMO IA - Séquence humaine",
-    campaign_name: asCleanString(ready?.campaignName) || "CMO IA - Séquence humaine",
+    campaignName: asCleanString(ready?.campaignName) || "CMO IA - Séquence humaine V7",
+    campaign_name: asCleanString(ready?.campaignName) || "CMO IA - Séquence humaine V7",
+    campaign_type: ready?.campaignType || inferCampaignType(payload),
+    duration_days: 7,
+    sender_name: "Alex IA",
+    emails: normalizedEmails,
     plainTextExport,
     plain_text_export: plainTextExport,
     export_text: plainTextExport,
@@ -370,7 +417,7 @@ export default function EmailCampaignsPage() {
         setCmoAutoLoading(false);
         setCmoAutoMessage(
           cmoSequence
-            ? "Séquence humaine V6 pré-remplie par le CMO IA. Les 7 emails sont prêts à vérifier."
+            ? "Séquence humaine V7 pré-remplie par le CMO IA. Les 7 emails sont prêts à vérifier."
             : "Campagne pré-remplie par le CMO IA. Tu peux générer la séquence."
         );
         window.localStorage.removeItem(CMO_AUTO_PAYLOAD_KEY);
