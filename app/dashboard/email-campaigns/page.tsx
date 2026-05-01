@@ -28,6 +28,7 @@ type CmoAutoPayload = {
   generated_content?: {
     post?: string;
     email?: string;
+    email_sequence_text?: string;
     cta?: string;
     lead_magnet_idea?: string;
   };
@@ -43,6 +44,7 @@ type CmoAutoPayload = {
       suggestedSubject?: string;
       previewText?: string;
       firstEmailBody?: string;
+      emailSequenceText?: string;
     };
   };
   offer?: string;
@@ -50,6 +52,13 @@ type CmoAutoPayload = {
   objective?: string;
   promise?: string;
   cta?: string;
+};
+
+type CmoEmailItem = {
+  day: number;
+  subject: string;
+  preheader: string;
+  body: string;
 };
 
 function asCleanString(value: unknown) {
@@ -123,6 +132,7 @@ function inferCampaignType(payload: CmoAutoPayload): EmailCampaignFormValues["ca
   const text = [
     payload.priority_action,
     payload.next_best_action,
+    payload.generated_content?.email_sequence_text,
     payload.generated_content?.email,
     payload.generated_content?.cta,
   ]
@@ -138,6 +148,125 @@ function inferCampaignType(payload: CmoAutoPayload): EmailCampaignFormValues["ca
   return "vente";
 }
 
+function getCmoEmailText(payload: CmoAutoPayload) {
+  return (
+    asCleanString(payload.content_ready?.email?.emailSequenceText) ||
+    asCleanString(payload.generated_content?.email_sequence_text) ||
+    asCleanString(payload.generated_content?.email) ||
+    asCleanString(payload.content_ready?.email?.firstEmailBody)
+  );
+}
+
+function parseCmoEmailSequence(text: string): CmoEmailItem[] {
+  const cleaned = stripLegacyEmailBlocks(text);
+  if (!cleaned) return [];
+
+  const parts = cleaned.split(/={10,}\s*\n\s*EMAIL\s+(\d+)/gi).filter((part) => part.trim());
+
+  const emails: CmoEmailItem[] = [];
+
+  if (parts.length > 1) {
+    for (let index = 0; index < parts.length; index += 2) {
+      const day = Number.parseInt(parts[index], 10);
+      const content = parts[index + 1] || "";
+
+      if (!Number.isFinite(day) || !content.trim()) continue;
+
+      const subjectMatch = content.match(/Objet\s*:\s*([^\n]+)/i);
+      const preheaderMatch = content.match(/Pr[ée]header\s*:\s*([^\n]+)/i);
+
+      const body = content
+        .replace(/Objet\s*:\s*[^\n]+\n?/i, "")
+        .replace(/Pr[ée]header\s*:\s*[^\n]+\n?/i, "")
+        .trim();
+
+      emails.push({
+        day,
+        subject: asCleanString(subjectMatch?.[1]) || `Email ${day}`,
+        preheader: asCleanString(preheaderMatch?.[1]),
+        body,
+      });
+    }
+  }
+
+  if (emails.length > 0) {
+    return emails.sort((a, b) => a.day - b.day);
+  }
+
+  const subjectMatch = cleaned.match(/Objet\s*:\s*([^\n]+)/i);
+  const preheaderMatch = cleaned.match(/Pr[ée]header\s*:\s*([^\n]+)/i);
+
+  const body = cleaned
+    .replace(/Objet\s*:\s*[^\n]+\n?/i, "")
+    .replace(/Pr[ée]header\s*:\s*[^\n]+\n?/i, "")
+    .trim();
+
+  return [
+    {
+      day: 1,
+      subject: asCleanString(subjectMatch?.[1]) || "Email 1",
+      preheader: asCleanString(preheaderMatch?.[1]),
+      body,
+    },
+  ];
+}
+
+function buildCmoSequenceResponse(payload: CmoAutoPayload): EmailSequenceResponse | null {
+  const emailText = getCmoEmailText(payload);
+  if (!emailText) return null;
+
+  const emails = parseCmoEmailSequence(emailText);
+  if (!emails.length) return null;
+
+  const ready = payload.content_ready?.email;
+  const plainTextExport = ensureUsefulLinks(stripLegacyEmailBlocks(emailText));
+  const cta = asCleanString(ready?.primaryCta) || asCleanString(payload.cta) || "Passer à l’action maintenant";
+
+  const days = emails.map((email) => ({
+    day: email.day,
+    dayNumber: email.day,
+    title: `Email ${email.day}`,
+    subject: email.subject,
+    subjectA: email.subject,
+    subjectB: email.subject,
+    subjectC: email.subject,
+    subject_a: email.subject,
+    subject_b: email.subject,
+    subject_c: email.subject,
+    subjects: [email.subject],
+    preheader: email.preheader,
+    previewText: email.preheader,
+    preview_text: email.preheader,
+    body: email.body,
+    content: email.body,
+    plainText: email.body,
+    plain_text: email.body,
+    cta,
+    shortMobile: "",
+    short_mobile: "",
+    mobile: "",
+    systemeIoNote: `${usefulLinksBlock()}
+
+NOTE LGD :
+- Copie l’objet A, B ou C dans le champ Objet de Systeme.io.
+- Copie le préheader dans le champ prévu si disponible.
+- Colle le corps complet de l’email dans Systeme.io.
+- Remplace [Prénom] par la variable Systeme.io si tu l’utilises.`,
+  }));
+
+  return {
+    campaignName: asCleanString(ready?.campaignName) || "CMO IA - Séquence humaine",
+    campaign_name: asCleanString(ready?.campaignName) || "CMO IA - Séquence humaine",
+    plainTextExport,
+    plain_text_export: plainTextExport,
+    export_text: plainTextExport,
+    sequenceText: plainTextExport,
+    plainText: plainTextExport,
+    content: plainTextExport,
+    days,
+  } as any as EmailSequenceResponse;
+}
+
 function buildCmoEmailValues(
   payload: CmoAutoPayload,
   previous: EmailCampaignFormValues
@@ -147,7 +276,7 @@ function buildCmoEmailValues(
   const diagnostic = asCleanString(payload.diagnostic);
   const whyThisAction = asCleanString(payload.why_this_action);
   const nextBestAction = asCleanString(payload.next_best_action);
-  const emailContent = asCleanString(payload.generated_content?.email);
+  const emailContent = getCmoEmailText(payload);
   const cta = asCleanString(ready?.primaryCta) || asCleanString(payload.cta) || asCleanString(payload.generated_content?.cta);
 
   return {
@@ -232,12 +361,18 @@ export default function EmailCampaignsPage() {
       setCmoAutoMessage("CMO IA analyse la priorité et prépare ta campagne email…");
 
       window.setTimeout(() => {
+        const cmoSequence = buildCmoSequenceResponse(payload);
+
         setValues((previous) => buildCmoEmailValues(payload, previous));
-        setSequence(null);
+        setSequence(sanitizeEmailSequenceResponse(cmoSequence));
         setSavedCampaignId(null);
         setResetVersion((prev) => prev + 1);
         setCmoAutoLoading(false);
-        setCmoAutoMessage("Campagne pré-remplie par le CMO IA. Tu peux générer la séquence.");
+        setCmoAutoMessage(
+          cmoSequence
+            ? "Séquence humaine V6 pré-remplie par le CMO IA. Les 7 emails sont prêts à vérifier."
+            : "Campagne pré-remplie par le CMO IA. Tu peux générer la séquence."
+        );
         window.localStorage.removeItem(CMO_AUTO_PAYLOAD_KEY);
 
         window.setTimeout(() => {
@@ -378,4 +513,3 @@ export default function EmailCampaignsPage() {
     </div>
   );
 }
-
