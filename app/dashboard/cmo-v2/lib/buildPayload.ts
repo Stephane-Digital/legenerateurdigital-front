@@ -11,8 +11,8 @@ import type {
   CMOPayload,
   CMOTarget,
 } from "../types";
-import { generateHumanEmail, generateHumanEmailSequence } from "./emailHumanEngine";
 import { buildStrategy } from "./buildStrategy";
+import { generateHumanEmail, generateHumanEmailSequence, generateHumanEmailSequenceItems } from "./emailHumanEngine";
 
 function clean(value: string, fallback = "") {
   const text = String(value || "")
@@ -195,6 +195,17 @@ export function buildPayload(
         })
       : "";
 
+  const humanEmailSequenceItems =
+    module === "email"
+      ? generateHumanEmailSequenceItems({
+          offer,
+          target: audience,
+          pain: blocker,
+          promise,
+          cta,
+        })
+      : [];
+
   const humanEmailSequence =
     module === "email"
       ? generateHumanEmailSequence({
@@ -269,8 +280,8 @@ export function buildPayload(
     warnings: [],
     meta: {
       module: target,
-      mode: "safe_dispatch_v6_human_sequence",
-      model: "frontend_human_email_engine_v6",
+      mode: "safe_dispatch_v7_human_sequence",
+      model: "frontend_human_email_engine_v7",
       content_generation: "module_only",
     },
   };
@@ -320,6 +331,34 @@ export function buildPayload(
         previewText: emailPreheader,
         firstEmailBody: humanEmail,
         cmoBrief: modulePayloads.emailing,
+        emailSequence: {
+          campaignName: `CMO Dispatch - ${shortText(offer, 70)}`,
+          campaignType: detectCampaignType(`${objective} ${blocker}`),
+          offer,
+          target: audience,
+          promise,
+          cta,
+          days: humanEmailSequenceItems.map((item) => ({
+            day: item.day,
+            type: item.day <= 2 ? "nurture" : item.day === 3 ? "objection" : item.day >= 6 ? "relance" : "vente",
+            label: `Email ${item.day}`,
+            subjects: {
+              a: item.subject,
+              b: item.subject,
+              c: item.subject,
+            },
+            preheader: item.preheader,
+            shortMobile: "",
+            longStory: item.body,
+            ctaVariants: {
+              a: cta,
+              b: cta,
+              c: cta,
+            },
+            systemeIoNote: "Copie le corps complet de l’email dans Systeme.io.",
+          })),
+          plainTextExport: emailOutput,
+        },
         emailSequenceText: emailOutput,
       },
       lead: {
