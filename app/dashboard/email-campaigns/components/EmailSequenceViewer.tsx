@@ -68,11 +68,6 @@ function getAuthHeaders() {
 }
 
 
-const DEFAULT_USEFUL_LINKS = [
-  "Page de vente / paiement : https://legenerateurdigital.systeme.io/lgd",
-  "Accès plateforme LGD : https://legenerateurdigital-front.vercel.app",
-];
-
 
 function cleanGeneratedText(value: unknown) {
   return String(value ?? "")
@@ -86,10 +81,12 @@ function cleanGeneratedText(value: unknown) {
     .trim();
 }
 
-function stripLegacyEmailBlocks(value: unknown) {
+function normalizeEmailBody(value: unknown) {
   let text = cleanGeneratedText(value);
 
-  const storyMatch = text.match(/VERSION LONGUE\s+—\s+STORYTELLING\s*\/\s*CONVERSION[\s\S]*?(?=👉 CTA À TESTER|NOTE LGD|$)/i);
+  const storyMatch = text.match(
+    /VERSION LONGUE\s+—\s+STORYTELLING\s*\/\s*CONVERSION[\s\S]*?(?=👉\s*CTA|NOTE LGD|$)/i
+  );
 
   if (storyMatch?.[0]) {
     text = storyMatch[0]
@@ -102,95 +99,63 @@ function stripLegacyEmailBlocks(value: unknown) {
     text
       .replace(/VERSION COURTE\s+—\s+MOBILE\s*\/\s*RAPIDE[\s\S]*?(?=VERSION LONGUE|NOTE LGD|$)/gi, "")
       .replace(/VERSION LONGUE\s+—\s+STORYTELLING\s*\/\s*CONVERSION/gi, "")
-      .replace(/👉 CTA À TESTER[\s\S]*?(?=NOTE LGD|$)/gi, "")
+      .replace(/🧪[\s\S]*?(?=PRÉHEADER|CORPS DE L’EMAIL|$)/gi, "")
+      .replace(/👉\s*CTA[\s\S]*?(?=NOTE LGD|$)/gi, "")
       .replace(/NOTE LGD[\s\S]*$/gi, "")
       .replace(/^-{5,}/gm, "")
       .replace(/\n{3,}/g, "\n\n")
   );
 }
 
-function normalizeEmailForDisplay(email: EmailSequenceItem, index: number): EmailSequenceItem {
-  return {
-    ...email,
-    day: index + 1,
-    subject: cleanGeneratedText(email.subject),
-    preheader: cleanGeneratedText(email.preheader),
-    body: stripLegacyEmailBlocks(email.body),
-    cta: cleanGeneratedText(email.cta || "Passer à l’action maintenant"),
-  };
-}
-
-function cleanGeneratedText(value: unknown) {
-  return String(value ?? "")
-    .replace(/\*\*/g, "")
-    .replace(/\bCTA\s*:/gi, "")
-    .replace(/\bCORPS\s*:/gi, "")
-    .replace(/Cet email vise[\s\S]*?(?=\n{2,}|$)/gi, "")
-    .replace(/Le message est conçu[\s\S]*?(?=\n{2,}|$)/gi, "")
-    .replace(/\[Passer à l’action maintenant\]\(#\)/gi, "Passer à l’action maintenant")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
-
-function normalizeEmailBody(value: unknown) {
-  let text = cleanGeneratedText(value);
-
-  const longMatch = text.match(/VERSION LONGUE\s+—\s+STORYTELLING\s*\/\s*CONVERSION[\s\S]*?(?=👉 CTA À TESTER|NOTE LGD|$)/i);
-  if (longMatch?.[0]) {
-    text = longMatch[0]
-      .replace(/VERSION LONGUE\s+—\s+STORYTELLING\s*\/\s*CONVERSION/gi, "")
-      .replace(/^-{5,}/gm, "")
-      .trim();
-  }
-
-  text = text
-    .replace(/VERSION COURTE\s+—\s+MOBILE\s*\/\s*RAPIDE[\s\S]*?(?=VERSION LONGUE|NOTE LGD|$)/gi, "")
-    .replace(/VERSION LONGUE\s+—\s+STORYTELLING\s*\/\s*CONVERSION/gi, "")
-    .replace(/👉 CTA À TESTER[\s\S]*?(?=NOTE LGD|$)/gi, "")
-    .replace(/NOTE LGD[\s\S]*$/gi, "")
-    .replace(/^-{5,}/gm, "")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-
-  return text;
-}
-
 function formatPersistentLinks(rawLinks: string) {
-  const customLinks = rawLinks
-    .split(/\n+/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  const links = customLinks.length ? customLinks : DEFAULT_USEFUL_LINKS;
-
-  return `
-
-━━━━━━━━━━━━━━━━━━━━
-
-🔗 Liens utiles :
-
-${links.map((link) => `• ${link}`).join("\n")}`;
+  void rawLinks;
+  return "";
 }
+
+function buildSingleHumanEmail(email: EmailSequenceItem, senderDisplay: string) {
+  const subject = cleanGeneratedText(email.subject || `Email jour ${email.day}`);
+  const preheader = cleanGeneratedText(email.preheader || "");
+  const body = normalizeEmailBody(email.body);
+  const cta = cleanGeneratedText(email.cta || "Passer à l’action maintenant");
+
+  return `Objet : ${subject}
+
+Préheader : ${preheader}
+
+${body}
+
+👉 ${cta}
+
+À bientôt peut-être 👀
+
+${senderDisplay}`;
+}
+
+function buildPlainSequence(emails: EmailSequenceItem[], senderDisplay: string) {
+  return emails
+    .map((email) => buildSingleHumanEmail(email, senderDisplay))
+    .join("\n\n==================================================\n\n");
+}
+
+function buildSystemeIoSequence(emails: EmailSequenceItem[], senderDisplay: string) {
+  return emails
+    .map((email) => buildSingleHumanEmail(email, senderDisplay))
+    .join("\n\n==================================================\n\n");
+}
+
+function buildSingleSystemeIoEmail(email: EmailSequenceItem, senderDisplay: string) {
+  return buildSystemeIoSequence([email], senderDisplay);
+}
+
+
 
 function buildCleanSystemeIoEmail(
   email: EmailSequenceItem,
   senderDisplay: string,
   persistentLinks: string
 ) {
-  const body = stripLegacyEmailBlocks(email.body);
-  const cta = cleanGeneratedText(email.cta || "Passer à l’action maintenant");
-  const usefulLinks = formatPersistentLinks(persistentLinks);
-
-  return `Bonjour [Prénom],
-
-${body}
-
-👉 Clique ici pour passer à l’action :
-${cta}${usefulLinks}
-
-À très vite,
-
-${senderDisplay}`;
+  void persistentLinks;
+  return buildSingleHumanEmail(email, senderDisplay);
 }
 
 function downloadTextFile(filename: string, content: string) {
@@ -210,11 +175,11 @@ export default function EmailSequenceViewer({ formValues, sequence, onSaved, onR
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
   const [copiedMessage, setCopiedMessage] = useState<string | null>(null);
   const [editing, setEditing] = useState<EmailSequenceItem[]>([]);
-  const [persistentLinks, setPersistentLinks] = useState(DEFAULT_USEFUL_LINKS.join("\n"));
+  const [persistentLinks, setPersistentLinks] = useState("");
 
   const safeSequence = useMemo(() => {
     if (!sequence) return null;
-    const emails = (sequence.emails || []).map((email, index) => normalizeEmailForDisplay(email, index));
+    const emails = (sequence.emails || []).map((email, index) => ({ ...email, day: index + 1 }));
     return { ...sequence, emails };
   }, [sequence]);
 
@@ -237,7 +202,7 @@ export default function EmailSequenceViewer({ formValues, sequence, onSaved, onR
     if (!safeSequence) return;
 
     await navigator.clipboard.writeText(buildSystemeIoSequence(editing, senderDisplay));
-    setCopiedMessage("Séquence complète SIO PRO copiée.");
+    setCopiedMessage("Séquence humaine copiée.");
     window.setTimeout(() => setCopiedMessage(null), 2400);
   };
 
@@ -245,7 +210,7 @@ export default function EmailSequenceViewer({ formValues, sequence, onSaved, onR
     await navigator.clipboard.writeText(
       buildCleanSystemeIoEmail({ ...email, day: index + 1 }, senderDisplay, persistentLinks)
     );
-    setCopiedMessage(`Email jour ${index + 1} copié en version SIO CLEAN aérée et prête à envoyer.`);
+    setCopiedMessage(`Email jour ${index + 1} copié en version humaine prête à envoyer.`);
     window.setTimeout(() => setCopiedMessage(null), 2400);
   };
 
@@ -344,7 +309,7 @@ export default function EmailSequenceViewer({ formValues, sequence, onSaved, onR
             <Copy size={15} /> Copier
           </button>
           <button type="button" onClick={copySystemeIoSequence} className="inline-flex items-center gap-2 rounded-2xl border border-yellow-400/20 bg-[#181818] px-4 py-2 text-sm font-medium text-yellow-100 transition hover:border-yellow-400/40 hover:text-yellow-300">
-            <Copy size={15} /> Copier plan SIO complet
+            <Copy size={15} /> Copier la séquence
           </button>
           <button type="button" onClick={exportSequenceTxt} className="inline-flex items-center gap-2 rounded-2xl border border-yellow-400/20 bg-[#181818] px-4 py-2 text-sm font-medium text-yellow-100 transition hover:border-yellow-400/40 hover:text-yellow-300">
             <Download size={15} /> Export .txt
@@ -360,33 +325,7 @@ export default function EmailSequenceViewer({ formValues, sequence, onSaved, onR
 
       {copiedMessage && <div className="mb-4 rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">{copiedMessage}</div>}
       {savedMessage && <div className="mb-4 rounded-2xl border border-yellow-400/15 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-200">{savedMessage}</div>}
-
-      <div className="mb-5 rounded-2xl border border-yellow-400/15 bg-[#141414] p-4">
-        <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-yellow-300">
-              Liens persistants
-            </p>
-            <p className="mt-1 text-xs leading-5 text-zinc-500">
-              Ajoute un ou plusieurs liens, un par ligne. Ils seront injectés automatiquement dans chaque email copié avec “Copier SIO CLEAN”.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setPersistentLinks("")}
-            className="self-start rounded-full border border-yellow-400/20 px-3 py-1.5 text-xs font-semibold text-zinc-300 transition hover:border-yellow-400/40 hover:text-yellow-300 md:self-auto"
-          >
-            Effacer les liens
-          </button>
-        </div>
-
-        <textarea
-          className={`${inputClass} mt-3 min-h-[92px]`}
-          value={persistentLinks}
-          onChange={(event) => setPersistentLinks(event.target.value)}
-          placeholder={"Exemples :\nPage de vente : https://...\nCalendrier : https://...\nBonus : https://..."}
-        />
-      </div>
+      <div className="hidden" aria-hidden="true" />
 
       <div className="max-h-[760px] space-y-4 overflow-y-auto pr-2">
         {editing.map((email, index) => (
@@ -407,7 +346,7 @@ export default function EmailSequenceViewer({ formValues, sequence, onSaved, onR
                 onClick={() => copySingleSystemeIoEmail(email, index)}
                 className="ml-auto inline-flex items-center gap-2 rounded-full border border-yellow-400/25 bg-yellow-500/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-yellow-200 transition hover:border-yellow-400/50 hover:bg-yellow-400/15 hover:text-yellow-300"
               >
-                <Copy size={12} /> Copier SIO CLEAN
+                <Copy size={12} /> Copier l’email
               </button>
             </div>
 
@@ -445,85 +384,3 @@ export default function EmailSequenceViewer({ formValues, sequence, onSaved, onR
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
