@@ -598,3 +598,4 @@ export function generateHumanEmail(input: HumanEmailInput) {
   const firstEmail = generateHumanEmailSequenceItems(input)[0];
   return `Objet : ${firstEmail.subject}\n\nPréheader : ${firstEmail.preheader}\n\n${firstEmail.body}`;
 }
+
