@@ -62,6 +62,7 @@ type CmoEmailItem = {
   subject: string;
   preheader: string;
   body: string;
+  cta?: string;
 };
 
 function asCleanString(value: unknown) {
@@ -82,6 +83,41 @@ function stripLegacyEmailBlocks(text: string) {
     .replace(/- Colle uniquement la version courte OU la version longue dans le corps de l’email\./gi, "- Colle le corps complet de l’email dans Systeme.io.")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+}
+
+const CTA_VARIANTS_BY_DAY = [
+  "Télécharge le guide et clarifie ton premier pas.",
+  "Récupère le guide pour éviter de repartir dans la théorie.",
+  "Télécharge le guide et vérifie si cette méthode te correspond.",
+  "Accède au guide pour structurer ton offre plus simplement.",
+  "Télécharge le guide et transforme ton idée en action concrète.",
+  "Récupère le guide avant de repousser encore.",
+  "Télécharge le guide si tu veux vraiment commencer maintenant.",
+];
+
+function sanitizeEmailBodyText(value: unknown) {
+  return stripLegacyEmailBlocks(asCleanString(value))
+    .replace(/^\s*👉\s*.+$/gim, "")
+    .replace(/\n*À\s+bientôt(?:\s+peut-être)?[\s\S]*$/gi, "")
+    .replace(/\n*À\s+très\s+vite[\s\S]*$/gi, "")
+    .replace(/\n*Alex IA\s*🤖?[\s\S]*$/gi, "")
+    .replace(/\n*Ton Coach LGD[\s\S]*$/gi, "")
+    .replace(/\n*LGD\s*$/gi, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function getCtaForDay(value: unknown, day: number) {
+  const raw = asCleanString(value);
+  const generic =
+    !raw ||
+    /^(téléchargez votre guide gratuit maintenant|découvrez comment commencer dès aujourd'hui|inscrivez-vous dès maintenant pour découvrir notre méthode|passez à l’action maintenant|commencez maintenant)[.!?]?$/i.test(raw);
+
+  if (generic) {
+    return CTA_VARIANTS_BY_DAY[Math.max(0, day - 1) % CTA_VARIANTS_BY_DAY.length];
+  }
+
+  return raw;
 }
 
 function usefulLinksBlock() {
@@ -137,7 +173,7 @@ function inferCampaignType(payload: CmoAutoPayload): EmailCampaignFormValues["ca
     payload.next_best_action,
     payload.generated_content?.email_sequence_text,
     payload.generated_content?.email,
-    payload.generated_content?.cta,
+    payload.generated_content?.cta: getCtaForDay((email as any).cta || cta, email.day),
   ]
     .filter(Boolean)
     .join(" ")
@@ -187,7 +223,8 @@ function parseCmoEmailSequence(text: string): CmoEmailItem[] {
         day,
         subject: asCleanString(subjectMatch?.[1]) || `Email ${day}`,
         preheader: asCleanString(preheaderMatch?.[1]),
-        body,
+        body: sanitizeEmailBodyText(body),
+        cta: getCtaForDay("", day),
       });
     }
   }
@@ -209,7 +246,8 @@ function parseCmoEmailSequence(text: string): CmoEmailItem[] {
       day: 1,
       subject: asCleanString(subjectMatch?.[1]) || "Email 1",
       preheader: asCleanString(preheaderMatch?.[1]),
-      body,
+      body: sanitizeEmailBodyText(body),
+      cta: getCtaForDay("", 1),
     },
   ];
 }
@@ -225,7 +263,8 @@ function normalizeCmoEmailItems(payload: CmoAutoPayload): CmoEmailItem[] {
         day: Number(email.day || index + 1),
         subject: asCleanString(email.subject) || `Email ${index + 1}`,
         preheader: asCleanString(email.preheader),
-        body: stripLegacyEmailBlocks(asCleanString(email.body)),
+        body: sanitizeEmailBodyText(email.body),
+        cta: getCtaForDay((email as any).cta, Number(email.day || index + 1)),
       }))
       .filter((email) => email.body)
       .slice(0, 7);
@@ -243,7 +282,7 @@ Objet : ${email.subject}
 
 Préheader : ${email.preheader}
 
-${email.body}`;
+${sanitizeEmailBodyText(email.body)}`;
 }
 
 function buildCmoSequenceResponse(payload: CmoAutoPayload): EmailSequenceResponse | null {
@@ -261,8 +300,8 @@ function buildCmoSequenceResponse(payload: CmoAutoPayload): EmailSequenceRespons
       email.day <= 2 ? "nurture" : email.day === 3 ? "objection" : email.day >= 6 ? "relance" : "vente",
     subject: email.subject,
     preheader: email.preheader,
-    body: email.body,
-    cta,
+    body: sanitizeEmailBodyText(email.body),
+    cta: getCtaForDay((email as any).cta || cta, email.day),
   }));
 
   const days = normalizedEmails.map((email) => ({
@@ -282,9 +321,9 @@ function buildCmoSequenceResponse(payload: CmoAutoPayload): EmailSequenceRespons
     preview_text: email.preheader,
     body: email.body,
     content: email.body,
-    plainText: email.body,
-    plain_text: email.body,
-    cta,
+    plainText: sanitizeEmailBodyText(email.body),
+    plain_text: sanitizeEmailBodyText(email.body),
+    cta: getCtaForDay((email as any).cta || cta, email.day),
     shortMobile: "",
     short_mobile: "",
     mobile: "",
@@ -408,19 +447,23 @@ export default function EmailCampaignsPage() {
       setCmoAutoMessage("CMO IA analyse la priorité et prépare ta campagne email…");
 
       window.setTimeout(() => {
+        const cmoSequence = buildCmoSequenceResponse(payload);
+
         setValues((previous) => buildCmoEmailValues(payload, previous));
-        setSequence(null);
+        setSequence(sanitizeEmailSequenceResponse(cmoSequence));
         setSavedCampaignId(null);
         setResetVersion((prev) => prev + 1);
         setCmoAutoLoading(false);
         setCmoAutoMessage(
-          "Campagne pré-remplie par le CMO IA. Clique sur Générer la séquence IA pour produire les emails avec le backend IA."
+          cmoSequence
+            ? "Séquence humaine V7 pré-remplie par le CMO IA. Les 7 emails sont prêts à vérifier."
+            : "Campagne pré-remplie par le CMO IA. Tu peux générer la séquence."
         );
         window.localStorage.removeItem(CMO_AUTO_PAYLOAD_KEY);
 
         window.setTimeout(() => {
           setCmoAutoMessage(null);
-        }, 5500);
+        }, 4500);
       }, 850);
     } catch (error) {
       console.error("CMO auto payload email error", error);
