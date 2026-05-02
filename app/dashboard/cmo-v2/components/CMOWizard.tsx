@@ -1,7 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
 
 import { buildPayload, moduleToTarget } from "../lib/buildPayload";
 import { requestCMODispatch } from "../lib/cmoDispatchClient";
@@ -20,6 +20,46 @@ const routes: Record<CMOModule, string> = {
   editor: "/dashboard/automatisations/reseaux_sociaux/editor-intelligent",
   coach: "/dashboard/coach-ia",
 };
+
+const cmoLoadingSteps = [
+  "Analyse de ton objectif...",
+  "Identification du blocage principal...",
+  "Construction de l’offre et de la promesse...",
+  "Sélection de l’angle marketing...",
+  "Préparation du payload module...",
+];
+
+function CMODispatchLoader() {
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setIndex((current) => (current + 1) % cmoLoadingSteps.length);
+    }, 1100);
+
+    return () => window.clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="mb-5 overflow-hidden rounded-xl border border-yellow-500/25 bg-yellow-500/[0.05] px-4 py-3 text-sm text-yellow-50/85 shadow-[0_0_28px_rgba(234,179,8,0.08)]">
+      <div className="flex items-center gap-3">
+        <div className="relative flex h-6 w-6 shrink-0 items-center justify-center">
+          <div className="absolute h-6 w-6 rounded-full border border-yellow-300/25" />
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-yellow-300/80 border-t-transparent shadow-[0_0_18px_rgba(250,204,21,0.35)]" />
+        </div>
+
+        <div className="min-w-0">
+          <div className="font-semibold text-yellow-200">
+            Analyse CMO en cours
+          </div>
+          <div className="mt-0.5 text-white/65 transition-all">
+            {cmoLoadingSteps[index]}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function CMOWizard() {
   const router = useRouter();
@@ -65,7 +105,11 @@ export default function CMOWizard() {
     setSafeModeNotice("");
 
     try {
-      const liveDispatch = await requestCMODispatch({ objective, blocker, targetModule });
+      const [liveDispatch] = await Promise.all([
+        requestCMODispatch({ objective, blocker, targetModule }),
+        new Promise((resolve) => window.setTimeout(resolve, 1200)),
+      ]);
+
       const payload = buildPayload(module, objective, blocker, liveDispatch);
       setDispatch(payload.dispatch);
       setStep(4);
@@ -122,11 +166,7 @@ export default function CMOWizard() {
         </div>
       )}
 
-      {loading && step !== 4 && (
-        <div className="mb-5 rounded-xl border border-yellow-500/20 bg-white/[0.03] px-4 py-3 text-sm text-white/65">
-          Analyse CMO en cours : objectif, blocage, offre, promesse, angle, CTA et payload module.
-        </div>
-      )}
+      {loading && step !== 4 && <CMODispatchLoader />}
 
       {step === 1 && <StepGoal value={objective} onChange={setObjective} onNext={goStep2} />}
 
