@@ -173,7 +173,7 @@ function inferCampaignType(payload: CmoAutoPayload): EmailCampaignFormValues["ca
     payload.next_best_action,
     payload.generated_content?.email_sequence_text,
     payload.generated_content?.email,
-    payload.generated_content?.cta: getCtaForDay((email as any).cta || cta, email.day),
+    payload.generated_content?.cta,
   ]
     .filter(Boolean)
     .join(" ")
