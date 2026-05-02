@@ -134,21 +134,20 @@ Ton Coach LGD`;
 }
 
 function humanizeSequence(sequence: EmailSequenceResponse, values: EmailCampaignFormValues): EmailSequenceResponse {
-  const fallbackCta = cleanGeneratedText(values.primary_cta || "Passer à l’action maintenant");
+  void values;
 
   return {
     ...sequence,
-    emails: (sequence.emails || []).map((email, index) => {
-      const cleanBody = cleanGeneratedText(email.body);
-      return {
+    emails: (sequence.emails || [])
+      .map((email, index) => ({
         ...email,
         day: index + 1,
         subject: cleanGeneratedText(email.subject || `Jour ${index + 1} — avancer simplement`),
-        preheader: cleanGeneratedText(email.preheader || "Un message simple pour avancer dans ton business en ligne."),
-        body: cleanBody || buildHumanEmailBody(values, index + 1),
-        cta: cleanGeneratedText(email.cta || fallbackCta),
-      };
-    }),
+        preheader: cleanGeneratedText(email.preheader || ""),
+        body: cleanGeneratedText(email.body),
+        cta: cleanGeneratedText(email.cta || ""),
+      }))
+      .filter((email) => email.body.trim().length > 0),
   };
 }
 
@@ -189,6 +188,7 @@ export default function EmailCampaignGenerator({
 
     setLoading(true);
     setError(null);
+    const generationStarted = Date.now();
 
     try {
       const baseUrl = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(
@@ -212,7 +212,18 @@ export default function EmailCampaignGenerator({
       }
 
       const data = (await response.json()) as EmailSequenceResponse;
-      onGenerated(humanizeSequence(data, values));
+      const cleanedSequence = humanizeSequence(data, values);
+
+      if (!cleanedSequence.emails || cleanedSequence.emails.length < 1) {
+        throw new Error("Le moteur IA n’a pas retourné d’emails exploitables. Vérifie la clé OpenAI / les logs Render.");
+      }
+
+      const elapsed = Date.now() - generationStarted;
+      if (elapsed < 1800) {
+        await new Promise((resolve) => window.setTimeout(resolve, 1800 - elapsed));
+      }
+
+      onGenerated(cleanedSequence);
     } catch (err) {
       console.error(err);
       setError(err instanceof Error ? err.message : "La génération a échoué. Vérifie le backend puis réessaie.");
