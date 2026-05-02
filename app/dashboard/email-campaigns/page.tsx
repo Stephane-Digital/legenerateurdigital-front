@@ -74,48 +74,14 @@ function shortText(value: string, max = 90) {
   return `${clean.slice(0, max - 1).trim()}…`;
 }
 
-function normalizeEmailText(text: string) {
-  return text
-    .replace(/\r/g, "")
-    .replace(/\*\*/g, "")
-    .replace(/CTA\s*:/gi, "")
-    .replace(/\[Passer à l’action maintenant\]\(#\)/gi, "Passer à l’action maintenant")
-    .replace(/[ \t]+\n/g, "\n")
-    .replace(/\n[ \t]+/g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
-
-function removeImmediateDuplicateBlocks(text: string) {
-  const normalized = normalizeEmailText(text);
-  if (!normalized) return "";
-
-  const lines = normalized.split("\n");
-  if (lines.length % 2 === 0) {
-    const middle = lines.length / 2;
-    const first = lines.slice(0, middle).join("\n").trim();
-    const second = lines.slice(middle).join("\n").trim();
-    if (first && first === second) return first;
-  }
-
-  const paragraphs = normalized.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
-  if (paragraphs.length % 2 === 0) {
-    const middle = paragraphs.length / 2;
-    const first = paragraphs.slice(0, middle).join("\n\n").trim();
-    const second = paragraphs.slice(middle).join("\n\n").trim();
-    if (first && first === second) return first;
-  }
-
-  return normalized;
-}
-
 function stripLegacyEmailBlocks(text: string) {
-  const cleaned = normalizeEmailText(text)
+  return text
+    .replace(/\*\*/g, "")
     .replace(/VERSION COURTE[\s\S]*?(?=VERSION LONGUE|NOTE LGD|={10,}|$)/gi, "")
     .replace(/VERSION LONGUE[\s\S]*?(?=NOTE LGD|={10,}|$)/gi, "")
-    .replace(/- Colle uniquement la version courte OU la version longue dans le corps de l’email\./gi, "- Colle le corps complet de l’email dans Systeme.io.");
-
-  return removeImmediateDuplicateBlocks(cleaned);
+    .replace(/- Colle uniquement la version courte OU la version longue dans le corps de l’email\./gi, "- Colle le corps complet de l’email dans Systeme.io.")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 function usefulLinksBlock() {
@@ -249,71 +215,23 @@ function parseCmoEmailSequence(text: string): CmoEmailItem[] {
 }
 
 function normalizeCmoEmailItems(payload: CmoAutoPayload): CmoEmailItem[] {
-  const readySequence = payload.content_ready?.email?.emailSequence as any;
-  const readyEmails = readySequence?.emails;
-  const readyDays = readySequence?.days;
+  const readyEmails = payload.content_ready?.email?.emailSequence?.emails;
   const generatedEmails = payload.generated_content?.email_sequence;
+  const source = Array.isArray(readyEmails) && readyEmails.length ? readyEmails : generatedEmails;
 
-  const source =
-    Array.isArray(readyEmails) && readyEmails.length
-      ? readyEmails
-      : Array.isArray(readyDays) && readyDays.length
-        ? readyDays
-        : Array.isArray(generatedEmails) && generatedEmails.length
-          ? generatedEmails
-          : null;
+  if (Array.isArray(source) && source.length) {
+    return source
+      .map((email, index) => ({
+        day: Number(email.day || index + 1),
+        subject: asCleanString(email.subject) || `Email ${index + 1}`,
+        preheader: asCleanString(email.preheader),
+        body: stripLegacyEmailBlocks(asCleanString(email.body)),
+      }))
+      .filter((email) => email.body)
+      .slice(0, 7);
+  }
 
-  const emails = source
-    ? source
-        .map((email: any, index: number) => {
-          const subject =
-            asCleanString(email.subject) ||
-            asCleanString(email.subjectA) ||
-            asCleanString(email.subject_a) ||
-            asCleanString(email.subjects?.[0]) ||
-            asCleanString(email.subjects?.a) ||
-            `Email ${index + 1}`;
-
-          const preheader =
-            asCleanString(email.preheader) ||
-            asCleanString(email.previewText) ||
-            asCleanString(email.preview_text);
-
-          const body = stripLegacyEmailBlocks(
-            asCleanString(email.body) ||
-              asCleanString(email.content) ||
-              asCleanString(email.plainText) ||
-              asCleanString(email.plain_text) ||
-              asCleanString(email.longStory)
-          );
-
-          return {
-            day: Number(email.day || email.dayNumber || index + 1),
-            subject,
-            preheader,
-            body,
-          };
-        })
-        .filter((email: CmoEmailItem) => email.body)
-    : parseCmoEmailSequence(getCmoEmailText(payload));
-
-  const seenBodies = new Set<string>();
-  const seenSubjects = new Set<string>();
-
-  return emails
-    .sort((a, b) => a.day - b.day)
-    .filter((email) => {
-      const bodyKey = email.body.replace(/\s+/g, " ").toLowerCase().slice(0, 260);
-      const subjectKey = email.subject.replace(/\s+/g, " ").toLowerCase();
-      if (seenBodies.has(bodyKey)) return false;
-      seenBodies.add(bodyKey);
-      if (seenSubjects.has(subjectKey)) {
-        email.subject = `${email.subject} — jour ${email.day}`;
-      }
-      seenSubjects.add(email.subject.replace(/\s+/g, " ").toLowerCase());
-      return true;
-    })
-    .slice(0, 7);
+  return parseCmoEmailSequence(getCmoEmailText(payload)).slice(0, 7);
 }
 
 function buildEmailExportBlock(email: CmoEmailItem) {
@@ -490,23 +408,19 @@ export default function EmailCampaignsPage() {
       setCmoAutoMessage("CMO IA analyse la priorité et prépare ta campagne email…");
 
       window.setTimeout(() => {
-        const cmoSequence = buildCmoSequenceResponse(payload);
-
         setValues((previous) => buildCmoEmailValues(payload, previous));
-        setSequence(sanitizeEmailSequenceResponse(cmoSequence));
+        setSequence(null);
         setSavedCampaignId(null);
         setResetVersion((prev) => prev + 1);
         setCmoAutoLoading(false);
         setCmoAutoMessage(
-          cmoSequence
-            ? "Séquence humaine V7 pré-remplie par le CMO IA. Les 7 emails sont prêts à vérifier."
-            : "Campagne pré-remplie par le CMO IA. Tu peux générer la séquence."
+          "Campagne pré-remplie par le CMO IA. Clique sur Générer la séquence IA pour produire les emails avec le backend IA."
         );
         window.localStorage.removeItem(CMO_AUTO_PAYLOAD_KEY);
 
         window.setTimeout(() => {
           setCmoAutoMessage(null);
-        }, 4500);
+        }, 5500);
       }, 850);
     } catch (error) {
       console.error("CMO auto payload email error", error);
