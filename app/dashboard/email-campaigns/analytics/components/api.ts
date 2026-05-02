@@ -1,7 +1,7 @@
 
 import type { EmailAnalyticsDashboardResponse } from "./types";
 
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || "https://legenerateurdigital-backend-m9b5.onrender.com").replace(/\/+$/, "");
 
 export async function fetchEmailAnalyticsDashboard(): Promise<EmailAnalyticsDashboardResponse> {
   const response = await fetch(`${API_BASE_URL}/email-analytics/dashboard`, {
