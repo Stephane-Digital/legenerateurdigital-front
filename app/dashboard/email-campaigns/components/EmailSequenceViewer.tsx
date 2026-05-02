@@ -119,6 +119,26 @@ function formatPersistentLinks(rawLinks: string) {
 }
 
 const CTA_VARIANTS_BY_DAY = [
+  "Passe à l’étape suivante avec un plan clair.",
+  "Avance aujourd’hui au lieu de repartir dans la théorie.",
+  "Clarifie ton prochain pas maintenant.",
+  "Structure ton offre plus simplement.",
+  "Transforme ton idée en action concrète.",
+  "Fais le premier pas avant de repousser encore.",
+  "Décide maintenant si tu veux vraiment commencer.",
+];
+
+const COACHING_CTA_VARIANTS_BY_DAY = [
+  "Réserve ta session et clarifie ton prochain pas.",
+  "Bloque ta session avant de repartir dans la théorie.",
+  "Réserve ton créneau pour transformer le flou en plan clair.",
+  "Planifie ta session et avance avec une méthode simple.",
+  "Réserve ta session pour passer de l’idée à l’action.",
+  "Choisis ton créneau avant de repousser encore.",
+  "Réserve maintenant si tu veux vraiment commencer.",
+];
+
+const GUIDE_CTA_VARIANTS_BY_DAY = [
   "Télécharge le guide et clarifie ton premier pas.",
   "Récupère le guide pour éviter de repartir dans la théorie.",
   "Télécharge le guide et vérifie si cette méthode te correspond.",
@@ -142,12 +162,23 @@ function normalizeExportBody(value: unknown) {
 
 function getDisplayCta(email: EmailSequenceItem, index: number) {
   const raw = cleanGeneratedText(email.cta || "");
+  const normalized = raw.toLowerCase();
+  const dayIndex = index % CTA_VARIANTS_BY_DAY.length;
+
+  if (/coach|coaching|session|réserve|reserve|appel|audit/i.test(normalized)) {
+    return COACHING_CTA_VARIANTS_BY_DAY[dayIndex];
+  }
+
+  if (/guide|télécharge|telecharge|ressource/i.test(normalized)) {
+    return GUIDE_CTA_VARIANTS_BY_DAY[dayIndex];
+  }
+
   const generic =
     !raw ||
-    /^(téléchargez votre guide gratuit maintenant|découvrez comment commencer dès aujourd'hui|inscrivez-vous dès maintenant pour découvrir notre méthode|passez à l’action maintenant|commencez maintenant)[.!?]?$/i.test(raw);
+    /^(téléchargez votre guide gratuit maintenant|découvrez comment commencer dès aujourd'hui|inscrivez-vous dès maintenant pour découvrir notre méthode|passez à l’action maintenant|commencez maintenant|réserve ta session de coaching maintenant)[.!?]?$/i.test(raw);
 
   if (generic) {
-    return CTA_VARIANTS_BY_DAY[index % CTA_VARIANTS_BY_DAY.length];
+    return CTA_VARIANTS_BY_DAY[dayIndex];
   }
 
   return raw;
