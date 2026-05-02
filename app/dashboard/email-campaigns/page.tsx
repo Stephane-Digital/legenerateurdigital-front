@@ -447,17 +447,13 @@ export default function EmailCampaignsPage() {
       setCmoAutoMessage("CMO IA analyse la priorité et prépare ta campagne email…");
 
       window.setTimeout(() => {
-        const cmoSequence = buildCmoSequenceResponse(payload);
-
         setValues((previous) => buildCmoEmailValues(payload, previous));
-        setSequence(sanitizeEmailSequenceResponse(cmoSequence));
+        setSequence(null);
         setSavedCampaignId(null);
         setResetVersion((prev) => prev + 1);
         setCmoAutoLoading(false);
         setCmoAutoMessage(
-          cmoSequence
-            ? "Séquence humaine V7 pré-remplie par le CMO IA. Les 7 emails sont prêts à vérifier."
-            : "Campagne pré-remplie par le CMO IA. Tu peux générer la séquence."
+          "Campagne pré-remplie par le CMO IA. Clique sur Générer la séquence pour lancer la vraie génération IA."
         );
         window.localStorage.removeItem(CMO_AUTO_PAYLOAD_KEY);
 
