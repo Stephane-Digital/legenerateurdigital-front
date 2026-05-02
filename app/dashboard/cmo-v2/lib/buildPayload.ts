@@ -12,42 +12,36 @@ import type {
   CMOTarget,
 } from "../types";
 import { buildStrategy } from "./buildStrategy";
-import { generateHumanEmail, generateHumanEmailSequence, generateHumanEmailSequenceItems } from "./emailHumanEngine";
 
-function clean(value: string, fallback = "") {
+function clean(value: unknown, fallback = "") {
   const text = String(value || "")
     .replace(/\*\*/g, "")
     .replace(/CTA\s*:/gi, "")
     .replace(/Cet email vise[\s\S]*$/gi, "")
     .replace(/Le message est conçu[\s\S]*$/gi, "")
     .replace(/\[Passer à l’action maintenant\]\(#\)/gi, "Passer à l’action maintenant")
+    .replace(/🎁\s*Ce que je te propose/gi, "")
+    .replace(/💡\s*Ce qui change vraiment/gi, "")
+    .replace(/Alex IA\s*🤖/gi, "")
+    .replace(/Ton Coach LGD/gi, "")
     .replace(/\s+/g, " ")
     .trim();
 
   return text || fallback;
 }
 
-function shortText(value: string, max = 90) {
+function shortText(value: unknown, max = 90) {
   const text = clean(value);
   if (text.length <= max) return text;
   return `${text.slice(0, max - 1).trim()}…`;
 }
 
-function detectCampaignType(text: string): "vente" | "relance" | "lancement" | "nurturing" {
-  const lower = text.toLowerCase();
+function detectCampaignType(text: unknown): "vente" | "relance" | "lancement" | "nurturing" {
+  const lower = clean(text).toLowerCase();
   if (lower.includes("relance")) return "relance";
   if (lower.includes("lancement")) return "lancement";
   if (lower.includes("nurturing") || lower.includes("éduquer") || lower.includes("eduquer")) return "nurturing";
   return "vente";
-}
-
-function buildHumanSubject(offer: string) {
-  const cleanOffer = shortText(offer || "ton projet", 48);
-  return `${cleanOffer} : avançons simplement`;
-}
-
-function buildHumanPreheader(blocker: string) {
-  return `Un message simple pour sortir du blocage : ${shortText(blocker, 90)}`;
 }
 
 export function moduleToTarget(module: CMOModule): CMOTarget {
@@ -56,7 +50,7 @@ export function moduleToTarget(module: CMOModule): CMOTarget {
   return module;
 }
 
-function normalizeOffer(value: string) {
+function normalizeOffer(value: unknown) {
   const text = clean(value, "votre offre");
   const cleaned = text
     .replace(/\s+à\s+des\s+.+$/i, "")
@@ -69,7 +63,7 @@ function normalizeOffer(value: string) {
   return cleaned.length >= 4 ? cleaned : text;
 }
 
-function extractOffer(objective: string) {
+function extractOffer(objective: unknown) {
   const text = clean(objective);
   const lower = text.toLowerCase();
 
@@ -113,13 +107,13 @@ function buildModulePayloads(params: {
     primary_cta: cta,
     tone,
     sequence_direction: [
-      "Jour 1 : prise de conscience du blocage",
-      "Jour 2 : dispersion et manque de système",
-      "Jour 3 : limite des outils isolés",
-      "Jour 4 : pont entre idée, contenu, prospect et vente",
-      "Jour 5 : désir d’un système simple et humain",
-      "Jour 6 : coût réel de la dispersion",
-      "Jour 7 : décision claire et passage à l’action",
+      "Jour 1 : empathie et prise de conscience du blocage réel",
+      "Jour 2 : erreur de préparation infinie et recadrage action",
+      "Jour 3 : objection principale et dédramatisation",
+      "Jour 4 : mécanisme de solution simple et crédible",
+      "Jour 5 : projection concrète dans un futur proche",
+      "Jour 6 : checklist de décision et réduction du doute",
+      "Jour 7 : choix clair entre statu quo et passage à l’action",
     ],
   };
 
@@ -161,67 +155,51 @@ function buildModulePayloads(params: {
   };
 }
 
+function normalizeLiveDispatch(value: CMODispatchResult | undefined, target: CMOTarget): CMODispatchResult | null {
+  if (!value || !value.context || !value.decision || !value.module_payloads) return null;
+
+  return {
+    ...value,
+    decision: {
+      ...value.decision,
+      recommended_module: value.decision.recommended_module || target,
+    },
+    assumptions: Array.isArray(value.assumptions) ? value.assumptions : [],
+    warnings: Array.isArray(value.warnings) ? value.warnings : [],
+    meta: {
+      ...(value.meta || {}),
+      content_generation: "disabled_at_cmo_level",
+    },
+  };
+}
+
 export function buildPayload(
   module: CMOModule,
   objectiveInput: string,
   blockerInput: string,
   liveDispatch?: CMODispatchResult
 ): CMOPayload {
-  void liveDispatch;
-
-  const objective = clean(objectiveInput, "Créer une action marketing utile aujourd’hui.");
-  const blocker = clean(blockerInput, "Le besoin doit être clarifié avant de produire le contenu.");
   const target = moduleToTarget(module);
-  const offer = extractOffer(objective);
-  const strategy = buildStrategy(objective, blocker);
-  const tone = "premium";
+  const live = normalizeLiveDispatch(liveDispatch, target);
+  const strategy = buildStrategy(objectiveInput, blockerInput);
+  const liveContext = live?.context;
 
-  const cta = clean(strategy.cta, offer && offer !== objective ? `Découvrir ${offer}` : "Passer à l’action maintenant");
-  const audience = clean(strategy.target, `prospects concernés par l’objectif`);
+  const objective = clean(liveContext?.objective, clean(objectiveInput, "Créer une action marketing utile aujourd’hui."));
+  const blocker = clean(liveContext?.blocker, clean(blockerInput, "Le besoin doit être clarifié avant de produire le contenu."));
+  const offer = clean(liveContext?.offer, extractOffer(objective));
+  const audience = clean(liveContext?.audience, clean(strategy.target, "prospects concernés par l’objectif"));
   const promise = clean(
-    strategy.promise,
-    `Transformer ce besoin utilisateur en action claire, personnalisée et directement exploitable malgré le blocage : ${blocker}`
+    liveContext?.promise,
+    clean(
+      strategy.promise,
+      `Transformer ce besoin utilisateur en action claire, personnalisée et directement exploitable malgré le blocage : ${blocker}`
+    )
   );
-  const angle = clean(strategy.angle, `Partir du blocage réel pour rendre ${offer} plus désirable.`);
+  const angle = clean(liveContext?.angle, clean(strategy.angle, `Partir du blocage réel pour rendre ${offer} plus désirable.`));
+  const cta = clean(liveContext?.cta, clean(strategy.cta, offer && offer !== objective ? `Découvrir ${offer}` : "Passer à l’action maintenant"));
+  const tone = clean(liveContext?.tone, "premium");
 
-  const humanEmail =
-    module === "email"
-      ? generateHumanEmail({
-          offer,
-          target: audience,
-          pain: blocker,
-          promise,
-          cta,
-        })
-      : "";
-
-  const humanEmailSequenceItems =
-    module === "email"
-      ? generateHumanEmailSequenceItems({
-          offer,
-          target: audience,
-          pain: blocker,
-          promise,
-          cta,
-        })
-      : [];
-
-  const humanEmailSequence =
-    module === "email"
-      ? generateHumanEmailSequence({
-          offer,
-          target: audience,
-          pain: blocker,
-          promise,
-          cta,
-        })
-      : "";
-
-  const emailOutput = humanEmailSequence;
-  const emailSubject = buildHumanSubject(offer);
-  const emailPreheader = buildHumanPreheader(blocker);
-
-  const modulePayloads = buildModulePayloads({
+  const modulePayloads = live?.module_payloads || buildModulePayloads({
     objective,
     blocker,
     offer,
@@ -233,34 +211,41 @@ export function buildPayload(
   });
 
   const priorityByModule: Record<CMOModule, string> = {
-    email: `Envoyer une séquence email humaine complète au module cible.`,
+    email: `Préparer le brief email puis laisser le module Emailing IA générer la vraie séquence avec le backend IA.`,
     lead: `Créer une ressource de capture alignée avec ${offer}.`,
     editor: `Créer un contenu social clair pour présenter ${offer}.`,
     coach: `Clarifier la stratégie autour de ${offer}.`,
   };
 
   const nextByModule: Record<CMOModule, string> = {
-    email: `Rédiger une séquence email contextualisée de 7 jours pour vendre ${offer}, avec progression psychologique, objections, désir et CTA.`,
+    email: `Générer dans Emailing IA une séquence contextualisée de 7 jours pour ${offer}, avec progression psychologique, objections, désir et CTA.`,
     lead: `Créer un lead magnet ou une landing page qui répond au blocage : ${blocker}`,
     editor: `Créer un post ou carrousel qui part du blocage, présente l’offre et pousse vers le CTA.`,
     coach: `Transformer l’objectif en plan d’action priorisé, étape par étape.`,
   };
 
-  const diagnostic = `Objectif : ${objective}. Blocage : ${blocker}. Le CMO prépare maintenant un brief structuré au lieu de générer un contenu générique.`;
-  const whyThisAction = `Cette action est pertinente parce qu’elle part d’une demande réelle de l’utilisateur, de son offre et de son frein actuel, au lieu de générer un contenu générique.`;
-  const nextBestAction = nextByModule[module];
+  const diagnostic = clean(
+    live?.diagnostic,
+    `Objectif : ${objective}. Blocage : ${blocker}. Le CMO prépare un brief structuré et ne génère pas le contenu final à la place du module.`
+  );
+  const whyThisAction = clean(
+    live?.decision?.reason,
+    `Cette action est pertinente parce qu’elle part d’une demande réelle de l’utilisateur, de son offre et de son frein actuel, au lieu de générer un contenu générique.`
+  );
+  const nextBestAction = clean(live?.decision?.priority_action, nextByModule[module]);
 
   const context: CMOContext = {
     objective,
     blocker,
     offer,
     audience,
-    pain: strategy.pain,
-    desire: strategy.desire,
+    niche: liveContext?.niche,
+    pain: clean(liveContext?.pain, strategy.pain),
+    desire: clean(liveContext?.desire, strategy.desire),
     angle,
     promise,
-    mechanism: strategy.mechanism,
-    objection: blocker,
+    mechanism: clean(liveContext?.mechanism, strategy.mechanism),
+    objection: clean(liveContext?.objection, blocker),
     cta,
     tone,
   };
@@ -271,18 +256,18 @@ export function buildPayload(
     reason: whyThisAction,
   };
 
-  const dispatch: CMODispatchResult = {
+  const dispatch: CMODispatchResult = live || {
     diagnostic,
     decision,
     context,
     module_payloads: modulePayloads,
-    assumptions: ["Le CMO agit en dispatch system : il structure le contexte et laisse le module produire le contenu final."],
+    assumptions: ["Mode fallback frontend : le CMO structure le contexte et laisse le module générer le contenu final."],
     warnings: [],
     meta: {
       module: target,
-      mode: "safe_dispatch_v7_human_sequence",
-      model: "frontend_human_email_engine_v7",
-      content_generation: "module_only",
+      mode: "safe_dispatch_no_front_generation",
+      model: "frontend_dispatch_bridge",
+      content_generation: "disabled_at_cmo_level",
     },
   };
 
@@ -314,8 +299,8 @@ export function buildPayload(
 
     generated_content: {
       post: `${priorityByModule[module]}\n\n${diagnostic}\n\n${cta}`,
-      email: emailOutput,
-      email_sequence_text: emailOutput,
+      email: "",
+      email_sequence_text: "",
     },
 
     content_ready: {
@@ -327,39 +312,11 @@ export function buildPayload(
         mainPromise: promise,
         mainObjective: nextBestAction,
         primaryCta: cta,
-        suggestedSubject: emailSubject,
-        previewText: emailPreheader,
-        firstEmailBody: humanEmail,
+        suggestedSubject: shortText(angle || offer, 80),
+        previewText: shortText(blocker, 110),
+        firstEmailBody: "",
         cmoBrief: modulePayloads.emailing,
-        emailSequence: {
-          campaignName: `CMO Dispatch - ${shortText(offer, 70)}`,
-          campaignType: detectCampaignType(`${objective} ${blocker}`),
-          offer,
-          target: audience,
-          promise,
-          cta,
-          days: humanEmailSequenceItems.map((item) => ({
-            day: item.day,
-            type: item.day <= 2 ? "nurture" : item.day === 3 ? "objection" : item.day >= 6 ? "relance" : "vente",
-            label: `Email ${item.day}`,
-            subjects: {
-              a: item.subject,
-              b: item.subject,
-              c: item.subject,
-            },
-            preheader: item.preheader,
-            shortMobile: "",
-            longStory: item.body,
-            ctaVariants: {
-              a: cta,
-              b: cta,
-              c: cta,
-            },
-            systemeIoNote: "Copie le corps complet de l’email dans Systeme.io.",
-          })),
-          plainTextExport: emailOutput,
-        },
-        emailSequenceText: emailOutput,
+        emailSequenceText: "",
       },
       lead: {
         magnetName: `Checklist ${shortText(offer, 45)}`,
