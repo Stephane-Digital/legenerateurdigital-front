@@ -122,7 +122,7 @@ export default function SavedEmailCampaignsBlock({ resetSignal, onOpenCampaign }
     setLoading(true);
     setStatus(null);
     try {
-      const baseUrl = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
+      const baseUrl = (process.env.NEXT_PUBLIC_API_URL || "https://legenerateurdigital-backend-m9b5.onrender.com").replace(/\/+$/, "");
       const response = await fetch(`${baseUrl}/email-campaigns/`, {
         method: "GET",
         credentials: "include",
@@ -180,7 +180,7 @@ CTA: ${email.cta}`
 
   const deleteCampaign = async (itemId: number) => {
     try {
-      const baseUrl = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
+      const baseUrl = (process.env.NEXT_PUBLIC_API_URL || "https://legenerateurdigital-backend-m9b5.onrender.com").replace(/\/+$/, "");
       const response = await fetch(`${baseUrl}/email-campaigns/${itemId}`, {
         method: "DELETE",
         credentials: "include",
