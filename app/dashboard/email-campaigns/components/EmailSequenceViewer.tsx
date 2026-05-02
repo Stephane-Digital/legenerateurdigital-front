@@ -239,7 +239,7 @@ export default function EmailSequenceViewer({ formValues, sequence, onSaved, onR
     setSavedMessage(null);
 
     try {
-      const baseUrl = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
+      const baseUrl = (process.env.NEXT_PUBLIC_API_URL || "https://legenerateurdigital-backend-m9b5.onrender.com").replace(/\/+$/, "");
       const response = await fetch(`${baseUrl}/email-campaigns/`, {
         method: "POST",
         credentials: "include",
