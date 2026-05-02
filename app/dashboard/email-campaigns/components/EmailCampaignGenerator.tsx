@@ -73,66 +73,6 @@ function cleanGeneratedText(value: unknown) {
     .trim();
 }
 
-function buildHumanEmailBody(values: EmailCampaignFormValues, day: number) {
-  const offer = cleanGeneratedText(values.offer_name || "Le Générateur Digital");
-  const target = cleanGeneratedText(values.target_audience || "les entrepreneurs, freelances, coachs et créateurs qui veulent développer leur business en ligne");
-  const promise = cleanGeneratedText(values.main_promise || "avancer avec un plan clair, créer du contenu utile et transformer tes idées en actions marketing concrètes");
-  const cta = cleanGeneratedText(values.primary_cta || "Passer à l’action maintenant");
-
-  const openings = [
-    "Je vais être honnête avec toi.",
-    "On va aller à l’essentiel.",
-    "Je veux te partager quelque chose de simple.",
-    "La plupart des personnes ne bloquent pas par manque d’idées.",
-    "Il y a un point que beaucoup sous-estiment.",
-    "Avant de continuer, prends juste une seconde.",
-    "Dernier rappel, mais sans pression inutile.",
-  ];
-
-  const angles = [
-    "La plupart des entrepreneurs qui stagnent en ligne ne manquent pas de motivation. Ils manquent surtout d’un système clair pour transformer leurs idées en contenus, leurs contenus en prospects, puis leurs prospects en ventes.",
-    "Le problème n’est pas d’avoir trop peu d’outils. Le problème, c’est de passer trop de temps à jongler entre les outils au lieu de construire une vraie machine marketing.",
-    "Quand tout est dispersé entre les idées, les posts, les emails, les pages et les offres, même un bon projet peut rester invisible.",
-    "Ce qui change vraiment, ce n’est pas d’ajouter un outil de plus. C’est d’avoir un chemin simple pour savoir quoi créer, quoi envoyer et quoi vendre.",
-    "Le plus important n’est pas de tout maîtriser. Le plus important, c’est de reprendre une direction claire pour ton business en ligne.",
-    "Tu peux rester dans le flou encore quelques semaines, ou reprendre une méthode simple aujourd’hui pour avancer sans t’éparpiller.",
-    "Si ton projet compte vraiment, tu n’as pas besoin de perfection. Tu as besoin d’un prochain pas clair, d’un message plus fort, et d’un système qui travaille avec toi.",
-  ];
-
-  return `Bonjour [Prénom],
-
-${openings[Math.min(day - 1, openings.length - 1)]}
-
-${angles[Math.min(day - 1, angles.length - 1)]}
-
-🎁 Ce que je te propose
-
-Avec ${offer}, l’objectif est simple :
-• clarifier ton message
-• créer du contenu plus utile
-• structurer ton marketing digital
-• transformer tes idées en actions concrètes
-• laisser l’IA faire le plus gros du travail sans perdre ton côté humain
-
-💡 Ce qui change vraiment
-
-${promise}
-
-Pour ${target}, le vrai sujet n’est pas de publier plus.
-
-Le vrai sujet, c’est de construire un système simple qui t’aide à avancer, à capter l’attention et à convertir avec plus de clarté.
-
-👉 ${cta}
-
-Si tu veux, tu peux aussi répondre à cet email et me dire ce qui bloque aujourd’hui dans ton marketing.
-Je lis tous les messages.
-
-À bientôt peut-être 👀
-
-Alex IA 🤖
-Ton Coach LGD`;
-}
-
 function humanizeSequence(sequence: EmailSequenceResponse, values: EmailCampaignFormValues): EmailSequenceResponse {
   void values;
 
@@ -149,6 +89,24 @@ function humanizeSequence(sequence: EmailSequenceResponse, values: EmailCampaign
       }))
       .filter((email) => email.body.trim().length > 0),
   };
+}
+
+
+function looksLikeLocalFallback(sequence: EmailSequenceResponse) {
+  const joined = (sequence.emails || [])
+    .map((email) => `${email.subject || ""}\n${email.body || ""}`)
+    .join("\n")
+    .toLowerCase();
+
+  return (
+    joined.includes("tu as peut-être déjà vécu ce moment étrange") ||
+    joined.includes("l’erreur la plus fréquente, ce n’est pas de ne rien faire") ||
+    joined.includes("la solution n’est pas de créer plus") ||
+    joined.includes("tu peux continuer à apprendre") ||
+    joined.includes("à bientôt peut-être") ||
+    joined.includes("alex ia") ||
+    joined.includes("ton coach lgd")
+  );
 }
 
 async function parseErrorMessage(response: Response, fallback: string) {
@@ -218,9 +176,13 @@ export default function EmailCampaignGenerator({
         throw new Error("Le moteur IA n’a pas retourné d’emails exploitables. Vérifie la clé OpenAI / les logs Render.");
       }
 
+      if (looksLikeLocalFallback(cleanedSequence)) {
+        throw new Error("Ancien fallback détecté : ces emails ne viennent pas de l’IA live. Vérifie le déploiement backend Render puis relance.");
+      }
+
       const elapsed = Date.now() - generationStarted;
-      if (elapsed < 1800) {
-        await new Promise((resolve) => window.setTimeout(resolve, 1800 - elapsed));
+      if (elapsed < 3200) {
+        await new Promise((resolve) => window.setTimeout(resolve, 3200 - elapsed));
       }
 
       onGenerated(cleanedSequence);
