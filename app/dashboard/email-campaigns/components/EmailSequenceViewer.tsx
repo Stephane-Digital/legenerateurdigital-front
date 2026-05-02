@@ -77,6 +77,12 @@ function cleanGeneratedText(value: unknown) {
     .replace(/\[Passer à l’action maintenant\]\(#\)/gi, "Passer à l’action maintenant")
     .replace(/Cet email vise[\s\S]*?(?=\n{2,}|$)/gi, "")
     .replace(/Le message est conçu[\s\S]*?(?=\n{2,}|$)/gi, "")
+    .replace(/^\s*👉\s*.+$/gim, "")
+    .replace(/\n*À\s+bientôt(?:\s+peut-être)?[\s\S]*$/gi, "")
+    .replace(/\n*À\s+très\s+vite[\s\S]*$/gi, "")
+    .replace(/\n*Alex IA\s*🤖?[\s\S]*$/gi, "")
+    .replace(/\n*Ton Coach LGD[\s\S]*$/gi, "")
+    .replace(/\n*LGD\s*$/gi, "")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
@@ -112,11 +118,47 @@ function formatPersistentLinks(rawLinks: string) {
   return "";
 }
 
-function buildSingleHumanEmail(email: EmailSequenceItem, senderDisplay: string) {
+const CTA_VARIANTS_BY_DAY = [
+  "Télécharge le guide et clarifie ton premier pas.",
+  "Récupère le guide pour éviter de repartir dans la théorie.",
+  "Télécharge le guide et vérifie si cette méthode te correspond.",
+  "Accède au guide pour structurer ton offre plus simplement.",
+  "Télécharge le guide et transforme ton idée en action concrète.",
+  "Récupère le guide avant de repousser encore.",
+  "Télécharge le guide si tu veux vraiment commencer maintenant.",
+];
+
+function normalizeExportBody(value: unknown) {
+  return normalizeEmailBody(value)
+    .replace(/^\s*👉\s*.+$/gim, "")
+    .replace(/\n*À\s+bientôt(?:\s+peut-être)?[\s\S]*$/gi, "")
+    .replace(/\n*À\s+très\s+vite[\s\S]*$/gi, "")
+    .replace(/\n*Alex IA\s*🤖?[\s\S]*$/gi, "")
+    .replace(/\n*Ton Coach LGD[\s\S]*$/gi, "")
+    .replace(/\n*LGD\s*$/gi, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function getDisplayCta(email: EmailSequenceItem, index: number) {
+  const raw = cleanGeneratedText(email.cta || "");
+  const generic =
+    !raw ||
+    /^(téléchargez votre guide gratuit maintenant|découvrez comment commencer dès aujourd'hui|inscrivez-vous dès maintenant pour découvrir notre méthode|passez à l’action maintenant|commencez maintenant)[.!?]?$/i.test(raw);
+
+  if (generic) {
+    return CTA_VARIANTS_BY_DAY[index % CTA_VARIANTS_BY_DAY.length];
+  }
+
+  return raw;
+}
+
+function buildSingleHumanEmail(email: EmailSequenceItem, index: number, senderDisplay: string) {
+  void senderDisplay;
   const subject = cleanGeneratedText(email.subject || `Email jour ${email.day}`);
   const preheader = cleanGeneratedText(email.preheader || "");
-  const body = normalizeEmailBody(email.body);
-  const cta = cleanGeneratedText(email.cta || "Passer à l’action maintenant");
+  const body = normalizeExportBody(email.body);
+  const cta = getDisplayCta(email, index);
 
   return `Objet : ${subject}
 
@@ -124,22 +166,18 @@ Préheader : ${preheader}
 
 ${body}
 
-👉 ${cta}
-
-À bientôt peut-être 👀
-
-${senderDisplay}`;
+👉 ${cta}`;
 }
 
 function buildPlainSequence(emails: EmailSequenceItem[], senderDisplay: string) {
   return emails
-    .map((email) => buildSingleHumanEmail(email, senderDisplay))
+    .map((email, index) => buildSingleHumanEmail(email, index, senderDisplay))
     .join("\n\n==================================================\n\n");
 }
 
 function buildSystemeIoSequence(emails: EmailSequenceItem[], senderDisplay: string) {
   return emails
-    .map((email) => buildSingleHumanEmail(email, senderDisplay))
+    .map((email, index) => buildSingleHumanEmail(email, index, senderDisplay))
     .join("\n\n==================================================\n\n");
 }
 
@@ -155,7 +193,7 @@ function buildCleanSystemeIoEmail(
   persistentLinks: string
 ) {
   void persistentLinks;
-  return buildSingleHumanEmail(email, senderDisplay);
+  return buildSingleHumanEmail(email, Math.max(0, (email.day || 1) - 1), senderDisplay);
 }
 
 function downloadTextFile(filename: string, content: string) {
@@ -184,7 +222,7 @@ export default function EmailSequenceViewer({ formValues, sequence, onSaved, onR
   }, [sequence]);
 
   useEffect(() => {
-    setEditing((safeSequence?.emails || []).map((email) => ({ ...email, body: normalizeEmailBody(email.body) })));
+    setEditing((safeSequence?.emails || []).map((email) => ({ ...email, body: normalizeExportBody(email.body) })));
     setSavedMessage(null);
   }, [safeSequence]);
 
@@ -239,7 +277,7 @@ export default function EmailSequenceViewer({ formValues, sequence, onSaved, onR
     setSavedMessage(null);
 
     try {
-      const baseUrl = (process.env.NEXT_PUBLIC_API_URL || "https://legenerateurdigital-backend-m9b5.onrender.com").replace(/\/+$/, "");
+      const baseUrl = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
       const response = await fetch(`${baseUrl}/email-campaigns/`, {
         method: "POST",
         credentials: "include",
