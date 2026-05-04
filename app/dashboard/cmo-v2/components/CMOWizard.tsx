@@ -67,6 +67,7 @@ export default function CMOWizard() {
   const [step, setStep] = useState(1);
   const [objective, setObjective] = useState("");
   const [blocker, setBlocker] = useState("");
+  const [situation, setSituation] = useState("");
   const [module, setModule] = useState<CMOModule | null>(null);
   const [dispatch, setDispatch] = useState<CMODispatchResult | null>(null);
   const [error, setError] = useState("");
@@ -89,6 +90,11 @@ export default function CMOWizard() {
       return;
     }
 
+    if (!situation.trim()) {
+      setError("Ajoute ta situation actuelle pour que le CMO évite les réponses génériques.");
+      return;
+    }
+
     setError("");
     setStep(3);
   };
@@ -100,21 +106,22 @@ export default function CMOWizard() {
     }
 
     const targetModule = moduleToTarget(module);
+    const enrichedBlocker = `${blocker.trim()}\n\nSituation actuelle : ${situation.trim()}`;
     setLoading(true);
     setError("");
     setSafeModeNotice("");
 
     try {
       const [liveDispatch] = await Promise.all([
-        requestCMODispatch({ objective, blocker, targetModule }),
+        requestCMODispatch({ objective, blocker: enrichedBlocker, targetModule }),
         new Promise((resolve) => window.setTimeout(resolve, 1200)),
       ]);
 
-      const payload = buildPayload(module, objective, blocker, liveDispatch);
+      const payload = buildPayload(module, objective, enrichedBlocker, liveDispatch);
       setDispatch(payload.dispatch);
       setStep(4);
     } catch (err) {
-      const fallback = buildFallbackDispatch(objective, blocker, targetModule);
+      const fallback = buildFallbackDispatch(objective, enrichedBlocker, targetModule);
       setDispatch(fallback);
       setSafeModeNotice(
         err instanceof Error
@@ -133,8 +140,9 @@ export default function CMOWizard() {
       return;
     }
 
-    const finalDispatch = dispatch || buildFallbackDispatch(objective, blocker, moduleToTarget(module));
-    const payload = buildPayload(module, objective, blocker, finalDispatch);
+    const enrichedBlocker = `${blocker.trim()}\n\nSituation actuelle : ${situation.trim()}`;
+    const finalDispatch = dispatch || buildFallbackDispatch(objective, enrichedBlocker, moduleToTarget(module));
+    const payload = buildPayload(module, objective, enrichedBlocker, finalDispatch);
     saveCMOPayload(payload);
     router.push(routes[module]);
   };
@@ -174,6 +182,8 @@ export default function CMOWizard() {
         <StepBlocker
           value={blocker}
           onChange={setBlocker}
+          situation={situation}
+          onSituationChange={setSituation}
           onNext={goStep3}
           onBack={() => {
             setError("");
@@ -208,4 +218,3 @@ export default function CMOWizard() {
     </div>
   );
 }
-
