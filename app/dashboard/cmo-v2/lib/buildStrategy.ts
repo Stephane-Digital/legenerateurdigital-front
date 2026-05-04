@@ -200,3 +200,4 @@ export function normalizeDispatchResult(raw: unknown, objective: string, blocker
     meta: data.meta || fallback.meta,
   };
 }
+
