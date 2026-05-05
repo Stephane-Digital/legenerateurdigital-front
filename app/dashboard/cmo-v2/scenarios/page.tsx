@@ -171,8 +171,8 @@ export default function CMOScenariosPage() {
   return (
     <main className="min-h-screen bg-[#050505] px-4 py-10 text-white sm:px-6 lg:px-8">
       <section className="mx-auto flex w-full max-w-6xl flex-col items-center gap-10">
-        <header className="mt-6 max-w-4xl text-center">
-          <div className="mx-auto mb-4 inline-flex items-center rounded-full border border-[#c9a449]/40 bg-[#c9a449]/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-[#e8c66a] shadow-[0_0_30px_rgba(201,164,73,0.12)]">
+        <header className="mt-8 max-w-4xl text-center">
+          <div className="mx-auto mb-4 inline-flex items-center rounded-full border border-[#c9a449]/40 bg-[#c9a449]/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-[#ffd43b] shadow-[0_0_30px_rgba(201,164,73,0.12)]">
             CMO IA · Scénarios
           </div>
 
@@ -185,8 +185,7 @@ export default function CMOScenariosPage() {
           </p>
         </header>
 
-        <section className="w-full rounded-[32px] border border-[#f4c542]/25 bg-[#070707] p-5 shadow-[0_30px_100px_rgba(0,0,0,0.60)] sm:p-7">
-          <div className="grid w-full grid-cols-1 gap-6 lg:grid-cols-[0.92fr_1.08fr]">
+        <section className="grid w-full max-w-6xl grid-cols-1 gap-6 lg:grid-cols-[0.92fr_1.08fr]">
           <div className="rounded-[28px] border border-[#f4c542]/30 bg-[#090909] p-6 shadow-[0_28px_90px_rgba(0,0,0,0.55)] sm:p-7">
             <div className="mb-6">
               <h2 className="text-xl font-black text-[#ffd43b]">Créer une base stratégique</h2>
@@ -272,7 +271,7 @@ export default function CMOScenariosPage() {
                 type="button"
                 onClick={generateScenarios}
                 disabled={!canGenerate}
-                className="w-full rounded-2xl border border-[#ffd43b]/60 bg-[#f4c542] px-5 py-4 text-sm font-black uppercase tracking-[0.18em] text-black shadow-[0_18px_45px_rgba(244,197,66,0.20)] transition hover:bg-[#ffd43b] hover:shadow-[0_24px_70px_rgba(244,197,66,0.26)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-[#f4c542]"
+                className="w-full rounded-2xl border border-[#f1cf76]/50 bg-gradient-to-r from-[#f4c542] via-[#ffd43b] to-[#f4c542] px-5 py-4 text-sm font-black uppercase tracking-[0.18em] text-black shadow-[0_18px_45px_rgba(214,173,69,0.18)] transition hover:scale-[1.01] hover:shadow-[0_24px_70px_rgba(214,173,69,0.25)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
               >
                 Générer mes scénarios
               </button>
@@ -301,7 +300,7 @@ export default function CMOScenariosPage() {
                   <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-[#c9a449]/30 bg-[#c9a449]/10 text-2xl">
                     ✨
                   </div>
-                  <h3 className="text-lg font-black text-white">Tes scénarios apparaîtront ici</h3>
+                  <h3 className="text-lg font-bold text-white">Tes scénarios apparaîtront ici</h3>
                   <p className="mt-3 text-sm leading-6 text-zinc-400">
                     Renseigne l’offre, la cible, l’objectif et le blocage pour générer une base marketing exploitable.
                   </p>
@@ -320,7 +319,7 @@ export default function CMOScenariosPage() {
                     }`}
                   >
                     <div className="mb-4 flex items-center justify-between gap-3">
-                      <span className="rounded-full border border-[#c9a449]/25 bg-[#c9a449]/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-[#f3d47a]">
+                      <span className="rounded-full border border-[#c9a449]/25 bg-[#c9a449]/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-[#ffd43b]">
                         {scenario.badge}
                       </span>
                       {scenario.recommended ? (
@@ -336,15 +335,15 @@ export default function CMOScenariosPage() {
 
                     <div className="mt-4 space-y-4 text-sm leading-6 text-zinc-300">
                       <div>
-                        <p className="font-bold text-[#e8c66a]">Objectif</p>
+                        <p className="font-bold text-[#ffd43b]">Objectif</p>
                         <p className="mt-1 text-zinc-400">{scenario.objective}</p>
                       </div>
                       <div>
-                        <p className="font-bold text-[#e8c66a]">Angle</p>
+                        <p className="font-bold text-[#ffd43b]">Angle</p>
                         <p className="mt-1 text-zinc-400">{scenario.angle}</p>
                       </div>
                       <div>
-                        <p className="font-bold text-[#e8c66a]">Pourquoi ça convertit</p>
+                        <p className="font-bold text-[#ffd43b]">Pourquoi ça convertit</p>
                         <p className="mt-1 text-zinc-400">{scenario.whyItConverts}</p>
                       </div>
                     </div>
@@ -366,14 +365,11 @@ export default function CMOScenariosPage() {
           </div>
         </section>
 
-          </div>
-        </section>
-
         {selectedScenario ? (
           <section className="w-full max-w-6xl rounded-[2rem] border border-[#c9a449]/20 bg-gradient-to-br from-[#12100b] via-[#090909] to-[#050505] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.45)] sm:p-8">
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-[0.8fr_1.2fr]">
               <div>
-                <span className="rounded-full border border-[#c9a449]/30 bg-[#c9a449]/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-[#f3d47a]">
+                <span className="rounded-full border border-[#c9a449]/30 bg-[#c9a449]/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-[#ffd43b]">
                   Aperçu scénario
                 </span>
                 <h2 className="mt-4 text-2xl font-black text-white">{selectedScenario.title}</h2>
@@ -385,15 +381,15 @@ export default function CMOScenariosPage() {
               <div className="rounded-[1.5rem] border border-[#c9a449]/15 bg-black/30 p-5">
                 <div className="space-y-5 text-sm leading-7">
                   <div>
-                    <p className="font-bold text-[#e8c66a]">Objectif CMO</p>
+                    <p className="font-bold text-[#ffd43b]">Objectif CMO</p>
                     <p className="mt-1 text-zinc-300">{selectedScenario.objective}</p>
                   </div>
                   <div>
-                    <p className="font-bold text-[#e8c66a]">Blocage enrichi</p>
+                    <p className="font-bold text-[#ffd43b]">Blocage enrichi</p>
                     <p className="mt-1 text-zinc-300">{selectedScenario.realProblem}</p>
                   </div>
                   <div>
-                    <p className="font-bold text-[#e8c66a]">Contexte stratégique</p>
+                    <p className="font-bold text-[#ffd43b]">Contexte stratégique</p>
                     <p className="mt-1 text-zinc-300">{selectedScenario.context}</p>
                   </div>
                 </div>
