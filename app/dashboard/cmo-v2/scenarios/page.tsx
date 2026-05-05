@@ -3,6 +3,12 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+type Scenario = {
+  title: string;
+  angle: string;
+  text: string;
+};
+
 export default function CMOScenariosPage() {
   const router = useRouter();
 
@@ -10,12 +16,10 @@ export default function CMOScenariosPage() {
   const [target, setTarget] = useState("");
   const [objective, setObjective] = useState("");
   const [blocker, setBlocker] = useState("");
-  const [scenarios, setScenarios] = useState<any[]>([]);
+  const [scenarios, setScenarios] = useState<Scenario[]>([]);
 
   function generate() {
-    const base = { offer, target, objective, blocker };
-
-    const generated = [
+    const generated: Scenario[] = [
       {
         title: "Prise de conscience brutale",
         angle: "Le problème n’est pas ce que tu crois",
@@ -46,7 +50,7 @@ export default function CMOScenariosPage() {
     setScenarios(generated);
   }
 
-  function useScenario(s: any) {
+  function useScenario(s: Scenario) {
     const payload = {
       offer,
       target,
@@ -54,9 +58,14 @@ export default function CMOScenariosPage() {
       blocker,
       angle: s.angle,
       scenario: s.title,
+      source: "scenario-generator",
     };
 
-    localStorage.setItem("lgd_cmo_module_auto_payload", JSON.stringify(payload));
+    localStorage.setItem(
+      "lgd_cmo_module_auto_payload",
+      JSON.stringify(payload)
+    );
+
     router.push("/dashboard/cmo-v2");
   }
 
@@ -64,6 +73,7 @@ export default function CMOScenariosPage() {
     <div className="min-h-screen bg-[#050505] text-white px-6 py-12">
       <div className="max-w-7xl mx-auto">
 
+        {/* HEADER */}
         <div className="text-center mb-12">
           <div className="inline-block px-4 py-1 mb-4 rounded-full border border-yellow-500/30 text-xs tracking-widest text-yellow-400">
             CMO IA • SCÉNARIOS
@@ -78,10 +88,11 @@ export default function CMOScenariosPage() {
           </p>
         </div>
 
+        {/* GRID */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
 
+          {/* FORMULAIRE */}
           <div className="border border-yellow-500/20 rounded-2xl p-6 bg-[#0b0b0b]">
-
             <h2 className="text-lg font-semibold text-yellow-400 mb-6">
               Créer une base stratégique
             </h2>
@@ -118,7 +129,7 @@ export default function CMOScenariosPage() {
 
               <button
                 onClick={generate}
-                className="w-full mt-4 py-4 bg-yellow-500 text-black font-bold rounded-xl"
+                className="w-full mt-4 py-4 bg-yellow-500 text-black font-bold rounded-xl hover:bg-yellow-400 transition"
               >
                 GÉNÉRER MES SCÉNARIOS
               </button>
@@ -126,6 +137,7 @@ export default function CMOScenariosPage() {
             </div>
           </div>
 
+          {/* SCÉNARIOS */}
           <div className="border border-yellow-500/20 rounded-2xl p-6 bg-[#0b0b0b]">
 
             {scenarios.length === 0 ? (
@@ -149,9 +161,9 @@ export default function CMOScenariosPage() {
 
                     <button
                       onClick={() => useScenario(s)}
-                      className="mt-4 w-full py-2 border border-yellow-500 text-yellow-400 rounded-lg"
+                      className="mt-4 w-full py-2 border border-yellow-500 text-yellow-400 rounded-lg hover:bg-yellow-500 hover:text-black transition"
                     >
-                      Utiliser
+                      Utiliser ce scénario
                     </button>
                   </div>
                 ))}
