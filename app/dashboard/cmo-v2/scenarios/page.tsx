@@ -170,13 +170,13 @@ export default function CMOScenariosPage() {
 
   return (
     <main className="min-h-screen bg-[#050505] px-4 py-10 text-white sm:px-6 lg:px-8">
-      <section className="mx-auto flex w-full max-w-7xl flex-col items-center gap-10">
-        <header className="mt-8 max-w-4xl text-center">
+      <section className="mx-auto flex w-full max-w-6xl flex-col items-center gap-10">
+        <header className="mt-6 max-w-4xl text-center">
           <div className="mx-auto mb-4 inline-flex items-center rounded-full border border-[#c9a449]/40 bg-[#c9a449]/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-[#e8c66a] shadow-[0_0_30px_rgba(201,164,73,0.12)]">
             CMO IA · Scénarios
           </div>
 
-          <h1 className="bg-gradient-to-r from-[#f7df9e] via-[#d6ad45] to-[#fff2bd] bg-clip-text text-3xl font-black tracking-tight text-transparent sm:text-5xl">
+          <h1 className="bg-gradient-to-r from-[#f7df9e] via-[#d6ad45] to-[#fff2bd] bg-clip-text text-4xl font-black tracking-tight text-transparent sm:text-5xl">
             Générateur de Scénarios Marketing
           </h1>
 
@@ -185,10 +185,11 @@ export default function CMOScenariosPage() {
           </p>
         </header>
 
-        <section className="grid w-full max-w-6xl grid-cols-1 gap-6 lg:grid-cols-[0.92fr_1.08fr]">
-          <div className="rounded-[2rem] border border-[#c9a449]/25 bg-[#0d0d0f]/90 p-5 shadow-[0_24px_80px_rgba(0,0,0,0.45)] sm:p-7">
+        <section className="w-full rounded-[32px] border border-[#f4c542]/25 bg-[#070707] p-5 shadow-[0_30px_100px_rgba(0,0,0,0.60)] sm:p-7">
+          <div className="grid w-full grid-cols-1 gap-6 lg:grid-cols-[0.92fr_1.08fr]">
+          <div className="rounded-[28px] border border-[#f4c542]/30 bg-[#090909] p-6 shadow-[0_28px_90px_rgba(0,0,0,0.55)] sm:p-7">
             <div className="mb-6">
-              <h2 className="text-xl font-bold text-[#f3d47a]">Créer une base stratégique</h2>
+              <h2 className="text-xl font-black text-[#ffd43b]">Créer une base stratégique</h2>
               <p className="mt-2 text-sm leading-6 text-zinc-400">
                 Remplis les champs essentiels. LGD transforme ensuite ta situation en scénarios exploitables.
               </p>
@@ -201,7 +202,7 @@ export default function CMOScenariosPage() {
                   value={form.offer}
                   onChange={(event) => updateField("offer", event.target.value)}
                   placeholder="Ex : coaching perte de poids, ebook productivité, formation crypto..."
-                  className="w-full rounded-2xl border border-[#c9a449]/20 bg-black/40 px-4 py-3 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-[#d6ad45]/70 focus:shadow-[0_0_0_4px_rgba(214,173,69,0.12)]"
+                  className="w-full rounded-2xl border border-[#f4c542]/25 bg-[#030303] px-4 py-3 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-[#ffd43b]/80 focus:shadow-[0_0_0_4px_rgba(255,212,59,0.10)]"
                 />
               </label>
 
@@ -211,7 +212,7 @@ export default function CMOScenariosPage() {
                   value={form.target}
                   onChange={(event) => updateField("target", event.target.value)}
                   placeholder="Ex : débutants motivés qui n’ont encore aucun résultat"
-                  className="w-full rounded-2xl border border-[#c9a449]/20 bg-black/40 px-4 py-3 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-[#d6ad45]/70 focus:shadow-[0_0_0_4px_rgba(214,173,69,0.12)]"
+                  className="w-full rounded-2xl border border-[#f4c542]/25 bg-[#030303] px-4 py-3 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-[#ffd43b]/80 focus:shadow-[0_0_0_4px_rgba(255,212,59,0.10)]"
                 />
               </label>
 
@@ -222,7 +223,7 @@ export default function CMOScenariosPage() {
                   onChange={(event) => updateField("objective", event.target.value)}
                   placeholder="Ex : vendre un abonnement, obtenir une première vente, réserver un appel découverte..."
                   rows={3}
-                  className="w-full resize-none rounded-2xl border border-[#c9a449]/20 bg-black/40 px-4 py-3 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-[#d6ad45]/70 focus:shadow-[0_0_0_4px_rgba(214,173,69,0.12)]"
+                  className="w-full resize-none rounded-2xl border border-[#f4c542]/25 bg-[#030303] px-4 py-3 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-[#ffd43b]/80 focus:shadow-[0_0_0_4px_rgba(255,212,59,0.10)]"
                 />
               </label>
 
@@ -233,7 +234,7 @@ export default function CMOScenariosPage() {
                   onChange={(event) => updateField("blocker", event.target.value)}
                   placeholder="Ex : peur d’investir encore, manque de confiance, peur de perdre de l’argent, dispersion..."
                   rows={4}
-                  className="w-full resize-none rounded-2xl border border-[#c9a449]/20 bg-black/40 px-4 py-3 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-[#d6ad45]/70 focus:shadow-[0_0_0_4px_rgba(214,173,69,0.12)]"
+                  className="w-full resize-none rounded-2xl border border-[#f4c542]/25 bg-[#030303] px-4 py-3 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-[#ffd43b]/80 focus:shadow-[0_0_0_4px_rgba(255,212,59,0.10)]"
                 />
               </label>
 
@@ -243,7 +244,7 @@ export default function CMOScenariosPage() {
                   <select
                     value={form.offerType}
                     onChange={(event) => updateField("offerType", event.target.value as OfferType)}
-                    className="w-full rounded-2xl border border-[#c9a449]/20 bg-black/40 px-4 py-3 text-sm text-white outline-none transition focus:border-[#d6ad45]/70 focus:shadow-[0_0_0_4px_rgba(214,173,69,0.12)]"
+                    className="w-full rounded-2xl border border-[#f4c542]/25 bg-[#030303] px-4 py-3 text-sm text-white outline-none transition focus:border-[#ffd43b]/80 focus:shadow-[0_0_0_4px_rgba(255,212,59,0.10)]"
                   >
                     <option value="formation">Formation</option>
                     <option value="ebook">Ebook</option>
@@ -258,7 +259,7 @@ export default function CMOScenariosPage() {
                   <select
                     value={form.prospectLevel}
                     onChange={(event) => updateField("prospectLevel", event.target.value as ProspectLevel)}
-                    className="w-full rounded-2xl border border-[#c9a449]/20 bg-black/40 px-4 py-3 text-sm text-white outline-none transition focus:border-[#d6ad45]/70 focus:shadow-[0_0_0_4px_rgba(214,173,69,0.12)]"
+                    className="w-full rounded-2xl border border-[#f4c542]/25 bg-[#030303] px-4 py-3 text-sm text-white outline-none transition focus:border-[#ffd43b]/80 focus:shadow-[0_0_0_4px_rgba(255,212,59,0.10)]"
                   >
                     <option value="debutant">Débutant</option>
                     <option value="bloque">Bloqué</option>
@@ -271,17 +272,17 @@ export default function CMOScenariosPage() {
                 type="button"
                 onClick={generateScenarios}
                 disabled={!canGenerate}
-                className="w-full rounded-2xl border border-[#f1cf76]/50 bg-gradient-to-r from-[#b98522] via-[#d6ad45] to-[#f1cf76] px-5 py-4 text-sm font-black uppercase tracking-[0.18em] text-black shadow-[0_18px_45px_rgba(214,173,69,0.18)] transition hover:scale-[1.01] hover:shadow-[0_24px_70px_rgba(214,173,69,0.25)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
+                className="w-full rounded-2xl border border-[#ffd43b]/60 bg-[#f4c542] px-5 py-4 text-sm font-black uppercase tracking-[0.18em] text-black shadow-[0_18px_45px_rgba(244,197,66,0.20)] transition hover:bg-[#ffd43b] hover:shadow-[0_24px_70px_rgba(244,197,66,0.26)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-[#f4c542]"
               >
                 Générer mes scénarios
               </button>
             </div>
           </div>
 
-          <div className="rounded-[2rem] border border-[#c9a449]/20 bg-[#0b0b0d]/80 p-5 shadow-[0_24px_80px_rgba(0,0,0,0.35)] sm:p-7">
+          <div className="rounded-[28px] border border-[#f4c542]/30 bg-[#090909] p-6 shadow-[0_28px_90px_rgba(0,0,0,0.55)] sm:p-7">
             <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <h2 className="text-xl font-bold text-[#f3d47a]">Scénarios prêts à utiliser</h2>
+                <h2 className="text-xl font-black text-[#ffd43b]">Scénarios prêts à utiliser</h2>
                 <p className="mt-2 text-sm leading-6 text-zinc-400">
                   Choisis un angle. LGD le transmet au CMO pour préparer la suite.
                 </p>
@@ -295,12 +296,12 @@ export default function CMOScenariosPage() {
             </div>
 
             {!hasGenerated ? (
-              <div className="flex min-h-[520px] items-center justify-center rounded-[1.5rem] border border-dashed border-[#c9a449]/20 bg-black/20 p-8 text-center">
+              <div className="flex min-h-[520px] items-center justify-center rounded-[24px] border border-dashed border-[#f4c542]/25 bg-[#030303] p-8 text-center">
                 <div className="max-w-sm">
                   <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-[#c9a449]/30 bg-[#c9a449]/10 text-2xl">
                     ✨
                   </div>
-                  <h3 className="text-lg font-bold text-white">Tes scénarios apparaîtront ici</h3>
+                  <h3 className="text-lg font-black text-white">Tes scénarios apparaîtront ici</h3>
                   <p className="mt-3 text-sm leading-6 text-zinc-400">
                     Renseigne l’offre, la cible, l’objectif et le blocage pour générer une base marketing exploitable.
                   </p>
@@ -362,6 +363,9 @@ export default function CMOScenariosPage() {
                 ))}
               </div>
             )}
+          </div>
+        </section>
+
           </div>
         </section>
 
