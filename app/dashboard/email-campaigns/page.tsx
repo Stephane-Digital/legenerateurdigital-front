@@ -22,6 +22,8 @@ type CmoAutoPayload = {
   created_at?: string;
   source?: string;
   target?: string;
+  targetModule?: string;
+  destination?: string;
   priority_action?: string;
   diagnostic?: string;
   why_this_action?: string;
@@ -441,7 +443,8 @@ export default function EmailCampaignsPage() {
       if (!raw) return;
 
       const payload = JSON.parse(raw) as CmoAutoPayload;
-      if (!payload || payload.target !== "emailing") return;
+      const destination = payload.target || payload.targetModule || payload.destination;
+      if (!payload || destination !== "emailing") return;
 
       setCmoAutoLoading(true);
       setCmoAutoMessage("CMO IA analyse la priorité et prépare ta campagne email…");
@@ -595,4 +598,3 @@ export default function EmailCampaignsPage() {
     </div>
   );
 }
-
