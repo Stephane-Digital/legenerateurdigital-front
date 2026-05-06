@@ -168,10 +168,10 @@ export default function CMOScenariosPage() {
     scenarios.find((scenario) => scenario.id === selectedId) || null;
 
   const canGenerate =
-    form.offer.trim().length > 2 &&
-    form.target.trim().length > 2 &&
-    form.objective.trim().length > 2 &&
-    form.blocker.trim().length > 2;
+    form.offer.trim().length > 5 &&
+    form.target.trim().length > 8 &&
+    form.objective.trim().length > 10 &&
+    form.blocker.trim().length > 10;
 
   function updateField<K extends keyof ScenarioForm>(
     key: K,
@@ -235,6 +235,13 @@ export default function CMOScenariosPage() {
   }
 
   function useScenario(scenario: Scenario) {
+    const mappedLevel =
+      form.prospectLevel === "debutant"
+        ? "beginner"
+        : form.prospectLevel === "avance_non_rentable"
+          ? "advanced"
+          : "intermediate";
+
     const enrichedBlocker = `${scenario.realProblem}
 
 Situation actuelle : ${[
@@ -246,6 +253,7 @@ Situation actuelle : ${[
         ? `Pourquoi cet angle convertit : ${scenario.whyItConverts.trim()}`
         : "",
       scenario.title.trim() ? `Scénario choisi : ${scenario.title.trim()}` : "",
+      mappedLevel ? `Niveau prospect IA : ${mappedLevel}` : "",
     ]
       .filter(Boolean)
       .join("\n")}`;
@@ -261,7 +269,7 @@ Situation actuelle : ${[
       enrichedBlocker,
       {
         ...scenarioDispatch,
-        diagnostic: `Scénario CMO sélectionné : ${scenario.title}. ${scenario.context}`,
+        diagnostic: `Scénario CMO sélectionné : ${scenario.title}. Niveau prospect IA : ${mappedLevel}. ${scenario.context}`,
         context: {
           ...scenarioDispatch.context,
           objective: scenario.objective,
@@ -313,7 +321,8 @@ Situation actuelle : `,
       audience: form.target,
       targetAudience: form.target,
       offerType: form.offerType,
-      prospectLevel: form.prospectLevel,
+      prospectLevel: mappedLevel,
+      rawProspectLevel: form.prospectLevel,
       recommendedScenario: scenario.title,
       dispatch: scenarioPayload.dispatch,
       payload: scenarioPayload,
