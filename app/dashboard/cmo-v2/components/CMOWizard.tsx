@@ -7,25 +7,18 @@ import { buildPayload, moduleToTarget } from "../lib/buildPayload";
 import { requestCMODispatch } from "../lib/cmoDispatchClient";
 import { buildFallbackDispatch } from "../lib/buildStrategy";
 import { saveCMOPayload } from "../lib/storage";
-import type { CMODispatchResult, CMOModule } from "../types";
+import type { CMODispatchResult, CMOModule, CMOPayload } from "../types";
 
 import StepBlocker from "./StepBlocker";
 import StepGoal from "./StepGoal";
 import StepModule from "./StepModule";
 import StepStrategy from "./StepStrategy";
 
-const routes: Record<CMOModule, string> = {
-  email: "/dashboard/email-campaigns",
-  lead: "/dashboard/lead-engine",
-  editor: "/dashboard/automatisations/reseaux_sociaux/editor-intelligent",
-  coach: "/dashboard/coach-ia",
-};
-
-
 const CMO_SCENARIO_PAYLOAD_KEY = "lgd_cmo_scenario_payload";
 
 type CMOScenarioPrefillPayload = {
   source?: string;
+  mode?: string;
   target?: string;
   targetModule?: string;
   module?: CMOModule;
@@ -38,7 +31,10 @@ type CMOScenarioPrefillPayload = {
   strategy?: string;
   offer?: string;
   audience?: string;
+  targetAudience?: string;
   recommendedScenario?: string;
+  dispatch?: CMODispatchResult;
+  payload?: CMOPayload;
 };
 
 function cleanPrefill(value: unknown) {
@@ -51,15 +47,42 @@ function buildScenarioSituation(payload: CMOScenarioPrefillPayload) {
 
   return [
     cleanPrefill(payload.offer) ? `Offre : ${cleanPrefill(payload.offer)}` : "",
-    cleanPrefill(payload.audience) ? `Cible : ${cleanPrefill(payload.audience)}` : "",
+    cleanPrefill(payload.audience || payload.targetAudience)
+      ? `Cible : ${cleanPrefill(payload.audience || payload.targetAudience)}`
+      : "",
     cleanPrefill(payload.angle) ? `Angle : ${cleanPrefill(payload.angle)}` : "",
-    cleanPrefill(payload.context) ? `Contexte : ${cleanPrefill(payload.context)}` : "",
-    cleanPrefill(payload.strategy) ? `Pourquoi cet angle convertit : ${cleanPrefill(payload.strategy)}` : "",
-    cleanPrefill(payload.recommendedScenario) ? `Scénario choisi : ${cleanPrefill(payload.recommendedScenario)}` : "",
+    cleanPrefill(payload.context)
+      ? `Contexte : ${cleanPrefill(payload.context)}`
+      : "",
+    cleanPrefill(payload.strategy)
+      ? `Pourquoi cet angle convertit : ${cleanPrefill(payload.strategy)}`
+      : "",
+    cleanPrefill(payload.recommendedScenario)
+      ? `Scénario choisi : ${cleanPrefill(payload.recommendedScenario)}`
+      : "",
   ]
     .filter(Boolean)
     .join("\n");
 }
+
+function normalizeScenarioModule(
+  payload: CMOScenarioPrefillPayload,
+): CMOModule {
+  if (
+    payload.module === "lead" ||
+    payload.module === "editor" ||
+    payload.module === "coach"
+  )
+    return payload.module;
+  return "email";
+}
+
+const routes: Record<CMOModule, string> = {
+  email: "/dashboard/email-campaigns",
+  lead: "/dashboard/lead-engine",
+  editor: "/dashboard/automatisations/reseaux_sociaux/editor-intelligent",
+  coach: "/dashboard/coach-ia",
+};
 
 const cmoLoadingSteps = [
   "Analyse de ton objectif...",
@@ -110,6 +133,8 @@ export default function CMOWizard() {
   const [situation, setSituation] = useState("");
   const [module, setModule] = useState<CMOModule | null>(null);
   const [dispatch, setDispatch] = useState<CMODispatchResult | null>(null);
+  const [scenarioFinalPayload, setScenarioFinalPayload] =
+    useState<CMOPayload | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [safeModeNotice, setSafeModeNotice] = useState("");
@@ -122,20 +147,30 @@ export default function CMOWizard() {
       if (!raw) return;
 
       const payload = JSON.parse(raw) as CMOScenarioPrefillPayload;
-      const nextObjective = cleanPrefill(payload.objective);
-      const nextBlocker = cleanPrefill(payload.blocker);
+      const nextModule = normalizeScenarioModule(payload);
+      const nextObjective = cleanPrefill(
+        payload.objective || payload.payload?.objective,
+      );
+      const nextBlocker = cleanPrefill(
+        payload.blocker || payload.payload?.blocker,
+      );
       const nextSituation = buildScenarioSituation(payload);
+      const nextDispatch =
+        payload.dispatch || payload.payload?.dispatch || null;
 
       if (nextObjective) setObjective(nextObjective);
       if (nextBlocker) setBlocker(nextBlocker);
       if (nextSituation) setSituation(nextSituation);
 
-      setModule("email");
-      setDispatch(null);
+      setModule(nextModule);
+      setDispatch(nextDispatch);
+      setScenarioFinalPayload(payload.payload || null);
       setSafeModeNotice("");
       setError("");
 
-      if (nextObjective && nextBlocker && nextSituation) {
+      if (nextDispatch) {
+        setStep(4);
+      } else if (nextObjective && nextBlocker && nextSituation) {
         setStep(3);
       } else if (nextObjective && nextBlocker) {
         setStep(2);
@@ -161,12 +196,16 @@ export default function CMOWizard() {
 
   const goStep3 = () => {
     if (!blocker.trim()) {
-      setError("Indique le blocage principal pour que le CMO prépare un brief utile.");
+      setError(
+        "Indique le blocage principal pour que le CMO prépare un brief utile.",
+      );
       return;
     }
 
     if (!situation.trim()) {
-      setError("Ajoute ta situation actuelle pour que le CMO évite les réponses génériques.");
+      setError(
+        "Ajoute ta situation actuelle pour que le CMO évite les réponses génériques.",
+      );
       return;
     }
 
@@ -188,20 +227,33 @@ export default function CMOWizard() {
 
     try {
       const [liveDispatch] = await Promise.all([
-        requestCMODispatch({ objective, blocker: enrichedBlocker, targetModule }),
+        requestCMODispatch({
+          objective,
+          blocker: enrichedBlocker,
+          targetModule,
+        }),
         new Promise((resolve) => window.setTimeout(resolve, 1200)),
       ]);
 
-      const payload = buildPayload(module, objective, enrichedBlocker, liveDispatch);
+      const payload = buildPayload(
+        module,
+        objective,
+        enrichedBlocker,
+        liveDispatch,
+      );
       setDispatch(payload.dispatch);
       setStep(4);
     } catch (err) {
-      const fallback = buildFallbackDispatch(objective, enrichedBlocker, targetModule);
+      const fallback = buildFallbackDispatch(
+        objective,
+        enrichedBlocker,
+        targetModule,
+      );
       setDispatch(fallback);
       setSafeModeNotice(
         err instanceof Error
           ? `Mode SAFE activé : ${err.message}`
-          : "Mode SAFE activé : l’API CMO Dispatch est indisponible."
+          : "Mode SAFE activé : l’API CMO Dispatch est indisponible.",
       );
       setStep(4);
     } finally {
@@ -216,8 +268,15 @@ export default function CMOWizard() {
     }
 
     const enrichedBlocker = `${blocker.trim()}\n\nSituation actuelle : ${situation.trim()}`;
-    const finalDispatch = dispatch || buildFallbackDispatch(objective, enrichedBlocker, moduleToTarget(module));
-    const payload = buildPayload(module, objective, enrichedBlocker, finalDispatch);
+    const finalDispatch =
+      dispatch ||
+      buildFallbackDispatch(objective, enrichedBlocker, moduleToTarget(module));
+    const payload = buildPayload(
+      module,
+      objective,
+      enrichedBlocker,
+      finalDispatch,
+    );
     saveCMOPayload(payload);
     router.push(routes[module]);
   };
@@ -251,7 +310,9 @@ export default function CMOWizard() {
 
       {loading && step !== 4 && <CMODispatchLoader />}
 
-      {step === 1 && <StepGoal value={objective} onChange={setObjective} onNext={goStep2} />}
+      {step === 1 && (
+        <StepGoal value={objective} onChange={setObjective} onNext={goStep2} />
+      )}
 
       {step === 2 && (
         <StepBlocker
