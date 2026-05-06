@@ -837,14 +837,14 @@ export default function DashboardPage() {
 
                     <p className="mt-3 text-center text-xs leading-5 text-white/45">
                       Le CMO prépare le contexte puis ouvre automatiquement le module le plus adapté.
-<a
-  href="/dashboard/cmo-v2/scenarios"
-  className="mt-3 inline-flex w-full items-center justify-center rounded-xl border border-[#c99a16]/60 px-4 py-3 text-sm font-black text-[#ffcc00] transition hover:bg-[#ffcc00] hover:text-black"
->
-  Créer un scénario marketing
-</a>
-
                     </p>
+
+                    <Link
+                      href="/dashboard/cmo-v2/scenarios"
+                      className="mt-3 inline-flex w-full items-center justify-center rounded-xl border border-[#c99a16]/60 px-4 py-3 text-sm font-black text-[#ffcc00] transition hover:bg-[#ffcc00] hover:text-black"
+                    >
+                      Créer un scénario marketing
+                    </Link>
 
                     {cmoResult?.generated_content?.cta ? (
                       <div className="mt-5 rounded-2xl border border-yellow-600/15 bg-black/35 px-4 py-3">
@@ -977,31 +977,7 @@ export default function DashboardPage() {
           className="max-w-6xl mx-auto mt-12"
         >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <CardLuxe className="min-h-[230px] flex flex-col items-center justify-between px-6 py-6 text-center">
-              <div className="flex flex-col items-center">
-                <FaBolt className={iconGlow} />
-                <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-yellow-200">
-                  CMO IA
-                </div>
-                <h3 className="mt-3 text-xl font-bold text-[#ffb800]">
-                  CMO Dispatch System
-                </h3>
-                <p className="mt-2 text-white/70 max-w-[420px]">
-                  Analyse ton objectif, identifie le blocage, choisit le bon angle puis envoie un contexte structuré au module adapté.
-                </p>
-              </div>
-
-              <div className="w-full mt-6">
-                <Link
-                  href="/dashboard/cmo-v2"
-                  className="block w-full rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-5 py-3 text-center font-semibold text-white/85 transition-all hover:bg-yellow-500/10 hover:text-yellow-200"
-                >
-                  Accéder au CMO IA
-                </Link>
-              </div>
-            </CardLuxe>
-
-            <CardLuxe className="min-h-[230px] flex flex-col items-center justify-between px-6 py-6 text-center">
+<CardLuxe className="min-h-[230px] flex flex-col items-center justify-between px-6 py-6 text-center">
               <div className="flex flex-col items-center">
                 <FaUserAstronaut className={iconGlow} />
                 <h3 className="mt-3 text-xl font-bold text-[#ffb800]">
