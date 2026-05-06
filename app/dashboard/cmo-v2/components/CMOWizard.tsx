@@ -21,6 +21,46 @@ const routes: Record<CMOModule, string> = {
   coach: "/dashboard/coach-ia",
 };
 
+
+const CMO_SCENARIO_PAYLOAD_KEY = "lgd_cmo_scenario_payload";
+
+type CMOScenarioPrefillPayload = {
+  source?: string;
+  target?: string;
+  targetModule?: string;
+  module?: CMOModule;
+  destination?: string;
+  objective?: string;
+  blocker?: string;
+  situation?: string;
+  context?: string;
+  angle?: string;
+  strategy?: string;
+  offer?: string;
+  audience?: string;
+  recommendedScenario?: string;
+};
+
+function cleanPrefill(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function buildScenarioSituation(payload: CMOScenarioPrefillPayload) {
+  const explicitSituation = cleanPrefill(payload.situation);
+  if (explicitSituation) return explicitSituation;
+
+  return [
+    cleanPrefill(payload.offer) ? `Offre : ${cleanPrefill(payload.offer)}` : "",
+    cleanPrefill(payload.audience) ? `Cible : ${cleanPrefill(payload.audience)}` : "",
+    cleanPrefill(payload.angle) ? `Angle : ${cleanPrefill(payload.angle)}` : "",
+    cleanPrefill(payload.context) ? `Contexte : ${cleanPrefill(payload.context)}` : "",
+    cleanPrefill(payload.strategy) ? `Pourquoi cet angle convertit : ${cleanPrefill(payload.strategy)}` : "",
+    cleanPrefill(payload.recommendedScenario) ? `Scénario choisi : ${cleanPrefill(payload.recommendedScenario)}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 const cmoLoadingSteps = [
   "Analyse de ton objectif...",
   "Identification du blocage principal...",
@@ -73,6 +113,41 @@ export default function CMOWizard() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [safeModeNotice, setSafeModeNotice] = useState("");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const raw = window.localStorage.getItem(CMO_SCENARIO_PAYLOAD_KEY);
+      if (!raw) return;
+
+      const payload = JSON.parse(raw) as CMOScenarioPrefillPayload;
+      const nextObjective = cleanPrefill(payload.objective);
+      const nextBlocker = cleanPrefill(payload.blocker);
+      const nextSituation = buildScenarioSituation(payload);
+
+      if (nextObjective) setObjective(nextObjective);
+      if (nextBlocker) setBlocker(nextBlocker);
+      if (nextSituation) setSituation(nextSituation);
+
+      setModule("email");
+      setDispatch(null);
+      setSafeModeNotice("");
+      setError("");
+
+      if (nextObjective && nextBlocker && nextSituation) {
+        setStep(3);
+      } else if (nextObjective && nextBlocker) {
+        setStep(2);
+      } else if (nextObjective) {
+        setStep(1);
+      }
+
+      window.localStorage.removeItem(CMO_SCENARIO_PAYLOAD_KEY);
+    } catch {
+      window.localStorage.removeItem(CMO_SCENARIO_PAYLOAD_KEY);
+    }
+  }, []);
 
   const goStep2 = () => {
     if (!objective.trim()) {
