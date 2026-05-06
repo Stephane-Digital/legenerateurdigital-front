@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type OfferType = "formation" | "ebook" | "coaching" | "saas" | "service";
@@ -97,6 +97,26 @@ function normalizeAiScenarios(value: unknown): Scenario[] {
 
 export default function CMOScenariosPage() {
   const router = useRouter();
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("lgd_cmo_prefill");
+      if (!raw) return;
+
+      const parsed = JSON.parse(raw);
+
+      setForm((prev) => ({
+        ...prev,
+        offer: parsed.offer || prev.offer,
+        target: parsed.target || prev.target,
+        objective: parsed.objective || prev.objective,
+        blocker: parsed.blocker || prev.blocker,
+      }));
+
+      localStorage.removeItem("lgd_cmo_prefill");
+    } catch {}
+  }, []);
+
   const [form, setForm] = useState<ScenarioForm>(initialForm);
   const [hasGenerated, setHasGenerated] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -188,7 +208,18 @@ export default function CMOScenariosPage() {
       // Si le stockage échoue, la redirection reste possible.
     }
 
-    router.push("/dashboard/cmo-v2");
+    localStorage.setItem(
+        "lgd_cmo_scenario_payload",
+        JSON.stringify({
+          objective: scenario.objective,
+          angle: scenario.angle,
+          blocker: scenario.realProblem,
+          context: scenario.context,
+          strategy: scenario.whyItConverts,
+        })
+      );
+
+      router.push("/dashboard/cmo-v2");
   }
 
   return (
