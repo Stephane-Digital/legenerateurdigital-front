@@ -837,6 +837,13 @@ export default function DashboardPage() {
 
                     <p className="mt-3 text-center text-xs leading-5 text-white/45">
                       Le CMO prépare le contexte puis ouvre automatiquement le module le plus adapté.
+<a
+  href="/dashboard/cmo-v2/scenarios"
+  className="mt-3 inline-flex w-full items-center justify-center rounded-xl border border-[#c99a16]/60 px-4 py-3 text-sm font-black text-[#ffcc00] transition hover:bg-[#ffcc00] hover:text-black"
+>
+  Créer un scénario marketing
+</a>
+
                     </p>
 
                     {cmoResult?.generated_content?.cta ? (
