@@ -17,6 +17,7 @@ import {
 } from "./components/types";
 
 const CMO_AUTO_PAYLOAD_KEY = "lgd_cmo_module_auto_payload";
+const CMO_DISPATCH_PAYLOAD_KEY = "lgd_cmo_dispatch_payload";
 
 type CmoAutoPayload = {
   created_at?: string;
@@ -82,7 +83,10 @@ function stripLegacyEmailBlocks(text: string) {
     .replace(/\*\*/g, "")
     .replace(/VERSION COURTE[\s\S]*?(?=VERSION LONGUE|NOTE LGD|={10,}|$)/gi, "")
     .replace(/VERSION LONGUE[\s\S]*?(?=NOTE LGD|={10,}|$)/gi, "")
-    .replace(/- Colle uniquement la version courte OU la version longue dans le corps de l’email\./gi, "- Colle le corps complet de l’email dans Systeme.io.")
+    .replace(
+      /- Colle uniquement la version courte OU la version longue dans le corps de l’email\./gi,
+      "- Colle le corps complet de l’email dans Systeme.io.",
+    )
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
@@ -113,10 +117,14 @@ function getCtaForDay(value: unknown, day: number) {
   const raw = asCleanString(value);
   const generic =
     !raw ||
-    /^(téléchargez votre guide gratuit maintenant|découvrez comment commencer dès aujourd'hui|inscrivez-vous dès maintenant pour découvrir notre méthode|passez à l’action maintenant|commencez maintenant)[.!?]?$/i.test(raw);
+    /^(téléchargez votre guide gratuit maintenant|découvrez comment commencer dès aujourd'hui|inscrivez-vous dès maintenant pour découvrir notre méthode|passez à l’action maintenant|commencez maintenant)[.!?]?$/i.test(
+      raw,
+    );
 
   if (generic) {
-    return CTA_VARIANTS_BY_DAY[Math.max(0, day - 1) % CTA_VARIANTS_BY_DAY.length];
+    return CTA_VARIANTS_BY_DAY[
+      Math.max(0, day - 1) % CTA_VARIANTS_BY_DAY.length
+    ];
   }
 
   return raw;
@@ -138,12 +146,21 @@ function ensureUsefulLinks(text: string) {
 ${usefulLinksBlock()}`;
 }
 
-function sanitizeEmailSequenceResponse(sequence: EmailSequenceResponse | null): EmailSequenceResponse | null {
+function sanitizeEmailSequenceResponse(
+  sequence: EmailSequenceResponse | null,
+): EmailSequenceResponse | null {
   if (!sequence) return sequence;
 
   const copy: any = { ...(sequence as any) };
 
-  const textKeys = ["plainTextExport", "plain_text_export", "export_text", "sequenceText", "plainText", "content"];
+  const textKeys = [
+    "plainTextExport",
+    "plain_text_export",
+    "export_text",
+    "sequenceText",
+    "plainText",
+    "content",
+  ];
   for (const key of textKeys) {
     if (typeof copy[key] === "string") {
       copy[key] = ensureUsefulLinks(stripLegacyEmailBlocks(copy[key]));
@@ -169,7 +186,9 @@ NOTE LGD :
   return copy as EmailSequenceResponse;
 }
 
-function inferCampaignType(payload: CmoAutoPayload): EmailCampaignFormValues["campaign_type"] {
+function inferCampaignType(
+  payload: CmoAutoPayload,
+): EmailCampaignFormValues["campaign_type"] {
   const text = [
     payload.priority_action,
     payload.next_best_action,
@@ -183,7 +202,11 @@ function inferCampaignType(payload: CmoAutoPayload): EmailCampaignFormValues["ca
 
   if (text.includes("relance")) return "relance";
   if (text.includes("lancement")) return "lancement";
-  if (text.includes("nurtur") || text.includes("éduquer") || text.includes("eduquer")) {
+  if (
+    text.includes("nurtur") ||
+    text.includes("éduquer") ||
+    text.includes("eduquer")
+  ) {
     return "nurturing";
   }
   return "vente";
@@ -202,7 +225,9 @@ function parseCmoEmailSequence(text: string): CmoEmailItem[] {
   const cleaned = stripLegacyEmailBlocks(text);
   if (!cleaned) return [];
 
-  const parts = cleaned.split(/={10,}\s*\n\s*EMAIL\s+(\d+)/gi).filter((part) => part.trim());
+  const parts = cleaned
+    .split(/={10,}\s*\n\s*EMAIL\s+(\d+)/gi)
+    .filter((part) => part.trim());
 
   const emails: CmoEmailItem[] = [];
 
@@ -257,7 +282,10 @@ function parseCmoEmailSequence(text: string): CmoEmailItem[] {
 function normalizeCmoEmailItems(payload: CmoAutoPayload): CmoEmailItem[] {
   const readyEmails = payload.content_ready?.email?.emailSequence?.emails;
   const generatedEmails = payload.generated_content?.email_sequence;
-  const source = Array.isArray(readyEmails) && readyEmails.length ? readyEmails : generatedEmails;
+  const source =
+    Array.isArray(readyEmails) && readyEmails.length
+      ? readyEmails
+      : generatedEmails;
 
   if (Array.isArray(source) && source.length) {
     return source
@@ -287,19 +315,32 @@ Préheader : ${email.preheader}
 ${sanitizeEmailBodyText(email.body)}`;
 }
 
-function buildCmoSequenceResponse(payload: CmoAutoPayload): EmailSequenceResponse | null {
+function buildCmoSequenceResponse(
+  payload: CmoAutoPayload,
+): EmailSequenceResponse | null {
   const ready = payload.content_ready?.email;
   const emails = normalizeCmoEmailItems(payload);
 
   if (emails.length < 1) return null;
 
-  const cta = asCleanString(ready?.primaryCta) || asCleanString(payload.cta) || "Passer à l’action maintenant";
-  const plainTextExport = ensureUsefulLinks(emails.map(buildEmailExportBlock).join("\n\n"));
+  const cta =
+    asCleanString(ready?.primaryCta) ||
+    asCleanString(payload.cta) ||
+    "Passer à l’action maintenant";
+  const plainTextExport = ensureUsefulLinks(
+    emails.map(buildEmailExportBlock).join("\n\n"),
+  );
 
   const normalizedEmails: EmailSequenceItem[] = emails.map((email) => ({
     day: email.day,
     email_type:
-      email.day <= 2 ? "nurture" : email.day === 3 ? "objection" : email.day >= 6 ? "relance" : "vente",
+      email.day <= 2
+        ? "nurture"
+        : email.day === 3
+          ? "objection"
+          : email.day >= 6
+            ? "relance"
+            : "vente",
     subject: email.subject,
     preheader: email.preheader,
     body: sanitizeEmailBodyText(email.body),
@@ -339,8 +380,10 @@ NOTE LGD :
   }));
 
   return {
-    campaignName: asCleanString(ready?.campaignName) || "CMO IA - Séquence humaine V7",
-    campaign_name: asCleanString(ready?.campaignName) || "CMO IA - Séquence humaine V7",
+    campaignName:
+      asCleanString(ready?.campaignName) || "CMO IA - Séquence humaine V7",
+    campaign_name:
+      asCleanString(ready?.campaignName) || "CMO IA - Séquence humaine V7",
     campaign_type: ready?.campaignType || inferCampaignType(payload),
     duration_days: 7,
     sender_name: "Alex IA",
@@ -357,7 +400,7 @@ NOTE LGD :
 
 function buildCmoEmailValues(
   payload: CmoAutoPayload,
-  previous: EmailCampaignFormValues
+  previous: EmailCampaignFormValues,
 ): EmailCampaignFormValues {
   const ready = payload.content_ready?.email;
   const priorityAction = asCleanString(payload.priority_action);
@@ -365,14 +408,19 @@ function buildCmoEmailValues(
   const whyThisAction = asCleanString(payload.why_this_action);
   const nextBestAction = asCleanString(payload.next_best_action);
   const emailContent = getCmoEmailText(payload);
-  const cta = asCleanString(ready?.primaryCta) || asCleanString(payload.cta) || asCleanString(payload.generated_content?.cta);
+  const cta =
+    asCleanString(ready?.primaryCta) ||
+    asCleanString(payload.cta) ||
+    asCleanString(payload.generated_content?.cta);
 
   return {
     ...defaultEmailCampaignValues,
     sender_name: previous.sender_name,
     name:
       asCleanString(ready?.campaignName) ||
-      (priorityAction ? `CMO IA - ${shortText(priorityAction, 70)}` : "CMO IA - Campagne prioritaire"),
+      (priorityAction
+        ? `CMO IA - ${shortText(priorityAction, 70)}`
+        : "CMO IA - Campagne prioritaire"),
     campaign_type: ready?.campaignType || inferCampaignType(payload),
     duration_days: 7,
     offer_name:
@@ -411,7 +459,9 @@ function buildCmoEmailValues(
 }
 
 export default function EmailCampaignsPage() {
-  const [values, setValues] = useState<EmailCampaignFormValues>(defaultEmailCampaignValues);
+  const [values, setValues] = useState<EmailCampaignFormValues>(
+    defaultEmailCampaignValues,
+  );
   const [sequence, setSequence] = useState<EmailSequenceResponse | null>(null);
   const [savedCampaignId, setSavedCampaignId] = useState<number | null>(null);
   const [resetVersion, setResetVersion] = useState(0);
@@ -439,15 +489,20 @@ export default function EmailCampaignsPage() {
     if (typeof window === "undefined") return;
 
     try {
-      const raw = window.localStorage.getItem(CMO_AUTO_PAYLOAD_KEY);
+      const raw =
+        window.localStorage.getItem(CMO_DISPATCH_PAYLOAD_KEY) ||
+        window.localStorage.getItem(CMO_AUTO_PAYLOAD_KEY);
       if (!raw) return;
 
       const payload = JSON.parse(raw) as CmoAutoPayload;
-      const destination = payload.target || payload.targetModule || payload.destination;
-      if (!payload || destination !== "emailing") return;
+      const payloadTarget =
+        payload.target || payload.targetModule || payload.destination;
+      if (!payload || payloadTarget !== "emailing") return;
 
       setCmoAutoLoading(true);
-      setCmoAutoMessage("CMO IA analyse la priorité et prépare ta campagne email…");
+      setCmoAutoMessage(
+        "CMO IA analyse la priorité et prépare ta campagne email…",
+      );
 
       window.setTimeout(() => {
         setValues((previous) => buildCmoEmailValues(payload, previous));
@@ -456,9 +511,10 @@ export default function EmailCampaignsPage() {
         setResetVersion((prev) => prev + 1);
         setCmoAutoLoading(false);
         setCmoAutoMessage(
-          "Campagne pré-remplie par le CMO IA. Clique sur Générer la séquence pour lancer la vraie génération IA."
+          "Campagne pré-remplie par le CMO IA. Clique sur Générer la séquence pour lancer la vraie génération IA.",
         );
         window.localStorage.removeItem(CMO_AUTO_PAYLOAD_KEY);
+        window.localStorage.removeItem(CMO_DISPATCH_PAYLOAD_KEY);
 
         window.setTimeout(() => {
           setCmoAutoMessage(null);
@@ -491,7 +547,7 @@ export default function EmailCampaignsPage() {
   const handleOpenCampaign = (
     nextValues: EmailCampaignFormValues,
     nextSequence: EmailSequenceResponse | null,
-    nextSavedCampaignId: number
+    nextSavedCampaignId: number,
   ) => {
     setValues(nextValues);
     setSequence(sanitizeEmailSequenceResponse(nextSequence));
@@ -520,8 +576,9 @@ export default function EmailCampaignsPage() {
                 Campagnes E-mailing IA
               </h1>
               <p className="mt-3 max-w-3xl text-sm leading-7 text-zinc-400 md:text-base">
-                Générez des séquences email 7, 14 ou 30 jours, sauvegardez-les dans LGD puis
-                préparez leur diffusion via Systeme.io dans un workflow premium, stable et isolé.
+                Générez des séquences email 7, 14 ou 30 jours, sauvegardez-les
+                dans LGD puis préparez leur diffusion via Systeme.io dans un
+                workflow premium, stable et isolé.
               </p>
             </div>
 
@@ -541,13 +598,18 @@ export default function EmailCampaignsPage() {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-start gap-3">
                 <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-2xl bg-yellow-400/10 text-yellow-300">
-                  <Sparkles size={18} className={cmoAutoLoading ? "animate-pulse" : ""} />
+                  <Sparkles
+                    size={18}
+                    className={cmoAutoLoading ? "animate-pulse" : ""}
+                  />
                 </div>
                 <div>
                   <p className="text-sm font-semibold uppercase tracking-[0.18em] text-yellow-300">
                     Mode CMO IA actif
                   </p>
-                  <p className="mt-1 text-sm leading-6 text-zinc-300">{cmoAutoMessage}</p>
+                  <p className="mt-1 text-sm leading-6 text-zinc-300">
+                    {cmoAutoMessage}
+                  </p>
                 </div>
               </div>
               {cmoAutoLoading && (
@@ -563,7 +625,9 @@ export default function EmailCampaignsPage() {
           <EmailCampaignGenerator
             values={values}
             setValues={setValues}
-            onGenerated={(nextSequence) => setSequence(sanitizeEmailSequenceResponse(nextSequence))}
+            onGenerated={(nextSequence) =>
+              setSequence(sanitizeEmailSequenceResponse(nextSequence))
+            }
             onResetGenerator={handleResetGenerator}
             onCreateNewCampaign={handleCreateNewCampaign}
           />
