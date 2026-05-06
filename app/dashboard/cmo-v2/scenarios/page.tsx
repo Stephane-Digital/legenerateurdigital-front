@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 type OfferType = "formation" | "ebook" | "coaching" | "saas" | "service";
@@ -36,86 +36,63 @@ const initialForm: ScenarioForm = {
   prospectLevel: "bloque",
 };
 
-const offerTypeLabels: Record<OfferType, string> = {
-  formation: "Formation",
-  ebook: "Ebook",
-  coaching: "Coaching",
-  saas: "SaaS",
-  service: "Service",
-};
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
 
-const prospectLevelLabels: Record<ProspectLevel, string> = {
-  debutant: "Débutant",
-  bloque: "Bloqué",
-  avance_non_rentable: "Avancé mais pas rentable",
-};
+function parseScenarioContent(value: unknown): unknown {
+  if (typeof value !== "string") return value;
 
-function clean(value: string, fallback: string) {
-  const text = value.trim();
-  return text || fallback;
+  const cleaned = value
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+
+  return JSON.parse(cleaned);
 }
 
-function buildScenarios(form: ScenarioForm): Scenario[] {
-  const offer = clean(form.offer, "ton offre");
-  const target = clean(form.target, "ta cible");
-  const objective = clean(form.objective, "obtenir un résultat concret");
-  const blocker = clean(form.blocker, "elle hésite à passer à l’action");
-  const offerType = offerTypeLabels[form.offerType].toLowerCase();
-  const level = prospectLevelLabels[form.prospectLevel].toLowerCase();
+function normalizeAiScenarios(value: unknown): Scenario[] {
+  const parsed = parseScenarioContent(value) as any;
 
-  return [
-    {
-      id: "awareness",
-      badge: "Action prioritaire recommandée",
-      title: "Prise de conscience directe",
-      recommended: true,
-      objective: `Faire comprendre à ${target} que le vrai frein n’est pas le manque d’envie, mais le blocage qui l’empêche d’avancer vers ${objective}.`,
-      angle: "Le prospect ne manque pas forcément de motivation. Il manque d’un déclic clair pour arrêter de subir la même situation.",
-      realProblem: blocker,
-      context: `${target} veut avancer, mais reste coincé dans une situation frustrante. ${offer} doit être présenté comme une réponse concrète, simple et actionnable pour l’aider à sortir du flou.`,
-      whyItConverts: "Ce scénario fonctionne parce qu’il crée une identification immédiate avant de présenter l’offre comme une solution naturelle.",
-    },
-    {
-      id: "mistake",
-      badge: "Erreur invisible",
-      title: "L’erreur qui bloque les résultats",
-      objective: `Montrer à ${target} qu’elle répète probablement une erreur invisible qui l’éloigne de ${objective}.`,
-      angle: `Elle croit que le problème vient d’elle, alors qu’elle utilise peut-être la mauvaise approche pour son niveau : ${level}.`,
-      realProblem: blocker,
-      context: `${offer} est positionné comme un ${offerType} qui remet de la clarté là où la cible se disperse, doute ou repousse la décision.`,
-      whyItConverts: "Ce scénario transforme la culpabilité en prise de conscience, ce qui réduit la résistance à l’achat.",
-    },
-    {
-      id: "objection",
-      badge: "Objection réelle",
-      title: "Lever la peur d’investir encore",
-      objective: `Rassurer ${target} sur le fait qu’elle peut tester une nouvelle approche sans se sentir piégée.`,
-      angle: "La vraie peur n’est pas l’offre. C’est de revivre une déception, perdre du temps ou payer pour quelque chose qui ne change rien.",
-      realProblem: blocker,
-      context: `${offer} doit être présenté comme une décision légère, progressive et vérifiable, pas comme une promesse magique.`,
-      whyItConverts: "Ce scénario traite l’objection avant qu’elle bloque la décision.",
-    },
-    {
-      id: "solution",
-      badge: "Solution concrète",
-      title: "La solution claire",
-      objective: `Faire comprendre comment ${offer} aide concrètement ${target} à avancer vers ${objective}.`,
-      angle: "Pas plus de théorie. Pas plus de confusion. Une méthode ou un cadre pour faire le prochain bon geste.",
-      realProblem: blocker,
-      context: `Ce scénario doit expliquer simplement ce que ${target} va pouvoir faire grâce à ${offer}, avec des actions visibles et réalistes.`,
-      whyItConverts: "Il rend l’offre tangible. Le prospect comprend ce qu’il achète et pourquoi cela peut l’aider maintenant.",
-    },
-    {
-      id: "projection",
-      badge: "Projection réaliste",
-      title: "Ce qui change vraiment",
-      objective: `Aider ${target} à visualiser ce qui peut changer si elle prend une décision maintenant.`,
-      angle: "La transformation n’est pas présentée comme un rêve lointain, mais comme une première étape réaliste.",
-      realProblem: blocker,
-      context: `${offer} devient le pont entre la situation actuelle et une version plus claire, plus structurée et plus active de la cible.`,
-      whyItConverts: "Ce scénario aide le prospect à se projeter sans tomber dans la promesse exagérée.",
-    },
-  ];
+  const source = Array.isArray(parsed)
+    ? parsed
+    : Array.isArray(parsed?.scenarios)
+      ? parsed.scenarios
+      : Array.isArray(parsed?.items)
+        ? parsed.items
+        : Array.isArray(parsed?.data)
+          ? parsed.data
+          : null;
+
+  if (!source) {
+    throw new Error("Réponse IA invalide : aucun tableau de scénarios.");
+  }
+
+  return source.slice(0, 5).map((raw: unknown, index: number) => {
+    const item = raw as Partial<Scenario>;
+
+    if (
+      !item.title ||
+      !item.objective ||
+      !item.angle ||
+      !item.realProblem ||
+      !item.context ||
+      !item.whyItConverts
+    ) {
+      throw new Error(`Réponse IA invalide : scénario ${index + 1} incomplet.`);
+    }
+
+    return {
+      id: item.id || `scenario-${index + 1}`,
+      badge: item.badge || (index === 0 ? "Action prioritaire recommandée" : "Scénario CMO"),
+      title: item.title,
+      objective: item.objective,
+      angle: item.angle,
+      realProblem: item.realProblem,
+      context: item.context,
+      whyItConverts: item.whyItConverts,
+      recommended: Boolean(item.recommended) || index === 0,
+    };
+  });
 }
 
 export default function CMOScenariosPage() {
@@ -123,8 +100,10 @@ export default function CMOScenariosPage() {
   const [form, setForm] = useState<ScenarioForm>(initialForm);
   const [hasGenerated, setHasGenerated] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [scenarios, setScenarios] = useState<Scenario[]>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
-  const scenarios = useMemo(() => buildScenarios(form), [form]);
   const selectedScenario = scenarios.find((scenario) => scenario.id === selectedId) || null;
 
   const canGenerate =
@@ -137,10 +116,54 @@ export default function CMOScenariosPage() {
     setForm((current) => ({ ...current, [key]: value }));
   }
 
-  function generateScenarios() {
-    if (!canGenerate) return;
-    setHasGenerated(true);
-    setSelectedId("awareness");
+  async function generateScenarios() {
+    if (!canGenerate || isGenerating) return;
+
+    if (!API_BASE_URL) {
+      setErrorMessage("Configuration API manquante : NEXT_PUBLIC_API_URL est vide.");
+      return;
+    }
+
+    setIsGenerating(true);
+    setErrorMessage("");
+    setHasGenerated(false);
+    setSelectedId(null);
+    setScenarios([]);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/cmo-scenarios/generate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(form),
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(
+          String(data?.detail || "La génération IA des scénarios a échoué.")
+        );
+      }
+
+      const generated = normalizeAiScenarios(data?.content ?? data?.scenarios ?? data);
+
+      setScenarios(generated);
+      setHasGenerated(true);
+      setSelectedId(generated[0]?.id || null);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Erreur inconnue pendant la génération IA des scénarios."
+      );
+      setScenarios([]);
+      setHasGenerated(false);
+      setSelectedId(null);
+    } finally {
+      setIsGenerating(false);
+    }
   }
 
   function useScenario(scenario: Scenario) {
@@ -305,11 +328,17 @@ export default function CMOScenariosPage() {
                 <button
                   type="button"
                   onClick={generateScenarios}
-                  disabled={!canGenerate}
+                  disabled={!canGenerate || isGenerating}
                   className="w-full rounded-2xl bg-[#ffc400] px-5 py-4 text-sm font-black text-black transition hover:bg-[#ffd84a] disabled:cursor-not-allowed disabled:opacity-45"
                 >
-                  Générer mes scénarios
+                  {isGenerating ? "Génération IA en cours..." : "Générer mes scénarios"}
                 </button>
+
+                {errorMessage ? (
+                  <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm leading-6 text-red-200">
+                    {errorMessage}
+                  </div>
+                ) : null}
               </div>
             </div>
 
