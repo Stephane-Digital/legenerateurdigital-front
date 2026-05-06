@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { buildPayload } from "../lib/buildPayload";
+import { buildFallbackDispatch } from "../lib/buildStrategy";
+
 type OfferType = "formation" | "ebook" | "coaching" | "saas" | "service";
 type ProspectLevel = "debutant" | "bloque" | "avance_non_rentable";
 
@@ -83,7 +86,9 @@ function normalizeAiScenarios(value: unknown): Scenario[] {
 
     return {
       id: item.id || `scenario-${index + 1}`,
-      badge: item.badge || (index === 0 ? "Action prioritaire recommandée" : "Scénario CMO"),
+      badge:
+        item.badge ||
+        (index === 0 ? "Action prioritaire recommandée" : "Scénario CMO"),
       title: item.title,
       objective: item.objective,
       angle: item.angle,
@@ -138,14 +143,12 @@ export default function CMOScenariosPage() {
     } catch {}
   }, []);
 
-
   const [form, setForm] = useState<ScenarioForm>(initialForm);
   const [hasGenerated, setHasGenerated] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-
 
   useEffect(() => {
     try {
@@ -156,12 +159,13 @@ export default function CMOScenariosPage() {
           scenarios,
           selectedId,
           updatedAt: Date.now(),
-        })
+        }),
       );
     } catch {}
   }, [form, scenarios, selectedId]);
 
-const selectedScenario = scenarios.find((scenario) => scenario.id === selectedId) || null;
+  const selectedScenario =
+    scenarios.find((scenario) => scenario.id === selectedId) || null;
 
   const canGenerate =
     form.offer.trim().length > 2 &&
@@ -169,7 +173,10 @@ const selectedScenario = scenarios.find((scenario) => scenario.id === selectedId
     form.objective.trim().length > 2 &&
     form.blocker.trim().length > 2;
 
-  function updateField<K extends keyof ScenarioForm>(key: K, value: ScenarioForm[K]) {
+  function updateField<K extends keyof ScenarioForm>(
+    key: K,
+    value: ScenarioForm[K],
+  ) {
     setForm((current) => ({ ...current, [key]: value }));
   }
 
@@ -177,7 +184,9 @@ const selectedScenario = scenarios.find((scenario) => scenario.id === selectedId
     if (!canGenerate || isGenerating) return;
 
     if (!API_BASE_URL) {
-      setErrorMessage("Configuration API manquante : NEXT_PUBLIC_API_URL est vide.");
+      setErrorMessage(
+        "Configuration API manquante : NEXT_PUBLIC_API_URL est vide.",
+      );
       return;
     }
 
@@ -200,11 +209,13 @@ const selectedScenario = scenarios.find((scenario) => scenario.id === selectedId
 
       if (!response.ok) {
         throw new Error(
-          String(data?.detail || "La génération IA des scénarios a échoué.")
+          String(data?.detail || "La génération IA des scénarios a échoué."),
         );
       }
 
-      const generated = normalizeAiScenarios(data?.content ?? data?.scenarios ?? data);
+      const generated = normalizeAiScenarios(
+        data?.content ?? data?.scenarios ?? data,
+      );
 
       setScenarios(generated);
       setHasGenerated(true);
@@ -213,7 +224,7 @@ const selectedScenario = scenarios.find((scenario) => scenario.id === selectedId
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Erreur inconnue pendant la génération IA des scénarios."
+          : "Erreur inconnue pendant la génération IA des scénarios.",
       );
       setScenarios([]);
       setHasGenerated(false);
@@ -224,37 +235,104 @@ const selectedScenario = scenarios.find((scenario) => scenario.id === selectedId
   }
 
   function useScenario(scenario: Scenario) {
-    const scenarioPayload = {
+    const enrichedBlocker = `${scenario.realProblem}
+
+Situation actuelle : ${[
+      form.offer.trim() ? `Offre : ${form.offer.trim()}` : "",
+      form.target.trim() ? `Cible : ${form.target.trim()}` : "",
+      scenario.angle.trim() ? `Angle : ${scenario.angle.trim()}` : "",
+      scenario.context.trim() ? `Contexte : ${scenario.context.trim()}` : "",
+      scenario.whyItConverts.trim()
+        ? `Pourquoi cet angle convertit : ${scenario.whyItConverts.trim()}`
+        : "",
+      scenario.title.trim() ? `Scénario choisi : ${scenario.title.trim()}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n")}`;
+
+    const scenarioDispatch = buildFallbackDispatch(
+      scenario.objective,
+      enrichedBlocker,
+      "emailing",
+    );
+    const scenarioPayload = buildPayload(
+      "email",
+      scenario.objective,
+      enrichedBlocker,
+      {
+        ...scenarioDispatch,
+        diagnostic: `Scénario CMO sélectionné : ${scenario.title}. ${scenario.context}`,
+        context: {
+          ...scenarioDispatch.context,
+          objective: scenario.objective,
+          blocker: scenario.realProblem,
+          offer: form.offer,
+          audience: form.target,
+          pain: scenario.realProblem,
+          desire: scenario.objective,
+          angle: scenario.angle,
+          promise: scenario.whyItConverts,
+          mechanism: scenario.context,
+          objection: scenario.realProblem,
+          cta: scenarioDispatch.context.cta || "Passer à l’action maintenant",
+          tone: "premium, humain, direct",
+        },
+        decision: {
+          recommended_module: "emailing",
+          priority_action: `Transformer le scénario “${scenario.title}” en séquence email contextualisée.`,
+          reason: scenario.whyItConverts,
+        },
+        meta: {
+          ...(scenarioDispatch.meta || {}),
+          mode: "scenario_to_cmo",
+          module: "emailing",
+          content_generation: "module_only",
+        },
+      },
+    );
+
+    const prefillPayload = {
       source: "scenario-generator",
+      mode: "scenario_to_cmo",
+      module: "email",
       target: "emailing",
       targetModule: "emailing",
-      module: "email",
       destination: "emailing",
       objective: scenario.objective,
       blocker: scenario.realProblem,
-      situation: [
-        form.offer ? `Offre : ${form.offer}` : "",
-        form.target ? `Cible : ${form.target}` : "",
-        scenario.angle ? `Angle : ${scenario.angle}` : "",
-        scenario.context ? `Contexte : ${scenario.context}` : "",
-        scenario.whyItConverts ? `Pourquoi cet angle convertit : ${scenario.whyItConverts}` : "",
-      ]
-        .filter(Boolean)
-        .join("\n"),
+      situation: enrichedBlocker.replace(
+        `${scenario.realProblem}
+
+Situation actuelle : `,
+        "",
+      ),
       context: scenario.context,
       angle: scenario.angle,
       strategy: scenario.whyItConverts,
       offer: form.offer,
       audience: form.target,
+      targetAudience: form.target,
       offerType: form.offerType,
       prospectLevel: form.prospectLevel,
       recommendedScenario: scenario.title,
+      dispatch: scenarioPayload.dispatch,
+      payload: scenarioPayload,
       generatedAt: new Date().toISOString(),
     };
 
     try {
-      window.localStorage.setItem("lgd_cmo_scenario_payload", JSON.stringify(scenarioPayload));
-      window.localStorage.removeItem("lgd_cmo_module_auto_payload");
+      window.localStorage.setItem(
+        "lgd_cmo_scenario_payload",
+        JSON.stringify(prefillPayload),
+      );
+      window.localStorage.setItem(
+        "lgd_cmo_module_auto_payload",
+        JSON.stringify(scenarioPayload),
+      );
+      window.localStorage.setItem(
+        "lgd_cmo_dispatch_payload",
+        JSON.stringify(scenarioPayload),
+      );
     } catch {
       // Si le stockage échoue, la redirection reste possible.
     }
@@ -271,7 +349,8 @@ const selectedScenario = scenarios.find((scenario) => scenario.id === selectedId
           </h1>
 
           <p className="mt-3 text-sm text-zinc-300 sm:text-base">
-            Crée du contenu • Attire des prospects • Génère tes premières ventes avec l’IA
+            Crée du contenu • Attire des prospects • Génère tes premières ventes
+            avec l’IA
           </p>
 
           <div className="mt-5 flex flex-wrap items-center justify-center gap-3 text-[11px] font-semibold">
@@ -302,7 +381,8 @@ const selectedScenario = scenarios.find((scenario) => scenario.id === selectedId
             </h2>
 
             <p className="mx-auto mt-4 max-w-3xl text-sm leading-6 text-zinc-300">
-              LGD analyse ton offre, ta cible et ton blocage pour préparer des angles marketing directement exploitables dans le CMO.
+              LGD analyse ton offre, ta cible et ton blocage pour préparer des
+              angles marketing directement exploitables dans le CMO.
             </p>
           </div>
 
@@ -320,35 +400,48 @@ const selectedScenario = scenarios.find((scenario) => scenario.id === selectedId
               </div>
 
               <p className="mb-6 text-sm leading-6 text-zinc-400">
-                Remplis les champs essentiels. LGD transforme ensuite ta situation en angles clairs, utiles et activables.
+                Remplis les champs essentiels. LGD transforme ensuite ta
+                situation en angles clairs, utiles et activables.
               </p>
 
               <div className="space-y-5">
                 <label className="block">
-                  <span className="mb-2 block text-sm font-bold text-white">Offre à vendre</span>
+                  <span className="mb-2 block text-sm font-bold text-white">
+                    Offre à vendre
+                  </span>
                   <input
                     value={form.offer}
-                    onChange={(event) => updateField("offer", event.target.value)}
+                    onChange={(event) =>
+                      updateField("offer", event.target.value)
+                    }
                     placeholder="Ex : coaching perte de poids, ebook productivité, formation crypto..."
                     className="w-full rounded-2xl border border-[#80610d] bg-black px-4 py-3 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-[#ffcc00]"
                   />
                 </label>
 
                 <label className="block">
-                  <span className="mb-2 block text-sm font-bold text-white">Cible</span>
+                  <span className="mb-2 block text-sm font-bold text-white">
+                    Cible
+                  </span>
                   <input
                     value={form.target}
-                    onChange={(event) => updateField("target", event.target.value)}
+                    onChange={(event) =>
+                      updateField("target", event.target.value)
+                    }
                     placeholder="Ex : débutants motivés qui n’ont encore aucun résultat"
                     className="w-full rounded-2xl border border-[#80610d] bg-black px-4 py-3 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-[#ffcc00]"
                   />
                 </label>
 
                 <label className="block">
-                  <span className="mb-2 block text-sm font-bold text-white">Objectif business</span>
+                  <span className="mb-2 block text-sm font-bold text-white">
+                    Objectif business
+                  </span>
                   <textarea
                     value={form.objective}
-                    onChange={(event) => updateField("objective", event.target.value)}
+                    onChange={(event) =>
+                      updateField("objective", event.target.value)
+                    }
                     placeholder="Ex : vendre un abonnement, obtenir une première vente, réserver un appel découverte..."
                     rows={3}
                     className="w-full resize-none rounded-2xl border border-[#80610d] bg-black px-4 py-3 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-[#ffcc00]"
@@ -356,10 +449,14 @@ const selectedScenario = scenarios.find((scenario) => scenario.id === selectedId
                 </label>
 
                 <label className="block">
-                  <span className="mb-2 block text-sm font-bold text-white">Blocage principal</span>
+                  <span className="mb-2 block text-sm font-bold text-white">
+                    Blocage principal
+                  </span>
                   <textarea
                     value={form.blocker}
-                    onChange={(event) => updateField("blocker", event.target.value)}
+                    onChange={(event) =>
+                      updateField("blocker", event.target.value)
+                    }
                     placeholder="Ex : peur d’investir encore, manque de confiance, peur de perdre de l’argent, dispersion..."
                     rows={4}
                     className="w-full resize-none rounded-2xl border border-[#80610d] bg-black px-4 py-3 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-[#ffcc00]"
@@ -368,10 +465,17 @@ const selectedScenario = scenarios.find((scenario) => scenario.id === selectedId
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <label className="block">
-                    <span className="mb-2 block text-sm font-bold text-white">Type d’offre</span>
+                    <span className="mb-2 block text-sm font-bold text-white">
+                      Type d’offre
+                    </span>
                     <select
                       value={form.offerType}
-                      onChange={(event) => updateField("offerType", event.target.value as OfferType)}
+                      onChange={(event) =>
+                        updateField(
+                          "offerType",
+                          event.target.value as OfferType,
+                        )
+                      }
                       className="w-full rounded-2xl border border-[#80610d] bg-black px-4 py-3 text-sm text-white outline-none focus:border-[#ffcc00]"
                     >
                       <option value="formation">Formation</option>
@@ -383,15 +487,24 @@ const selectedScenario = scenarios.find((scenario) => scenario.id === selectedId
                   </label>
 
                   <label className="block">
-                    <span className="mb-2 block text-sm font-bold text-white">Niveau prospect</span>
+                    <span className="mb-2 block text-sm font-bold text-white">
+                      Niveau prospect
+                    </span>
                     <select
                       value={form.prospectLevel}
-                      onChange={(event) => updateField("prospectLevel", event.target.value as ProspectLevel)}
+                      onChange={(event) =>
+                        updateField(
+                          "prospectLevel",
+                          event.target.value as ProspectLevel,
+                        )
+                      }
                       className="w-full rounded-2xl border border-[#80610d] bg-black px-4 py-3 text-sm text-white outline-none focus:border-[#ffcc00]"
                     >
                       <option value="debutant">Débutant</option>
                       <option value="bloque">Bloqué</option>
-                      <option value="avance_non_rentable">Avancé mais pas rentable</option>
+                      <option value="avance_non_rentable">
+                        Avancé mais pas rentable
+                      </option>
                     </select>
                   </label>
                 </div>
@@ -402,7 +515,9 @@ const selectedScenario = scenarios.find((scenario) => scenario.id === selectedId
                   disabled={!canGenerate || isGenerating}
                   className="w-full rounded-2xl bg-[#ffc400] px-5 py-4 text-sm font-black text-black transition hover:bg-[#ffd84a] disabled:cursor-not-allowed disabled:opacity-45"
                 >
-                  {isGenerating ? "Génération IA en cours..." : "Générer mes scénarios"}
+                  {isGenerating
+                    ? "Génération IA en cours..."
+                    : "Générer mes scénarios"}
                 </button>
 
                 {scenarios.length > 0 ? (
@@ -436,7 +551,8 @@ const selectedScenario = scenarios.find((scenario) => scenario.id === selectedId
                   Scénarios prêts à utiliser
                 </h3>
                 <p className="mt-3 text-sm leading-6 text-zinc-400">
-                  Choisis un angle. LGD le transmet au CMO pour préparer la suite.
+                  Choisis un angle. LGD le transmet au CMO pour préparer la
+                  suite.
                 </p>
               </div>
 
@@ -448,7 +564,8 @@ const selectedScenario = scenarios.find((scenario) => scenario.id === selectedId
                       Le CMO prépare tes scénarios…
                     </h4>
                     <p className="mt-3 text-sm leading-6 text-zinc-400">
-                      Analyse de l’offre, de la cible, du blocage et des angles marketing en cours.
+                      Analyse de l’offre, de la cible, du blocage et des angles
+                      marketing en cours.
                     </p>
                   </div>
                 </div>
@@ -462,7 +579,8 @@ const selectedScenario = scenarios.find((scenario) => scenario.id === selectedId
                       Tes scénarios apparaîtront ici
                     </h4>
                     <p className="mt-3 text-sm leading-6 text-zinc-400">
-                      Renseigne l’offre, la cible, l’objectif et le blocage pour générer une base marketing exploitable.
+                      Renseigne l’offre, la cible, l’objectif et le blocage pour
+                      générer une base marketing exploitable.
                     </p>
                   </div>
                 </div>
@@ -534,14 +652,18 @@ const selectedScenario = scenarios.find((scenario) => scenario.id === selectedId
                 </div>
 
                 <div className="rounded-2xl border border-[#80610d] bg-[#120f06] p-4">
-                  <p className="text-sm font-black text-white">Blocage enrichi</p>
+                  <p className="text-sm font-black text-white">
+                    Blocage enrichi
+                  </p>
                   <p className="mt-2 text-sm leading-6 text-zinc-300">
                     {selectedScenario.realProblem}
                   </p>
                 </div>
 
                 <div className="rounded-2xl border border-[#80610d] bg-[#120f06] p-4 md:col-span-2">
-                  <p className="text-sm font-black text-white">Contexte stratégique</p>
+                  <p className="text-sm font-black text-white">
+                    Contexte stratégique
+                  </p>
                   <p className="mt-2 text-sm leading-6 text-zinc-300">
                     {selectedScenario.context}
                   </p>
