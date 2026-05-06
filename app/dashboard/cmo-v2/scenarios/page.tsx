@@ -386,7 +386,19 @@ export default function CMOScenariosPage() {
                 </p>
               </div>
 
-              {!hasGenerated ? (
+              {isGenerating ? (
+                <div className="flex min-h-[430px] items-center justify-center rounded-[22px] border border-dashed border-[#80610d] bg-black/50 p-8 text-center">
+                  <div className="max-w-sm">
+                    <div className="mx-auto mb-5 h-14 w-14 animate-spin rounded-full border-2 border-[#ffcc00] border-t-transparent" />
+                    <h4 className="text-lg font-black text-white">
+                      Le CMO prépare tes scénarios…
+                    </h4>
+                    <p className="mt-3 text-sm leading-6 text-zinc-400">
+                      Analyse de l’offre, de la cible, du blocage et des angles marketing en cours.
+                    </p>
+                  </div>
+                </div>
+              ) : !hasGenerated ? (
                 <div className="flex min-h-[430px] items-center justify-center rounded-[22px] border border-dashed border-[#80610d] bg-black/50 p-8 text-center">
                   <div className="max-w-sm">
                     <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-[#80610d] bg-[#1a1404] text-xl text-[#ffcc00]">
