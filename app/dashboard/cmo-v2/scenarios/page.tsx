@@ -117,6 +117,28 @@ export default function CMOScenariosPage() {
     } catch {}
   }, []);
 
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("lgd_cmo_scenarios_session");
+      if (!raw) return;
+
+      const session = JSON.parse(raw);
+
+      if (session.form) {
+        setForm(session.form);
+      }
+
+      if (Array.isArray(session.scenarios)) {
+        setScenarios(session.scenarios);
+      }
+
+      if (session.selectedId) {
+        setSelectedId(session.selectedId);
+      }
+    } catch {}
+  }, []);
+
+
   const [form, setForm] = useState<ScenarioForm>(initialForm);
   const [hasGenerated, setHasGenerated] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -124,7 +146,22 @@ export default function CMOScenariosPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
-  const selectedScenario = scenarios.find((scenario) => scenario.id === selectedId) || null;
+  
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        "lgd_cmo_scenarios_session",
+        JSON.stringify({
+          form,
+          scenarios,
+          selectedId,
+          updatedAt: Date.now(),
+        })
+      );
+    } catch {}
+  }, [form, scenarios, selectedId]);
+
+const selectedScenario = scenarios.find((scenario) => scenario.id === selectedId) || null;
 
   const canGenerate =
     form.offer.trim().length > 2 &&
@@ -364,6 +401,20 @@ export default function CMOScenariosPage() {
                 >
                   {isGenerating ? "Génération IA en cours..." : "Générer mes scénarios"}
                 </button>
+
+                {scenarios.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setScenarios([]);
+                      setSelectedId(null);
+                      localStorage.removeItem("lgd_cmo_scenarios_session");
+                    }}
+                    className="w-full rounded-2xl border border-yellow-600/20 bg-black/40 px-5 py-3 text-sm font-bold text-white/80 transition hover:bg-yellow-500/10"
+                  >
+                    Réinitialiser les scénarios
+                  </button>
+                ) : null}
 
                 {errorMessage ? (
                   <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm leading-6 text-red-200">
