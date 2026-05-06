@@ -146,7 +146,7 @@ export default function CMOScenariosPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
-  
+
   useEffect(() => {
     try {
       localStorage.setItem(
@@ -224,15 +224,28 @@ const selectedScenario = scenarios.find((scenario) => scenario.id === selectedId
   }
 
   function useScenario(scenario: Scenario) {
-    const payload = {
+    const scenarioPayload = {
       source: "scenario-generator",
+      target: "emailing",
       targetModule: "emailing",
+      module: "email",
+      destination: "emailing",
       objective: scenario.objective,
       blocker: scenario.realProblem,
+      situation: [
+        form.offer ? `Offre : ${form.offer}` : "",
+        form.target ? `Cible : ${form.target}` : "",
+        scenario.angle ? `Angle : ${scenario.angle}` : "",
+        scenario.context ? `Contexte : ${scenario.context}` : "",
+        scenario.whyItConverts ? `Pourquoi cet angle convertit : ${scenario.whyItConverts}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n"),
       context: scenario.context,
       angle: scenario.angle,
+      strategy: scenario.whyItConverts,
       offer: form.offer,
-      target: form.target,
+      audience: form.target,
       offerType: form.offerType,
       prospectLevel: form.prospectLevel,
       recommendedScenario: scenario.title,
@@ -240,23 +253,13 @@ const selectedScenario = scenarios.find((scenario) => scenario.id === selectedId
     };
 
     try {
-      window.localStorage.setItem("lgd_cmo_module_auto_payload", JSON.stringify(payload));
+      window.localStorage.setItem("lgd_cmo_scenario_payload", JSON.stringify(scenarioPayload));
+      window.localStorage.removeItem("lgd_cmo_module_auto_payload");
     } catch {
       // Si le stockage échoue, la redirection reste possible.
     }
 
-    localStorage.setItem(
-        "lgd_cmo_scenario_payload",
-        JSON.stringify({
-          objective: scenario.objective,
-          angle: scenario.angle,
-          blocker: scenario.realProblem,
-          context: scenario.context,
-          strategy: scenario.whyItConverts,
-        })
-      );
-
-      router.push("/dashboard/cmo-v2");
+    router.push("/dashboard/cmo-v2");
   }
 
   return (
