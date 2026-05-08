@@ -503,7 +503,7 @@ function ModalShell({
 const CMO_FALLBACK_BADGE = "Instantané • sans jetons";
 const CMO_LIVE_BADGE = "~ 1 500 à 3 000 jetons";
 const CMO_LIVE_DESCRIPTION = "Analyse stratégique avancée";
-\nexport default function DashboardPage() {
+export default function DashboardPage() {
   const router = useRouter();
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
