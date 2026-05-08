@@ -46,9 +46,12 @@ type DailyProgress = {
 };
 
 type AiQuotaSnapshot = {
+  remaining: number;
   used: number;
   limit: number;
   planLabel: string;
+  planKey: Plan;
+  dailyLimit: number;
 };
 
 type CmoDashboardResult = {
@@ -113,54 +116,62 @@ function getStoredToken() {
   );
 }
 
-async function fetchPlanFromBackend(): Promise<Plan> {
-  const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
-  const url = `${base}/ai-quota/global`;
+function normalizeQuotaPlan(...values: Array<string | undefined | null>) {
+  const raw = values
+    .map((value) => String(value || "").trim().toLowerCase())
+    .filter(Boolean)
+    .join(" ");
 
-  const token = getStoredToken();
-  if (!token) return "none";
-
-  const res = await fetch(url, {
-    method: "GET",
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    cache: "no-store",
-  });
-
-  if (!res.ok) throw new Error(`ai-quota/global ${res.status}`);
-
-  const data = (await res.json()) as any;
-  const rawPlan = String(data?.display_plan || data?.plan || data?.current_plan || "").toLowerCase();
-  const limit = Number(data?.tokens_limit || data?.limit_tokens || 0);
-
-  if (rawPlan.includes("ultime")) return "ultime";
-  if (rawPlan.includes("pro")) return "pro";
-  if (rawPlan.includes("azur") || rawPlan.includes("trial") || rawPlan.includes("starter") || limit === 70000) return "azur";
-  if (rawPlan.includes("essentiel") || limit === 400000) return "essentiel";
-  return "none";
+  if (!raw) return "";
+  if (
+    raw.includes("azur") ||
+    raw.includes("trial") ||
+    raw.includes("starter") ||
+    raw.includes("decouverte") ||
+    raw.includes("découverte")
+  ) {
+    return "azur";
+  }
+  if (raw.includes("ult")) return "ultime";
+  if (raw.includes("pro")) return "pro";
+  if (raw.includes("essentiel") || raw.includes("essential")) return "essentiel";
+  return "";
 }
 
-async function fetchAiQuotaSnapshot(): Promise<AiQuotaSnapshot | null> {
-  const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
-  const token = getStoredToken();
-  if (!token) return null;
+function quotaPlanFromLimit(limit?: number) {
+  const n = Number(limit || 0);
+  if (n === 70_000) return "azur";
+  if (n === 2_500_000) return "ultime";
+  if (n === 1_000_000) return "pro";
+  if (n === 400_000) return "essentiel";
+  return "";
+}
 
-  const res = await fetch(`${base}/ai-quota/global`, {
-    method: "GET",
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    cache: "no-store",
-  });
+function quotaLimitFromPlan(plan: string, fallbackLimit?: number) {
+  const p = String(plan || "").toLowerCase();
+  if (p === "azur") return 70_000;
+  if (p === "ultime") return 2_500_000;
+  if (p === "pro") return 1_000_000;
+  if (p === "essentiel") return 400_000;
+  return Number(fallbackLimit || 0);
+}
 
-  if (!res.ok) throw new Error(`ai-quota/global ${res.status}`);
+function quotaDisplayPlan(plan: string) {
+  if (plan === "azur") return "AZUR";
+  if (plan === "ultime") return "Ultime";
+  if (plan === "pro") return "Pro";
+  if (plan === "essentiel") return "Essentiel";
+  return "Plan";
+}
 
-  const data = (await res.json()) as any;
+function normalizeAiQuotaSnapshot(data: any): AiQuotaSnapshot {
+  const rawLimit = Number(data?.tokens_limit ?? data?.limit_tokens ?? data?.limit ?? 0);
+  const planKey =
+    (normalizeQuotaPlan(data?.display_plan, data?.plan_key, data?.plan, data?.current_plan) ||
+      quotaPlanFromLimit(rawLimit) ||
+      "essentiel") as Plan;
+
+  const limit = quotaLimitFromPlan(planKey, rawLimit);
   const used = Number(
     data?.tokens_used ??
       data?.used_tokens ??
@@ -169,14 +180,61 @@ async function fetchAiQuotaSnapshot(): Promise<AiQuotaSnapshot | null> {
       data?.used ??
       0
   );
-  const limit = Number(data?.tokens_limit ?? data?.limit_tokens ?? data?.limit ?? 0);
-  const rawPlan = String(data?.display_plan || data?.plan || data?.current_plan || "").trim();
+  const remainingFromApi = Number(data?.remaining ?? data?.tokens_remaining ?? data?.remaining_tokens);
+  const remaining = Number.isFinite(remainingFromApi)
+    ? remainingFromApi
+    : Math.max(limit - (Number.isFinite(used) ? used : 0), 0);
+  const dailyLimit =
+    Number(data?.daily_limit || 0) > 0
+      ? Number(data?.daily_limit || 0)
+      : planKey === "azur"
+        ? 10_000
+        : limit > 0
+          ? Math.round(limit / 30)
+          : 0;
 
   return {
-    used: Number.isFinite(used) && used > 0 ? used : 0,
-    limit: Number.isFinite(limit) && limit > 0 ? limit : 0,
-    planLabel: rawPlan ? rawPlan.toUpperCase() : "PLAN",
+    remaining: Math.max(0, Math.round(Number.isFinite(remaining) ? remaining : 0)),
+    used: Math.max(0, Math.round(Number.isFinite(used) ? used : 0)),
+    limit: Math.max(0, Math.round(Number.isFinite(limit) ? limit : 0)),
+    planLabel: quotaDisplayPlan(planKey),
+    planKey,
+    dailyLimit: Math.max(0, Math.round(Number.isFinite(dailyLimit) ? dailyLimit : 0)),
   };
+}
+
+async function fetchAiQuotaSnapshot(): Promise<AiQuotaSnapshot | null> {
+  const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
+  const token = getStoredToken();
+  if (!token) return null;
+
+  const fetchQuota = async (path: string) => {
+    const res = await fetch(`${base}${path}`, {
+      method: "GET",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      cache: "no-store",
+    });
+
+    if (!res.ok) throw new Error(`${path} ${res.status}`);
+    return (await res.json()) as any;
+  };
+
+  try {
+    return normalizeAiQuotaSnapshot(await fetchQuota("/ai-quota/global"));
+  } catch (error: any) {
+    const message = String(error?.message || error || "");
+    if (message.includes("401") || message.includes("403")) throw error;
+    return normalizeAiQuotaSnapshot(await fetchQuota("/ai-quota/"));
+  }
+}
+
+async function fetchPlanFromBackend(): Promise<Plan> {
+  const quota = await fetchAiQuotaSnapshot();
+  return quota?.planKey || "none";
 }
 
 function formatQuotaNumber(value: number) {
@@ -604,7 +662,27 @@ const LOCAL_CMO_ACTIONS: CmoDashboardResult[] = [
 ];
 
 function getRandomLocalCmoAction() {
-  return LOCAL_CMO_ACTIONS[Math.floor(Math.random() * LOCAL_CMO_ACTIONS.length)] || LOCAL_CMO_ACTIONS[0];
+  const storageKey = "lgd_dashboard_last_local_cmo_action_index";
+  const total = LOCAL_CMO_ACTIONS.length;
+  if (total <= 1) return LOCAL_CMO_ACTIONS[0];
+
+  let previousIndex = -1;
+
+  if (typeof window !== "undefined") {
+    previousIndex = Number(window.sessionStorage.getItem(storageKey) || "-1");
+  }
+
+  let nextIndex = Math.floor(Math.random() * total);
+
+  if (nextIndex === previousIndex) {
+    nextIndex = (nextIndex + 1 + Math.floor(Math.random() * (total - 1))) % total;
+  }
+
+  if (typeof window !== "undefined") {
+    window.sessionStorage.setItem(storageKey, String(nextIndex));
+  }
+
+  return LOCAL_CMO_ACTIONS[nextIndex] || LOCAL_CMO_ACTIONS[0];
 }
 
 const CMO_FALLBACK_BADGE = "Instantané • 0 jeton";
@@ -870,11 +948,20 @@ export default function DashboardPage() {
                     <FaRobot className="text-yellow-300" />
                     {aiQuota ? (
                       <span>
-                        Quota IA : {formatQuotaNumber(aiQuota.used)} / {formatQuotaNumber(aiQuota.limit)} · {aiQuota.planLabel}
+                        Quota IA : {formatQuotaNumber(aiQuota.remaining)} / {formatQuotaNumber(aiQuota.limit)} • Plan {aiQuota.planLabel}
                       </span>
                     ) : (
                       <span>Quota IA : synchronisation…</span>
                     )}
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-[11px] font-semibold tracking-[0.04em]">
+                    <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-emerald-200">
+                      {CMO_FALLBACK_BADGE}
+                    </span>
+                    <span className="rounded-full border border-yellow-400/20 bg-yellow-400/10 px-3 py-1 text-yellow-100">
+                      {CMO_LIVE_BADGE}
+                    </span>
                   </div>
                 </div>
 
@@ -898,7 +985,7 @@ export default function DashboardPage() {
                       >
                         <span className="inline-flex items-center gap-2">
                           {cmoLoading ? <FaSyncAlt className="animate-spin" /> : null}
-                          {cmoLoading ? "Analyse CMO..." : "Nouvelle action gratuite"}
+                          Nouvelle action gratuite
                         </span>
                       </button>
                     </div>
@@ -953,9 +1040,6 @@ export default function DashboardPage() {
                         {cmoModuleTarget.label}
                       </PrimaryButton>
 
-                    <p className="mt-2 text-center text-[11px] font-semibold tracking-[0.04em] text-emerald-300/90">
-                      {CMO_FALLBACK_BADGE}
-                    </p>
                       <Link
                         href="/dashboard/cmo-v2"
                         className="w-full rounded-2xl px-5 py-3 text-center font-semibold border border-yellow-600/25 bg-[#0b0b0b] text-white/85 hover:bg-yellow-500/10 transition-all"
@@ -963,9 +1047,6 @@ export default function DashboardPage() {
                         Générer avec CMO IA
                       </Link>
 
-                    <p className="mt-2 text-center text-[11px] font-semibold tracking-[0.04em] text-yellow-200/85">
-                      {CMO_LIVE_BADGE}
-                    </p>
                     </div>
 
                     <p className="mt-3 text-center text-xs leading-5 text-white/45">
