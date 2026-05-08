@@ -843,7 +843,7 @@ export default function DashboardPage() {
                       href="/dashboard/cmo-v2/scenarios"
                       className="mt-3 inline-flex w-full items-center justify-center rounded-xl border border-[#c99a16]/60 px-4 py-3 text-sm font-black text-[#ffcc00] transition hover:bg-[#ffcc00] hover:text-black"
                     >
-                      <p className="mb-3 text-center text-xs font-semibold uppercase tracking-[0.18em] text-yellow-200/75">Si tu n’as pas d’idée, utilise</p>
+                      <p className="mb-3 text-center text-xs font-semibold tracking-[0.18em] text-yellow-200/75">Si tu n’as pas d’idée, utilise</p>
                       Créer un scénario marketing
                     </Link>
 
