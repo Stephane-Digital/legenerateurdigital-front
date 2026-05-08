@@ -137,7 +137,7 @@ async function fetchPlanFromBackend(): Promise<Plan> {
 }
 
 
-async function fetchCmoDashboardStrategy(): Promise<CmoDashboardResult> {
+async function fetchCmoDashboardStrategy(progress?: DailyProgress): Promise<CmoDashboardResult> {
   const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
   const token = getStoredToken();
 
@@ -153,13 +153,13 @@ async function fetchCmoDashboardStrategy(): Promise<CmoDashboardResult> {
       Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify({
-      objective: "Aider l'utilisateur LGD à choisir l'action la plus rentable aujourd'hui pour obtenir ou accélérer ses ventes.",
-      niche: "business en ligne, marketing digital, création de contenu, prospection",
+      objective: "Choisir l'action réellement la plus rentable aujourd'hui pour l'utilisateur LGD, sans toujours proposer l'emailing par défaut.",
+      niche: "business en ligne, marketing digital, création de contenu, prospection, conversion, offres digitales",
       audience: "entrepreneurs, créateurs, indépendants et débutants qui veulent vendre avec l'IA",
       offer: "Le Générateur Digital",
-      current_situation: "L'utilisateur arrive sur le dashboard LGD et doit savoir quoi faire maintenant.",
-      constraints: "Réponse courte, actionnable, non technique, orientée vente. Une seule priorité.",
-      preferred_channel: "Coach Alex, Emailing IA, Éditeur intelligent ou Lead Engine selon la meilleure action.",
+      current_situation: `L'utilisateur arrive sur le dashboard LGD et doit savoir quoi faire maintenant. Progression du jour : idée=${progress?.idea ? "oui" : "non"}, contenu=${progress?.content ? "oui" : "non"}, email=${progress?.email ? "oui" : "non"}, offre=${progress?.offer ? "oui" : "non"}.`,
+      constraints: "Réponse courte, actionnable, non technique, orientée vente. Une seule priorité. Ne recommande pas Emailing IA par réflexe : choisis entre Coach Alex, Emailing IA, Éditeur intelligent ou Lead Engine selon le besoin réel et la progression du jour.",
+      preferred_channel: "Choisir dynamiquement le module le plus adapté : Coach Alex pour stratégie/clarification, Emailing IA pour campagne/séquence/relance, Éditeur intelligent pour post/carrousel/visuel, Lead Engine pour landing page/lead magnet/prospection.",
       tone: "premium, humain, direct, motivant",
       user_level: "intermediate",
     }),
@@ -214,15 +214,9 @@ function getCmoModuleTarget(
       countMatches(priorityText, ["post", "contenu", "carrousel", "publication", "réseau", "reseau", "instagram", "linkedin", "éditeur", "editeur"]) * 3 +
       countMatches(contentText, ["post", "contenu", "carrousel", "publication", "réseau", "reseau", "instagram", "linkedin", "éditeur", "editeur"]),
     coach:
-      countMatches(priorityText, ["analyser", "analyse", "ajuster", "stratégie", "strategie", "clarifier", "diagnostic", "approche", "décision", "decision"]) * 3 +
-      countMatches(contentText, ["analyser", "analyse", "ajuster", "stratégie", "strategie", "clarifier", "diagnostic", "approche", "décision", "decision"]),
+      countMatches(priorityText, ["coach", "alex", "plan d'action", "plan d’action", "clarifier", "diagnostic", "mission"]) * 3 +
+      countMatches(contentText, ["coach", "alex", "plan d'action", "plan d’action", "clarifier", "diagnostic", "mission"]),
   };
-
-  // Si le module vient déjà d'être exécuté dans le plan du jour,
-  // le CMO évite de reproposer systématiquement la même action.
-  if (progress?.email) scores.emailing -= 4;
-  if (progress?.content) scores.editor -= 3;
-  if (progress?.offer) scores.lead_engine -= 2;
 
   // Fallback intelligent si le backend renvoie une décision trop générique.
   if (Math.max(...Object.values(scores)) <= 0) {
@@ -617,7 +611,7 @@ export default function DashboardPage() {
     setCmoError(null);
 
     try {
-      const result = await fetchCmoDashboardStrategy();
+      const result = await fetchCmoDashboardStrategy(dailyProgress);
       setCmoResult(result);
     } catch (error) {
       console.error(error);
@@ -839,11 +833,14 @@ export default function DashboardPage() {
                       Le CMO prépare le contexte puis ouvre automatiquement le module le plus adapté.
                     </p>
 
+                    <p className="mt-4 text-center text-sm font-semibold tracking-[0.03em] text-yellow-200/80">
+                      Si tu n’as pas d’idée, utilise
+                    </p>
+
                     <Link
                       href="/dashboard/cmo-v2/scenarios"
                       className="mt-3 inline-flex w-full items-center justify-center rounded-xl border border-[#c99a16]/60 px-4 py-3 text-sm font-black text-[#ffcc00] transition hover:bg-[#ffcc00] hover:text-black"
                     >
-                      <p className="mb-3 text-center text-xs font-semibold tracking-[0.18em] text-yellow-200/75">Si tu n’as pas d’idée, utilise</p>
                       Créer un scénario marketing
                     </Link>
 
