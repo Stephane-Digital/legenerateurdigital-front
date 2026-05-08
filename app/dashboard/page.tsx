@@ -499,7 +499,11 @@ function ModalShell({
   );
 }
 
-export default function DashboardPage() {
+
+const CMO_FALLBACK_BADGE = "Instantané • sans jetons";
+const CMO_LIVE_BADGE = "~ 1 500 à 3 000 jetons";
+const CMO_LIVE_DESCRIPTION = "Analyse stratégique avancée";
+\nexport default function DashboardPage() {
   const router = useRouter();
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -738,7 +742,7 @@ export default function DashboardPage() {
                   </div>
 
                   <h2 className="mt-4 text-2xl sm:text-4xl font-extrabold text-[#ffb800]">
-                    Ton CMO IA a pris une décision pour toi
+                    Ton assistant stratégique LGD a préparé une action pour toi
                   </h2>
 
                   <p className="mt-3 max-w-4xl text-white/75 text-sm sm:text-base">
@@ -830,7 +834,7 @@ export default function DashboardPage() {
                     </div>
 
                     <p className="mt-3 text-center text-xs leading-5 text-white/45">
-                      Le CMO prépare le contexte puis ouvre automatiquement le module le plus adapté.
+                      Le dashboard utilise un moteur intelligent local pour proposer rapidement la meilleure prochaine action.
                     </p>
 
                     <p className="mt-4 text-center text-sm font-semibold tracking-[0.03em] text-yellow-200/80">
