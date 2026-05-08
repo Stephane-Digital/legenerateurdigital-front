@@ -685,8 +685,6 @@ function getRandomLocalCmoAction() {
   return LOCAL_CMO_ACTIONS[nextIndex] || LOCAL_CMO_ACTIONS[0];
 }
 
-const CMO_FALLBACK_BADGE = "Instantané • 0 jeton";
-const CMO_LIVE_BADGE = "Analyse avancée • ~1 500 à 3 000 jetons";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -955,14 +953,6 @@ export default function DashboardPage() {
                     )}
                   </div>
 
-                  <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-[11px] font-semibold tracking-[0.04em]">
-                    <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-emerald-200">
-                      {CMO_FALLBACK_BADGE}
-                    </span>
-                    <span className="rounded-full border border-yellow-400/20 bg-yellow-400/10 px-3 py-1 text-yellow-100">
-                      {CMO_LIVE_BADGE}
-                    </span>
-                  </div>
                 </div>
 
                 <div className="mt-7 grid grid-cols-1 gap-5 lg:grid-cols-[1.35fr_0.75fr]">
