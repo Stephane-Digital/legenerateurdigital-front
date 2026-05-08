@@ -45,7 +45,14 @@ type DailyProgress = {
   offer: boolean;
 };
 
+type AiQuotaSnapshot = {
+  used: number;
+  limit: number;
+  planLabel: string;
+};
+
 type CmoDashboardResult = {
+  local_target?: CmoModuleTarget["key"];
   diagnostic?: string;
   priority_action?: string;
   why_this_action?: string;
@@ -136,6 +143,46 @@ async function fetchPlanFromBackend(): Promise<Plan> {
   return "none";
 }
 
+async function fetchAiQuotaSnapshot(): Promise<AiQuotaSnapshot | null> {
+  const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
+  const token = getStoredToken();
+  if (!token) return null;
+
+  const res = await fetch(`${base}/ai-quota/global`, {
+    method: "GET",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    cache: "no-store",
+  });
+
+  if (!res.ok) throw new Error(`ai-quota/global ${res.status}`);
+
+  const data = (await res.json()) as any;
+  const used = Number(
+    data?.tokens_used ??
+      data?.used_tokens ??
+      data?.tokens_consumed ??
+      data?.monthly_used_tokens ??
+      data?.used ??
+      0
+  );
+  const limit = Number(data?.tokens_limit ?? data?.limit_tokens ?? data?.limit ?? 0);
+  const rawPlan = String(data?.display_plan || data?.plan || data?.current_plan || "").trim();
+
+  return {
+    used: Number.isFinite(used) && used > 0 ? used : 0,
+    limit: Number.isFinite(limit) && limit > 0 ? limit : 0,
+    planLabel: rawPlan ? rawPlan.toUpperCase() : "PLAN",
+  };
+}
+
+function formatQuotaNumber(value: number) {
+  return Math.max(0, Math.round(value)).toLocaleString("fr-FR");
+}
+
 
 async function fetchCmoDashboardStrategy(): Promise<CmoDashboardResult> {
   const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
@@ -184,6 +231,22 @@ function getCmoModuleTarget(
   result: CmoDashboardResult | null,
   progress?: DailyProgress
 ): CmoModuleTarget {
+  if (result?.local_target === "emailing") {
+    return { key: "emailing", label: "Créer avec Emailing IA", path: "/dashboard/email-campaigns" };
+  }
+
+  if (result?.local_target === "lead_engine") {
+    return { key: "lead_engine", label: "Créer avec Leads IA", path: "/dashboard/lead-engine" };
+  }
+
+  if (result?.local_target === "editor") {
+    return { key: "editor", label: "Créer dans l’Éditeur", path: "/dashboard/automatisations/reseaux_sociaux/editor-intelligent" };
+  }
+
+  if (result?.local_target === "coach") {
+    return { key: "coach", label: "Exécuter dans Coach Alex", path: "/dashboard/coach-ia" };
+  }
+
   const priorityText = [result?.priority_action, result?.next_best_action]
     .filter(Boolean)
     .join(" ")
@@ -505,6 +568,45 @@ function ModalShell({
   );
 }
 
+const LOCAL_CMO_ACTIONS: CmoDashboardResult[] = [
+  {
+    local_target: "lead_engine",
+    priority_action: "Créer un lead magnet simple pour capter des prospects aujourd’hui.",
+    diagnostic: "Tu n’as pas besoin d’une grande stratégie maintenant : tu as besoin d’un point d’entrée clair pour transformer ton trafic en contacts qualifiés.",
+    why_this_action: "Une ressource gratuite bien ciblée rassure, donne une première victoire à ton audience et prépare naturellement la vente.",
+    next_best_action: "Lance Lead Engine et construis une promesse courte autour du problème le plus urgent de ton client.",
+    generated_content: { cta: "Créer mon lead magnet" },
+  },
+  {
+    local_target: "emailing",
+    priority_action: "Rédiger un email court pour relancer les prospects qui hésitent.",
+    diagnostic: "Le plus rentable aujourd’hui est de réveiller les contacts déjà intéressés au lieu de repartir de zéro.",
+    why_this_action: "Un email humain peut lever une objection, rappeler la valeur de ton offre et provoquer une réponse rapide.",
+    next_best_action: "Ouvre Emailing IA et prépare une relance orientée bénéfice + passage à l’action.",
+    generated_content: { cta: "Préparer ma relance" },
+  },
+  {
+    local_target: "editor",
+    priority_action: "Créer un post clair qui montre le problème puis la solution.",
+    diagnostic: "Ton audience doit comprendre en quelques secondes pourquoi ton offre l’aide concrètement.",
+    why_this_action: "Un contenu simple et visuel crée de la confiance avant de demander une action commerciale.",
+    next_best_action: "Ouvre l’Éditeur intelligent et transforme ton idée en publication prête à poster.",
+    generated_content: { cta: "Créer mon post" },
+  },
+  {
+    local_target: "coach",
+    priority_action: "Clarifier l’offre avant de produire plus de contenu.",
+    diagnostic: "Si ton message est flou, chaque action suivante perd en puissance. Le bon premier pas est de verrouiller la promesse.",
+    why_this_action: "Une offre plus lisible rend tes emails, posts et pages beaucoup plus faciles à convertir.",
+    next_best_action: "Lance Coach Alex et demande-lui de reformuler ton offre en promesse vendable.",
+    generated_content: { cta: "Clarifier mon offre" },
+  },
+];
+
+function getRandomLocalCmoAction() {
+  return LOCAL_CMO_ACTIONS[Math.floor(Math.random() * LOCAL_CMO_ACTIONS.length)] || LOCAL_CMO_ACTIONS[0];
+}
+
 const CMO_FALLBACK_BADGE = "Instantané • 0 jeton";
 const CMO_LIVE_BADGE = "Analyse avancée • ~1 500 à 3 000 jetons";
 
@@ -520,6 +622,7 @@ export default function DashboardPage() {
   const [cmoResult, setCmoResult] = useState<CmoDashboardResult | null>(null);
   const [cmoLoading, setCmoLoading] = useState(false);
   const [cmoError, setCmoError] = useState<string | null>(null);
+  const [aiQuota, setAiQuota] = useState<AiQuotaSnapshot | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -538,8 +641,11 @@ export default function DashboardPage() {
       if (!cancelled) setIsLoggedIn(true);
 
       try {
-        const p = await fetchPlanFromBackend();
-        if (!cancelled) setPlan(p);
+        const [p, quota] = await Promise.all([fetchPlanFromBackend(), fetchAiQuotaSnapshot()]);
+        if (!cancelled) {
+          setPlan(p);
+          setAiQuota(quota);
+        }
       } catch {
         const fallback = getPlanFromLocalStorage();
         if (!cancelled) setPlan(fallback);
@@ -557,6 +663,7 @@ export default function DashboardPage() {
   useEffect(() => {
     const saved = readDailyProgress();
     setDailyProgress(saved);
+    setCmoResult(getRandomLocalCmoAction());
     setProgressHydrated(true);
   }, []);
 
@@ -613,6 +720,11 @@ export default function DashboardPage() {
       go("/dashboard/lead-engine");
       return;
     }
+  }
+
+  function refreshLocalCmoAction() {
+    setCmoError(null);
+    setCmoResult(getRandomLocalCmoAction());
   }
 
   async function loadCmoLive() {
@@ -751,9 +863,19 @@ export default function DashboardPage() {
                   </h2>
 
                   <p className="mt-3 max-w-4xl text-white/75 text-sm sm:text-base">
-                    LGD analyse ton objectif du jour, choisit l’action la plus rentable et transforme ton dashboard
-                    en centre de décision business.
+                    LGD te propose une action rapide gratuite. L’analyse CMO IA avancée reste disponible uniquement quand tu la demandes.
                   </p>
+
+                  <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#050505] px-4 py-2 text-[12px] font-semibold text-yellow-100 shadow-[0_0_24px_rgba(255,184,0,0.08)]">
+                    <FaRobot className="text-yellow-300" />
+                    {aiQuota ? (
+                      <span>
+                        Quota IA : {formatQuotaNumber(aiQuota.used)} / {formatQuotaNumber(aiQuota.limit)} · {aiQuota.planLabel}
+                      </span>
+                    ) : (
+                      <span>Quota IA : synchronisation…</span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="mt-7 grid grid-cols-1 gap-5 lg:grid-cols-[1.35fr_0.75fr]">
@@ -770,13 +892,13 @@ export default function DashboardPage() {
 
                       <button
                         type="button"
-                        onClick={loadCmoLive}
+                        onClick={refreshLocalCmoAction}
                         disabled={cmoLoading}
                         className="shrink-0 rounded-2xl border border-yellow-400/30 px-4 py-2 text-sm font-semibold text-yellow-200 transition hover:bg-yellow-400/10 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         <span className="inline-flex items-center gap-2">
                           {cmoLoading ? <FaSyncAlt className="animate-spin" /> : null}
-                          {cmoLoading ? "Analyse CMO..." : "Actualiser CMO IA"}
+                          {cmoLoading ? "Analyse CMO..." : "Nouvelle action gratuite"}
                         </span>
                       </button>
                     </div>
@@ -794,7 +916,7 @@ export default function DashboardPage() {
                       </p>
                     ) : (
                       <p className="mt-5 text-sm leading-7 text-white/60">
-                        Clique sur “Actualiser CMO IA” pour générer une décision stratégique.
+                        Une action locale gratuite est proposée automatiquement à chaque chargement.
                       </p>
                     )}
 
@@ -847,7 +969,7 @@ export default function DashboardPage() {
                     </div>
 
                     <p className="mt-3 text-center text-xs leading-5 text-white/45">
-                      Le CMO prépare le contexte puis ouvre automatiquement le module le plus adapté.
+                      L’action locale ouvre le bon module sans consommer de jetons. L’analyse avancée se lance uniquement avec le bouton CMO IA.
                     </p>
 
                     <Link
