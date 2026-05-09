@@ -113,6 +113,24 @@ function sanitizeEmailBodyText(value: unknown) {
     .trim();
 }
 
+
+function syncLegacyAuthTokenForEmailingPage() {
+  if (typeof window === "undefined") return;
+
+  const token =
+    window.localStorage.getItem("access_token") ||
+    window.localStorage.getItem("lgd_token") ||
+    window.localStorage.getItem("token") ||
+    window.localStorage.getItem("jwt") ||
+    "";
+
+  if (!token) return;
+
+  // Sécurité compatibilité LGD : certains sous-composants historiques
+  // de l'Emailing IA lisent encore access_token uniquement.
+  window.localStorage.setItem("access_token", token);
+}
+
 function getCtaForDay(value: unknown, day: number) {
   const raw = asCleanString(value);
   const generic =
@@ -459,6 +477,10 @@ function buildCmoEmailValues(
 }
 
 export default function EmailCampaignsPage() {
+  useEffect(() => {
+    syncLegacyAuthTokenForEmailingPage();
+  }, []);
+
   const [values, setValues] = useState<EmailCampaignFormValues>(
     defaultEmailCampaignValues,
   );
