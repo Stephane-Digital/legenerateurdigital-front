@@ -240,11 +240,10 @@ export default function EmailCampaignGenerator({
           <select
             className={inputClass}
             value={values.duration_days}
-            onChange={(e) => update("duration_days", Number(e.target.value) as 7 | 14 | 30)}
+            onChange={(e) => update("duration_days", Number(e.target.value) as 5 | 7)}
           >
+            <option value={5}>5 jours</option>
             <option value={7}>7 jours</option>
-            <option value={14}>14 jours</option>
-            <option value={30}>30 jours</option>
           </select>
         </div>
 
