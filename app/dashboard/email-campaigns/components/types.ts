@@ -6,7 +6,7 @@ export type EmailType = "nurture" | "vente" | "objection" | "relance";
 export type EmailCampaignFormValues = {
   name: string;
   campaign_type: CampaignType;
-  duration_days: 7 | 14 | 30;
+  duration_days: 5 | 7;
   sender_name: string;
   offer_name: string;
   target_audience: string;
@@ -75,7 +75,7 @@ export type SavedEmailCampaignItem = {
 export const defaultEmailCampaignValues: EmailCampaignFormValues = {
   name: "",
   campaign_type: "vente",
-  duration_days: 7,
+  duration_days: 5 as const,
   sender_name: "",
   offer_name: "",
   target_audience: "",
