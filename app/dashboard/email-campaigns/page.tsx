@@ -114,21 +114,101 @@ function sanitizeEmailBodyText(value: unknown) {
 }
 
 
+let lgdEmailingFetchAuthGuardInstalled = false;
+
+function getLgdAuthTokenForEmailingPage() {
+  if (typeof window === "undefined") return "";
+
+  const candidates = [
+    window.localStorage.getItem("lgd_token"),
+    window.localStorage.getItem("access_token"),
+    window.localStorage.getItem("token"),
+    window.localStorage.getItem("jwt"),
+  ]
+    .map((value) => (value || "").trim())
+    .filter(Boolean);
+
+  return candidates.find((value) => value.split(".").length >= 3) || candidates[0] || "";
+}
+
 function syncLegacyAuthTokenForEmailingPage() {
   if (typeof window === "undefined") return;
 
-  const token =
-    window.localStorage.getItem("access_token") ||
-    window.localStorage.getItem("lgd_token") ||
-    window.localStorage.getItem("token") ||
-    window.localStorage.getItem("jwt") ||
-    "";
-
+  const token = getLgdAuthTokenForEmailingPage();
   if (!token) return;
 
-  // Sécurité compatibilité LGD : certains sous-composants historiques
-  // de l'Emailing IA lisent encore access_token uniquement.
+  // Sécurité compatibilité LGD : les sous-composants historiques
+  // de l'Emailing IA ne lisent pas tous la même clé localStorage.
   window.localStorage.setItem("access_token", token);
+  window.localStorage.setItem("lgd_token", token);
+  window.localStorage.setItem("token", token);
+
+  if (!window.localStorage.getItem("jwt")) {
+    window.localStorage.setItem("jwt", token);
+  }
+}
+
+function shouldAttachAuthHeaderToEmailingRequest(input: RequestInfo | URL) {
+  const rawUrl =
+    typeof input === "string"
+      ? input
+      : input instanceof URL
+        ? input.toString()
+        : input.url;
+
+  return (
+    rawUrl.includes("/email-campaigns") ||
+    rawUrl.includes("/ai-quota") ||
+    rawUrl.includes("/cmo-ai") ||
+    rawUrl.includes("/cmo-scenarios")
+  );
+}
+
+function buildEmailingAuthHeaders(
+  baseHeaders?: HeadersInit,
+  overrideHeaders?: HeadersInit,
+) {
+  const headers = new Headers(baseHeaders);
+
+  if (overrideHeaders) {
+    new Headers(overrideHeaders).forEach((value, key) => {
+      headers.set(key, value);
+    });
+  }
+
+  const token = getLgdAuthTokenForEmailingPage();
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  return headers;
+}
+
+function installEmailingFetchAuthGuard() {
+  if (typeof window === "undefined" || lgdEmailingFetchAuthGuardInstalled) return;
+
+  lgdEmailingFetchAuthGuardInstalled = true;
+  const originalFetch = window.fetch.bind(window);
+
+  window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+    try {
+      syncLegacyAuthTokenForEmailingPage();
+
+      if (!shouldAttachAuthHeaderToEmailingRequest(input)) {
+        return originalFetch(input, init);
+      }
+
+      const requestHeaders = input instanceof Request ? input.headers : undefined;
+      const headers = buildEmailingAuthHeaders(requestHeaders, init?.headers);
+
+      return originalFetch(input, {
+        ...init,
+        headers,
+      });
+    } catch {
+      return originalFetch(input, init);
+    }
+  };
 }
 
 function getCtaForDay(value: unknown, day: number) {
@@ -399,11 +479,11 @@ NOTE LGD :
 
   return {
     campaignName:
-      asCleanString(ready?.campaignName) || "CMO IA - Séquence humaine V7",
+      asCleanString(ready?.campaignName) || "CMO IA - Séquence humaine V5",
     campaign_name:
-      asCleanString(ready?.campaignName) || "CMO IA - Séquence humaine V7",
+      asCleanString(ready?.campaignName) || "CMO IA - Séquence humaine V5",
     campaign_type: ready?.campaignType || inferCampaignType(payload),
-    duration_days: 7,
+    duration_days: 5 as const,
     sender_name: "Alex IA",
     emails: normalizedEmails,
     plainTextExport,
@@ -440,7 +520,7 @@ function buildCmoEmailValues(
         ? `CMO IA - ${shortText(priorityAction, 70)}`
         : "CMO IA - Campagne prioritaire"),
     campaign_type: ready?.campaignType || inferCampaignType(payload),
-    duration_days: 7,
+    duration_days: 5 as const,
     offer_name:
       asCleanString(ready?.offerName) ||
       asCleanString(payload.offer) ||
@@ -477,8 +557,14 @@ function buildCmoEmailValues(
 }
 
 export default function EmailCampaignsPage() {
+  if (typeof window !== "undefined") {
+    syncLegacyAuthTokenForEmailingPage();
+    installEmailingFetchAuthGuard();
+  }
+
   useEffect(() => {
     syncLegacyAuthTokenForEmailingPage();
+    installEmailingFetchAuthGuard();
   }, []);
 
   const [values, setValues] = useState<EmailCampaignFormValues>(
@@ -598,7 +684,7 @@ export default function EmailCampaignsPage() {
                 Campagnes E-mailing IA
               </h1>
               <p className="mt-3 max-w-3xl text-sm leading-7 text-zinc-400 md:text-base">
-                Générez des séquences email 7, 14 ou 30 jours, sauvegardez-les
+                Générez des séquences email 5 ou 7 jours, sauvegardez-les
                 dans LGD puis préparez leur diffusion via Systeme.io dans un
                 workflow premium, stable et isolé.
               </p>
