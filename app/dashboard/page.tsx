@@ -975,7 +975,7 @@ export default function DashboardPage() {
                       >
                         <span className="inline-flex items-center gap-2">
                           {cmoLoading ? <FaSyncAlt className="animate-spin" /> : null}
-                          Nouvelle action gratuite
+                          Autre proposition
                         </span>
                       </button>
                     </div>
