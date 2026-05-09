@@ -89,12 +89,17 @@ function normalizeSequence(input: unknown): EmailSequenceResponse | null {
   };
 }
 
+function normalizeDurationDays(value: unknown): 5 | 7 {
+  const numeric = Number(value || 7);
+  return numeric === 5 ? 5 : 7;
+}
+
 function buildFormValues(item: SavedEmailCampaignItem): EmailCampaignFormValues {
   return {
     ...defaultEmailCampaignValues,
     name: item.name || "",
     campaign_type: (item.campaign_type || "vente") as any,
-    duration_days: (item.duration_days || 7) as 7 | 14 | 30,
+    duration_days: normalizeDurationDays(item.duration_days),
     sender_name: item.sender_name || "",
     offer_name: item.offer_name || "",
     target_audience: item.target_audience || "",
