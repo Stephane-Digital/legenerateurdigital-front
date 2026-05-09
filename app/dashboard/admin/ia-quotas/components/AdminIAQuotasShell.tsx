@@ -80,7 +80,8 @@ function toInt(n: any): number {
 }
 
 function planDefaultDailyLimit(plan: Plan): number {
-  // Rappel LGD (limite / jour)
+  // Rappel LGD : limites mensuelles stockées côté backend.
+  // Le quota journalier affiché dans Coach = limite mensuelle / 30.
   if (plan === "azur") return 70_000;
   if (plan === "pro") return 1_000_000;
   if (plan === "ultime") return 2_500_000;
@@ -126,7 +127,7 @@ export default function AdminIAQuotasShell() {
     admin_key: "lgd_admin_1234",
     q: "",
     plan: undefined,
-    feature: undefined,
+    feature: "global",
     page: 1,
     page_size: 10,
   });
@@ -404,8 +405,8 @@ export default function AdminIAQuotasShell() {
 
   // Quick tests panel state
   const [quickUserId, setQuickUserId] = useState<string>("");
-  const [quickLimit, setQuickLimit] = useState<string>("200000");
-  const [quickFeature, setQuickFeature] = useState<Feature>("coach");
+  const [quickLimit, setQuickLimit] = useState<string>("2500000");
+  const [quickFeature, setQuickFeature] = useState<Feature>("global");
   const quickUserIdInt = useMemo(() => Number(quickUserId), [quickUserId]);
 
   return (
@@ -525,8 +526,8 @@ export default function AdminIAQuotasShell() {
                     <th className="px-4 py-3 min-w-[110px]">Plan</th>
                     <th className="px-4 py-3 min-w-[110px]">Feature</th>
                     <th className="px-4 py-3 min-w-[120px] text-right">Used</th>
-                    <th className="px-4 py-3 min-w-[140px] text-right">Limit / jour</th>
-                    <th className="px-4 py-3 min-w-[140px] text-right">Remaining</th>
+                    <th className="px-4 py-3 min-w-[140px] text-right">Limit / mois</th>
+                    <th className="px-4 py-3 min-w-[140px] text-right">Restant / mois</th>
                     <th className="px-4 py-3 min-w-[80px] text-right">%</th>
                     <th className="px-4 py-3 min-w-[360px]">Actions</th>
                   </tr>
@@ -634,7 +635,7 @@ export default function AdminIAQuotasShell() {
               </div>
 
               <div className="flex-1">
-                <label className="text-xs text-zinc-500">limit_tokens / jour</label>
+                <label className="text-xs text-zinc-500">limit_tokens / mois</label>
                 <input
                   className="mt-1 h-11 w-full rounded-xl bg-black/40 border border-yellow-500/20 px-4 text-zinc-200 outline-none focus:border-yellow-500/40"
                   value={quickLimit}
@@ -689,7 +690,7 @@ export default function AdminIAQuotasShell() {
             </div>
 
             <div className="mt-3 text-xs text-zinc-600">
-              Rappel limites / jour : Essentiel 400 000 • Pro 1 000 000 • Ultime 2 500 000.
+              Rappel limites / mois : Essentiel 400 000 • Pro 1 000 000 • Ultime 2 500 000. Le quota jour réel = limite mensuelle / 30.
             </div>
           </div>
         </div>
