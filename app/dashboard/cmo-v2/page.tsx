@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { buildPayload } from "../lib/buildPayload";
-import { buildFallbackDispatch } from "../lib/buildStrategy";
+import { buildPayload } from "./lib/buildPayload";
+import { buildFallbackDispatch } from "./lib/buildStrategy";
 
 type OfferType = "formation" | "ebook" | "coaching" | "saas" | "service";
 type ProspectLevel = "debutant" | "bloque" | "avance_non_rentable";
