@@ -537,6 +537,31 @@ Situation actuelle : `,
                   </label>
                 </div>
 
+                <button
+                  type="button"
+                  onClick={generateScenarios}
+                  disabled={!canGenerate || isGenerating}
+                  className="w-full rounded-2xl bg-[#ffc400] px-5 py-4 text-sm font-black text-black transition hover:bg-[#ffd84a] disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  {isGenerating
+                    ? "Génération IA en cours..."
+                    : "Générer mes scénarios"}
+                </button>
+
+                {scenarios.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setScenarios([]);
+                      setSelectedId(null);
+                      localStorage.removeItem("lgd_cmo_scenarios_session");
+                    }}
+                    className="w-full rounded-2xl border border-yellow-600/20 bg-black/40 px-5 py-3 text-sm font-bold text-white/80 transition hover:bg-yellow-500/10"
+                  >
+                    Réinitialiser les scénarios
+                  </button>
+                ) : null}
+
                 {errorMessage ? (
                   <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm leading-6 text-red-200">
                     {errorMessage}
