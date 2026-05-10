@@ -1043,12 +1043,6 @@ export default function DashboardPage() {
                       L’action locale ouvre le bon module sans consommer de jetons. L’analyse avancée se lance uniquement avec le bouton CMO IA.
                     </p>
 
-                    <Link
-                      href="/dashboard/cmo-v2/scenarios"
-                      className="mt-3 inline-flex w-full items-center justify-center rounded-xl border border-[#c99a16]/60 px-4 py-3 text-sm font-black text-[#ffcc00] transition hover:bg-[#ffcc00] hover:text-black"
-                    >
-                      Créer un scénario marketing
-                    </Link>
 
                     {cmoResult?.generated_content?.cta ? (
                       <div className="mt-5 rounded-2xl border border-yellow-600/15 bg-black/35 px-4 py-3">
