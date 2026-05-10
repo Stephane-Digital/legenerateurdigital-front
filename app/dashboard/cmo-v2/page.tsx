@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { buildPayload } from "./lib/buildPayload";
-import { buildFallbackDispatch } from "./lib/buildStrategy";
+import { buildPayload } from "../lib/buildPayload";
+import { buildFallbackDispatch } from "../lib/buildStrategy";
 
 type OfferType = "formation" | "ebook" | "coaching" | "saas" | "service";
 type ProspectLevel = "debutant" | "bloque" | "avance_non_rentable";
@@ -40,27 +40,6 @@ const initialForm: ScenarioForm = {
 };
 
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
-
-function getAuthToken(): string {
-  if (typeof window === "undefined") return "";
-
-  return (
-    window.localStorage.getItem("access_token") ||
-    window.localStorage.getItem("lgd_token") ||
-    window.localStorage.getItem("token") ||
-    window.localStorage.getItem("jwt") ||
-    ""
-  );
-}
-
-function getAuthHeaders(): HeadersInit {
-  const token = getAuthToken();
-
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
 
 function parseScenarioContent(value: unknown): unknown {
   if (typeof value !== "string") return value;
@@ -220,7 +199,9 @@ export default function CMOScenariosPage() {
     try {
       const response = await fetch(`${API_BASE_URL}/cmo-scenarios/generate`, {
         method: "POST",
-        headers: getAuthHeaders(),
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(form),
       });
 
