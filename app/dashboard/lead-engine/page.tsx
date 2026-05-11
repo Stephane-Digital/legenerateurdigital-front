@@ -828,6 +828,22 @@ export default function LeadEnginePage() {
   const [cmoLoading, setCmoLoading] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
+  const aiResultSections = useMemo(() => {
+    if (aiLastGoal !== "landing_complete") return [];
+    const sections = parseLeadSections(aiResult);
+    if (sections.length <= 1 && sections[0]?.title === "CONTENU LANDING") return [];
+
+    return sections
+      .filter((section) => section.body.trim().length > 0)
+      .sort((a, b) => {
+        const indexA = LEAD_SECTION_ORDER.indexOf(a.title);
+        const indexB = LEAD_SECTION_ORDER.indexOf(b.title);
+        const safeA = indexA === -1 ? 999 : indexA;
+        const safeB = indexB === -1 ? 999 : indexB;
+        return safeA - safeB;
+      });
+  }, [aiLastGoal, aiResult]);
+
 
   function syncQuotaFromPayload(raw: any) {
     if (!raw || typeof raw !== "object") return;
@@ -1056,6 +1072,72 @@ export default function LeadEnginePage() {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(structured.layers));
       window.localStorage.setItem(STORAGE_CANVAS_HEIGHT_KEY, String(structured.canvasHeight));
       window.localStorage.setItem(STORAGE_CTA_KEY, normalizeExportUrl(ctaUrl));
+    } catch {
+      // noop
+    }
+  }
+
+  function injectSingleAiSection(section: LeadSection, index: number) {
+    const cleanTitle = section.title.trim() || `BLOC ${index + 1}`;
+    const cleanBody = section.body.trim();
+    if (!cleanBody) return;
+
+    const baseY = Math.max(120, canvasHeight - 420);
+    const nextHeight = Math.max(canvasHeight, baseY + 420);
+    const stamp = Date.now();
+
+    const nextLayers: LayerData[] = [
+      ...normalizeLayersSnapshot(layers),
+      {
+        id: `lead-ai-block-title-${stamp}-${index}`,
+        type: "text",
+        x: 84,
+        y: baseY,
+        width: 760,
+        height: 56,
+        visible: true,
+        selected: false,
+        zIndex: 80 + index * 2,
+        text: cleanTitle,
+        style: {
+          fontSize: 30,
+          fontFamily: "Inter",
+          color: "#ffb800",
+          fontWeight: 900,
+          lineHeight: 1.1,
+        },
+      } as LayerData,
+      {
+        id: `lead-ai-block-body-${stamp}-${index}`,
+        type: "text",
+        x: 84,
+        y: baseY + 72,
+        width: 820,
+        height: 260,
+        visible: true,
+        selected: false,
+        zIndex: 81 + index * 2,
+        text: cleanBody,
+        style: {
+          fontSize: 22,
+          fontFamily: "Inter",
+          color: "#ffffff",
+          fontWeight: 600,
+          lineHeight: 1.3,
+        },
+      } as LayerData,
+    ];
+
+    setLayers(nextLayers);
+    setInitialLayers(nextLayers);
+    setCanvasHeight(nextHeight);
+    setEditorKey((value) => value + 1);
+    setLastSavedAt(new Date().toLocaleTimeString());
+    persistLayers(nextLayers);
+
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextLayers));
+      window.localStorage.setItem(STORAGE_CANVAS_HEIGHT_KEY, String(nextHeight));
     } catch {
       // noop
     }
@@ -1654,6 +1736,38 @@ export default function LeadEnginePage() {
                     <div className="mt-2 text-xs text-white/40">
                       LGD prépare une réponse premium.
                     </div>
+                  </div>
+                ) : aiResultSections.length > 0 ? (
+                  <div className="mt-4 max-h-[520px] space-y-3 overflow-y-auto pr-1">
+                    {aiResultSections.map((section, index) => (
+                      <div
+                        key={`${section.title}-${index}`}
+                        className="rounded-2xl border border-yellow-600/20 bg-black/30 p-4"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="text-xs font-bold uppercase tracking-[0.18em] text-yellow-300">
+                              Bloc {index + 1}
+                            </div>
+                            <div className="mt-1 text-sm font-semibold text-white">
+                              {section.title}
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => injectSingleAiSection(section, index)}
+                            className="shrink-0 rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-3 py-2 text-xs font-semibold text-yellow-200 hover:bg-yellow-500/15"
+                          >
+                            Injecter ce bloc
+                          </button>
+                        </div>
+
+                        <pre className="mt-3 whitespace-pre-wrap rounded-xl border border-yellow-600/10 bg-[#050505] p-3 text-sm leading-relaxed text-white/85">
+                          {section.body}
+                        </pre>
+                      </div>
+                    ))}
                   </div>
                 ) : (
                   <textarea
