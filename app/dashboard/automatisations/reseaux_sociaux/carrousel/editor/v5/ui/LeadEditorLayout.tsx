@@ -1062,7 +1062,7 @@ export default function EditorLayout({
     if (action === "variants") {
       return `${base} | Retourne exactement 4 variantes marketing en français, une par ligne, avec des angles nettement différents.`;
     }
-    return `${base} | Retourne une landing structurée avec les lignes préfixées exactement ainsi : HERO:, SUBTITLE:, CTA:, BENEFIT:, BENEFIT:, BENEFIT:, CLOSING:.`;
+    return `${base} | Retourne une landing lead magnet complète en blocs séparés exactement sous cette forme : BLOC 1 — HERO, BLOC 2 — DOULEUR / IDENTIFICATION, BLOC 3 — PROMESSE LEAD MAGNET, BLOC 4 — BENEFICES, BLOC 5 — MECANISME, BLOC 6 — REASSURANCE, BLOC 7 — CTA FINAL, BLOC 8 — MICRO FAQ. Respecte la longueur max cible et garde chaque bloc injectable séparément.`;
   }
 
   async function saveCopilotMemory(action: CopilotAction) {
@@ -1108,34 +1108,140 @@ export default function EditorLayout({
     if (!text) return [];
 
     if (action === "landing") {
-      const lines = text.split(/\n+/).map((line) => line.trim()).filter(Boolean);
+      const source = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
+      const rawLines = source.split("\n").map((line) => line.trim()).filter(Boolean);
       const items: GeneratedItem[] = [];
-      let benefitIndex = 1;
 
-      for (const line of lines) {
+      const inferKind = (label: string): GeneratedItem["kind"] => {
+        const key = label.toLowerCase();
+        if (key.includes("hero") || key.includes("hook") || key.includes("titre")) return "hook";
+        if (key.includes("sous-titre") || key.includes("subtitle") || key.includes("identification") || key.includes("douleur")) return "subtitle";
+        if (key.includes("cta")) return "cta";
+        if (key.includes("bénéf") || key.includes("benef") || key.includes("lead magnet") || key.includes("promesse") || key.includes("mécanisme") || key.includes("mecanisme")) return "benefit";
+        return "closing";
+      };
+
+      const cleanHeading = (value: string) =>
+        value
+          .replace(/^#+\s*/, "")
+          .replace(/^\*+|\*+$/g, "")
+          .replace(/\s+/g, " ")
+          .trim();
+
+      const isKnownHeading = (value: string) => {
+        const key = value.toLowerCase();
+        return (
+          key === "hero" ||
+          key.includes("hero") ||
+          key.includes("hook") ||
+          key.includes("identification") ||
+          key.includes("douleur") ||
+          key.includes("lead magnet") ||
+          key.includes("promesse") ||
+          key.includes("bénéfice") ||
+          key.includes("benefice") ||
+          key.includes("benefit") ||
+          key.includes("mécanisme") ||
+          key.includes("mecanisme") ||
+          key.includes("réassurance") ||
+          key.includes("reassurance") ||
+          key.includes("objection") ||
+          key.includes("faq") ||
+          key.includes("cta") ||
+          key.includes("prioritaire") ||
+          key.includes("closing")
+        );
+      };
+
+      const blockHeading = (line: string) => {
+        const cleaned = cleanHeading(line);
+        const blocMatch = cleaned.match(/^BLOC\s*(\d+)\s*(?:[—–\-:]+\s*)?(.*)$/i);
+        if (blocMatch) {
+          const index = blocMatch[1];
+          const title = cleanHeading(blocMatch[2] || `Bloc ${index}`);
+          return `Bloc ${index}${title ? ` — ${title}` : ""}`;
+        }
+
+        const upper = cleaned.toUpperCase();
+        if (/^[A-ZÀ-Ÿ0-9\s\/\-–—:]{3,70}$/.test(upper) && isKnownHeading(cleaned)) {
+          return cleaned.replace(/\s*:\s*$/, "");
+        }
+
+        return "";
+      };
+
+      let currentLabel = "";
+      let currentLines: string[] = [];
+
+      const flush = () => {
+        const body = currentLines.join("\n").trim();
+        if (!currentLabel || !body) return;
+        items.push({
+          id: `ai-landing-${items.length + 1}`,
+          kind: inferKind(currentLabel),
+          label: currentLabel,
+          text: body,
+        });
+      };
+
+      for (const line of rawLines) {
+        const heading = blockHeading(line);
+        if (heading) {
+          flush();
+          currentLabel = heading;
+          currentLines = [];
+          continue;
+        }
+
+        if (!currentLabel) {
+          const prefixMatch = line.match(/^(HERO|SUBTITLE|SOUS[-\s]?TITRE|TITRE|CTA|URL CTA|BENEFIT|BÉNÉFICE|BENEFICE|CLOSING)\s*:\s*(.*)$/i);
+          if (prefixMatch) {
+            const label = prefixMatch[1].toUpperCase();
+            const body = prefixMatch[2].trim();
+            if (body) {
+              items.push({
+                id: `ai-landing-${items.length + 1}`,
+                kind: inferKind(label),
+                label: label === "SUBTITLE" ? "Sous-titre" : label,
+                text: body,
+              });
+            }
+            continue;
+          }
+        }
+
+        currentLines.push(line);
+      }
+      flush();
+
+      if (items.length > 0) return items;
+
+      const legacyItems: GeneratedItem[] = [];
+      let benefitIndex = 1;
+      for (const line of rawLines) {
         if (/^HERO\s*:/i.test(line)) {
-          items.push({ id: `ai-hero-${benefitIndex}`, kind: "hook", label: "Hero", text: line.replace(/^HERO\s*:/i, "").trim() });
+          legacyItems.push({ id: `ai-hero-${legacyItems.length + 1}`, kind: "hook", label: "Hero", text: line.replace(/^HERO\s*:/i, "").trim() });
           continue;
         }
-        if (/^SUBTITLE\s*:/i.test(line)) {
-          items.push({ id: `ai-subtitle-${benefitIndex}`, kind: "subtitle", label: "Sous-titre", text: line.replace(/^SUBTITLE\s*:/i, "").trim() });
+        if (/^SUBTITLE\s*:/i.test(line) || /^SOUS[-\s]?TITRE\s*:/i.test(line)) {
+          legacyItems.push({ id: `ai-subtitle-${legacyItems.length + 1}`, kind: "subtitle", label: "Sous-titre", text: line.replace(/^(SUBTITLE|SOUS[-\s]?TITRE)\s*:/i, "").trim() });
           continue;
         }
-        if (/^CTA\s*:/i.test(line)) {
-          items.push({ id: `ai-cta-${benefitIndex}`, kind: "cta", label: "CTA principal", text: line.replace(/^CTA\s*:/i, "").trim() });
+        if (/^CTA(?:\s+PRINCIPAL)?\s*:/i.test(line)) {
+          legacyItems.push({ id: `ai-cta-${legacyItems.length + 1}`, kind: "cta", label: "CTA principal", text: line.replace(/^CTA(?:\s+PRINCIPAL)?\s*:/i, "").trim() });
           continue;
         }
-        if (/^BENEFIT\s*:/i.test(line)) {
-          items.push({ id: `ai-benefit-${benefitIndex}`, kind: "benefit", label: `Bénéfice ${benefitIndex}`, text: line.replace(/^BENEFIT\s*:/i, "").trim() });
+        if (/^(BENEFIT|BÉNÉFICE|BENEFICE)\s*:/i.test(line)) {
+          legacyItems.push({ id: `ai-benefit-${benefitIndex}`, kind: "benefit", label: `Bénéfice ${benefitIndex}`, text: line.replace(/^(BENEFIT|BÉNÉFICE|BENEFICE)\s*:/i, "").trim() });
           benefitIndex += 1;
           continue;
         }
         if (/^CLOSING\s*:/i.test(line)) {
-          items.push({ id: `ai-closing-${benefitIndex}`, kind: "closing", label: "Closing", text: line.replace(/^CLOSING\s*:/i, "").trim() });
+          legacyItems.push({ id: `ai-closing-${legacyItems.length + 1}`, kind: "closing", label: "Closing", text: line.replace(/^CLOSING\s*:/i, "").trim() });
         }
       }
 
-      if (items.length > 0) return items;
+      if (legacyItems.length > 0) return legacyItems;
       return [{ id: "ai-landing-fallback", kind: "closing", label: "Landing complète", text }];
     }
 
@@ -1187,6 +1293,13 @@ export default function EditorLayout({
             brief,
             emotional_style: `${briefTone}, humain, premium, sincère, expert marketing digital`,
             business_context: buildCopilotBusinessContext(action),
+            objective: briefGoal,
+            angle: briefAngle,
+            audience: briefAudience,
+            tone: briefTone,
+            max_length: briefLength,
+            cta_url: ctaUrl || "",
+            page_type: briefGoal === "leads" || briefGoal === "optin" || briefAngle === "lead-magnet" ? "lead_magnet" : "landing_page",
           }),
         });
 
@@ -1384,7 +1497,7 @@ export default function EditorLayout({
                     <input
                       type="number"
                       min={40}
-                      max={400}
+                      max={10000}
                       value={briefLength}
                       onChange={(e) => setBriefLength(Number(e.target.value) || 120)}
                       className="w-full rounded-2xl border border-yellow-500/15 bg-black/40 px-4 py-3 text-sm text-white/85 outline-none"
