@@ -574,8 +574,15 @@ export default function LeadEnginePage() {
 
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        handleQuotaExceeded(data);
-        throw new Error(typeof (data as any)?.detail === "string" ? (data as any).detail : "Erreur IA");
+        const detail = (data as any)?.detail;
+        const isQuotaError = response.status === 402 || response.status === 429 || String(detail || "").toLowerCase().includes("quota");
+
+        if (isQuotaError) {
+          handleQuotaExceeded(data);
+          return;
+        }
+
+        throw new Error(typeof detail === "string" ? detail : "Erreur IA");
       }
 
       const content = String((data as any)?.content || "");
