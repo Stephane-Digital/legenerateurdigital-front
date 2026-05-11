@@ -40,6 +40,19 @@ const DEFAULT_AI_QUOTA: AIQuotaState = {
   tokens_limit: 0,
 };
 
+function getAuthHeaders(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+
+  const token =
+    window.localStorage.getItem("access_token") ||
+    window.localStorage.getItem("lgd_token") ||
+    window.localStorage.getItem("token") ||
+    window.localStorage.getItem("jwt") ||
+    "";
+
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 function normalizeLayersSnapshot(raw: LayerData[] | null | undefined): LayerData[] {
   if (!Array.isArray(raw)) return [];
 
@@ -417,6 +430,7 @@ export default function LeadEnginePage() {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/ai-quota/global`, {
         method: "GET",
         credentials: "include",
+        headers: getAuthHeaders(),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) return;
@@ -529,6 +543,7 @@ export default function LeadEnginePage() {
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
+          ...getAuthHeaders(),
         },
         body: JSON.stringify({
           memory_type: "lead_brief",
@@ -563,6 +578,7 @@ export default function LeadEnginePage() {
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
+          ...getAuthHeaders(),
         },
         body: JSON.stringify({
           goal,
