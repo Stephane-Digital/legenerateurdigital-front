@@ -567,7 +567,7 @@ export default function LeadEnginePage() {
     return () => window.clearTimeout(timer);
   }, [aiBrief]);
 
-  async function generateWithAI(goal: string) {
+  async function generateWithAI(goal: string, forcedBrief?: string) {
     try {
       setAiLoading(true);
       setAiLastGoal(goal as typeof aiLastGoal);
@@ -582,8 +582,8 @@ export default function LeadEnginePage() {
         },
         body: JSON.stringify({
           goal,
-          brief: aiBrief || "Créer une landing premium orientée conversion.",
-          emotional_style: "humain, authentique, expert, sincère, orienté conversion",
+          brief: forcedBrief || aiBrief || "Créer une landing premium orientée conversion.",
+          emotional_style: goal === "rewrite_landing" ? "réécriture courte, claire, landing, sans pavé" : "humain, authentique, expert, sincère, orienté conversion",
           business_context: `lead generation premium | cta_url=${normalizeExportUrl(ctaUrl)}`,
         }),
       });
@@ -614,7 +614,9 @@ export default function LeadEnginePage() {
   }
 
   function rewritePremiumResult() {
-    void generateWithAI(aiLastGoal || aiGoal);
+    const source = aiResult.trim() || aiBrief.trim();
+    if (!source) return;
+    void generateWithAI("rewrite_landing", source);
   }
 
   function clearPremiumResult() {
@@ -1169,10 +1171,10 @@ export default function LeadEnginePage() {
                   <button
                     type="button"
                     onClick={rewritePremiumResult}
-                    disabled={aiLoading || !aiBrief.trim() || aiQuota.remaining <= 0}
+                    disabled={aiLoading || (!aiResult.trim() && !aiBrief.trim()) || aiQuota.remaining <= 0}
                     className="rounded-2xl border border-yellow-600/20 bg-yellow-500/10 px-5 py-3 font-semibold text-yellow-200 disabled:opacity-50"
                   >
-                    Réécrire
+                    Réécrire court
                   </button>
 
                   <button
@@ -1252,4 +1254,3 @@ export default function LeadEnginePage() {
     </div>
   );
 }
-
