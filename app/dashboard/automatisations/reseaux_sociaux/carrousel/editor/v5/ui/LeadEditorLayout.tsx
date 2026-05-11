@@ -1062,7 +1062,7 @@ export default function EditorLayout({
     if (action === "variants") {
       return `${base} | Retourne exactement 4 variantes marketing en français, une par ligne, avec des angles nettement différents.`;
     }
-    return `${base} | Retourne une landing lead magnet complète en blocs séparés exactement sous cette forme : BLOC 1 — HERO, BLOC 2 — DOULEUR / IDENTIFICATION, BLOC 3 — PROMESSE LEAD MAGNET, BLOC 4 — BENEFICES, BLOC 5 — MECANISME, BLOC 6 — REASSURANCE, BLOC 7 — CTA FINAL, BLOC 8 — MICRO FAQ. Respecte la longueur max cible et garde chaque bloc injectable séparément.`;
+    return `${base} | IMPORTANT: bouton Landing complète. Retourne une landing lead magnet complète en blocs séparés. Format obligatoire: BLOC 1 — HERO, BLOC 2 — DOULEUR / IDENTIFICATION, BLOC 3 — PROMESSE LEAD MAGNET, BLOC 4 — BENEFICES, BLOC 5 — MECANISME, BLOC 6 — REASSURANCE, BLOC 7 — CTA FINAL, BLOC 8 — MICRO FAQ. Respecte la longueur max cible=${briefLength} caractères environ. Objectif=${briefGoal}. Angle=${briefAngle}. Audience=${briefAudience}. Ton=${briefTone}. URL CTA=${ctaUrl || "non précisée"}. Chaque bloc doit être injectable séparément. Ne retourne pas un seul CTA isolé.`;
   }
 
   async function saveCopilotMemory(action: CopilotAction) {
@@ -1115,9 +1115,9 @@ export default function EditorLayout({
       const inferKind = (label: string): GeneratedItem["kind"] => {
         const key = label.toLowerCase();
         if (key.includes("hero") || key.includes("hook") || key.includes("titre")) return "hook";
-        if (key.includes("sous-titre") || key.includes("subtitle") || key.includes("identification") || key.includes("douleur")) return "subtitle";
+        if (key.includes("douleur") || key.includes("identification") || key.includes("sous-titre") || key.includes("subtitle")) return "subtitle";
         if (key.includes("cta")) return "cta";
-        if (key.includes("bénéf") || key.includes("benef") || key.includes("lead magnet") || key.includes("promesse") || key.includes("mécanisme") || key.includes("mecanisme")) return "benefit";
+        if (key.includes("bénéf") || key.includes("benef") || key.includes("promesse") || key.includes("lead magnet") || key.includes("mécanisme") || key.includes("mecanisme")) return "benefit";
         return "closing";
       };
 
@@ -1128,16 +1128,23 @@ export default function EditorLayout({
           .replace(/\s+/g, " ")
           .trim();
 
-      const isKnownHeading = (value: string) => {
-        const key = value.toLowerCase();
-        return (
+      const isHeading = (line: string) => {
+        const cleaned = cleanHeading(line).replace(/\s*:\s*$/, "");
+        const bloc = cleaned.match(/^BLOC\s*(\d+)\s*(?:[—–\-:]+\s*)?(.*)$/i);
+        if (bloc) {
+          const title = cleanHeading(bloc[2] || `Bloc ${bloc[1]}`);
+          return `Bloc ${bloc[1]}${title ? ` — ${title}` : ""}`;
+        }
+
+        const key = cleaned.toLowerCase();
+        const known =
           key === "hero" ||
           key.includes("hero") ||
           key.includes("hook") ||
-          key.includes("identification") ||
           key.includes("douleur") ||
-          key.includes("lead magnet") ||
+          key.includes("identification") ||
           key.includes("promesse") ||
+          key.includes("lead magnet") ||
           key.includes("bénéfice") ||
           key.includes("benefice") ||
           key.includes("benefit") ||
@@ -1149,24 +1156,11 @@ export default function EditorLayout({
           key.includes("faq") ||
           key.includes("cta") ||
           key.includes("prioritaire") ||
-          key.includes("closing")
-        );
-      };
+          key.includes("closing");
 
-      const blockHeading = (line: string) => {
-        const cleaned = cleanHeading(line);
-        const blocMatch = cleaned.match(/^BLOC\s*(\d+)\s*(?:[—–\-:]+\s*)?(.*)$/i);
-        if (blocMatch) {
-          const index = blocMatch[1];
-          const title = cleanHeading(blocMatch[2] || `Bloc ${index}`);
-          return `Bloc ${index}${title ? ` — ${title}` : ""}`;
+        if (known && /^[A-ZÀ-Ÿ0-9\s\/\-–—:]{3,90}$/.test(cleaned.toUpperCase())) {
+          return cleaned;
         }
-
-        const upper = cleaned.toUpperCase();
-        if (/^[A-ZÀ-Ÿ0-9\s\/\-–—:]{3,70}$/.test(upper) && isKnownHeading(cleaned)) {
-          return cleaned.replace(/\s*:\s*$/, "");
-        }
-
         return "";
       };
 
@@ -1185,7 +1179,7 @@ export default function EditorLayout({
       };
 
       for (const line of rawLines) {
-        const heading = blockHeading(line);
+        const heading = isHeading(line);
         if (heading) {
           flush();
           currentLabel = heading;
@@ -1193,21 +1187,19 @@ export default function EditorLayout({
           continue;
         }
 
-        if (!currentLabel) {
-          const prefixMatch = line.match(/^(HERO|SUBTITLE|SOUS[-\s]?TITRE|TITRE|CTA|URL CTA|BENEFIT|BÉNÉFICE|BENEFICE|CLOSING)\s*:\s*(.*)$/i);
-          if (prefixMatch) {
-            const label = prefixMatch[1].toUpperCase();
-            const body = prefixMatch[2].trim();
-            if (body) {
-              items.push({
-                id: `ai-landing-${items.length + 1}`,
-                kind: inferKind(label),
-                label: label === "SUBTITLE" ? "Sous-titre" : label,
-                text: body,
-              });
-            }
-            continue;
+        const prefixed = line.match(/^(HERO|TITLE|TITRE|SUBTITLE|SOUS[-\s]?TITRE|CTA(?:\s+PRINCIPAL)?|URL CTA|BENEFIT|BÉNÉFICE|BENEFICE|CLOSING)\s*:\s*(.*)$/i);
+        if (prefixed && !currentLabel) {
+          const label = prefixed[1].toUpperCase();
+          const body = prefixed[2].trim();
+          if (body) {
+            items.push({
+              id: `ai-landing-${items.length + 1}`,
+              kind: inferKind(label),
+              label: label === "SUBTITLE" ? "Sous-titre" : label,
+              text: body,
+            });
           }
+          continue;
         }
 
         currentLines.push(line);
@@ -1293,13 +1285,6 @@ export default function EditorLayout({
             brief,
             emotional_style: `${briefTone}, humain, premium, sincère, expert marketing digital`,
             business_context: buildCopilotBusinessContext(action),
-            objective: briefGoal,
-            angle: briefAngle,
-            audience: briefAudience,
-            tone: briefTone,
-            max_length: briefLength,
-            cta_url: ctaUrl || "",
-            page_type: briefGoal === "leads" || briefGoal === "optin" || briefAngle === "lead-magnet" ? "lead_magnet" : "landing_page",
           }),
         });
 
