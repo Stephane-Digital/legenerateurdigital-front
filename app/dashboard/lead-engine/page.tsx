@@ -375,14 +375,56 @@ type LeadSection = {
 };
 
 const LEAD_SECTION_ORDER = [
+  "HOOK ANTI-SCROLL",
   "HERO",
+  "DOULEUR / IDENTIFICATION",
   "BENEFICES",
   "MECANISME",
   "PREUVE / RASSURANCE",
   "OBJECTIONS",
+  "CTA FINAL",
   "FAQ COURTE",
   "A UTILISER EN PRIORITE",
 ];
+
+const LEAD_SECTION_ALIASES: Record<string, string> = {
+  "HOOK": "HOOK ANTI-SCROLL",
+  "HOOK ANTI SCROLL": "HOOK ANTI-SCROLL",
+  "HOOK ANTI-SCROLL": "HOOK ANTI-SCROLL",
+  "ANTI SCROLL": "HOOK ANTI-SCROLL",
+  "HERO": "HERO",
+  "IDENTIFICATION": "DOULEUR / IDENTIFICATION",
+  "DOULEUR": "DOULEUR / IDENTIFICATION",
+  "DOULEUR IDENTIFICATION": "DOULEUR / IDENTIFICATION",
+  "DOULEUR / IDENTIFICATION": "DOULEUR / IDENTIFICATION",
+  "CE QUE TU VAS RECEVOIR": "BENEFICES",
+  "CE QUE VOUS ALLEZ RECEVOIR": "BENEFICES",
+  "BENEFICE": "BENEFICES",
+  "BENEFICES": "BENEFICES",
+  "BÉNÉFICES": "BENEFICES",
+  "PROMESSE": "BENEFICES",
+  "PROMESSE DU LEAD MAGNET": "BENEFICES",
+  "POURQUOI CA DEBLOQUE": "MECANISME",
+  "POURQUOI ÇA DÉBLOQUE": "MECANISME",
+  "MECANISME": "MECANISME",
+  "MÉCANISME": "MECANISME",
+  "COMMENT CA MARCHE": "MECANISME",
+  "COMMENT ÇA MARCHE": "MECANISME",
+  "RASSURANCE": "PREUVE / RASSURANCE",
+  "PREUVE": "PREUVE / RASSURANCE",
+  "PREUVE / RASSURANCE": "PREUVE / RASSURANCE",
+  "OBJECTION": "OBJECTIONS",
+  "OBJECTIONS": "OBJECTIONS",
+  "CTA": "CTA FINAL",
+  "CTA FINAL": "CTA FINAL",
+  "MICRO FAQ": "FAQ COURTE",
+  "FAQ": "FAQ COURTE",
+  "FAQ COURTE": "FAQ COURTE",
+  "A UTILISER EN PRIORITE": "A UTILISER EN PRIORITE",
+  "À UTILISER EN PRIORITÉ": "A UTILISER EN PRIORITE",
+  "BLOC PRIORITAIRE A INJECTER": "A UTILISER EN PRIORITE",
+  "BLOC PRIORITAIRE À INJECTER": "A UTILISER EN PRIORITE",
+};
 
 function cleanLeadLine(value: string) {
   return String(value || "")
@@ -404,28 +446,91 @@ function extractLeadValue(content: string, labels: string[]) {
   return "";
 }
 
+function stripAccents(value: string) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function normalizeLeadHeading(value: string) {
+  const raw = cleanLeadLine(value)
+    .replace(/^BLOC\s*\d+\s*(?:[—–-]|:)?\s*/i, "")
+    .replace(/^BLOCK\s*\d+\s*(?:[—–-]|:)?\s*/i, "")
+    .replace(/^SECTION\s*\d+\s*(?:[—–-]|:)?\s*/i, "")
+    .replace(/^\d+[.)]\s*/i, "")
+    .replace(/[:：]\s*$/g, "")
+    .trim();
+
+  const normalized = stripAccents(raw)
+    .toUpperCase()
+    .replace(/[’']/g, " ")
+    .replace(/\s*[—–-]\s*/g, " ")
+    .replace(/\s*\/\s*/g, " / ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (LEAD_SECTION_ALIASES[raw.toUpperCase()]) return LEAD_SECTION_ALIASES[raw.toUpperCase()];
+  if (LEAD_SECTION_ALIASES[normalized]) return LEAD_SECTION_ALIASES[normalized];
+
+  if (normalized.includes("HERO")) return "HERO";
+  if (normalized.includes("IDENTIFICATION") || normalized.includes("DOULEUR")) return "DOULEUR / IDENTIFICATION";
+  if (normalized.includes("RECEVOIR") || normalized.includes("BENEFICE") || normalized.includes("PROMESSE")) return "BENEFICES";
+  if (normalized.includes("MECANISME") || normalized.includes("DEBLOQUE") || normalized.includes("COMMENT CA MARCHE")) return "MECANISME";
+  if (normalized.includes("RASSURANCE") || normalized.includes("PREUVE")) return "PREUVE / RASSURANCE";
+  if (normalized.includes("OBJECTION")) return "OBJECTIONS";
+  if (normalized.includes("CTA FINAL") || normalized === "CTA") return "CTA FINAL";
+  if (normalized.includes("FAQ")) return "FAQ COURTE";
+  if (normalized.includes("PRIORITAIRE") || normalized.includes("UTILISER EN PRIORITE")) return "A UTILISER EN PRIORITE";
+  if (normalized.includes("HOOK")) return "HOOK ANTI-SCROLL";
+
+  return "";
+}
+
 function parseLeadSections(content: string): LeadSection[] {
   const text = String(content || "").replace(/\r/g, "").trim();
   if (!text) return [];
 
-  const headings = LEAD_SECTION_ORDER.map((h) => h.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
-  const re = new RegExp(`^(${headings})\\s*$`, "gim");
-  const matches = Array.from(text.matchAll(re));
+  const sections: LeadSection[] = [];
+  let currentTitle = "";
+  let currentLines: string[] = [];
 
-  if (matches.length === 0) {
+  const flush = () => {
+    const body = currentLines.join("\n").trim();
+    if (currentTitle && body) sections.push({ title: currentTitle, body });
+    currentLines = [];
+  };
+
+  for (const rawLine of text.split("\n")) {
+    const line = rawLine.trim();
+    const detected = normalizeLeadHeading(line);
+
+    if (detected) {
+      flush();
+      currentTitle = detected;
+      continue;
+    }
+
+    if (!currentTitle && line) currentTitle = "CONTENU LANDING";
+    currentLines.push(rawLine);
+  }
+
+  flush();
+
+  if (sections.length === 0) {
     return [{ title: "CONTENU LANDING", body: text }];
   }
 
-  return matches
-    .map((match, index) => {
-      const start = (match.index || 0) + match[0].length;
-      const end = index + 1 < matches.length ? matches[index + 1].index || text.length : text.length;
-      return {
-        title: String(match[1] || "SECTION").trim().toUpperCase(),
-        body: text.slice(start, end).trim(),
-      };
-    })
-    .filter((section) => section.body.length > 0);
+  const merged: LeadSection[] = [];
+  for (const section of sections) {
+    const last = merged[merged.length - 1];
+    if (last && last.title === section.title) {
+      last.body = `${last.body}\n${section.body}`.trim();
+    } else {
+      merged.push(section);
+    }
+  }
+
+  return merged;
 }
 
 function shortLines(content: string, maxLines: number) {
@@ -442,18 +547,22 @@ function buildStructuredLandingLayers(content: string, ctaUrl: string): { layers
   if (sections.length === 0) return null;
 
   const byTitle = new Map(sections.map((section) => [section.title, section.body]));
+  const hook = byTitle.get("HOOK ANTI-SCROLL") || "";
   const hero = byTitle.get("HERO") || sections[0]?.body || "";
+  const identification = byTitle.get("DOULEUR / IDENTIFICATION") || "";
   const benefits = byTitle.get("BENEFICES") || "";
   const mechanism = byTitle.get("MECANISME") || "";
   const proof = byTitle.get("PREUVE / RASSURANCE") || "";
   const objections = byTitle.get("OBJECTIONS") || "";
+  const ctaFinal = byTitle.get("CTA FINAL") || "";
   const faq = byTitle.get("FAQ COURTE") || "";
   const priority = byTitle.get("A UTILISER EN PRIORITE") || "";
 
-  const title = extractLeadValue(hero, ["TITRE", "TITLE"]) || shortLines(hero, 1) || "Transforme ton audience en prospects qualifiés";
-  const subtitle = extractLeadValue(hero, ["SOUS-TITRE", "SOUS TITRE", "SUBTITLE"]) || shortLines(hero, 3) || "Une landing claire, premium et orientée conversion.";
-  const cta = extractLeadValue(hero, ["CTA PRINCIPAL", "CTA"]) || shortLines(priority, 1) || "Recevoir l’accès maintenant";
+  const title = extractLeadValue(hero, ["TITRE", "TITLE"]) || shortLines(hero, 1) || shortLines(hook, 1) || "Transforme ton audience en prospects qualifiés";
+  const subtitle = extractLeadValue(hero, ["SOUS-TITRE", "SOUS TITRE", "SUBTITLE"]) || shortLines(hero, 3) || shortLines(identification, 2) || "Une landing claire, premium et orientée conversion.";
+  const cta = extractLeadValue(hero, ["CTA PRINCIPAL", "CTA"]) || shortLines(ctaFinal, 1) || shortLines(priority, 1) || "Recevoir l’accès maintenant";
 
+  const compactIdentification = shortLines(identification || hook, 4);
   const compactBenefits = shortLines(benefits, 5);
   const compactMechanism = shortLines(mechanism, 5);
   const compactProof = shortLines(proof, 4);
@@ -515,10 +624,36 @@ function buildStructuredLandingLayers(content: string, ctaUrl: string): { layers
       style: { fontSize: 22, fontFamily: "Inter", color: "#111111", fontWeight: 900, lineHeight: 1.2, backgroundColor: "#ffb800" },
     } as LayerData,
     {
+      id: `lead-ai-section-identification-title-${Date.now()}`,
+      type: "text",
+      x: 84,
+      y: 590,
+      width: 520,
+      height: 48,
+      visible: true,
+      selected: false,
+      zIndex: 13,
+      text: "Pourquoi tu bloques",
+      style: { ...labelStyle, fontSize: 30 },
+    } as LayerData,
+    {
+      id: `lead-ai-section-identification-body-${Date.now()}`,
+      type: "text",
+      x: 84,
+      y: 656,
+      width: 790,
+      height: 170,
+      visible: true,
+      selected: false,
+      zIndex: 14,
+      text: compactIdentification || "Tu as déjà essayé plusieurs méthodes, mais aucune ne t’a donné une page claire pour capturer des emails.",
+      style: { ...blockStyle, fontSize: 21 },
+    } as LayerData,
+    {
       id: `lead-ai-section-benefits-title-${Date.now()}`,
       type: "text",
       x: 84,
-      y: 620,
+      y: 890,
       width: 360,
       height: 48,
       visible: true,
@@ -531,7 +666,7 @@ function buildStructuredLandingLayers(content: string, ctaUrl: string): { layers
       id: `lead-ai-section-benefits-body-${Date.now()}`,
       type: "text",
       x: 84,
-      y: 690,
+      y: 960,
       width: 790,
       height: 220,
       visible: true,
@@ -544,7 +679,7 @@ function buildStructuredLandingLayers(content: string, ctaUrl: string): { layers
       id: `lead-ai-section-mechanism-title-${Date.now()}`,
       type: "text",
       x: 84,
-      y: 980,
+      y: 1260,
       width: 420,
       height: 48,
       visible: true,
@@ -557,7 +692,7 @@ function buildStructuredLandingLayers(content: string, ctaUrl: string): { layers
       id: `lead-ai-section-mechanism-body-${Date.now()}`,
       type: "text",
       x: 84,
-      y: 1048,
+      y: 1328,
       width: 790,
       height: 180,
       visible: true,
@@ -570,7 +705,7 @@ function buildStructuredLandingLayers(content: string, ctaUrl: string): { layers
       id: `lead-ai-section-proof-title-${Date.now()}`,
       type: "text",
       x: 84,
-      y: 1280,
+      y: 1840,
       width: 450,
       height: 48,
       visible: true,
@@ -583,7 +718,7 @@ function buildStructuredLandingLayers(content: string, ctaUrl: string): { layers
       id: `lead-ai-section-proof-body-${Date.now()}`,
       type: "text",
       x: 84,
-      y: 1348,
+      y: 1908,
       width: 790,
       height: 150,
       visible: true,
@@ -622,7 +757,7 @@ function buildStructuredLandingLayers(content: string, ctaUrl: string): { layers
       id: `lead-ai-section-faq-title-${Date.now()}`,
       type: "text",
       x: 84,
-      y: 1900,
+      y: 2180,
       width: 260,
       height: 48,
       visible: true,
@@ -635,7 +770,7 @@ function buildStructuredLandingLayers(content: string, ctaUrl: string): { layers
       id: `lead-ai-section-faq-body-${Date.now()}`,
       type: "text",
       x: 84,
-      y: 1968,
+      y: 2248,
       width: 790,
       height: 260,
       visible: true,
@@ -646,7 +781,7 @@ function buildStructuredLandingLayers(content: string, ctaUrl: string): { layers
     } as LayerData,
   ];
 
-  return { layers: nextLayers, canvasHeight: 2350 };
+  return { layers: nextLayers, canvasHeight: 2650 };
 }
 
 function parseLinearGradient(input: string | undefined | null) {
