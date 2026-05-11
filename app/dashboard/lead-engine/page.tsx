@@ -369,6 +369,286 @@ function getTextColor(style: Record<string, any>) {
   return String(style.fill || style.color || style.textColor || "#ffffff");
 }
 
+type LeadSection = {
+  title: string;
+  body: string;
+};
+
+const LEAD_SECTION_ORDER = [
+  "HERO",
+  "BENEFICES",
+  "MECANISME",
+  "PREUVE / RASSURANCE",
+  "OBJECTIONS",
+  "FAQ COURTE",
+  "A UTILISER EN PRIORITE",
+];
+
+function cleanLeadLine(value: string) {
+  return String(value || "")
+    .replace(/^#{1,6}\s*/g, "")
+    .replace(/\*\*/g, "")
+    .replace(/^[•\-–]\s*/g, "• ")
+    .trim();
+}
+
+function extractLeadValue(content: string, labels: string[]) {
+  const lines = String(content || "").split(/\r?\n/);
+  for (const label of labels) {
+    const re = new RegExp(`^${label}\\s*[:：-]\\s*(.+)$`, "i");
+    for (const line of lines) {
+      const match = cleanLeadLine(line).match(re);
+      if (match?.[1]?.trim()) return match[1].trim();
+    }
+  }
+  return "";
+}
+
+function parseLeadSections(content: string): LeadSection[] {
+  const text = String(content || "").replace(/\r/g, "").trim();
+  if (!text) return [];
+
+  const headings = LEAD_SECTION_ORDER.map((h) => h.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+  const re = new RegExp(`^(${headings})\\s*$`, "gim");
+  const matches = Array.from(text.matchAll(re));
+
+  if (matches.length === 0) {
+    return [{ title: "CONTENU LANDING", body: text }];
+  }
+
+  return matches
+    .map((match, index) => {
+      const start = (match.index || 0) + match[0].length;
+      const end = index + 1 < matches.length ? matches[index + 1].index || text.length : text.length;
+      return {
+        title: String(match[1] || "SECTION").trim().toUpperCase(),
+        body: text.slice(start, end).trim(),
+      };
+    })
+    .filter((section) => section.body.length > 0);
+}
+
+function shortLines(content: string, maxLines: number) {
+  return String(content || "")
+    .split(/\r?\n/)
+    .map(cleanLeadLine)
+    .filter(Boolean)
+    .slice(0, maxLines)
+    .join("\n");
+}
+
+function buildStructuredLandingLayers(content: string, ctaUrl: string): { layers: LayerData[]; canvasHeight: number } | null {
+  const sections = parseLeadSections(content);
+  if (sections.length === 0) return null;
+
+  const byTitle = new Map(sections.map((section) => [section.title, section.body]));
+  const hero = byTitle.get("HERO") || sections[0]?.body || "";
+  const benefits = byTitle.get("BENEFICES") || "";
+  const mechanism = byTitle.get("MECANISME") || "";
+  const proof = byTitle.get("PREUVE / RASSURANCE") || "";
+  const objections = byTitle.get("OBJECTIONS") || "";
+  const faq = byTitle.get("FAQ COURTE") || "";
+  const priority = byTitle.get("A UTILISER EN PRIORITE") || "";
+
+  const title = extractLeadValue(hero, ["TITRE", "TITLE"]) || shortLines(hero, 1) || "Transforme ton audience en prospects qualifiés";
+  const subtitle = extractLeadValue(hero, ["SOUS-TITRE", "SOUS TITRE", "SUBTITLE"]) || shortLines(hero, 3) || "Une landing claire, premium et orientée conversion.";
+  const cta = extractLeadValue(hero, ["CTA PRINCIPAL", "CTA"]) || shortLines(priority, 1) || "Recevoir l’accès maintenant";
+
+  const compactBenefits = shortLines(benefits, 5);
+  const compactMechanism = shortLines(mechanism, 5);
+  const compactProof = shortLines(proof, 4);
+  const compactObjections = shortLines(objections, 5);
+  const compactFaq = shortLines(faq, 6);
+
+  const blockStyle = {
+    fontFamily: "Inter",
+    color: "#ffffff",
+    fontWeight: 600,
+    lineHeight: 1.28,
+  };
+
+  const labelStyle = {
+    fontFamily: "Inter",
+    color: "#ffb800",
+    fontWeight: 900,
+    lineHeight: 1.1,
+  };
+
+  const nextLayers: LayerData[] = [
+    {
+      id: `lead-ai-hero-title-${Date.now()}`,
+      type: "text",
+      x: 80,
+      y: 80,
+      width: 760,
+      height: 170,
+      visible: true,
+      selected: false,
+      zIndex: 10,
+      text: title,
+      style: { fontSize: 52, fontFamily: "Inter", color: "#ffffff", fontWeight: 900, lineHeight: 1.05 },
+    } as LayerData,
+    {
+      id: `lead-ai-hero-subtitle-${Date.now()}`,
+      type: "text",
+      x: 84,
+      y: 280,
+      width: 720,
+      height: 120,
+      visible: true,
+      selected: false,
+      zIndex: 11,
+      text: subtitle,
+      style: { fontSize: 23, fontFamily: "Inter", color: "#e4e4e7", fontWeight: 500, lineHeight: 1.35 },
+    } as LayerData,
+    {
+      id: `lead-ai-hero-cta-${Date.now()}`,
+      type: "text",
+      x: 84,
+      y: 430,
+      width: 380,
+      height: 74,
+      visible: true,
+      selected: false,
+      zIndex: 12,
+      text: cta,
+      style: { fontSize: 22, fontFamily: "Inter", color: "#111111", fontWeight: 900, lineHeight: 1.2, backgroundColor: "#ffb800" },
+    } as LayerData,
+    {
+      id: `lead-ai-section-benefits-title-${Date.now()}`,
+      type: "text",
+      x: 84,
+      y: 620,
+      width: 360,
+      height: 48,
+      visible: true,
+      selected: false,
+      zIndex: 13,
+      text: "Bénéfices clés",
+      style: { ...labelStyle, fontSize: 32 },
+    } as LayerData,
+    {
+      id: `lead-ai-section-benefits-body-${Date.now()}`,
+      type: "text",
+      x: 84,
+      y: 690,
+      width: 790,
+      height: 220,
+      visible: true,
+      selected: false,
+      zIndex: 14,
+      text: compactBenefits || "• Clarifie ta promesse.\n• Transforme l’attention en action.\n• Donne envie de s’inscrire maintenant.",
+      style: { ...blockStyle, fontSize: 22 },
+    } as LayerData,
+    {
+      id: `lead-ai-section-mechanism-title-${Date.now()}`,
+      type: "text",
+      x: 84,
+      y: 980,
+      width: 420,
+      height: 48,
+      visible: true,
+      selected: false,
+      zIndex: 15,
+      text: "Comment ça marche",
+      style: { ...labelStyle, fontSize: 30 },
+    } as LayerData,
+    {
+      id: `lead-ai-section-mechanism-body-${Date.now()}`,
+      type: "text",
+      x: 84,
+      y: 1048,
+      width: 790,
+      height: 180,
+      visible: true,
+      selected: false,
+      zIndex: 16,
+      text: compactMechanism || "Une méthode simple pour passer de l’idée à une page visible, claire et prête à convertir.",
+      style: { ...blockStyle, fontSize: 21 },
+    } as LayerData,
+    {
+      id: `lead-ai-section-proof-title-${Date.now()}`,
+      type: "text",
+      x: 84,
+      y: 1280,
+      width: 450,
+      height: 48,
+      visible: true,
+      selected: false,
+      zIndex: 17,
+      text: "Preuve / réassurance",
+      style: { ...labelStyle, fontSize: 30 },
+    } as LayerData,
+    {
+      id: `lead-ai-section-proof-body-${Date.now()}`,
+      type: "text",
+      x: 84,
+      y: 1348,
+      width: 790,
+      height: 150,
+      visible: true,
+      selected: false,
+      zIndex: 18,
+      text: compactProof || "LGD t’aide à créer une page exploitable sans repartir de zéro ni dépendre d’un autre template.",
+      style: { ...blockStyle, fontSize: 21 },
+    } as LayerData,
+    {
+      id: `lead-ai-section-objections-title-${Date.now()}`,
+      type: "text",
+      x: 84,
+      y: 1560,
+      width: 380,
+      height: 48,
+      visible: true,
+      selected: false,
+      zIndex: 19,
+      text: "Objections traitées",
+      style: { ...labelStyle, fontSize: 30 },
+    } as LayerData,
+    {
+      id: `lead-ai-section-objections-body-${Date.now()}`,
+      type: "text",
+      x: 84,
+      y: 1628,
+      width: 790,
+      height: 210,
+      visible: true,
+      selected: false,
+      zIndex: 20,
+      text: compactObjections || "• Je ne sais pas par où commencer.\n• Je n’ai pas le temps.\n• Je veux éviter une page amateur.",
+      style: { ...blockStyle, fontSize: 20 },
+    } as LayerData,
+    {
+      id: `lead-ai-section-faq-title-${Date.now()}`,
+      type: "text",
+      x: 84,
+      y: 1900,
+      width: 260,
+      height: 48,
+      visible: true,
+      selected: false,
+      zIndex: 21,
+      text: "FAQ",
+      style: { ...labelStyle, fontSize: 30 },
+    } as LayerData,
+    {
+      id: `lead-ai-section-faq-body-${Date.now()}`,
+      type: "text",
+      x: 84,
+      y: 1968,
+      width: 790,
+      height: 260,
+      visible: true,
+      selected: false,
+      zIndex: 22,
+      text: compactFaq || `Q: À quoi sert LGD ?\nR: À transformer tes idées en contenus, pages et actions concrètes.\n\nQ: Est-ce adapté aux débutants ?\nR: Oui, la structure guide chaque étape.`,
+      style: { ...blockStyle, fontSize: 19 },
+    } as LayerData,
+  ];
+
+  return { layers: nextLayers, canvasHeight: 2350 };
+}
+
 function parseLinearGradient(input: string | undefined | null) {
   const raw = String(input || "").trim();
   const match = raw.match(/linear-gradient\(([-\d.]+)deg,\s*([^,]+),\s*([^\)]+)\)/i);
@@ -621,6 +901,29 @@ export default function LeadEnginePage() {
 
   function clearPremiumResult() {
     setAiResult("");
+  }
+
+  function injectStructuredLanding() {
+    const source = aiResult.trim();
+    if (!source) return;
+
+    const structured = buildStructuredLandingLayers(source, normalizeExportUrl(ctaUrl));
+    if (!structured) return;
+
+    setLayers(structured.layers);
+    setInitialLayers(structured.layers);
+    setCanvasHeight(structured.canvasHeight);
+    setEditorKey((value) => value + 1);
+    setLastSavedAt(new Date().toLocaleTimeString());
+    persistLayers(structured.layers);
+
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(structured.layers));
+      window.localStorage.setItem(STORAGE_CANVAS_HEIGHT_KEY, String(structured.canvasHeight));
+      window.localStorage.setItem(STORAGE_CTA_KEY, normalizeExportUrl(ctaUrl));
+    } catch {
+      // noop
+    }
   }
 
   const htmlExport = useMemo(() => {
@@ -1184,6 +1487,15 @@ export default function LeadEnginePage() {
                     className="rounded-2xl border border-yellow-600/20 bg-black/30 px-5 py-3 font-semibold text-white/80 disabled:opacity-50"
                   >
                     Effacer le résultat
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={injectStructuredLanding}
+                    disabled={aiLoading || !aiResult.trim()}
+                    className="rounded-2xl border border-yellow-500/40 bg-[#ffb800] px-5 py-3 font-bold text-black disabled:opacity-50"
+                  >
+                    Structurer en blocs
                   </button>
 
                   <div className="text-xs text-white/45">
