@@ -1086,7 +1086,7 @@ export default function EditorLayout({
     if (action === "variants") {
       return `${base} | DONE FOR YOU | Retourne exactement 4 variantes marketing finales en français, une par ligne, avec des angles nettement différents.`;
     }
-    return `${base} | DONE FOR YOU | Retourne UNE vraie page finale complète, rédigée et prête à injecter. Interdit: conseils, plan, structure à compléter, « voici », « clarifie », « renforce », « tu peux ». Structure uniquement pour le parser avec BLOC 1 à BLOC 9. Dans chaque bloc, écris seulement le texte final visible sur la page. Ne jamais écrire TITRE:, SOUS-TITRE:, CTA:, Bénéfices:.`;
+    return `${base} | DONE FOR YOU | Retourne UNE vraie page finale complète, rédigée et prête à injecter. Interdit: conseils, plan, structure à compléter, « voici », « clarifie », « renforce », « tu peux ». Utilise uniquement les séparateurs techniques [[LGD_BLOCK:HERO]], [[LGD_BLOCK:IDENTIFICATION]], [[LGD_BLOCK:AGITATION]], [[LGD_BLOCK:MICRO_TRANSFORMATION]], [[LGD_BLOCK:CE_QUE_TU_RECOIS]], [[LGD_BLOCK:MECANISME]], [[LGD_BLOCK:OBJECTION_KILLER]], [[LGD_BLOCK:REASSURANCE]], [[LGD_BLOCK:CTA_FINAL]]. Dans chaque section, écris seulement le texte final visible sur la page. Ne jamais écrire TITRE:, SOUS-TITRE:, CTA:, Bénéfices:.`;
   }
 
   async function saveCopilotMemory(action: CopilotAction) {
@@ -1131,11 +1131,35 @@ export default function EditorLayout({
 
   function cleanGeneratedTextForCanvas(value: string) {
     return String(value || "")
+      .replace(/\[\[LGD_BLOCK:[^\]]+\]\]/gim, "")
       .replace(/^\s*BLOC\s*\d+\s*[—–-]?\s*[^\n]*$/gim, "")
       .replace(/^\s*(TITRE|SOUS[-\s]?TITRE|SUBTITLE|CTA|URL CTA|HERO|DOULEUR|IDENTIFICATION|BÉNÉFICES|BENEFICES|PROMESSE|MÉCANISME|MECANISME|RÉASSURANCE|REASSURANCE|FAQ|QUESTION|RÉPONSE|REPONSE)\s*:\s*/gim, "")
       .replace(/^\s*(Voici( la)? structure|Structure|Conseil|À faire|A faire|Tu pourrais|Vous pourriez|Clarifie|Renforce|Augmente|Passe d’une simple page|Passe d'une simple page)\s*:?\s*/gim, "")
       .replace(/\n{3,}/g, "\n\n")
       .trim();
+  }
+
+  function labelFromMarker(marker: string, index: number) {
+    const key = String(marker || "").toLowerCase();
+    if (key.includes("hero")) return "Accroche principale";
+    if (key.includes("identification")) return "Identification";
+    if (key.includes("agitation")) return "Agitation";
+    if (key.includes("micro")) return "Micro-transformation";
+    if (key.includes("recois") || key.includes("reçois") || key.includes("decouvrir") || key.includes("découvrir")) return "Ce que le prospect reçoit";
+    if (key.includes("mecanisme") || key.includes("mécanisme")) return "Mécanisme";
+    if (key.includes("objection")) return "Objections";
+    if (key.includes("reassurance") || key.includes("réassurance")) return "Réassurance";
+    if (key.includes("cta")) return "CTA final";
+    return `Section ${index}`;
+  }
+
+  function kindFromLabel(label: string, index: number): GeneratedItem["kind"] {
+    const raw = String(label || "").toLowerCase();
+    if (index === 1 || raw.includes("accroche") || raw.includes("hero")) return "hook";
+    if (raw.includes("cta")) return "cta";
+    if (raw.includes("identification") || raw.includes("agitation")) return "subtitle";
+    if (raw.includes("réassurance") || raw.includes("reassurance")) return "closing";
+    return "benefit";
   }
 
   function labelFromLandingBlock(index: number, rawTitle: string) {
@@ -1156,6 +1180,25 @@ export default function EditorLayout({
     const text = String(content || "").trim();
     if (!text) return [];
 
+    const markerRegex = /\[\[LGD_BLOCK:([^\]]+)\]\]\s*([\s\S]*?)(?=\n?\[\[LGD_BLOCK:[^\]]+\]\]|\s*$)/gim;
+    const markerItems: GeneratedItem[] = [];
+    let markerMatch: RegExpExecArray | null;
+
+    while ((markerMatch = markerRegex.exec(text)) !== null) {
+      const index = markerItems.length + 1;
+      const label = labelFromMarker(markerMatch[1] || "", index);
+      const cleanText = cleanGeneratedTextForCanvas(markerMatch[2] || "");
+      if (!cleanText) continue;
+      markerItems.push({
+        id: `ai-landing-marker-${index}`,
+        kind: kindFromLabel(label, index),
+        label,
+        text: cleanText,
+      });
+    }
+
+    if (markerItems.length >= 3) return markerItems;
+
     const blockRegex = /^\s*BLOC\s*(\d+)\s*[—–-]?\s*([^\n]*)\n([\s\S]*?)(?=^\s*BLOC\s*\d+\s*[—–-]?|\s*$)/gim;
     const items: GeneratedItem[] = [];
     let match: RegExpExecArray | null;
@@ -1167,7 +1210,7 @@ export default function EditorLayout({
       if (!cleanText) continue;
       items.push({
         id: `ai-landing-${index}`,
-        kind: index === 1 ? "hook" : label.toLowerCase().includes("cta") ? "cta" : index === 2 ? "subtitle" : "benefit",
+        kind: kindFromLabel(label, index),
         label,
         text: cleanText,
       });
@@ -1178,7 +1221,8 @@ export default function EditorLayout({
     const paragraphs = text
       .split(/\n\s*\n+/)
       .map((block) => cleanGeneratedTextForCanvas(block))
-      .filter(Boolean);
+      .filter(Boolean)
+      .filter((block) => !/^(voici|clarifie|renforce|augmente|conseil)/i.test(block));
 
     if (paragraphs.length >= 3) {
       return paragraphs.map((block, index) => ({
@@ -1189,12 +1233,13 @@ export default function EditorLayout({
       }));
     }
 
-    return [{
+    const cleaned = cleanGeneratedTextForCanvas(text);
+    return cleaned ? [{
       id: "ai-landing-fallback",
       kind: "closing",
       label: "Landing complète",
-      text: cleanGeneratedTextForCanvas(text),
-    }];
+      text: cleaned,
+    }] : [];
   }
 
   function parseGeneratedItemsFromAI(action: CopilotAction, content: string): GeneratedItem[] {
@@ -1279,8 +1324,8 @@ export default function EditorLayout({
 
         if (action === "landing") {
           setCopilotStatus(mode === "rewrite"
-            ? "Landing réécrite. Tu peux injecter un bloc ou toute la landing."
-            : "Landing complète générée. Tu peux injecter un bloc ou toute la landing.");
+            ? "Landing réécrite. Tu peux injecter la page finale complète."
+            : "Landing complète générée. Tu peux injecter la page finale complète.");
         } else if (action === "cta") {
           setCopilotStatus(mode === "rewrite"
             ? "CTA réécrits. Choisis la variante la plus forte."
@@ -1325,7 +1370,7 @@ export default function EditorLayout({
   );
 
   const injectFullLanding = useCallback(() => {
-    const items = lastAction === "landing" && generatedItems.length ? generatedItems : buildLanding();
+    const items = generatedItems.length ? generatedItems : buildLanding();
     const background = layers.find((l: any) => l.id === BACKGROUND_LAYER_ID) as any;
     const visualLayers = layers
       .filter((l: any) => l.id !== BACKGROUND_LAYER_ID && l.type !== "text")
@@ -1570,7 +1615,7 @@ export default function EditorLayout({
                     <div className="mt-1 text-xs text-white/50">{copilotLoading ? "Connexion au moteur IA premium..." : copilotStatus || "Génère des hooks, CTA, bénéfices ou une landing complète."}</div>
                   </div>
 
-                  {generatedItems.length > 0 && !copilotLoading && (
+                  {lastAction === "landing" && generatedItems.length > 0 && !copilotLoading && (
                     <button
                       type="button"
                       onClick={injectFullLanding}
