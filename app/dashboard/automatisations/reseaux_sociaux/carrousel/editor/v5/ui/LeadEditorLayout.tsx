@@ -697,7 +697,7 @@ export default function EditorLayout({
         visible: true,
         selected: true,
         style: {
-          fontSize: 20,
+          fontSize: 48,
           color: "#ffffff",
           fontFamily: "Inter",
         },
@@ -945,11 +945,12 @@ export default function EditorLayout({
 
     const ctaWidth = Math.max(280, Math.min(360, availableTextWidth));
     const normalized = items.map((item) => {
-      if (item.kind === "hook") return { ...item, text: shortenForCanvas(item.text, 150) };
-      if (item.kind === "subtitle") return { ...item, text: shortenForCanvas(item.text, 220) };
-      if (item.kind === "cta") return { ...item, text: shortenForCanvas(item.text, 70) };
-      if (item.kind === "benefit") return { ...item, text: shortenForCanvas(item.text, 95) };
-      return { ...item, text: shortenForCanvas(item.text, 170) };
+      const cleanText = cleanGeneratedTextForCanvas(item.text);
+      if (item.kind === "hook") return { ...item, text: shortenForCanvas(cleanText, 260) };
+      if (item.kind === "subtitle") return { ...item, text: shortenForCanvas(cleanText, 360) };
+      if (item.kind === "cta") return { ...item, text: shortenForCanvas(cleanText, 160) };
+      if (item.kind === "benefit") return { ...item, text: shortenForCanvas(cleanText, 360) };
+      return { ...item, text: shortenForCanvas(cleanText, 420) };
     });
 
     const placed: LayerData[] = [];
@@ -1085,7 +1086,7 @@ export default function EditorLayout({
     if (action === "variants") {
       return `${base} | DONE FOR YOU | Retourne exactement 4 variantes marketing finales en français, une par ligne, avec des angles nettement différents.`;
     }
-    return `${base} | DONE FOR YOU | Retourne une vraie page finale complète, rédigée, vendable, sans conseils, structurée en blocs internes BLOC 1 à BLOC 8. Les labels BLOC servent uniquement au parser. Le contenu de chaque bloc doit être propre pour le canvas.`;
+    return `${base} | DONE FOR YOU | Retourne UNE vraie page finale complète, rédigée et prête à injecter. Interdit: conseils, plan, structure à compléter, « voici », « clarifie », « renforce », « tu peux ». Structure uniquement pour le parser avec BLOC 1 à BLOC 9. Dans chaque bloc, écris seulement le texte final visible sur la page. Ne jamais écrire TITRE:, SOUS-TITRE:, CTA:, Bénéfices:.`;
   }
 
   async function saveCopilotMemory(action: CopilotAction) {
@@ -1130,53 +1131,63 @@ export default function EditorLayout({
 
   function cleanGeneratedTextForCanvas(value: string) {
     return String(value || "")
-      .replace(/^\s*(BLOC\s*\d+\s*[—-]\s*)/gim, "")
-      .replace(/^\s*(TITRE|SOUS-TITRE|SUBTITLE|CTA|URL CTA|HERO|DOULEUR|IDENTIFICATION|BÉNÉFICES|BENEFICES|PROMESSE|MÉCANISME|MECANISME|RÉASSURANCE|REASSURANCE|FAQ|QUESTION|RÉPONSE|REPONSE)\s*:\s*/gim, "")
-      .replace(/^\s*(Voici|Structure|Conseil|À faire|A faire|Tu pourrais|Clarifie|Renforce)\s*:?\s*/gim, "")
+      .replace(/^\s*BLOC\s*\d+\s*[—–-]?\s*[^\n]*$/gim, "")
+      .replace(/^\s*(TITRE|SOUS[-\s]?TITRE|SUBTITLE|CTA|URL CTA|HERO|DOULEUR|IDENTIFICATION|BÉNÉFICES|BENEFICES|PROMESSE|MÉCANISME|MECANISME|RÉASSURANCE|REASSURANCE|FAQ|QUESTION|RÉPONSE|REPONSE)\s*:\s*/gim, "")
+      .replace(/^\s*(Voici( la)? structure|Structure|Conseil|À faire|A faire|Tu pourrais|Vous pourriez|Clarifie|Renforce|Augmente|Passe d’une simple page|Passe d'une simple page)\s*:?\s*/gim, "")
       .replace(/\n{3,}/g, "\n\n")
       .trim();
+  }
+
+  function labelFromLandingBlock(index: number, rawTitle: string) {
+    const title = String(rawTitle || "").toLowerCase();
+    if (title.includes("hero") || title.includes("pattern")) return "Accroche principale";
+    if (title.includes("identification") || title.includes("douleur")) return "Identification";
+    if (title.includes("transformation") || title.includes("promesse")) return "Promesse";
+    if (title.includes("recevoir") || title.includes("découvrir") || title.includes("decouvrir")) return "Ce que le prospect reçoit";
+    if (title.includes("mécanisme") || title.includes("mecanisme") || title.includes("marche")) return "Mécanisme";
+    if (title.includes("objection")) return "Objections";
+    if (title.includes("réassurance") || title.includes("reassurance") || title.includes("preuve")) return "Réassurance";
+    if (title.includes("cta")) return "CTA final";
+    if (title.includes("faq")) return "FAQ";
+    return `Section ${index}`;
   }
 
   function parseLandingBlocks(content: string): GeneratedItem[] {
     const text = String(content || "").trim();
     if (!text) return [];
 
-    const blocks = text
-      .split(/(?=^\s*BLOC\s*\d+\s*[—-])/gim)
-      .map((block) => block.trim())
+    const blockRegex = /^\s*BLOC\s*(\d+)\s*[—–-]?\s*([^\n]*)\n([\s\S]*?)(?=^\s*BLOC\s*\d+\s*[—–-]?|\s*$)/gim;
+    const items: GeneratedItem[] = [];
+    let match: RegExpExecArray | null;
+
+    while ((match = blockRegex.exec(text)) !== null) {
+      const index = Number(match[1] || items.length + 1);
+      const label = labelFromLandingBlock(index, match[2] || "");
+      const cleanText = cleanGeneratedTextForCanvas(match[3] || "");
+      if (!cleanText) continue;
+      items.push({
+        id: `ai-landing-${index}`,
+        kind: index === 1 ? "hook" : label.toLowerCase().includes("cta") ? "cta" : index === 2 ? "subtitle" : "benefit",
+        label,
+        text: cleanText,
+      });
+    }
+
+    if (items.length >= 3) return items;
+
+    const paragraphs = text
+      .split(/\n\s*\n+/)
+      .map((block) => cleanGeneratedTextForCanvas(block))
       .filter(Boolean);
 
-    const sourceBlocks = blocks.length >= 2
-      ? blocks
-      : text.split(/\n\s*\n+/).map((block) => block.trim()).filter(Boolean);
-
-    const labels = [
-      "Accroche principale",
-      "Identification",
-      "Promesse",
-      "Ce que le prospect reçoit",
-      "Mécanisme",
-      "Réassurance",
-      "CTA final",
-      "FAQ",
-    ];
-
-    const kinds: GeneratedItem["kind"][] = ["hook", "subtitle", "benefit", "benefit", "subtitle", "benefit", "cta", "closing"];
-
-    const items = sourceBlocks
-      .map((block, index) => {
-        const cleanText = cleanGeneratedTextForCanvas(block);
-        if (!cleanText) return null;
-        return {
-          id: `ai-landing-${index + 1}`,
-          kind: kinds[index] || "closing",
-          label: labels[index] || `Section ${index + 1}`,
-          text: cleanText,
-        } satisfies GeneratedItem;
-      })
-      .filter(Boolean) as GeneratedItem[];
-
-    if (items.length > 0) return items;
+    if (paragraphs.length >= 3) {
+      return paragraphs.map((block, index) => ({
+        id: `ai-landing-fallback-${index + 1}`,
+        kind: index === 0 ? "hook" : index === paragraphs.length - 1 ? "cta" : "benefit",
+        label: index === 0 ? "Accroche principale" : index === paragraphs.length - 1 ? "CTA final" : `Section ${index + 1}`,
+        text: block,
+      }));
+    }
 
     return [{
       id: "ai-landing-fallback",
@@ -1302,7 +1313,7 @@ export default function EditorLayout({
       const baseY = Math.max(80, currentBottomY + 28);
       const baseX = item.kind === "benefit" ? 78 : 74;
       const zBase = layers.length + 10;
-      const layer = makeTextLayer(item.kind, item.label, item.text, baseX, baseY, zBase);
+      const layer = makeTextLayer(item.kind, item.label, cleanGeneratedTextForCanvas(item.text), baseX, baseY, zBase);
 
       setLayers((prev: any[]) => [
         ...prev.map((l: any) => ({ ...l, selected: false })),
@@ -1606,7 +1617,7 @@ export default function EditorLayout({
                         </div>
 
                         <div className="mt-2 text-sm leading-6 text-white/80 whitespace-pre-wrap">
-                          {item.text}
+                          {cleanGeneratedTextForCanvas(item.text)}
                         </div>
                       </div>
                     ))
