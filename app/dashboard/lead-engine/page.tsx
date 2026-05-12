@@ -2,7 +2,16 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FaArrowLeft, FaCopy, FaDownload, FaImage, FaMagic, FaRedo, FaSave, FaTrash } from "react-icons/fa";
+import {
+  FaArrowLeft,
+  FaCopy,
+  FaDownload,
+  FaImage,
+  FaMagic,
+  FaRedo,
+  FaSave,
+  FaTrash,
+} from "react-icons/fa";
 
 import type { LayerData } from "@/dashboard/automatisations/reseaux_sociaux/carrousel/editor/v5/types/layers";
 import LeadEditorLayout from "@/dashboard/automatisations/reseaux_sociaux/carrousel/editor/v5/ui/LeadEditorLayout";
@@ -10,7 +19,8 @@ import { buildLeadHtmlExport } from "@/dashboard/lead-engine/utils/exportHtml";
 
 const STORAGE_KEY = "lgd_lead_engine_builder_v4";
 const STORAGE_CTA_KEY = "lgd_lead_engine_builder_v4_cta_url";
-const STORAGE_CANVAS_HEIGHT_KEY = "lgd_lead_engine_builder_v4_canvas_height_manual";
+const STORAGE_CANVAS_HEIGHT_KEY =
+  "lgd_lead_engine_builder_v4_canvas_height_manual";
 const STORAGE_ARCHIVES_KEY = "lgd_lead_engine_builder_v4_archives";
 const CMO_MODULE_AUTO_PAYLOAD_KEY = "lgd_cmo_module_auto_payload";
 
@@ -53,7 +63,9 @@ function getAuthHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-function normalizeLayersSnapshot(raw: LayerData[] | null | undefined): LayerData[] {
+function normalizeLayersSnapshot(
+  raw: LayerData[] | null | undefined,
+): LayerData[] {
   if (!Array.isArray(raw)) return [];
 
   try {
@@ -205,20 +217,30 @@ function buildLeadPreset(): LayerData[] {
   ];
 }
 
-
-function pickCmoString(payload: Record<string, any>, keys: string[], fallback = "") {
+function pickCmoString(
+  payload: Record<string, any>,
+  keys: string[],
+  fallback = "",
+) {
   for (const key of keys) {
     const value = payload?.[key];
     if (typeof value === "string" && value.trim()) return value.trim();
-    if (typeof value === "number" && Number.isFinite(value)) return String(value);
+    if (typeof value === "number" && Number.isFinite(value))
+      return String(value);
   }
   return fallback;
 }
 
-function isLeadEngineCmoPayload(payload: Record<string, any> | null | undefined) {
+function isLeadEngineCmoPayload(
+  payload: Record<string, any> | null | undefined,
+) {
   if (!payload || typeof payload !== "object") return false;
-  const rawModule = String(payload.module || payload.targetModule || payload.destination || "").toLowerCase();
-  const rawPath = String(payload.path || payload.href || payload.url || "").toLowerCase();
+  const rawModule = String(
+    payload.module || payload.targetModule || payload.destination || "",
+  ).toLowerCase();
+  const rawPath = String(
+    payload.path || payload.href || payload.url || "",
+  ).toLowerCase();
   return (
     rawModule.includes("lead") ||
     rawModule.includes("funnel") ||
@@ -227,12 +249,36 @@ function isLeadEngineCmoPayload(payload: Record<string, any> | null | undefined)
 }
 
 function buildCmoLeadBrief(payload: Record<string, any>) {
-  const audience = pickCmoString(payload, ["audience", "target", "cible"], "une audience qualifiée");
-  const offer = pickCmoString(payload, ["offer", "offer_name", "product", "produit", "magnetName"], "une offre premium");
-  const objective = pickCmoString(payload, ["objective", "goal", "objectif"], "transformer l’attention en prospects qualifiés");
-  const promise = pickCmoString(payload, ["promise", "promesse", "mainPromise"], "obtenir un résultat clair rapidement");
-  const angle = pickCmoString(payload, ["angle", "hook", "headline"], "landing premium orientée conversion");
-  const cta = pickCmoString(payload, ["cta", "ctaText", "cta_label"], "Recevoir l’accès maintenant");
+  const audience = pickCmoString(
+    payload,
+    ["audience", "target", "cible"],
+    "une audience qualifiée",
+  );
+  const offer = pickCmoString(
+    payload,
+    ["offer", "offer_name", "product", "produit", "magnetName"],
+    "une offre premium",
+  );
+  const objective = pickCmoString(
+    payload,
+    ["objective", "goal", "objectif"],
+    "transformer l’attention en prospects qualifiés",
+  );
+  const promise = pickCmoString(
+    payload,
+    ["promise", "promesse", "mainPromise"],
+    "obtenir un résultat clair rapidement",
+  );
+  const angle = pickCmoString(
+    payload,
+    ["angle", "hook", "headline"],
+    "landing premium orientée conversion",
+  );
+  const cta = pickCmoString(
+    payload,
+    ["cta", "ctaText", "cta_label"],
+    "Recevoir l’accès maintenant",
+  );
 
   return [
     `Audience : ${audience}`,
@@ -246,21 +292,41 @@ function buildCmoLeadBrief(payload: Record<string, any>) {
 
 function buildLeadPresetFromCmo(payload: Record<string, any>): LayerData[] {
   const preset = buildLeadPreset();
-  const audience = pickCmoString(payload, ["audience", "target", "cible"], "ton audience idéale");
-  const offer = pickCmoString(payload, ["offer", "offer_name", "product", "produit", "magnetName"], "ton offre premium");
-  const objective = pickCmoString(payload, ["objective", "goal", "objectif"], "convertir plus de prospects qualifiés");
-  const promise = pickCmoString(payload, ["promise", "promesse", "mainPromise"], "obtenir un résultat clair et rapide");
+  const audience = pickCmoString(
+    payload,
+    ["audience", "target", "cible"],
+    "ton audience idéale",
+  );
+  const offer = pickCmoString(
+    payload,
+    ["offer", "offer_name", "product", "produit", "magnetName"],
+    "ton offre premium",
+  );
+  const objective = pickCmoString(
+    payload,
+    ["objective", "goal", "objectif"],
+    "convertir plus de prospects qualifiés",
+  );
+  const promise = pickCmoString(
+    payload,
+    ["promise", "promesse", "mainPromise"],
+    "obtenir un résultat clair et rapide",
+  );
   const headline = pickCmoString(
     payload,
     ["headline", "title", "name", "campaignName", "campaign_name"],
-    `Transforme ${audience} en prospects qualifiés`
+    `Transforme ${audience} en prospects qualifiés`,
   );
   const subtitle = pickCmoString(
     payload,
     ["subtitle", "description", "brief", "context"],
-    `Une landing premium construite par le CMO IA pour présenter ${offer}, clarifier la promesse et guider ${audience} vers l’action.`
+    `Une landing premium construite par le CMO IA pour présenter ${offer}, clarifier la promesse et guider ${audience} vers l’action.`,
   );
-  const cta = pickCmoString(payload, ["cta", "ctaText", "cta_label"], "Recevoir l’accès maintenant");
+  const cta = pickCmoString(
+    payload,
+    ["cta", "ctaText", "cta_label"],
+    "Recevoir l’accès maintenant",
+  );
 
   return preset.map((layer: any) => {
     if (!layer || typeof layer !== "object") return layer;
@@ -278,15 +344,24 @@ function buildLeadPresetFromCmo(payload: Record<string, any>): LayerData[] {
     }
 
     if (layer.id === "lead-benefit-1") {
-      return { ...layer, text: `• Clarifie l’offre ${offer} pour donner envie de s’inscrire.` } as LayerData;
+      return {
+        ...layer,
+        text: `• Clarifie l’offre ${offer} pour donner envie de s’inscrire.`,
+      } as LayerData;
     }
 
     if (layer.id === "lead-benefit-2") {
-      return { ...layer, text: `• Convertit ${audience} avec une promesse simple : ${promise}.` } as LayerData;
+      return {
+        ...layer,
+        text: `• Convertit ${audience} avec une promesse simple : ${promise}.`,
+      } as LayerData;
     }
 
     if (layer.id === "lead-benefit-3") {
-      return { ...layer, text: `• Oriente chaque section vers l’objectif : ${objective}.` } as LayerData;
+      return {
+        ...layer,
+        text: `• Oriente chaque section vers l’objectif : ${objective}.`,
+      } as LayerData;
     }
 
     return layer as LayerData;
@@ -297,7 +372,9 @@ function safeParseLayers(raw: string | null): LayerData[] | null {
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw);
-    const normalized = normalizeLayersSnapshot(Array.isArray(parsed) ? (parsed as LayerData[]) : null);
+    const normalized = normalizeLayersSnapshot(
+      Array.isArray(parsed) ? (parsed as LayerData[]) : null,
+    );
     return normalized.length > 0 ? normalized : null;
   } catch {
     return null;
@@ -324,12 +401,20 @@ function safeParseArchives(raw: string | null): SavedArchive[] {
         if (layers.length === 0) return null;
 
         return {
-          id: String((item as SavedArchive).id || `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`),
+          id: String(
+            (item as SavedArchive).id ||
+              `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+          ),
           name: String((item as SavedArchive).name || "Archive sans nom"),
-          createdAt: String((item as SavedArchive).createdAt || new Date().toISOString()),
+          createdAt: String(
+            (item as SavedArchive).createdAt || new Date().toISOString(),
+          ),
           layers,
           ctaUrl: String((item as SavedArchive).ctaUrl || DEFAULT_CTA_URL),
-          canvasHeight: safeParseHeight(String((item as SavedArchive).canvasHeight ?? "")) ?? 1800,
+          canvasHeight:
+            safeParseHeight(
+              String((item as SavedArchive).canvasHeight ?? ""),
+            ) ?? 1800,
         } as SavedArchive;
       })
       .filter(Boolean) as SavedArchive[];
@@ -388,37 +473,37 @@ const LEAD_SECTION_ORDER = [
 ];
 
 const LEAD_SECTION_ALIASES: Record<string, string> = {
-  "HOOK": "HOOK ANTI-SCROLL",
+  HOOK: "HOOK ANTI-SCROLL",
   "HOOK ANTI SCROLL": "HOOK ANTI-SCROLL",
   "HOOK ANTI-SCROLL": "HOOK ANTI-SCROLL",
   "ANTI SCROLL": "HOOK ANTI-SCROLL",
-  "HERO": "HERO",
-  "IDENTIFICATION": "DOULEUR / IDENTIFICATION",
-  "DOULEUR": "DOULEUR / IDENTIFICATION",
+  HERO: "HERO",
+  IDENTIFICATION: "DOULEUR / IDENTIFICATION",
+  DOULEUR: "DOULEUR / IDENTIFICATION",
   "DOULEUR IDENTIFICATION": "DOULEUR / IDENTIFICATION",
   "DOULEUR / IDENTIFICATION": "DOULEUR / IDENTIFICATION",
   "CE QUE TU VAS RECEVOIR": "BENEFICES",
   "CE QUE VOUS ALLEZ RECEVOIR": "BENEFICES",
-  "BENEFICE": "BENEFICES",
-  "BENEFICES": "BENEFICES",
-  "BÉNÉFICES": "BENEFICES",
-  "PROMESSE": "BENEFICES",
+  BENEFICE: "BENEFICES",
+  BENEFICES: "BENEFICES",
+  BÉNÉFICES: "BENEFICES",
+  PROMESSE: "BENEFICES",
   "PROMESSE DU LEAD MAGNET": "BENEFICES",
   "POURQUOI CA DEBLOQUE": "MECANISME",
   "POURQUOI ÇA DÉBLOQUE": "MECANISME",
-  "MECANISME": "MECANISME",
-  "MÉCANISME": "MECANISME",
+  MECANISME: "MECANISME",
+  MÉCANISME: "MECANISME",
   "COMMENT CA MARCHE": "MECANISME",
   "COMMENT ÇA MARCHE": "MECANISME",
-  "RASSURANCE": "PREUVE / RASSURANCE",
-  "PREUVE": "PREUVE / RASSURANCE",
+  RASSURANCE: "PREUVE / RASSURANCE",
+  PREUVE: "PREUVE / RASSURANCE",
   "PREUVE / RASSURANCE": "PREUVE / RASSURANCE",
-  "OBJECTION": "OBJECTIONS",
-  "OBJECTIONS": "OBJECTIONS",
-  "CTA": "CTA FINAL",
+  OBJECTION: "OBJECTIONS",
+  OBJECTIONS: "OBJECTIONS",
+  CTA: "CTA FINAL",
   "CTA FINAL": "CTA FINAL",
   "MICRO FAQ": "FAQ COURTE",
-  "FAQ": "FAQ COURTE",
+  FAQ: "FAQ COURTE",
   "FAQ COURTE": "FAQ COURTE",
   "A UTILISER EN PRIORITE": "A UTILISER EN PRIORITE",
   "À UTILISER EN PRIORITÉ": "A UTILISER EN PRIORITE",
@@ -469,25 +554,45 @@ function normalizeLeadHeading(value: string) {
     .replace(/\s+/g, " ")
     .trim();
 
-  if (LEAD_SECTION_ALIASES[raw.toUpperCase()]) return LEAD_SECTION_ALIASES[raw.toUpperCase()];
+  if (LEAD_SECTION_ALIASES[raw.toUpperCase()])
+    return LEAD_SECTION_ALIASES[raw.toUpperCase()];
   if (LEAD_SECTION_ALIASES[normalized]) return LEAD_SECTION_ALIASES[normalized];
 
   if (normalized.includes("HERO")) return "HERO";
-  if (normalized.includes("IDENTIFICATION") || normalized.includes("DOULEUR")) return "DOULEUR / IDENTIFICATION";
-  if (normalized.includes("RECEVOIR") || normalized.includes("BENEFICE") || normalized.includes("PROMESSE")) return "BENEFICES";
-  if (normalized.includes("MECANISME") || normalized.includes("DEBLOQUE") || normalized.includes("COMMENT CA MARCHE")) return "MECANISME";
-  if (normalized.includes("RASSURANCE") || normalized.includes("PREUVE")) return "PREUVE / RASSURANCE";
+  if (normalized.includes("IDENTIFICATION") || normalized.includes("DOULEUR"))
+    return "DOULEUR / IDENTIFICATION";
+  if (
+    normalized.includes("RECEVOIR") ||
+    normalized.includes("BENEFICE") ||
+    normalized.includes("PROMESSE")
+  )
+    return "BENEFICES";
+  if (
+    normalized.includes("MECANISME") ||
+    normalized.includes("DEBLOQUE") ||
+    normalized.includes("COMMENT CA MARCHE")
+  )
+    return "MECANISME";
+  if (normalized.includes("RASSURANCE") || normalized.includes("PREUVE"))
+    return "PREUVE / RASSURANCE";
   if (normalized.includes("OBJECTION")) return "OBJECTIONS";
-  if (normalized.includes("CTA FINAL") || normalized === "CTA") return "CTA FINAL";
+  if (normalized.includes("CTA FINAL") || normalized === "CTA")
+    return "CTA FINAL";
   if (normalized.includes("FAQ")) return "FAQ COURTE";
-  if (normalized.includes("PRIORITAIRE") || normalized.includes("UTILISER EN PRIORITE")) return "A UTILISER EN PRIORITE";
+  if (
+    normalized.includes("PRIORITAIRE") ||
+    normalized.includes("UTILISER EN PRIORITE")
+  )
+    return "A UTILISER EN PRIORITE";
   if (normalized.includes("HOOK")) return "HOOK ANTI-SCROLL";
 
   return "";
 }
 
 function parseLeadSections(content: string): LeadSection[] {
-  const text = String(content || "").replace(/\r/g, "").trim();
+  const text = String(content || "")
+    .replace(/\r/g, "")
+    .trim();
   if (!text) return [];
 
   const sections: LeadSection[] = [];
@@ -542,11 +647,16 @@ function shortLines(content: string, maxLines: number) {
     .join("\n");
 }
 
-function buildStructuredLandingLayers(content: string, ctaUrl: string): { layers: LayerData[]; canvasHeight: number } | null {
+function buildStructuredLandingLayers(
+  content: string,
+  ctaUrl: string,
+): { layers: LayerData[]; canvasHeight: number } | null {
   const sections = parseLeadSections(content);
   if (sections.length === 0) return null;
 
-  const byTitle = new Map(sections.map((section) => [section.title, section.body]));
+  const byTitle = new Map(
+    sections.map((section) => [section.title, section.body]),
+  );
   const hook = byTitle.get("HOOK ANTI-SCROLL") || "";
   const hero = byTitle.get("HERO") || sections[0]?.body || "";
   const identification = byTitle.get("DOULEUR / IDENTIFICATION") || "";
@@ -558,9 +668,21 @@ function buildStructuredLandingLayers(content: string, ctaUrl: string): { layers
   const faq = byTitle.get("FAQ COURTE") || "";
   const priority = byTitle.get("A UTILISER EN PRIORITE") || "";
 
-  const title = extractLeadValue(hero, ["TITRE", "TITLE"]) || shortLines(hero, 1) || shortLines(hook, 1) || "Transforme ton audience en prospects qualifiés";
-  const subtitle = extractLeadValue(hero, ["SOUS-TITRE", "SOUS TITRE", "SUBTITLE"]) || shortLines(hero, 3) || shortLines(identification, 2) || "Une landing claire, premium et orientée conversion.";
-  const cta = extractLeadValue(hero, ["CTA PRINCIPAL", "CTA"]) || shortLines(ctaFinal, 1) || shortLines(priority, 1) || "Recevoir l’accès maintenant";
+  const title =
+    extractLeadValue(hero, ["TITRE", "TITLE"]) ||
+    shortLines(hero, 1) ||
+    shortLines(hook, 1) ||
+    "Transforme ton audience en prospects qualifiés";
+  const subtitle =
+    extractLeadValue(hero, ["SOUS-TITRE", "SOUS TITRE", "SUBTITLE"]) ||
+    shortLines(hero, 3) ||
+    shortLines(identification, 2) ||
+    "Une landing claire, premium et orientée conversion.";
+  const cta =
+    extractLeadValue(hero, ["CTA PRINCIPAL", "CTA"]) ||
+    shortLines(ctaFinal, 1) ||
+    shortLines(priority, 1) ||
+    "Recevoir l’accès maintenant";
 
   const compactIdentification = shortLines(identification || hook, 4);
   const compactBenefits = shortLines(benefits, 5);
@@ -595,7 +717,13 @@ function buildStructuredLandingLayers(content: string, ctaUrl: string): { layers
       selected: false,
       zIndex: 10,
       text: title,
-      style: { fontSize: 52, fontFamily: "Inter", color: "#ffffff", fontWeight: 900, lineHeight: 1.05 },
+      style: {
+        fontSize: 52,
+        fontFamily: "Inter",
+        color: "#ffffff",
+        fontWeight: 900,
+        lineHeight: 1.05,
+      },
     } as LayerData,
     {
       id: `lead-ai-hero-subtitle-${Date.now()}`,
@@ -608,7 +736,13 @@ function buildStructuredLandingLayers(content: string, ctaUrl: string): { layers
       selected: false,
       zIndex: 11,
       text: subtitle,
-      style: { fontSize: 23, fontFamily: "Inter", color: "#e4e4e7", fontWeight: 500, lineHeight: 1.35 },
+      style: {
+        fontSize: 23,
+        fontFamily: "Inter",
+        color: "#e4e4e7",
+        fontWeight: 500,
+        lineHeight: 1.35,
+      },
     } as LayerData,
     {
       id: `lead-ai-hero-cta-${Date.now()}`,
@@ -621,7 +755,14 @@ function buildStructuredLandingLayers(content: string, ctaUrl: string): { layers
       selected: false,
       zIndex: 12,
       text: cta,
-      style: { fontSize: 22, fontFamily: "Inter", color: "#111111", fontWeight: 900, lineHeight: 1.2, backgroundColor: "#ffb800" },
+      style: {
+        fontSize: 22,
+        fontFamily: "Inter",
+        color: "#111111",
+        fontWeight: 900,
+        lineHeight: 1.2,
+        backgroundColor: "#ffb800",
+      },
     } as LayerData,
     {
       id: `lead-ai-section-identification-title-${Date.now()}`,
@@ -646,7 +787,9 @@ function buildStructuredLandingLayers(content: string, ctaUrl: string): { layers
       visible: true,
       selected: false,
       zIndex: 14,
-      text: compactIdentification || "Tu as déjà essayé plusieurs méthodes, mais aucune ne t’a donné une page claire pour capturer des emails.",
+      text:
+        compactIdentification ||
+        "Tu as déjà essayé plusieurs méthodes, mais aucune ne t’a donné une page claire pour capturer des emails.",
       style: { ...blockStyle, fontSize: 21 },
     } as LayerData,
     {
@@ -672,7 +815,9 @@ function buildStructuredLandingLayers(content: string, ctaUrl: string): { layers
       visible: true,
       selected: false,
       zIndex: 14,
-      text: compactBenefits || "• Clarifie ta promesse.\n• Transforme l’attention en action.\n• Donne envie de s’inscrire maintenant.",
+      text:
+        compactBenefits ||
+        "• Clarifie ta promesse.\n• Transforme l’attention en action.\n• Donne envie de s’inscrire maintenant.",
       style: { ...blockStyle, fontSize: 22 },
     } as LayerData,
     {
@@ -698,7 +843,9 @@ function buildStructuredLandingLayers(content: string, ctaUrl: string): { layers
       visible: true,
       selected: false,
       zIndex: 16,
-      text: compactMechanism || "Une méthode simple pour passer de l’idée à une page visible, claire et prête à convertir.",
+      text:
+        compactMechanism ||
+        "Une méthode simple pour passer de l’idée à une page visible, claire et prête à convertir.",
       style: { ...blockStyle, fontSize: 21 },
     } as LayerData,
     {
@@ -724,7 +871,9 @@ function buildStructuredLandingLayers(content: string, ctaUrl: string): { layers
       visible: true,
       selected: false,
       zIndex: 18,
-      text: compactProof || "LGD t’aide à créer une page exploitable sans repartir de zéro ni dépendre d’un autre template.",
+      text:
+        compactProof ||
+        "LGD t’aide à créer une page exploitable sans repartir de zéro ni dépendre d’un autre template.",
       style: { ...blockStyle, fontSize: 21 },
     } as LayerData,
     {
@@ -750,7 +899,9 @@ function buildStructuredLandingLayers(content: string, ctaUrl: string): { layers
       visible: true,
       selected: false,
       zIndex: 20,
-      text: compactObjections || "• Je ne sais pas par où commencer.\n• Je n’ai pas le temps.\n• Je veux éviter une page amateur.",
+      text:
+        compactObjections ||
+        "• Je ne sais pas par où commencer.\n• Je n’ai pas le temps.\n• Je veux éviter une page amateur.",
       style: { ...blockStyle, fontSize: 20 },
     } as LayerData,
     {
@@ -776,7 +927,9 @@ function buildStructuredLandingLayers(content: string, ctaUrl: string): { layers
       visible: true,
       selected: false,
       zIndex: 22,
-      text: compactFaq || `Q: À quoi sert LGD ?\nR: À transformer tes idées en contenus, pages et actions concrètes.\n\nQ: Est-ce adapté aux débutants ?\nR: Oui, la structure guide chaque étape.`,
+      text:
+        compactFaq ||
+        `Q: À quoi sert LGD ?\nR: À transformer tes idées en contenus, pages et actions concrètes.\n\nQ: Est-ce adapté aux débutants ?\nR: Oui, la structure guide chaque étape.`,
       style: { ...blockStyle, fontSize: 19 },
     } as LayerData,
   ];
@@ -786,7 +939,9 @@ function buildStructuredLandingLayers(content: string, ctaUrl: string): { layers
 
 function parseLinearGradient(input: string | undefined | null) {
   const raw = String(input || "").trim();
-  const match = raw.match(/linear-gradient\(([-\d.]+)deg,\s*([^,]+),\s*([^\)]+)\)/i);
+  const match = raw.match(
+    /linear-gradient\(([-\d.]+)deg,\s*([^,]+),\s*([^\)]+)\)/i,
+  );
   if (!match) return null;
   return {
     angle: Number(match[1] || 135),
@@ -807,7 +962,9 @@ function downloadDataUrl(dataUrl: string, filename: string) {
 export default function LeadEnginePage() {
   const [editorKey, setEditorKey] = useState(0);
   const [hydrated, setHydrated] = useState(false);
-  const [initialLayers, setInitialLayers] = useState<LayerData[]>(() => buildLeadPreset());
+  const [initialLayers, setInitialLayers] = useState<LayerData[]>(() =>
+    buildLeadPreset(),
+  );
   const [layers, setLayers] = useState<LayerData[]>(() => buildLeadPreset());
   const [ctaUrl, setCtaUrl] = useState(DEFAULT_CTA_URL);
   const [copied, setCopied] = useState(false);
@@ -819,10 +976,15 @@ export default function LeadEnginePage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiResult, setAiResult] = useState("");
   const [aiBrief, setAiBrief] = useState("");
-  const [aiGoal, setAiGoal] = useState<"landing_complete" | "hooks" | "cta" | "benefits" | "variants">("landing_complete");
-  const [aiLastGoal, setAiLastGoal] = useState<"landing_complete" | "hooks" | "cta" | "benefits" | "variants">("landing_complete");
+  const [aiGoal, setAiGoal] = useState<
+    "landing_complete" | "hooks" | "cta" | "benefits" | "variants"
+  >("landing_complete");
+  const [aiLastGoal, setAiLastGoal] = useState<
+    "landing_complete" | "hooks" | "cta" | "benefits" | "variants"
+  >("landing_complete");
   const [aiQuota, setAiQuota] = useState<AIQuotaState>(DEFAULT_AI_QUOTA);
   const [aiQuotaLoading, setAiQuotaLoading] = useState(false);
+  const [aiQuotaUnavailable, setAiQuotaUnavailable] = useState(false);
   const [aiQuotaMessage, setAiQuotaMessage] = useState("");
   const [premiumOpen, setPremiumOpen] = useState(true);
   const [cmoLoading, setCmoLoading] = useState(false);
@@ -831,7 +993,8 @@ export default function LeadEnginePage() {
   const aiResultSections = useMemo(() => {
     if (aiLastGoal !== "landing_complete") return [];
     const sections = parseLeadSections(aiResult);
-    if (sections.length <= 1 && sections[0]?.title === "CONTENU LANDING") return [];
+    if (sections.length <= 1 && sections[0]?.title === "CONTENU LANDING")
+      return [];
 
     return sections
       .filter((section) => section.body.trim().length > 0)
@@ -844,6 +1007,15 @@ export default function LeadEnginePage() {
       });
   }, [aiLastGoal, aiResult]);
 
+  const aiQuotaKnown = !aiQuotaUnavailable && aiQuota.tokens_limit > 0;
+  const canUseAI = !aiQuotaKnown || aiQuota.remaining > 0;
+  const aiQuotaStatusLabel = aiQuotaLoading
+    ? "Synchronisation quota IA..."
+    : aiQuotaUnavailable
+      ? "Quota IA : statut indisponible • génération autorisée"
+      : aiQuotaKnown
+        ? `Quota IA : ${aiQuota.remaining.toLocaleString()} / ${aiQuota.tokens_limit.toLocaleString()} • Plan ${aiQuota.plan}`
+        : "Quota IA : synchronisation en cours • génération autorisée";
 
   function syncQuotaFromPayload(raw: any) {
     if (!raw || typeof raw !== "object") return;
@@ -856,19 +1028,43 @@ export default function LeadEnginePage() {
   }
 
   async function refreshAIQuota() {
+    const apiBaseUrl = String(process.env.NEXT_PUBLIC_API_URL || "").replace(
+      /\/$/,
+      "",
+    );
+
+    if (!apiBaseUrl) {
+      setAiQuotaUnavailable(true);
+      setAiQuotaLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 8000);
+
     try {
       setAiQuotaLoading(true);
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/ai-quota/global`, {
+      const response = await fetch(`${apiBaseUrl}/ai-quota/global`, {
         method: "GET",
         credentials: "include",
         headers: getAuthHeaders(),
+        signal: controller.signal,
       });
+
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) return;
+
+      if (!response.ok) {
+        setAiQuotaUnavailable(true);
+        return;
+      }
+
+      setAiQuotaUnavailable(false);
       syncQuotaFromPayload(data);
     } catch (error) {
       console.error("[LeadEngine quota]", error);
+      setAiQuotaUnavailable(true);
     } finally {
+      window.clearTimeout(timeout);
       setAiQuotaLoading(false);
     }
   }
@@ -877,7 +1073,8 @@ export default function LeadEnginePage() {
     const detail = data?.detail;
     const quota = detail?.quota || data?.quota;
     if (quota) syncQuotaFromPayload(quota);
-    const message = detail?.message || data?.message || "Quota IA atteint pour le moment.";
+    const message =
+      detail?.message || data?.message || "Quota IA atteint pour le moment.";
     setAiQuotaMessage(String(message));
     window.alert(String(message));
   }
@@ -894,19 +1091,32 @@ export default function LeadEnginePage() {
 
   useEffect(() => {
     try {
-      const savedLayers = safeParseLayers(window.localStorage.getItem(STORAGE_KEY));
-      const savedCta = window.localStorage.getItem(STORAGE_CTA_KEY) || DEFAULT_CTA_URL;
-      const savedCanvasHeight = safeParseHeight(window.localStorage.getItem(STORAGE_CANVAS_HEIGHT_KEY));
-      const savedArchives = safeParseArchives(window.localStorage.getItem(STORAGE_ARCHIVES_KEY));
+      const savedLayers = safeParseLayers(
+        window.localStorage.getItem(STORAGE_KEY),
+      );
+      const savedCta =
+        window.localStorage.getItem(STORAGE_CTA_KEY) || DEFAULT_CTA_URL;
+      const savedCanvasHeight = safeParseHeight(
+        window.localStorage.getItem(STORAGE_CANVAS_HEIGHT_KEY),
+      );
+      const savedArchives = safeParseArchives(
+        window.localStorage.getItem(STORAGE_ARCHIVES_KEY),
+      );
 
-      const cmoRawPayload = window.localStorage.getItem(CMO_MODULE_AUTO_PAYLOAD_KEY);
+      const cmoRawPayload = window.localStorage.getItem(
+        CMO_MODULE_AUTO_PAYLOAD_KEY,
+      );
       const cmoPayload = cmoRawPayload ? JSON.parse(cmoRawPayload) : null;
 
       if (isLeadEngineCmoPayload(cmoPayload)) {
         const cmoLayers = buildLeadPresetFromCmo(cmoPayload);
         const cmoBrief = buildCmoLeadBrief(cmoPayload);
         const cmoCtaUrl = normalizeExportUrl(
-          pickCmoString(cmoPayload, ["cta_url", "ctaUrl", "url", "link"], savedCta || DEFAULT_CTA_URL)
+          pickCmoString(
+            cmoPayload,
+            ["cta_url", "ctaUrl", "url", "link"],
+            savedCta || DEFAULT_CTA_URL,
+          ),
         );
 
         setCmoLoading(true);
@@ -929,7 +1139,8 @@ export default function LeadEnginePage() {
         return;
       }
 
-      const nextLayers = savedLayers && savedLayers.length > 0 ? savedLayers : buildLeadPreset();
+      const nextLayers =
+        savedLayers && savedLayers.length > 0 ? savedLayers : buildLeadPreset();
 
       setInitialLayers(nextLayers);
       setLayers(nextLayers);
@@ -957,8 +1168,14 @@ export default function LeadEnginePage() {
     if (!hydrated) return;
     try {
       window.localStorage.setItem(STORAGE_CTA_KEY, normalizeExportUrl(ctaUrl));
-      window.localStorage.setItem(STORAGE_CANVAS_HEIGHT_KEY, String(canvasHeight));
-      window.localStorage.setItem(STORAGE_ARCHIVES_KEY, JSON.stringify(archives));
+      window.localStorage.setItem(
+        STORAGE_CANVAS_HEIGHT_KEY,
+        String(canvasHeight),
+      );
+      window.localStorage.setItem(
+        STORAGE_ARCHIVES_KEY,
+        JSON.stringify(archives),
+      );
     } catch {
       // noop
     }
@@ -969,20 +1186,23 @@ export default function LeadEnginePage() {
     if (!trimmed) return;
 
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/lead-engine/ai/save-memory`, {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-          ...getAuthHeaders(),
+      await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/lead-engine/ai/save-memory`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+            ...getAuthHeaders(),
+          },
+          body: JSON.stringify({
+            memory_type: "lead_brief",
+            content: trimmed,
+            emotional_profile: "human premium",
+            business_context: "lead-engine",
+          }),
         },
-        body: JSON.stringify({
-          memory_type: "lead_brief",
-          content: trimmed,
-          emotional_profile: "human premium",
-          business_context: "lead-engine",
-        }),
-      });
+      );
     } catch (error) {
       console.error("[LeadEngine memory]", error);
     }
@@ -1004,25 +1224,39 @@ export default function LeadEnginePage() {
       setAiLastGoal(goal as typeof aiLastGoal);
       setAiResult("");
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/lead-engine/ai/generate`, {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-          ...getAuthHeaders(),
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/lead-engine/ai/generate`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+            ...getAuthHeaders(),
+          },
+          body: JSON.stringify({
+            goal,
+            brief:
+              forcedBrief ||
+              aiBrief ||
+              "Créer une landing premium orientée conversion.",
+            emotional_style:
+              goal === "rewrite_landing"
+                ? "réécriture courte, claire, landing, sans pavé"
+                : "humain, authentique, expert, sincère, orienté conversion",
+            business_context: `lead generation premium | cta_url=${normalizeExportUrl(ctaUrl)}`,
+          }),
         },
-        body: JSON.stringify({
-          goal,
-          brief: forcedBrief || aiBrief || "Créer une landing premium orientée conversion.",
-          emotional_style: goal === "rewrite_landing" ? "réécriture courte, claire, landing, sans pavé" : "humain, authentique, expert, sincère, orienté conversion",
-          business_context: `lead generation premium | cta_url=${normalizeExportUrl(ctaUrl)}`,
-        }),
-      });
+      );
 
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
         const detail = (data as any)?.detail;
-        const isQuotaError = response.status === 402 || response.status === 429 || String(detail || "").toLowerCase().includes("quota");
+        const isQuotaError =
+          response.status === 402 ||
+          response.status === 429 ||
+          String(detail || "")
+            .toLowerCase()
+            .includes("quota");
 
         if (isQuotaError) {
           handleQuotaExceeded(data);
@@ -1058,7 +1292,10 @@ export default function LeadEnginePage() {
     const source = aiResult.trim();
     if (!source) return;
 
-    const structured = buildStructuredLandingLayers(source, normalizeExportUrl(ctaUrl));
+    const structured = buildStructuredLandingLayers(
+      source,
+      normalizeExportUrl(ctaUrl),
+    );
     if (!structured) return;
 
     setLayers(structured.layers);
@@ -1069,8 +1306,14 @@ export default function LeadEnginePage() {
     persistLayers(structured.layers);
 
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(structured.layers));
-      window.localStorage.setItem(STORAGE_CANVAS_HEIGHT_KEY, String(structured.canvasHeight));
+      window.localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify(structured.layers),
+      );
+      window.localStorage.setItem(
+        STORAGE_CANVAS_HEIGHT_KEY,
+        String(structured.canvasHeight),
+      );
       window.localStorage.setItem(STORAGE_CTA_KEY, normalizeExportUrl(ctaUrl));
     } catch {
       // noop
@@ -1137,7 +1380,10 @@ export default function LeadEnginePage() {
 
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextLayers));
-      window.localStorage.setItem(STORAGE_CANVAS_HEIGHT_KEY, String(nextHeight));
+      window.localStorage.setItem(
+        STORAGE_CANVAS_HEIGHT_KEY,
+        String(nextHeight),
+      );
     } catch {
       // noop
     }
@@ -1206,7 +1452,10 @@ export default function LeadEnginePage() {
     setLastSavedAt(new Date().toLocaleTimeString());
 
     try {
-      window.localStorage.setItem(STORAGE_CANVAS_HEIGHT_KEY, String(safeHeight));
+      window.localStorage.setItem(
+        STORAGE_CANVAS_HEIGHT_KEY,
+        String(safeHeight),
+      );
     } catch {
       // noop
     }
@@ -1250,8 +1499,14 @@ export default function LeadEnginePage() {
     persistLayers(snapshot);
 
     try {
-      window.localStorage.setItem(STORAGE_CANVAS_HEIGHT_KEY, String(found.canvasHeight));
-      window.localStorage.setItem(STORAGE_CTA_KEY, normalizeExportUrl(found.ctaUrl || DEFAULT_CTA_URL));
+      window.localStorage.setItem(
+        STORAGE_CANVAS_HEIGHT_KEY,
+        String(found.canvasHeight),
+      );
+      window.localStorage.setItem(
+        STORAGE_CTA_KEY,
+        normalizeExportUrl(found.ctaUrl || DEFAULT_CTA_URL),
+      );
     } catch {
       // noop
     }
@@ -1263,7 +1518,10 @@ export default function LeadEnginePage() {
 
   async function exportRaster(type: "png" | "jpeg") {
     const visibleLayers = normalizeLayersSnapshot(layers).filter(
-      (layer: any) => layer && layer.visible !== false && String(layer.id) !== "lead-canvas-height-marker"
+      (layer: any) =>
+        layer &&
+        layer.visible !== false &&
+        String(layer.id) !== "lead-canvas-height-marker",
     );
 
     if (visibleLayers.length === 0) {
@@ -1290,7 +1548,13 @@ export default function LeadEnginePage() {
           img.src = src;
         });
 
-      const drawCover = (img: HTMLImageElement, dx: number, dy: number, dw: number, dh: number) => {
+      const drawCover = (
+        img: HTMLImageElement,
+        dx: number,
+        dy: number,
+        dw: number,
+        dh: number,
+      ) => {
         const scale = Math.max(dw / img.width, dh / img.height);
         const sw = dw / scale;
         const sh = dh / scale;
@@ -1299,7 +1563,13 @@ export default function LeadEnginePage() {
         ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
       };
 
-      const drawContain = (img: HTMLImageElement, dx: number, dy: number, dw: number, dh: number) => {
+      const drawContain = (
+        img: HTMLImageElement,
+        dx: number,
+        dy: number,
+        dw: number,
+        dh: number,
+      ) => {
         const scale = Math.min(dw / img.width, dh / img.height);
         const rw = img.width * scale;
         const rh = img.height * scale;
@@ -1308,7 +1578,14 @@ export default function LeadEnginePage() {
         ctx.drawImage(img, ox, oy, rw, rh);
       };
 
-      const drawRoundedRect = (x: number, y: number, width: number, height: number, radius: number, fill: string) => {
+      const drawRoundedRect = (
+        x: number,
+        y: number,
+        width: number,
+        height: number,
+        radius: number,
+        fill: string,
+      ) => {
         const r = Math.min(radius, width / 2, height / 2);
         ctx.save();
         ctx.fillStyle = fill;
@@ -1331,13 +1608,19 @@ export default function LeadEnginePage() {
         const style = getLayerStyle(layer);
         const fontSize = Math.max(8, toNumber(style.fontSize, 32));
         const fontWeight = String(style.fontWeight ?? 400);
-        const fontFamily = String(style.fontFamily || "Inter, Arial, sans-serif");
+        const fontFamily = String(
+          style.fontFamily || "Inter, Arial, sans-serif",
+        );
         const lineHeight = Math.max(0.8, toNumber(style.lineHeight, 1.2));
-        const textAlign = ["left", "center", "right", "justify"].includes(String(style.textAlign))
+        const textAlign = ["left", "center", "right", "justify"].includes(
+          String(style.textAlign),
+        )
           ? String(style.textAlign)
           : "left";
         const color = getTextColor(style);
-        const backgroundColor = style.backgroundColor ? String(style.backgroundColor) : "";
+        const backgroundColor = style.backgroundColor
+          ? String(style.backgroundColor)
+          : "";
         const x = Math.round(toNumber(layer.x, 0));
         const y = Math.round(toNumber(layer.y, 0));
         const width = Math.max(20, Math.round(toNumber(layer.width, 320)));
@@ -1353,7 +1636,9 @@ export default function LeadEnginePage() {
 
         const lines: string[] = [];
         for (const paragraph of rawText.split("\n")) {
-          const words = String(paragraph || "").split(/\s+/).filter(Boolean);
+          const words = String(paragraph || "")
+            .split(/\s+/)
+            .filter(Boolean);
           if (!words.length) {
             lines.push("");
             continue;
@@ -1373,7 +1658,10 @@ export default function LeadEnginePage() {
           if (current) lines.push(current);
         }
 
-        const boxHeight = Math.max(minHeight, Math.ceil(lines.length * fontSize * lineHeight + paddingY * 2));
+        const boxHeight = Math.max(
+          minHeight,
+          Math.ceil(lines.length * fontSize * lineHeight + paddingY * 2),
+        );
         if (backgroundColor) {
           drawRoundedRect(x, y, width, boxHeight, 18, backgroundColor);
         }
@@ -1400,17 +1688,20 @@ export default function LeadEnginePage() {
         ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
 
-      const backgroundLayer = visibleLayers.find((layer: any) => String(layer.id) === "background-post") ?? null;
+      const backgroundLayer =
+        visibleLayers.find(
+          (layer: any) => String(layer.id) === "background-post",
+        ) ?? null;
       const bgStyle = getLayerStyle(backgroundLayer);
       const bgColor = String(bgStyle.color || "#111111");
       const bgGradient = parseLinearGradient(bgColor);
 
       if (bgGradient) {
         const angle = ((bgGradient.angle - 90) * Math.PI) / 180;
-        const x0 = canvas.width / 2 - Math.cos(angle) * canvas.width / 2;
-        const y0 = canvas.height / 2 - Math.sin(angle) * canvas.height / 2;
-        const x1 = canvas.width / 2 + Math.cos(angle) * canvas.width / 2;
-        const y1 = canvas.height / 2 + Math.sin(angle) * canvas.height / 2;
+        const x0 = canvas.width / 2 - (Math.cos(angle) * canvas.width) / 2;
+        const y0 = canvas.height / 2 - (Math.sin(angle) * canvas.height) / 2;
+        const x1 = canvas.width / 2 + (Math.cos(angle) * canvas.width) / 2;
+        const y1 = canvas.height / 2 + (Math.sin(angle) * canvas.height) / 2;
         const grd = ctx.createLinearGradient(x0, y0, x1, y1);
         grd.addColorStop(0, bgGradient.color1);
         grd.addColorStop(1, bgGradient.color2);
@@ -1420,7 +1711,12 @@ export default function LeadEnginePage() {
       }
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      if (backgroundLayer && backgroundLayer.type === "image" && typeof backgroundLayer.src === "string" && backgroundLayer.src) {
+      if (
+        backgroundLayer &&
+        backgroundLayer.type === "image" &&
+        typeof backgroundLayer.src === "string" &&
+        backgroundLayer.src
+      ) {
         const bgImg = await loadImage(backgroundLayer.src);
         drawCover(bgImg, 0, 0, canvas.width, canvas.height);
       }
@@ -1429,14 +1725,16 @@ export default function LeadEnginePage() {
       if (overlay) {
         ctx.save();
         ctx.globalAlpha = clamp(Number(overlay.opacity ?? 0.35), 0, 1);
-        const overlayValue = String(overlay.value || overlay.color1 || "#000000");
+        const overlayValue = String(
+          overlay.value || overlay.color1 || "#000000",
+        );
         const overlayGradient = parseLinearGradient(overlayValue);
         if (overlayGradient) {
           const angle = ((overlayGradient.angle - 90) * Math.PI) / 180;
-          const x0 = canvas.width / 2 - Math.cos(angle) * canvas.width / 2;
-          const y0 = canvas.height / 2 - Math.sin(angle) * canvas.height / 2;
-          const x1 = canvas.width / 2 + Math.cos(angle) * canvas.width / 2;
-          const y1 = canvas.height / 2 + Math.sin(angle) * canvas.height / 2;
+          const x0 = canvas.width / 2 - (Math.cos(angle) * canvas.width) / 2;
+          const y0 = canvas.height / 2 - (Math.sin(angle) * canvas.height) / 2;
+          const x1 = canvas.width / 2 + (Math.cos(angle) * canvas.width) / 2;
+          const y1 = canvas.height / 2 + (Math.sin(angle) * canvas.height) / 2;
           const grd = ctx.createLinearGradient(x0, y0, x1, y1);
           grd.addColorStop(0, overlayGradient.color1);
           grd.addColorStop(1, overlayGradient.color2);
@@ -1450,17 +1748,23 @@ export default function LeadEnginePage() {
 
       const contentLayers = [...visibleLayers]
         .filter((layer: any) => String(layer.id) !== "background-post")
-        .sort((a: any, b: any) => Number(a?.zIndex ?? 0) - Number(b?.zIndex ?? 0));
+        .sort(
+          (a: any, b: any) => Number(a?.zIndex ?? 0) - Number(b?.zIndex ?? 0),
+        );
 
       for (const layer of contentLayers as any[]) {
-        if (layer.type === "image" && typeof layer.src === "string" && layer.src) {
+        if (
+          layer.type === "image" &&
+          typeof layer.src === "string" &&
+          layer.src
+        ) {
           const img = await loadImage(layer.src);
           drawContain(
             img,
             Math.round(toNumber(layer.x, 0)),
             Math.round(toNumber(layer.y, 0)),
             Math.max(20, Math.round(toNumber(layer.width, 300))),
-            Math.max(20, Math.round(toNumber(layer.height, 300)))
+            Math.max(20, Math.round(toNumber(layer.height, 300))),
           );
           continue;
         }
@@ -1470,7 +1774,10 @@ export default function LeadEnginePage() {
         }
       }
 
-      const dataUrl = canvas.toDataURL(type === "png" ? "image/png" : "image/jpeg", 0.95);
+      const dataUrl = canvas.toDataURL(
+        type === "png" ? "image/png" : "image/jpeg",
+        0.95,
+      );
       const filename = `lgd-lead-engine-${new Date()
         .toISOString()
         .slice(0, 19)
@@ -1478,7 +1785,11 @@ export default function LeadEnginePage() {
       downloadDataUrl(dataUrl, filename);
     } catch (error) {
       console.error("[LeadEngine exportRaster]", error);
-      window.alert(type === "png" ? "Export PNG impossible pour le moment." : "Export JPEG impossible pour le moment.");
+      window.alert(
+        type === "png"
+          ? "Export PNG impossible pour le moment."
+          : "Export JPEG impossible pour le moment.",
+      );
     } finally {
       setExporting("");
     }
@@ -1500,7 +1811,7 @@ export default function LeadEnginePage() {
 
               <div className="inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-4 py-1 text-[12px] text-white/75">
                 <FaMagic className="text-yellow-300" />
-                Lead Builder V4.7.2 — Front IA Memory Connector
+                Lead Builder V4.7.3 — IA Premium First
               </div>
             </div>
 
@@ -1508,7 +1819,8 @@ export default function LeadEnginePage() {
               Lead Engine branché sur la vraie structure éditeur
             </h1>
             <p className="mt-2 max-w-3xl text-white/65">
-              Export HTML SIO, export PNG / JPEG, archives locales et copilote IA mémoire branché sur le backend.
+              Export HTML SIO, export PNG / JPEG, archives locales et copilote
+              IA mémoire branché sur le backend.
             </p>
           </div>
 
@@ -1557,93 +1869,27 @@ export default function LeadEnginePage() {
           <div className="mb-6 rounded-[28px] border border-yellow-500/25 bg-gradient-to-r from-yellow-500/10 via-[#0b0b0b] to-yellow-500/10 p-5 text-center shadow-[0_0_35px_rgba(255,184,0,0.08)]">
             <div className="inline-flex items-center justify-center gap-3 rounded-full border border-yellow-500/25 bg-black/25 px-5 py-3 text-sm font-semibold text-yellow-200">
               <FaMagic className="animate-pulse text-yellow-300" />
-              Le CMO IA construit ta landing et prépare ton funnel de conversion…
+              Le CMO IA construit ta landing et prépare ton funnel de
+              conversion…
             </div>
           </div>
         )}
 
-        <div className="mb-6 rounded-[28px] border border-yellow-600/20 bg-[#0b0b0b] p-5">
-          <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
-            <div>
-              <div className="mb-2 text-sm font-semibold text-yellow-300">Archive de landing</div>
-              <div className="text-sm text-white/55">
-                Sauvegarde des versions prêtes à rouvrir, dupliquer ou exporter plus tard.
-              </div>
-
-              <div className="mt-4 flex gap-2">
-                <input
-                  type="text"
-                  value={archiveName}
-                  onChange={(e) => setArchiveName(e.target.value)}
-                  placeholder="Nom de l’archive"
-                  className="flex-1 rounded-2xl border border-yellow-600/20 bg-[#111] px-4 py-4 text-sm text-white/85 outline-none placeholder:text-white/30"
-                />
-                <button
-                  type="button"
-                  onClick={saveArchive}
-                  className="inline-flex items-center gap-2 rounded-2xl bg-[#ffb800] px-5 py-3 font-semibold text-black"
-                >
-                  <FaSave />
-                  Archiver
-                </button>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-yellow-600/20 bg-[#111] p-4">
-              <div className="text-sm font-semibold text-yellow-300">Archives récentes</div>
-
-              <div className="mt-3 max-h-[180px] space-y-2 overflow-y-auto pr-1">
-                {archives.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-yellow-600/20 bg-black/20 px-4 py-4 text-sm text-white/45">
-                    Aucune archive pour le moment.
-                  </div>
-                ) : (
-                  archives.map((archive) => (
-                    <div
-                      key={archive.id}
-                      className="flex items-center justify-between gap-3 rounded-xl border border-yellow-600/15 bg-black/20 px-3 py-3"
-                    >
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-semibold text-white/85">{archive.name}</div>
-                        <div className="text-[12px] text-white/45">{new Date(archive.createdAt).toLocaleString()}</div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => loadArchive(archive.id)}
-                          className="rounded-lg border border-yellow-600/20 bg-yellow-500/10 px-3 py-2 text-xs font-semibold text-yellow-200"
-                        >
-                          Charger
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => deleteArchive(archive.id)}
-                          className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-300"
-                        >
-                          <FaTrash />
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="mb-6 rounded-[28px] border border-yellow-600/20 bg-[#0b0b0b] p-5">
+        <div className="mb-10 rounded-[28px] border border-yellow-500/30 bg-[#0b0b0b] p-5 shadow-[0_0_38px_rgba(255,184,0,0.08)]">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <div className="text-sm font-semibold text-yellow-300">IA Lead Engine Premium</div>
+              <div className="text-sm font-semibold text-yellow-300">
+                IA Lead Engine Premium
+              </div>
               <div className="mt-1 text-sm text-white/55">
-                Chaque brief est mémorisé automatiquement pour enrichir les futures générations.
+                Bloc prioritaire placé en haut de page : génère, vérifie, puis
+                injecte la landing structurée dans l’éditeur en dessous.
               </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
               <div className="rounded-xl border border-yellow-600/20 bg-black/30 px-3 py-2 text-xs text-white/75">
-                {aiQuotaLoading ? "Quota IA..." : `Quota IA : ${aiQuota.remaining.toLocaleString()} / ${aiQuota.tokens_limit.toLocaleString()} • Plan ${aiQuota.plan}`}
+                {aiQuotaStatusLabel}
               </div>
 
               <button
@@ -1682,7 +1928,7 @@ export default function LeadEnginePage() {
                   <button
                     type="button"
                     onClick={() => generateWithAI(aiGoal)}
-                    disabled={aiLoading || aiQuota.remaining <= 0}
+                    disabled={aiLoading}
                     className="rounded-2xl bg-[#ffb800] px-5 py-3 font-bold text-black disabled:opacity-60"
                   >
                     {aiLoading ? "Génération..." : "Générer avec IA"}
@@ -1691,7 +1937,7 @@ export default function LeadEnginePage() {
                   <button
                     type="button"
                     onClick={rewritePremiumResult}
-                    disabled={aiLoading || (!aiResult.trim() && !aiBrief.trim()) || aiQuota.remaining <= 0}
+                    disabled={aiLoading || (!aiResult.trim() && !aiBrief.trim())}
                     className="rounded-2xl border border-yellow-600/20 bg-yellow-500/10 px-5 py-3 font-semibold text-yellow-200 disabled:opacity-50"
                   >
                     Réécrire court
@@ -1716,15 +1962,23 @@ export default function LeadEnginePage() {
                   </button>
 
                   <div className="text-xs text-white/45">
-                    {aiQuota.remaining <= 0 ? (aiQuotaMessage || "Quota IA atteint • génération temporairement bloquée") : "Mémoire automatique active • Backend OpenAI branché • IA-quotas reliés"}
+                    {!canUseAI
+                      ? aiQuotaMessage ||
+                        "Quota IA atteint côté backend • la génération sera refusée proprement"
+                      : aiQuotaUnavailable
+                        ? "Statut quota indisponible • l’IA reste autorisée, le backend vérifiera le quota"
+                        : "Mémoire automatique active • Backend OpenAI branché • IA-quotas reliés"}
                   </div>
                 </div>
               </div>
 
               <div className="rounded-2xl border border-yellow-600/20 bg-[#111] p-4">
-                <div className="text-sm font-semibold text-yellow-300">Résultat IA</div>
+                <div className="text-sm font-semibold text-yellow-300">
+                  Résultat IA
+                </div>
                 <div className="mt-1 text-sm text-white/55">
-                  Sortie humanisée, contextualisée et prête à être réinjectée dans le Lead Engine.
+                  Sortie humanisée, contextualisée et prête à être réinjectée
+                  dans le Lead Engine.
                 </div>
 
                 {aiLoading ? (
@@ -1756,7 +2010,9 @@ export default function LeadEnginePage() {
 
                           <button
                             type="button"
-                            onClick={() => injectSingleAiSection(section, index)}
+                            onClick={() =>
+                              injectSingleAiSection(section, index)
+                            }
                             className="shrink-0 rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-3 py-2 text-xs font-semibold text-yellow-200 hover:bg-yellow-500/15"
                           >
                             Injecter ce bloc
@@ -1782,7 +2038,89 @@ export default function LeadEnginePage() {
           )}
         </div>
 
-        <div ref={rootRef} className="rounded-[28px] border border-yellow-600/20 bg-[#0b0b0b] p-4 sm:p-5">
+        <div className="mb-8 rounded-[28px] border border-yellow-600/20 bg-[#0b0b0b] p-5">
+          <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+            <div>
+              <div className="mb-2 text-sm font-semibold text-yellow-300">
+                Archive de landing
+              </div>
+              <div className="text-sm text-white/55">
+                Sauvegarde des versions prêtes à rouvrir, dupliquer ou exporter
+                plus tard.
+              </div>
+
+              <div className="mt-4 flex gap-2">
+                <input
+                  type="text"
+                  value={archiveName}
+                  onChange={(e) => setArchiveName(e.target.value)}
+                  placeholder="Nom de l’archive"
+                  className="flex-1 rounded-2xl border border-yellow-600/20 bg-[#111] px-4 py-4 text-sm text-white/85 outline-none placeholder:text-white/30"
+                />
+                <button
+                  type="button"
+                  onClick={saveArchive}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-[#ffb800] px-5 py-3 font-semibold text-black"
+                >
+                  <FaSave />
+                  Archiver
+                </button>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-yellow-600/20 bg-[#111] p-4">
+              <div className="text-sm font-semibold text-yellow-300">
+                Archives récentes
+              </div>
+
+              <div className="mt-3 max-h-[180px] space-y-2 overflow-y-auto pr-1">
+                {archives.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-yellow-600/20 bg-black/20 px-4 py-4 text-sm text-white/45">
+                    Aucune archive pour le moment.
+                  </div>
+                ) : (
+                  archives.map((archive) => (
+                    <div
+                      key={archive.id}
+                      className="flex items-center justify-between gap-3 rounded-xl border border-yellow-600/15 bg-black/20 px-3 py-3"
+                    >
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-semibold text-white/85">
+                          {archive.name}
+                        </div>
+                        <div className="text-[12px] text-white/45">
+                          {new Date(archive.createdAt).toLocaleString()}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => loadArchive(archive.id)}
+                          className="rounded-lg border border-yellow-600/20 bg-yellow-500/10 px-3 py-2 text-xs font-semibold text-yellow-200"
+                        >
+                          Charger
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => deleteArchive(archive.id)}
+                          className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-300"
+                        >
+                          <FaTrash />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div
+          ref={rootRef}
+          className="rounded-[28px] border border-yellow-600/20 bg-[#0b0b0b] p-4 sm:p-5"
+        >
           {hydrated ? (
             <LeadEditorLayout
               key={editorKey}
@@ -1806,10 +2144,10 @@ export default function LeadEnginePage() {
           )}
         </div>
 
-
-
         {!!lastSavedAt && (
-          <div className="mt-4 text-right text-xs text-white/35">Dernière synchro : {lastSavedAt}</div>
+          <div className="mt-4 text-right text-xs text-white/35">
+            Dernière synchro : {lastSavedAt}
+          </div>
         )}
       </div>
     </div>
