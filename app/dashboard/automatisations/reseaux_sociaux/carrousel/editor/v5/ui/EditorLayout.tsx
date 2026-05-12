@@ -14,8 +14,15 @@ const BACKGROUND_LAYER_ID = "background-post";
 
 type BackgroundMode = "color" | "gradient" | "image";
 type OverlayType = "color" | "gradient";
+type CopilotAction = "hooks" | "cta" | "benefits" | "variants" | "landing";
 
-/* ================= LGD MICRO PATCH — TYPES ================= */
+type GeneratedItem = {
+  id: string;
+  kind: "hook" | "subtitle" | "cta" | "benefit" | "closing";
+  label: string;
+  text: string;
+};
+
 type EditorUIState = {
   formatKey: CanvasFormatKey;
   bgMode: BackgroundMode;
@@ -36,15 +43,19 @@ interface Props {
   initialLayersKey?: string | number;
   initialUI?: Partial<EditorUIState>;
   onUIChange?: (ui: EditorUIState) => void;
-
-  // (Carrousel mode) persist slide layers
   onChange?: (layers: LayerData[]) => void;
-
-  // MOBILE tools driven by Button A
   mobileToolsOpen?: boolean;
   onCloseMobileTools?: () => void;
+  canvasHeight?: number;
+  onCanvasHeightChange?: (nextHeight: number) => void;
+  ctaUrl?: string;
+  onCtaUrlChange?: (nextValue: string) => void;
+  aiQuotaRemaining?: number;
+  aiQuotaLimit?: number;
+  aiQuotaPlan?: string;
+  aiQuotaLoading?: boolean;
+  onAiQuotaSync?: (quota: { plan?: string; remaining?: number; tokens_used?: number; tokens_limit?: number }) => void;
 }
-/* ========================================================== */
 
 const GRADIENT_PRESETS = [
   { label: "LGD Gold", color1: "#ffb800", color2: "#ff8c00", angle: 135 },
@@ -63,29 +74,23 @@ function stripNonSerializable(input: any): any {
   if (isProbablyDomImage(input)) return undefined;
 
   if (Array.isArray(input)) {
-    return input
-      .map((x) => stripNonSerializable(x))
-      .filter((x) => x !== undefined);
+    return input.map((x) => stripNonSerializable(x)).filter((x) => x !== undefined);
   }
 
   const out: any = {};
   for (const [k, v] of Object.entries(input)) {
     if (v === undefined) continue;
-
     if (k === "runtime" || k === "_runtime" || k === "__runtime") continue;
     if (k === "imageElement" || k === "imgEl" || k === "htmlImage") continue;
     if (k === "konva" || k === "_konva" || k === "__konva") continue;
-
     if ((k === "image" || k === "img") && typeof v === "object" && !Array.isArray(v)) {
       if (isProbablyDomImage(v)) continue;
     }
-
     const cleaned = stripNonSerializable(v);
     if (cleaned !== undefined) out[k] = cleaned;
   }
   return out;
 }
-
 
 function estimateWrappedTextHeight({
   text,
@@ -146,7 +151,8 @@ function estimateWrappedTextHeight({
   };
 
   const measuredLines = measureWithCanvas();
-  const approxLines = measuredLines ?? Math.max(1, Math.ceil((safeText.length * safeFontSize * 0.58) / innerWidth));
+  const approxLines =
+    measuredLines ?? Math.max(1, Math.ceil((safeText.length * safeFontSize * 0.58) / innerWidth));
   const verticalPadding = 24;
   return Math.max(56, Math.ceil(approxLines * safeFontSize * safeLineHeight + verticalPadding));
 }
@@ -165,8 +171,8 @@ function autoFitTextLayerSize(layer: LayerData, patch: Partial<LayerData>) {
     typeof patch.width === "number"
       ? patch.width
       : typeof (layer as any).width === "number"
-      ? (layer as any).width
-      : Math.min(820, Math.max(260, nextText.includes("\n") || nextText.length > 22 ? 420 : 320));
+        ? (layer as any).width
+        : Math.min(820, Math.max(260, nextText.includes("\n") || nextText.length > 22 ? 420 : 320));
 
   const nextHeight = estimateWrappedTextHeight({
     text: nextText,
@@ -192,7 +198,6 @@ function coerceIncomingLayers(incoming: LayerData[]): LayerData[] {
 
 function stableSerialize(value: any): string {
   const seen = new WeakSet();
-
   const normalize = (input: any): any => {
     if (input == null || typeof input !== "object") return input;
     if (seen.has(input)) return undefined;
@@ -240,104 +245,81 @@ export default function EditorLayout({
   onChange,
   mobileToolsOpen = false,
   onCloseMobileTools,
+  canvasHeight = 1800,
+  onCanvasHeightChange,
+  ctaUrl = "",
+  onCtaUrlChange,
+  aiQuotaRemaining = 0,
+  aiQuotaLimit = 0,
+  aiQuotaPlan = "essentiel",
+  aiQuotaLoading = false,
+  onAiQuotaSync,
 }: Props) {
-  /* ================= FORMAT ================= */
   const [formatKey, setFormatKey] = useState<CanvasFormatKey>(
     initialUI?.formatKey ?? "instagram_post"
   );
   const rawFormat = CANVAS_FORMATS[formatKey] as any;
 
-  // Provide both width/height and w/h to be compatible with CanvasStage
   const format = useMemo(() => {
     const w = rawFormat?.w ?? rawFormat?.width ?? 1080;
-    const h = rawFormat?.h ?? rawFormat?.height ?? 1080;
     return {
       ...rawFormat,
       w,
-      h,
+      h: canvasHeight,
       width: rawFormat?.width ?? w,
-      height: rawFormat?.height ?? h,
+      height: canvasHeight,
     };
-  }, [rawFormat]);
+  }, [rawFormat, canvasHeight]);
 
   const [layers, setLayers] = useState<LayerData[]>([]);
   const [showProps, setShowProps] = useState(false);
 
-  /* ================= BACKGROUND STATE ================= */
   const [bgMode, setBgMode] = useState<BackgroundMode>(initialUI?.bgMode ?? "color");
   const [bgColor, setBgColor] = useState(initialUI?.bgColor ?? "#111111");
   const [bgColor1, setBgColor1] = useState(initialUI?.bgColor1 ?? "#ffb800");
   const [bgColor2, setBgColor2] = useState(initialUI?.bgColor2 ?? "#00ffcc");
   const [bgAngle, setBgAngle] = useState(initialUI?.bgAngle ?? 135);
-  const [bgImage, setBgImage] = useState<string | null>(initialUI?.bgImage ?? null);
+  const [bgImage, setBgImage] = useState(initialUI?.bgImage ?? null);
 
-  /* ================= OVERLAY STATE ================= */
   const [overlayEnabled, setOverlayEnabled] = useState(initialUI?.overlayEnabled ?? false);
   const [overlayType, setOverlayType] = useState<OverlayType>(initialUI?.overlayType ?? "color");
   const [overlayColor1, setOverlayColor1] = useState(initialUI?.overlayColor1 ?? "#000000");
   const [overlayColor2, setOverlayColor2] = useState(initialUI?.overlayColor2 ?? "#000000");
   const [overlayOpacity, setOverlayOpacity] = useState(initialUI?.overlayOpacity ?? 0.35);
 
+  const [copilotOpen, setCopilotOpen] = useState(true);
+  const [briefOffer, setBriefOffer] = useState("");
+  const [briefGoal, setBriefGoal] = useState("leads");
+  const [briefAngle, setBriefAngle] = useState("lead-magnet");
+  const [briefAudience, setBriefAudience] = useState("entrepreneurs");
+  const [briefTone, setBriefTone] = useState("premium");
+  const [generatedItems, setGeneratedItems] = useState<GeneratedItem[]>([]);
+  const [copilotStatus, setCopilotStatus] = useState("");
+  const [lastAction, setLastAction] = useState<CopilotAction | null>(null);
+  const [copilotLoading, setCopilotLoading] = useState(false);
+  const [copilotRawResult, setCopilotRawResult] = useState("");
+
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const bgImageInputRef = useRef<HTMLInputElement | null>(null);
 
-  // guards to prevent loops
   const hydratingRef = useRef(false);
   const lastReceivedSigRef = useRef<string>("");
   const lastInitKeyRef = useRef<string | number | null>(null);
   const lastEmittedSigRef = useRef<string>("");
   const lastUiSigRef = useRef<string>("");
-  const onUIChangeRef = useRef<Props["onUIChange"]>(onUIChange);
-  const onChangeRef = useRef<Props["onChange"]>(onChange);
 
-  /* ================= CANVA-LIKE GUIDES (HTML overlay) ================= */
-  const stageWrapRef = useRef<HTMLDivElement | null>(null);
-  const [mobileToolsLocalOpen, setMobileToolsLocalOpen] = useState(false);
-  const [stagePx, setStagePx] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
-
-  useEffect(() => {
-    const el = stageWrapRef.current;
-    if (!el) return;
-
-    const ro = new ResizeObserver(() => {
-      const r = el.getBoundingClientRect();
-      setStagePx({ w: r.width, h: r.height });
+  function syncCopilotQuota(raw: any) {
+    if (!raw || typeof raw !== "object") return;
+    onAiQuotaSync?.({
+      plan: String(raw.plan || aiQuotaPlan || "essentiel"),
+      remaining: Math.max(0, Number(raw.remaining ?? 0) || 0),
+      tokens_used: Math.max(0, Number(raw.tokens_used ?? 0) || 0),
+      tokens_limit: Math.max(0, Number(raw.tokens_limit ?? 0) || 0),
     });
-    ro.observe(el);
-
-    const r0 = el.getBoundingClientRect();
-    setStagePx({ w: r0.width, h: r0.height });
-
-    return () => ro.disconnect();
-  }, []);
-
-  const scale = useMemo(() => {
-    if (!stagePx.w || !stagePx.h) return 1;
-    const sx = stagePx.w / (format.w || 1);
-    const sy = stagePx.h / (format.h || 1);
-    return Math.min(sx, sy);
-  }, [stagePx.w, stagePx.h, format.w, format.h]);
-
-  const centerX = useMemo(() => (format.w * scale) / 2, [format.w, scale]);
-  const centerY = useMemo(() => (format.h * scale) / 2, [format.h, scale]);
-  useEffect(() => {
-    if (mobileToolsOpen) setMobileToolsLocalOpen(true);
-  }, [mobileToolsOpen]);
-
-  const mobileToolsSheetOpen =
-    Boolean(mobileToolsOpen) || Boolean(mobileToolsLocalOpen);
+  }
 
   useEffect(() => {
-    onUIChangeRef.current = onUIChange;
-  }, [onUIChange]);
-
-  useEffect(() => {
-    onChangeRef.current = onChange;
-  }, [onChange]);
-
-  /* ================= UI SYNC ================= */
-  useEffect(() => {
-    if (!onUIChangeRef.current) return;
+    if (!onUIChange) return;
 
     const nextUI: EditorUIState = {
       formatKey,
@@ -358,7 +340,7 @@ export default function EditorLayout({
     if (sig === lastUiSigRef.current) return;
 
     lastUiSigRef.current = sig;
-    onUIChangeRef.current(nextUI);
+    onUIChange(nextUI);
   }, [
     formatKey,
     bgMode,
@@ -372,11 +354,10 @@ export default function EditorLayout({
     overlayColor1,
     overlayColor2,
     overlayOpacity,
+    onUIChange,
   ]);
 
-  /* ================= INIT (from parent slide) ================= */
   const incomingSig = useMemo(() => {
-    // ✅ If parent provides an empty array, it's authoritative (no fallback template).
     if (typeof initialLayers === "undefined") return "";
     const coerced = coerceIncomingLayers(initialLayers ?? []);
     const cleaned = stripNonSerializable(coerced) as LayerData[];
@@ -391,17 +372,14 @@ export default function EditorLayout({
     const keyChanged = nextKey !== lastInitKeyRef.current;
 
     const init = async () => {
-      // If parent provides layers (even empty array), we must hydrate from it.
       const parentProvided = typeof initialLayers !== "undefined";
 
       if (parentProvided) {
-        // Avoid infinite loop when parent echoes the same content for the same key.
         if (!keyChanged && incomingSig && incomingSig === lastEmittedSigRef.current) return;
 
         const coerced = coerceIncomingLayers(initialLayers ?? []);
         let cleaned = stripNonSerializable(coerced) as LayerData[];
 
-        // Safety: always ensure we have a background layer.
         const hasBg = cleaned.some(
           (l: any) => l?.id === BACKGROUND_LAYER_ID || l?.type === "background"
         );
@@ -434,7 +412,6 @@ export default function EditorLayout({
         return;
       }
 
-      // default (only when parent hasn't provided layers yet)
       hydratingRef.current = true;
       if (!cancelled) {
         setLayers([
@@ -474,12 +451,10 @@ export default function EditorLayout({
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [incomingSig, initialLayersKey]);
+  }, [incomingSig, initialLayersKey, bgColor]);
 
-  /* ================= PERSIST TO PARENT (CARROUSEL) ================= */
   useEffect(() => {
-    if (!onChangeRef.current) return;
+    if (!onChange) return;
     if (hydratingRef.current) return;
 
     const cleaned = stripNonSerializable(layers) as LayerData[];
@@ -489,11 +464,9 @@ export default function EditorLayout({
     if (sig === lastReceivedSigRef.current) return;
 
     lastEmittedSigRef.current = sig;
-    onChangeRef.current(cleaned);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layers]);
+    onChange(cleaned);
+  }, [layers, onChange]);
 
-  /* ================= SAFE AUTO-LAYOUT (never move background) ================= */
   const applyAutoLayoutSafe = useCallback(
     (input: LayerData[]) => {
       const bg = input.find((l: any) => l.id === BACKGROUND_LAYER_ID) as any;
@@ -504,7 +477,6 @@ export default function EditorLayout({
     [format]
   );
 
-  /* ================= SYNC BACKGROUND (COLOR/GRADIENT) ================= */
   useEffect(() => {
     if (bgMode === "image") return;
 
@@ -565,7 +537,6 @@ export default function EditorLayout({
     });
   }, [bgMode, bgColor, bgColor1, bgColor2, bgAngle]);
 
-  /* ================= BACKGROUND IMAGE : FIXED + RESIZE WITH FORMAT ================= */
   useEffect(() => {
     if (bgMode !== "image") return;
     if (!bgImage) return;
@@ -602,7 +573,6 @@ export default function EditorLayout({
     });
   }, [bgMode, bgImage, format.w, format.h]);
 
-  /* ================= SYNC OVERLAY (WORKS ON ANY BACKGROUND) ================= */
   useEffect(() => {
     setLayers((prev: any[]) => {
       let changed = false;
@@ -614,7 +584,6 @@ export default function EditorLayout({
 
         if (!overlayEnabled) {
           if (!currentOverlay) return l;
-          // @ts-ignore
           delete baseStyle.overlay;
           changed = true;
           return { ...l, style: baseStyle };
@@ -714,7 +683,6 @@ export default function EditorLayout({
     });
   }, []);
 
-  /* ================= ACTIONS ================= */
   const addText = useCallback(() => {
     const id = `text-${Date.now()}`;
     setLayers((prev: any[]) => [
@@ -724,7 +692,7 @@ export default function EditorLayout({
         type: "text",
         text: "Nouveau texte",
         x: Math.round(format.w * 0.12),
-        y: Math.round(format.h * 0.08),
+        y: 80,
         zIndex: prev.length + 10,
         visible: true,
         selected: true,
@@ -736,7 +704,7 @@ export default function EditorLayout({
       } as any,
     ]);
     setShowProps(true);
-  }, [format.w, format.h]);
+  }, [format.w]);
 
   const reapplyAutoLayout = useCallback(() => {
     setLayers((prev) => applyAutoLayoutSafe(prev));
@@ -768,19 +736,13 @@ export default function EditorLayout({
       setLayers((prev: any[]) => {
         const baseZ = prev.length + 1;
         const imgs = built.map((l, i) => ({ ...l, zIndex: baseZ + i }));
-
         const combined = [...prev.map((l) => ({ ...l, selected: false })), ...imgs];
-        // ✅ never move BG
         return applyAutoLayoutSafe(combined as any);
       });
     },
     [applyAutoLayoutSafe]
   );
 
-  /**
-   * Background Mode A: single image replacement
-   * Must stay fixed and resized with format, never auto-layout moved
-   */
   const onImportBackgroundImage = useCallback(
     async (file: File | null) => {
       if (!file) return;
@@ -805,7 +767,6 @@ export default function EditorLayout({
             zIndex: -1000,
             visible: true,
             selected: false,
-            // keep overlay style if exists
             style: { ...(oldBg?.style ?? {}) },
           } as any,
           ...withoutBg,
@@ -842,43 +803,674 @@ export default function EditorLayout({
     });
   }, [bgColor]);
 
-  const onImportMobileCompanion = useCallback(
-    async (files: FileList | null) => {
-      if (!files || !files.length) return;
-      await onImportImages(files);
+  const currentBottomY = useMemo(() => {
+    const content = layers.filter((l: any) => l.id !== BACKGROUND_LAYER_ID);
+    if (!content.length) return 80;
+    return content.reduce((maxY: number, l: any) => {
+      const h = typeof l.height === "number" ? l.height : l.type === "text" ? 120 : 300;
+      return Math.max(maxY, (l.y ?? 0) + h);
+    }, 0);
+  }, [layers]);
+
+  const makeTextLayer = useCallback(
+    (kind: GeneratedItem["kind"], label: string, textValue: string, x: number, y: number, zIndex: number): LayerData => {
+      const styleByKind: Record<GeneratedItem["kind"], any> = {
+        hook: { fontSize: 58, fontFamily: "Inter", color: "#ffffff", fontWeight: 800, lineHeight: 1.05 },
+        subtitle: { fontSize: 24, fontFamily: "Inter", color: "#e4e4e7", fontWeight: 500, lineHeight: 1.4 },
+        cta: { fontSize: 22, fontFamily: "Inter", color: "#ffb800", fontWeight: 900, lineHeight: 1.2 },
+        benefit: { fontSize: 20, fontFamily: "Inter", color: "#ffffff", fontWeight: 600, lineHeight: 1.32 },
+        closing: { fontSize: 22, fontFamily: "Inter", color: "#f4f4f5", fontWeight: 600, lineHeight: 1.35 },
+      };
+
+      const sizeByKind: Record<GeneratedItem["kind"], { width: number; height: number }> = {
+        hook: { width: 620, height: 210 },
+        subtitle: { width: 560, height: 130 },
+        cta: { width: 360, height: 74 },
+        benefit: { width: 560, height: 64 },
+        closing: { width: 560, height: 120 },
+      };
+
+      return {
+        id: `ai-${kind}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+        type: "text",
+        x,
+        y,
+        width: sizeByKind[kind].width,
+        height: sizeByKind[kind].height,
+        visible: true,
+        selected: false,
+        zIndex,
+        text: textValue,
+        style: styleByKind[kind],
+      } as LayerData;
     },
-    [onImportImages]
+    []
   );
 
-  /* ================= CANVA-LIKE MEASURES (selected layer distances) ================= */
-  const selectedMetrics = useMemo(() => {
-    if (!selectedLayer) return null;
-    const w = selectedLayer.width ?? 0;
-    const h = selectedLayer.height ?? 0;
-    const x = selectedLayer.x ?? 0;
-    const y = selectedLayer.y ?? 0;
+  const buildHooks = useCallback(() => {
+    const offer = briefOffer.trim() || "ton offre";
+    const audience = briefAudience === "coachs" ? "tes futurs clients" : "des prospects qualifiés";
+    const prefix =
+      briefTone === "urgent"
+        ? "Découvre comment"
+        : briefTone === "coach"
+          ? "Passe à l'action et apprends à"
+          : briefTone === "story"
+            ? "Et si tu pouvais enfin"
+            : briefTone === "sio"
+              ? "Découvre comment"
+              : "Découvre comment";
+    return Array.from({ length: 5 }).map((_, i) => ({
+      id: `hook-${i}`,
+      kind: "hook" as const,
+      label: `Hook ${i + 1}`,
+      text: `${prefix} ${offer.toLowerCase()} et attirer ${audience} avec une landing premium qui convertit.`,
+    }));
+  }, [briefOffer, briefAudience, briefTone]);
 
-    const left = Math.max(0, x);
-    const top = Math.max(0, y);
-    const right = Math.max(0, format.w - (x + w));
-    const bottom = Math.max(0, format.h - (y + h));
+  const buildBenefits = useCallback(() => {
+    const offer = briefOffer.trim() || "ton offre";
+    return [
+      { id: "benefit-1", kind: "benefit" as const, label: "Bénéfice 1", text: `• Transforme ton offre en prochaine action évidente.` },
+      { id: "benefit-2", kind: "benefit" as const, label: "Bénéfice 2", text: "• Donne envie de laisser son email sans forcer la vente." },
+      { id: "benefit-3", kind: "benefit" as const, label: "Bénéfice 3", text: "• Rassure les prospects avant le passage à l’action." },
+    ];
+  }, [briefOffer]);
 
-    return { x, y, w, h, left, top, right, bottom };
-  }, [selectedLayer, format.w, format.h]);
+  const buildCtas = useCallback(() => {
+    const goalText =
+      briefGoal === "leads"
+        ? "Recevoir la méthode maintenant"
+        : briefGoal === "call"
+          ? "Réserver mon appel maintenant"
+          : briefGoal === "sale"
+            ? "Accéder à l’offre premium"
+            : "Télécharger le guide maintenant";
+    return [
+      { id: "cta-1", kind: "cta" as const, label: "CTA principal", text: goalText },
+      { id: "cta-2", kind: "cta" as const, label: "CTA alternatif", text: "Je veux passer à l’action maintenant" },
+    ];
+  }, [briefGoal]);
 
-  /* ================= RENDER ================= */
+  const buildLanding = useCallback(() => {
+    const offer = briefOffer.trim() || "ton offre";
+    const hooks = buildHooks();
+    const benefits = buildBenefits();
+    const ctas = buildCtas();
+
+    return [
+      hooks[0],
+      {
+        id: "subtitle-main",
+        kind: "subtitle" as const,
+        label: "Sous-titre",
+        text: `Une landing prête à copier ou modifier pour transformer ${offer.toLowerCase()} en machine à leads plus claire, plus premium et plus convaincante.`,
+      },
+      ctas[0],
+      ...benefits,
+      {
+        id: "closing-main",
+        kind: "closing" as const,
+        label: "Closing",
+        text: "Télécharge le guide et découvre la première étape pour passer de l’idée au premier système qui attire des prospects.",
+      },
+    ];
+  }, [briefOffer, buildHooks, buildBenefits, buildCtas]);
+
+
+  function shortenForCanvas(value: string, maxChars: number) {
+    const clean = String(value || "").replace(/\s+/g, " ").trim();
+    if (clean.length <= maxChars) return clean;
+    const sliced = clean.slice(0, maxChars);
+    const lastSpace = sliced.lastIndexOf(" ");
+    return `${(lastSpace > 80 ? sliced.slice(0, lastSpace) : sliced).trim()}…`;
+  }
+
+  function buildStructuredLandingItems(items: GeneratedItem[], visualLayers: LayerData[]) {
+    const imageLayers = visualLayers
+      .filter((layer: any) => layer?.type === "image" && layer?.id !== BACKGROUND_LAYER_ID)
+      .sort((a: any, b: any) => ((b?.width ?? 0) * (b?.height ?? 0)) - ((a?.width ?? 0) * (a?.height ?? 0)));
+
+    const primaryVisual = imageLayers[0] as any | undefined;
+    const textX = 74;
+    const defaultRightPadding = 56;
+    const visualGap = 28;
+
+    let availableTextWidth = 620;
+    if (primaryVisual && typeof primaryVisual.x === "number" && primaryVisual.x > format.w * 0.42) {
+      availableTextWidth = Math.max(320, Math.min(620, Math.round(primaryVisual.x - textX - visualGap)));
+    } else {
+      availableTextWidth = Math.max(360, Math.min(620, Math.round(format.w - textX - defaultRightPadding)));
+    }
+
+    const ctaWidth = Math.max(280, Math.min(360, availableTextWidth));
+    const normalized = items.map((item) => {
+      const cleanText = cleanGeneratedTextForCanvas(item.text);
+      if (item.kind === "hook") return { ...item, text: shortenForCanvas(cleanText, 260) };
+      if (item.kind === "subtitle") return { ...item, text: shortenForCanvas(cleanText, 360) };
+      if (item.kind === "cta") return { ...item, text: shortenForCanvas(cleanText, 160) };
+      if (item.kind === "benefit") return { ...item, text: shortenForCanvas(cleanText, 360) };
+      return { ...item, text: shortenForCanvas(cleanText, 420) };
+    });
+
+    const placed: LayerData[] = [];
+    let y = 86;
+    const zStart = 10;
+
+    normalized.forEach((item, index) => {
+      const x = item.kind === "benefit" ? 78 : textX;
+      const width =
+        item.kind === "cta"
+          ? ctaWidth
+          : item.kind === "benefit"
+            ? availableTextWidth
+            : availableTextWidth;
+
+      const base = makeTextLayer(item.kind, item.label, item.text, x, y, zStart + index) as any;
+      let patched = autoFitTextLayerSize(base, { width }) as any;
+
+      if (item.kind === "hook") {
+        const heroFontSize = width <= 420 ? 42 : width <= 500 ? 48 : 54;
+        patched = autoFitTextLayerSize(base, {
+          width,
+          style: { ...(base.style ?? {}), fontSize: heroFontSize, lineHeight: 1.04 },
+        }) as any;
+      }
+
+      if (item.kind === "subtitle") {
+        const subtitleFontSize = width <= 420 ? 21 : 24;
+        patched = autoFitTextLayerSize(base, {
+          width,
+          style: { ...(base.style ?? {}), fontSize: subtitleFontSize, lineHeight: 1.35 },
+        }) as any;
+      }
+
+      if (item.kind === "benefit") {
+        patched = autoFitTextLayerSize(base, {
+          width,
+          style: { ...(base.style ?? {}), fontSize: 18, lineHeight: 1.28 },
+        }) as any;
+      }
+
+      if (item.kind === "closing") {
+        patched = autoFitTextLayerSize(base, {
+          width,
+          style: { ...(base.style ?? {}), fontSize: width <= 420 ? 18 : 21, lineHeight: 1.32 },
+        }) as any;
+      }
+
+      const finalLayer = {
+        ...base,
+        ...patched,
+        x,
+        y,
+        zIndex: zStart + index,
+        selected: false,
+      } as LayerData;
+
+      placed.push(finalLayer);
+
+      const layerHeight = typeof (finalLayer as any).height === "number" ? (finalLayer as any).height : 80;
+      const spacing =
+        item.kind === "hook" ? 26 :
+        item.kind === "subtitle" ? 22 :
+        item.kind === "cta" ? 34 :
+        item.kind === "benefit" ? 16 : 28;
+
+      y += layerHeight + spacing;
+    });
+
+    return {
+      placed,
+      requiredHeight: y + 80,
+    };
+  }
+
+  function getCopilotObjectiveLabel() {
+    const objectiveMap: Record<string, string> = {
+      leads: "Générer des leads",
+      sales: "Vendre une offre",
+      sale: "Vendre une offre",
+      trust: "Créer de la confiance",
+      launch: "Lancement",
+      call: "Réserver un appel",
+      optin: "Capturer un email",
+    };
+
+    return objectiveMap[briefGoal] || briefGoal;
+  }
+
+  function getCopilotPageType(action: CopilotAction) {
+    if (action !== "landing") return "modular";
+    if (briefGoal === "sales" || briefGoal === "sale") return "sales";
+    if (briefGoal === "call") return "appointment";
+    if (briefGoal === "launch") return "bridge";
+    return "lead_magnet";
+  }
+
+  function getCopilotAutoLength(action: CopilotAction) {
+    if (action === "hooks") return 900;
+    if (action === "cta") return 700;
+    if (action === "benefits") return 1200;
+    if (action === "variants") return 1600;
+    return getCopilotPageType(action) === "sales" ? 7600 : 6800;
+  }
+
+  function buildCopilotBrief(action: CopilotAction) {
+    const offer = briefOffer.trim() || "ton offre";
+
+    return [
+      `Offre / sujet : ${offer}`,
+      `Objectif : ${getCopilotObjectiveLabel()}`,
+      `Angle : ${briefAngle}`,
+      `Audience : ${briefAudience}`,
+      `Ton : ${briefTone}`,
+      `URL CTA : ${ctaUrl || "non précisée"}`,
+      `Action demandée : ${action}`,
+      `Mode attendu : DONE FOR YOU. LGD rédige le contenu final prêt à utiliser, pas des conseils, pas une méthode à suivre.`,
+    ].join("\n");
+  }
+
+  function buildCopilotBusinessContext(action: CopilotAction) {
+    const base = `lead-engine-copilot | action=${action} | objectif=${getCopilotObjectiveLabel()} | audience=${briefAudience} | angle=${briefAngle} | tone=${briefTone} | cta_url=${ctaUrl || ""}`;
+
+    if (action === "hooks") {
+      return `${base} | DONE FOR YOU | Retourne exactement 10 hooks finaux puissants en français, un par ligne, sans conseils.`;
+    }
+    if (action === "cta") {
+      return `${base} | DONE FOR YOU | Retourne exactement 8 CTA finaux en français, un par ligne, orientés conversion.`;
+    }
+    if (action === "benefits") {
+      return `${base} | DONE FOR YOU | Retourne exactement 8 bénéfices finaux en français, un par ligne, concrets et orientés valeur.`;
+    }
+    if (action === "variants") {
+      return `${base} | DONE FOR YOU | Retourne exactement 4 variantes marketing finales en français, une par ligne, avec des angles nettement différents.`;
+    }
+    return `${base} | DONE FOR YOU | Retourne UNE vraie page finale complète, rédigée et prête à injecter. Interdit: conseils, plan, structure à compléter, « voici », « clarifie », « renforce », « tu peux ». Utilise uniquement les séparateurs techniques [[LGD_BLOCK:HERO]], [[LGD_BLOCK:IDENTIFICATION]], [[LGD_BLOCK:AGITATION]], [[LGD_BLOCK:MICRO_TRANSFORMATION]], [[LGD_BLOCK:CE_QUE_TU_RECOIS]], [[LGD_BLOCK:MECANISME]], [[LGD_BLOCK:OBJECTION_KILLER]], [[LGD_BLOCK:REASSURANCE]], [[LGD_BLOCK:CTA_FINAL]]. Dans chaque section, écris seulement le texte final visible sur la page. Ne jamais écrire TITRE:, SOUS-TITRE:, CTA:, Bénéfices:.`;
+  }
+
+  async function saveCopilotMemory(action: CopilotAction) {
+    const payload = {
+      memory_type: "lead_copilot_brief",
+      goal: action,
+      content: buildCopilotBrief(action),
+      emotional_profile: briefTone,
+      business_context: buildCopilotBusinessContext(action),
+      metadata_json: JSON.stringify({
+        action,
+        objective: getCopilotObjectiveLabel(),
+        audience: briefAudience,
+        angle: briefAngle,
+        tone: briefTone,
+        cta_url: ctaUrl,
+      }),
+    };
+
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/lead-engine/ai/save-memory`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+    } catch (error) {
+      console.error("[LeadEngine Copilot memory]", error);
+    }
+  }
+
+  function normalizeListLines(content: string) {
+    return String(content || "")
+      .split(/\n+/)
+      .map((line) => line.trim())
+      .map((line) => line.replace(/^[-•\d.\)\s]+/, "").trim())
+      .map((line) => cleanGeneratedTextForCanvas(line))
+      .filter(Boolean);
+  }
+
+  function cleanGeneratedTextForCanvas(value: string) {
+    return String(value || "")
+      .replace(/\[\[LGD_BLOCK:[^\]]+\]\]/gim, "")
+      .replace(/^\s*BLOC\s*\d+\s*[—–-]?\s*[^\n]*$/gim, "")
+      .replace(/^\s*(TITRE|SOUS[-\s]?TITRE|SUBTITLE|CTA|URL CTA|HERO|DOULEUR|IDENTIFICATION|BÉNÉFICES|BENEFICES|PROMESSE|MÉCANISME|MECANISME|RÉASSURANCE|REASSURANCE|FAQ|QUESTION|RÉPONSE|REPONSE)\s*:\s*/gim, "")
+      .replace(/^\s*(Voici( la)? structure|Structure|Conseil|À faire|A faire|Tu pourrais|Vous pourriez|Clarifie|Renforce|Augmente|Passe d’une simple page|Passe d'une simple page)\s*:?\s*/gim, "")
+      .replace(/^\s*(voici|conseil|structure|à faire|a faire).*$/gim, "")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+  }
+
+  function labelFromMarker(marker: string, index: number) {
+    const key = String(marker || "").toLowerCase();
+    if (key.includes("hero")) return "Accroche principale";
+    if (key.includes("identification")) return "Identification";
+    if (key.includes("agitation")) return "Agitation";
+    if (key.includes("micro")) return "Micro-transformation";
+    if (key.includes("recois") || key.includes("reçois") || key.includes("decouvrir") || key.includes("découvrir")) return "Ce que le prospect reçoit";
+    if (key.includes("mecanisme") || key.includes("mécanisme")) return "Mécanisme";
+    if (key.includes("objection")) return "Objections";
+    if (key.includes("reassurance") || key.includes("réassurance")) return "Réassurance";
+    if (key.includes("cta")) return "CTA final";
+    return `Section ${index}`;
+  }
+
+  function kindFromLabel(label: string, index: number): GeneratedItem["kind"] {
+    const raw = String(label || "").toLowerCase();
+    if (index === 1 || raw.includes("accroche") || raw.includes("hero")) return "hook";
+    if (raw.includes("cta")) return "cta";
+    if (raw.includes("identification") || raw.includes("agitation")) return "subtitle";
+    if (raw.includes("réassurance") || raw.includes("reassurance")) return "closing";
+    return "benefit";
+  }
+
+  function labelFromLandingBlock(index: number, rawTitle: string) {
+    const title = String(rawTitle || "").toLowerCase();
+    if (title.includes("hero") || title.includes("pattern")) return "Accroche principale";
+    if (title.includes("identification") || title.includes("douleur")) return "Identification";
+    if (title.includes("transformation") || title.includes("promesse")) return "Promesse";
+    if (title.includes("recevoir") || title.includes("découvrir") || title.includes("decouvrir")) return "Ce que le prospect reçoit";
+    if (title.includes("mécanisme") || title.includes("mecanisme") || title.includes("marche")) return "Mécanisme";
+    if (title.includes("objection")) return "Objections";
+    if (title.includes("réassurance") || title.includes("reassurance") || title.includes("preuve")) return "Réassurance";
+    if (title.includes("cta")) return "CTA final";
+    if (title.includes("faq")) return "FAQ";
+    return `Section ${index}`;
+  }
+
+  function parseLandingBlocks(content: string): GeneratedItem[] {
+    const text = String(content || "").trim();
+    if (!text) return [];
+
+    const markerRegex = /\[\[LGD_BLOCK:([^\]]+)\]\]\s*([\s\S]*?)(?=\n?\[\[LGD_BLOCK:[^\]]+\]\]|\s*$)/gim;
+    const markerItems: GeneratedItem[] = [];
+    let markerMatch: RegExpExecArray | null;
+
+    while ((markerMatch = markerRegex.exec(text)) !== null) {
+      const index = markerItems.length + 1;
+      const label = labelFromMarker(markerMatch[1] || "", index);
+      const cleanText = cleanGeneratedTextForCanvas(markerMatch[2] || "");
+      if (!cleanText) continue;
+      markerItems.push({
+        id: `ai-landing-marker-${index}`,
+        kind: kindFromLabel(label, index),
+        label,
+        text: cleanText,
+      });
+    }
+
+    if (markerItems.length >= 3) return markerItems;
+
+    const blockRegex = /^\s*BLOC\s*(\d+)\s*[—–-]?\s*([^\n]*)\n([\s\S]*?)(?=^\s*BLOC\s*\d+\s*[—–-]?|\s*$)/gim;
+    const items: GeneratedItem[] = [];
+    let match: RegExpExecArray | null;
+
+    while ((match = blockRegex.exec(text)) !== null) {
+      const index = Number(match[1] || items.length + 1);
+      const label = labelFromLandingBlock(index, match[2] || "");
+      const cleanText = cleanGeneratedTextForCanvas(match[3] || "");
+      if (!cleanText) continue;
+      items.push({
+        id: `ai-landing-${index}`,
+        kind: kindFromLabel(label, index),
+        label,
+        text: cleanText,
+      });
+    }
+
+    if (items.length >= 3) return items;
+
+    const paragraphs = text
+      .split(/\n\s*\n+/)
+      .map((block) => cleanGeneratedTextForCanvas(block))
+      .filter(Boolean)
+      .filter((block) => !/^(voici|clarifie|renforce|augmente|conseil)/i.test(block));
+
+    if (paragraphs.length >= 3) {
+      return paragraphs.map((block, index) => ({
+        id: `ai-landing-fallback-${index + 1}`,
+        kind: index === 0 ? "hook" : index === paragraphs.length - 1 ? "cta" : "benefit",
+        label: index === 0 ? "Accroche principale" : index === paragraphs.length - 1 ? "CTA final" : `Section ${index + 1}`,
+        text: block,
+      }));
+    }
+
+    const cleaned = cleanGeneratedTextForCanvas(text);
+    return cleaned ? [{
+      id: "ai-landing-fallback",
+      kind: "closing",
+      label: "Landing complète",
+      text: cleaned,
+    }] : [];
+  }
+
+  function parseGeneratedItemsFromAI(action: CopilotAction, content: string): GeneratedItem[] {
+    const text = String(content || "").trim();
+    if (!text) return [];
+
+    if (action === "landing") {
+      return parseLandingBlocks(text);
+    }
+
+    const lines = normalizeListLines(text);
+    const kind: GeneratedItem["kind"] =
+      action === "cta" ? "cta" :
+      action === "benefits" ? "benefit" :
+      action === "variants" ? "subtitle" :
+      "hook";
+
+    return lines.map((line, index) => ({
+      id: `ai-${action}-${index + 1}`,
+      kind,
+      label:
+        action === "cta" ? `CTA ${index + 1}` :
+        action === "benefits" ? `Bénéfice ${index + 1}` :
+        action === "variants" ? `Variante ${index + 1}` :
+        `Hook ${index + 1}`,
+      text: line,
+    }));
+  }
+
+
+
+  function isUsableLandingResult(items: GeneratedItem[], raw: string) {
+    if (items.length >= 5) return true;
+    const text = String(raw || "").toLowerCase();
+    if (text.includes("voici la structure") || text.includes("clarifie") || text.includes("renforce")) return false;
+    return false;
+  }
+
+  const handleGenerate = useCallback(
+    async (action: CopilotAction, mode: "generate" | "rewrite" = "generate") => {
+      try {
+        if (aiQuotaRemaining <= 0) {
+          setCopilotStatus("Quota IA atteint pour le moment.");
+          return;
+        }
+
+        setCopilotLoading(true);
+        setLastAction(action);
+        setCopilotStatus(mode === "rewrite" ? "Réécriture en cours..." : "Génération en cours...");
+        setGeneratedItems([]);
+        setCopilotRawResult("");
+
+        const brief = buildCopilotBrief(action);
+        await saveCopilotMemory(action);
+
+        const goal = action === "landing" ? "landing_complete" : action;
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/lead-engine/ai/generate`, {
+          method: "POST",
+          credentials: "include",
+          cache: "no-store",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            action,
+            goal,
+            brief,
+            emotional_style: `${briefTone}, humain, premium, sincère, expert marketing digital, mode done for you`,
+            business_context: buildCopilotBusinessContext(action),
+            objective: getCopilotObjectiveLabel(),
+            angle: briefAngle,
+            audience: briefAudience,
+            tone: briefTone,
+            cta_url: ctaUrl || "",
+            page_type: getCopilotPageType(action),
+            max_length: getCopilotAutoLength(action),
+          }),
+        });
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          const detail = data?.detail;
+          const quota = detail?.quota || data?.quota;
+          if (quota) syncCopilotQuota(quota);
+          throw new Error(typeof detail === "string" ? detail : (detail?.message || data?.message || "Erreur IA Lead Engine Copilot"));
+        }
+
+        if (data?.quota) syncCopilotQuota(data.quota);
+        let content = String(data?.content || "").trim();
+        let items = parseGeneratedItemsFromAI(action, content);
+
+        // Sécurité V10.5 : le bouton Landing complète ne doit jamais accepter
+        // un résultat vide, un conseil, une variante ou un seul micro-bloc.
+        // Si la première réponse est trop faible, on relance une fois avec une consigne stricte.
+        if (action === "landing" && !isUsableLandingResult(items, content)) {
+          const retryResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/lead-engine/ai/generate`, {
+            method: "POST",
+            credentials: "include",
+            cache: "no-store",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              action: "landing",
+              goal: "landing_complete",
+              brief: `${brief}
+
+IMPORTANT : Génère maintenant UNE PAGE FINALE COMPLÈTE, pas des conseils, pas une structure, pas des variantes. Minimum 8 sections finales. Chaque section doit être utilisable telle quelle sur la page.`,
+              emotional_style: `${briefTone}, humain, premium, sincère, expert marketing digital, mode done for you`,
+              business_context: `${buildCopilotBusinessContext("landing")} | RETRY_STRICT | La réponse précédente était insuffisante. Produis 8 blocs finaux exploitables, sans conseils.`,
+              objective: getCopilotObjectiveLabel(),
+              angle: briefAngle,
+              audience: briefAudience,
+              tone: briefTone,
+              cta_url: ctaUrl || "",
+              page_type: getCopilotPageType("landing"),
+              max_length: getCopilotAutoLength("landing"),
+            }),
+          });
+
+          const retryData = await retryResponse.json().catch(() => ({}));
+          if (retryData?.quota) syncCopilotQuota(retryData.quota);
+          if (retryResponse.ok) {
+            const retryContent = String(retryData?.content || "").trim();
+            const retryItems = parseGeneratedItemsFromAI("landing", retryContent);
+            if (isUsableLandingResult(retryItems, retryContent)) {
+              content = retryContent;
+              items = retryItems;
+            }
+          }
+        }
+
+        setCopilotRawResult(content);
+        setGeneratedItems(items);
+
+        if (action === "landing") {
+          if (!isUsableLandingResult(items, content)) {
+            setCopilotStatus("Landing complète non générée correctement. Relance la génération IA.");
+            return;
+          }
+          setCopilotStatus(mode === "rewrite"
+            ? "Landing réécrite. Tu peux injecter la page finale complète."
+            : "Landing complète générée. Tu peux injecter la page finale complète.");
+        } else if (action === "cta") {
+          setCopilotStatus(mode === "rewrite"
+            ? "CTA réécrits. Choisis la variante la plus forte."
+            : "CTA générés. Injecte celui qui correspond le mieux à ton funnel.");
+        } else if (action === "benefits") {
+          setCopilotStatus(mode === "rewrite"
+            ? "Bénéfices réécrits. Chaque bloc peut être injecté séparément."
+            : "Bénéfices générés. Chaque bloc peut être injecté séparément.");
+        } else if (action === "variants") {
+          setCopilotStatus(mode === "rewrite"
+            ? "Variantes A/B réécrites pour tester plusieurs angles."
+            : "Variantes A/B générées pour tester plusieurs angles.");
+        } else {
+          setCopilotStatus(mode === "rewrite"
+            ? "Hooks réécrits. Tu peux les injecter un par un dans le canvas."
+            : "Hooks experts générés. Tu peux les injecter un par un dans le canvas.");
+        }
+      } catch (error) {
+        console.error("[LeadEngine Copilot AI]", error);
+        setGeneratedItems([]);
+        setCopilotRawResult("");
+        setCopilotStatus("Génération IA impossible pour le moment. Vérifie la console / Network si le backend répond 4xx ou 5xx.");
+      } finally {
+        setCopilotLoading(false);
+      }
+    },
+    [briefOffer, briefGoal, briefAngle, briefAudience, briefTone, ctaUrl, aiQuotaRemaining, aiQuotaPlan, onAiQuotaSync]
+  );
+
+  const injectGeneratedItem = useCallback(
+    (item: GeneratedItem) => {
+      const baseY = Math.max(80, currentBottomY + 28);
+      const baseX = item.kind === "benefit" ? 78 : 74;
+      const zBase = layers.length + 10;
+      const layer = makeTextLayer(item.kind, item.label, cleanGeneratedTextForCanvas(item.text), baseX, baseY, zBase);
+
+      setLayers((prev: any[]) => [
+        ...prev.map((l: any) => ({ ...l, selected: false })),
+        { ...layer, selected: true },
+      ]);
+      setShowProps(true);
+    },
+    [currentBottomY, layers.length, makeTextLayer]
+  );
+
+  const injectFullLanding = useCallback(() => {
+    const items = lastAction === "landing" ? generatedItems : [];
+    if (!items.length) {
+      setCopilotStatus("Génère d’abord une Landing complète avec l’IA avant d’injecter la page.");
+      return;
+    }
+    const background = layers.find((l: any) => l.id === BACKGROUND_LAYER_ID) as any;
+    const visualLayers = layers
+      .filter((l: any) => l.id !== BACKGROUND_LAYER_ID && l.type !== "text")
+      .map((l: any) => ({ ...l, selected: false })) as LayerData[];
+
+    const { placed, requiredHeight } = buildStructuredLandingItems(items, visualLayers);
+    const nextCanvasHeight = Math.max(canvasHeight, Math.min(5000, Math.ceil(requiredHeight / 100) * 100));
+
+    if (nextCanvasHeight !== canvasHeight) {
+      onCanvasHeightChange?.(nextCanvasHeight);
+    }
+
+    setLayers([
+      ...(background ? [{ ...background, selected: false }] : []),
+      ...visualLayers,
+      ...placed.map((l, idx) => ({ ...l, selected: idx === 0 })),
+    ] as any);
+    setShowProps(true);
+    setCopilotStatus("Landing injectée proprement dans le canvas. La mise en page a été recalculée automatiquement.");
+  }, [lastAction, generatedItems, layers, canvasHeight, onCanvasHeightChange]);
+
+  function bumpCanvasHeight(delta: number) {
+    const next = Math.max(1200, Math.min(5000, canvasHeight + delta));
+    onCanvasHeightChange?.(next);
+  }
+
   return (
-    <div className="w-full h-full relative overflow-x-hidden text-[14px] min-[640px]:text-[15px] min-[1200px]:text-base">
+    <div className="w-full h-full relative">
       <input
         ref={fileInputRef}
         type="file"
         accept="image/*"
-        capture="environment"
         multiple
         hidden
         onChange={(e) => {
           onImportImages(e.currentTarget.files);
-          // ✅ allow re-importing the same file
           e.currentTarget.value = "";
         }}
       />
@@ -890,131 +1482,297 @@ export default function EditorLayout({
         hidden
         onChange={(e) => {
           onImportBackgroundImage(e.currentTarget.files?.[0] ?? null);
-          // ✅ allow re-importing the same file
           e.currentTarget.value = "";
         }}
       />
 
-      {/* ================= MOBILE COMPANION MODE (<640px only) ================= */}
-      <div className="min-[640px]:hidden px-3 pb-24 pt-4">
-        <div className="rounded-[24px] border border-yellow-500/15 bg-black/40 p-5 shadow-2xl">
-          <div className="mb-3 inline-flex rounded-full border border-yellow-500/20 bg-yellow-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-yellow-200">
-            📱 Mode mobile LGD
-          </div>
-
-          <h2 className="text-[22px] font-bold leading-[1.15] text-yellow-300">
-            Capture rapide pour vos archives
-          </h2>
-
-          <p className="mt-3 text-sm leading-6 text-yellow-50/80">
-            Sur mobile, LGD passe en mode compagnon : prenez une photo ou importez un visuel,
-            puis retrouvez-le dans vos archives pour le réutiliser sur ordinateur ou tablette.
-          </p>
-
-          <div className="mt-5 grid grid-cols-1 gap-3">
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="w-full rounded-2xl bg-[#ffb800] px-4 py-4 text-base font-semibold text-black"
-            >
-              📸 Prendre une photo / importer
-            </button>
-
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="w-full rounded-2xl border border-yellow-500/25 bg-yellow-500/10 px-4 py-4 text-sm font-medium text-yellow-200"
-            >
-              🖼️ Ajouter depuis la galerie
-            </button>
-          </div>
-
-          <div className="mt-5 rounded-2xl border border-yellow-500/15 bg-black/30 p-4">
-            <div className="text-sm font-semibold text-yellow-300">Comment ça marche</div>
-            <ul className="mt-3 space-y-2 text-sm leading-6 text-yellow-50/80">
-              <li>• prenez une photo ou importez un visuel</li>
-              <li>• LGD l’ajoute à votre bibliothèque de travail</li>
-              <li>• retrouvez-le ensuite dans vos archives sur ordinateur</li>
-            </ul>
-          </div>
-
-          <p className="mt-4 text-xs leading-5 text-yellow-100/60">
-            L’édition avancée reste optimisée pour tablette et ordinateur afin de garantir une
-            expérience de création premium.
-          </p>
-        </div>
-      </div>
-
-      {/* ================= MOBILE/TABLET TOOLS (overlay over canvas) ================= */}
-      {mobileToolsSheetOpen && (
-        <div
-          className="hidden min-[640px]:block min-[1200px]:hidden fixed inset-0 z-[80] bg-black/60 backdrop-blur-[2px]"
-          onClick={() => {
-            setMobileToolsLocalOpen(false);
-            onCloseMobileTools?.();
-          }}
-        >
-          <div
-            className="absolute inset-x-2 top-20 bottom-24 rounded-2xl border border-yellow-500/20 bg-black/95 p-4 space-y-4 shadow-2xl overflow-y-auto"
-            style={{ WebkitOverflowScrolling: "touch" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="sticky top-0 z-10 -mx-4 -mt-4 mb-2 flex items-center justify-between border-b border-yellow-500/15 bg-black/95 px-4 py-3">
+      {mobileToolsOpen && (
+        <div className="min-[900px]:hidden absolute left-0 right-0 top-0 z-50 px-6">
+          <div className="w-full max-w-[420px] mx-auto mt-4 rounded-2xl border border-yellow-500/20 bg-black/75 backdrop-blur p-4 space-y-4 shadow-2xl max-h-[78vh] overflow-y-auto">
+            <div className="flex items-center justify-between">
               <div className="text-yellow-300 font-semibold text-sm">Outils de l’éditeur</div>
               <button
-                onClick={() => {
-                  setMobileToolsLocalOpen(false);
-                  onCloseMobileTools?.();
-                }}
+                onClick={() => onCloseMobileTools?.()}
                 className="text-yellow-200/80 hover:text-yellow-200 text-sm"
               >
                 ✖
               </button>
             </div>
 
-            {/* ===== ACTIONS ===== */}
             <button
-              onClick={() => {
-                addText();
-              }}
+              onClick={addText}
               className="w-full rounded-xl bg-[#ffb800] text-black font-semibold py-3"
             >
-              + Ajouter un texte
+              + Ajouter un bloc texte
             </button>
 
             <button
               onClick={() => fileInputRef.current?.click()}
               className="w-full rounded-xl border border-yellow-500/25 bg-yellow-500/10 text-yellow-200 py-3"
             >
-              📥 Importer une image
+              🖼️ Importer un visuel
+            </button>
+
+            <div className="rounded-2xl border border-yellow-500/15 bg-black/30 p-3">
+              <div className="text-yellow-300 font-semibold text-sm mb-2">CTA Systeme.io</div>
+              <input
+                type="text"
+                value={ctaUrl}
+                onChange={(e) => onCtaUrlChange?.(e.target.value)}
+                placeholder="https://ton-lien-systeme.io/ton-formulaire"
+                className="w-full rounded-xl border border-yellow-500/15 bg-black/40 px-3 py-3 text-sm text-white/85 outline-none placeholder:text-white/25"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="mx-auto w-full max-w-[1800px] px-6 pb-10">
+        <div className="mb-6 rounded-3xl border border-yellow-500/15 bg-black/30 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="text-yellow-300 font-semibold text-sm">✨ Copilote IA — Lead Engine Expert</div>
+              <div className="mt-1 text-sm text-white/55">
+                Génère hooks, CTA, bénéfices et landings prêtes à injecter dans le canvas, puis modifie-les librement.
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setCopilotOpen((v) => !v)}
+              className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-2 text-sm font-semibold text-yellow-200"
+            >
+              {copilotOpen ? "Réduire le copilote" : "Ouvrir le copilote"}
+            </button>
+          </div>
+
+          {copilotOpen && (
+            <div className="mt-4 grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
+              <div className="rounded-2xl border border-yellow-500/15 bg-black/30 p-4">
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  <div className="xl:col-span-2">
+                    <label className="mb-2 block text-xs font-semibold text-yellow-300">Sujet / offre</label>
+                    <input
+                      type="text"
+                      value={briefOffer}
+                      onChange={(e) => setBriefOffer(e.target.value)}
+                      placeholder="Ex : vendre une formation MRR ou générer plus de leads pour un coach"
+                      className="w-full rounded-2xl border border-yellow-500/15 bg-black/40 px-4 py-3 text-sm text-white/85 outline-none placeholder:text-white/25"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-xs font-semibold text-yellow-300">Objectif</label>
+                    <select
+                      value={briefGoal}
+                      onChange={(e) => setBriefGoal(e.target.value)}
+                      className="w-full rounded-2xl border border-yellow-500/15 bg-black/40 px-4 py-3 text-sm text-white/85 outline-none"
+                    >
+                      <option value="leads">Générer des leads</option>
+                      <option value="sale">Vendre une offre</option>
+                      <option value="call">Réserver un appel</option>
+                      <option value="optin">Capturer un email</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-xs font-semibold text-yellow-300">Angle</label>
+                    <select
+                      value={briefAngle}
+                      onChange={(e) => setBriefAngle(e.target.value)}
+                      className="w-full rounded-2xl border border-yellow-500/15 bg-black/40 px-4 py-3 text-sm text-white/85 outline-none"
+                    >
+                      <option value="lead-magnet">Lead magnet</option>
+                      <option value="coaching">Coaching</option>
+                      <option value="audit">Audit</option>
+                      <option value="premium">Funnel premium</option>
+                      <option value="mrr">Offre MRR</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-xs font-semibold text-yellow-300">Audience</label>
+                    <select
+                      value={briefAudience}
+                      onChange={(e) => setBriefAudience(e.target.value)}
+                      className="w-full rounded-2xl border border-yellow-500/15 bg-black/40 px-4 py-3 text-sm text-white/85 outline-none"
+                    >
+                      <option value="entrepreneurs">Entrepreneurs</option>
+                      <option value="freelances">Freelances</option>
+                      <option value="coachs">Coachs</option>
+                      <option value="debutants">Débutants</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-xs font-semibold text-yellow-300">Ton / style</label>
+                    <select
+                      value={briefTone}
+                      onChange={(e) => setBriefTone(e.target.value)}
+                      className="w-full rounded-2xl border border-yellow-500/15 bg-black/40 px-4 py-3 text-sm text-white/85 outline-none"
+                    >
+                      <option value="premium">Premium expert</option>
+                      <option value="coach">Coach direct</option>
+                      <option value="urgent">Conversion agressive</option>
+                      <option value="story">Storytelling</option>
+                      <option value="sio">Funnel SIO</option>
+                    </select>
+                  </div>
+
+                  <div className="md:col-span-2 xl:col-span-3">
+                    <label className="mb-2 block text-xs font-semibold text-yellow-300">URL CTA</label>
+                    <input
+                      type="text"
+                      value={ctaUrl}
+                      onChange={(e) => onCtaUrlChange?.(e.target.value)}
+                      placeholder="https://ton-lien-systeme.io/ton-formulaire"
+                      className="w-full rounded-2xl border border-yellow-500/15 bg-black/40 px-4 py-3 text-sm text-white/85 outline-none placeholder:text-white/25"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <div className="rounded-xl border border-yellow-500/15 bg-black/30 px-3 py-2 text-xs text-white/75">
+                    {aiQuotaLoading ? "Quota IA..." : `Quota IA : ${Number(aiQuotaRemaining || 0).toLocaleString()} / ${Number(aiQuotaLimit || 0).toLocaleString()} • Plan ${aiQuotaPlan}`}
+                  </div>
+                  {aiQuotaRemaining <= 0 && (
+                    <div className="text-xs text-red-300">Quota IA atteint • génération bloquée.</div>
+                  )}
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-2 xl:grid-cols-5">
+                  <button type="button" onClick={() => void handleGenerate("hooks")} disabled={copilotLoading || aiQuotaRemaining <= 0} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-200 disabled:opacity-50">{copilotLoading && lastAction === "hooks" ? "Génération..." : "Hook x10"}</button>
+                  <button type="button" onClick={() => void handleGenerate("cta")} disabled={copilotLoading || aiQuotaRemaining <= 0} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-200 disabled:opacity-50">{copilotLoading && lastAction === "cta" ? "Génération..." : "CTA"}</button>
+                  <button type="button" onClick={() => void handleGenerate("benefits")} disabled={copilotLoading || aiQuotaRemaining <= 0} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-200 disabled:opacity-50">{copilotLoading && lastAction === "benefits" ? "Génération..." : "Bénéfices"}</button>
+                  <button type="button" onClick={() => void handleGenerate("variants")} disabled={copilotLoading || aiQuotaRemaining <= 0} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-200 disabled:opacity-50">{copilotLoading && lastAction === "variants" ? "Génération..." : "Variantes A/B"}</button>
+                  <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void handleGenerate("landing"); }} disabled={copilotLoading || aiQuotaRemaining <= 0} className="rounded-2xl bg-[#ffb800] px-4 py-3 text-sm font-bold text-black disabled:opacity-50">{copilotLoading && lastAction === "landing" ? "Génération..." : "Landing complète"}</button>
+                </div>
+
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void handleGenerate(lastAction ?? "landing", "rewrite")}
+                    disabled={copilotLoading || !briefOffer.trim() || aiQuotaRemaining <= 0}
+                    className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-200 disabled:opacity-50"
+                  >
+                    {copilotLoading ? "Réécriture..." : "Réécrire"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setGeneratedItems([]);
+                      setCopilotRawResult("");
+                      setCopilotStatus("");
+                    }}
+                    disabled={copilotLoading || (generatedItems.length === 0 && !copilotRawResult.trim())}
+                    className="rounded-2xl border border-yellow-500/20 bg-black/30 px-4 py-3 text-sm font-semibold text-white/80 disabled:opacity-50"
+                  >
+                    Effacer le résultat
+                  </button>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-yellow-500/15 bg-black/30 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-yellow-300 font-semibold text-sm">Résultats générés</div>
+                    <div className="mt-1 text-xs text-white/50">{copilotLoading ? "Connexion au moteur IA premium..." : copilotStatus || "Génère des hooks, CTA, bénéfices ou une landing complète."}</div>
+                  </div>
+
+                  {lastAction === "landing" && generatedItems.length > 0 && !copilotLoading && (
+                    <button
+                      type="button"
+                      onClick={injectFullLanding}
+                      className="rounded-2xl border border-yellow-500/20 bg-[#ffb800] px-4 py-2 text-sm font-bold text-black"
+                    >
+                      Injecter toute la landing
+                    </button>
+                  )}
+                </div>
+
+                <div className="mt-4 max-h-[420px] space-y-3 overflow-y-auto pr-1">
+                  {copilotLoading ? (
+                    <div className="rounded-2xl border border-yellow-500/15 bg-black/25 px-4 py-8">
+                      <div className="flex flex-col items-center justify-center gap-4">
+                        <div className="h-8 w-8 animate-spin rounded-full border-2 border-yellow-400 border-t-transparent" />
+                        <div className="text-sm text-white/70">Analyse en cours...</div>
+                        <div className="text-xs text-white/45 text-center">
+                          LGD prépare une réponse premium à injecter dans le canvas.
+                        </div>
+                      </div>
+                    </div>
+                  ) : generatedItems.length === 0 ? (
+                    copilotRawResult.trim() ? (
+                      <div className="rounded-2xl border border-yellow-500/15 bg-black/25 p-4 text-sm leading-6 text-white/80 whitespace-pre-wrap">
+                        {copilotRawResult}
+                      </div>
+                    ) : (
+                      <div className="rounded-2xl border border-dashed border-yellow-500/15 bg-black/20 px-4 py-6 text-sm text-white/45">
+                        Les résultats IA apparaîtront ici, prêts à être injectés bloc par bloc dans le canvas.
+                      </div>
+                    )
+                  ) : (
+                    generatedItems.map((item) => (
+                      <div key={item.id} className="rounded-2xl border border-yellow-500/15 bg-black/25 p-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="text-sm font-semibold text-yellow-300">{item.label}</div>
+                          <button
+                            type="button"
+                            onClick={() => injectGeneratedItem(item)}
+                            className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-xs font-semibold text-yellow-200"
+                          >
+                            Injecter dans le canvas
+                          </button>
+                        </div>
+
+                        <div className="mt-2 text-sm leading-6 text-white/80 whitespace-pre-wrap">
+                          {cleanGeneratedTextForCanvas(item.text)}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 min-[900px]:grid-cols-[280px_1fr_360px] gap-6">
+          <aside className="hidden min-[900px]:block rounded-2xl border border-yellow-500/15 bg-black/30 p-4">
+            <button
+              onClick={addText}
+              className="w-full rounded-xl bg-[#ffb800] text-black font-semibold py-3"
+            >
+              + Ajouter un bloc texte
+            </button>
+
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full mt-3 rounded-xl border border-yellow-500/25 bg-yellow-500/10 text-yellow-200 py-3"
+            >
+              🖼️ Importer un visuel
             </button>
 
             <button
               onClick={reapplyAutoLayout}
-              className="w-full rounded-xl border border-yellow-500/25 bg-yellow-500/10 text-yellow-200 py-3"
+              className="w-full mt-3 rounded-xl border border-yellow-500/25 bg-yellow-500/10 text-yellow-200 py-3"
             >
-              🔄 Auto-layout
+              🧩 Réorganiser la landing
             </button>
 
-            {/* ===== FORMAT ===== */}
-            <div className="pt-4 border-t border-yellow-500/15">
-              <label className="block text-yellow-400 text-sm mb-2">Format de publication</label>
+            <div className="mt-4">
+              <label className="block text-yellow-400 text-sm mb-2">Format du lead</label>
               <select
-                value={formatKey}
-                onChange={(e) => setFormatKey(e.target.value as CanvasFormatKey)}
+                value="pinterest_pin"
+                onChange={() => setFormatKey("pinterest_pin" as CanvasFormatKey)}
                 className="w-full rounded-xl bg-black/40 border border-yellow-500/20 px-3 py-2 text-yellow-100"
               >
-                {Object.entries(CANVAS_FORMATS).map(([key, f]: any) => (
-                  <option key={key} value={key}>
-                    {f.label}
-                  </option>
-                ))}
+                <option value="pinterest_pin">Landing SIO pleine page</option>
               </select>
             </div>
 
-            {/* ===== BACKGROUND ===== */}
-            <div className="pt-4 border-t border-yellow-500/15">
-              <label className="block text-yellow-400 text-sm mb-2">Fond du post</label>
+            <div className="mt-6 border-t border-yellow-500/15 pt-4">
+              <label className="block text-yellow-400 text-sm mb-2">Fond de la landing</label>
 
               <div className="flex gap-2 mb-4">
                 {(["color", "gradient", "image"] as BackgroundMode[]).map((mode) => (
@@ -1114,15 +1872,15 @@ export default function EditorLayout({
               )}
             </div>
 
-            {/* ===== OVERLAY ===== */}
-            <div className="pt-4 border-t border-yellow-500/15">
+            <div className="mt-6 border-t border-yellow-500/15 pt-4">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-yellow-400 text-sm">Overlay</span>
+                <label className="block text-yellow-400 text-sm">Overlay</label>
+
                 <button
                   onClick={() => setOverlayEnabled((v) => !v)}
                   className={`rounded-lg px-3 py-1 text-xs border ${
                     overlayEnabled
-                      ? "bg-[#ffb800] text-black"
+                      ? "bg-[#ffb800] text-black border-[#ffb800]"
                       : "border-yellow-500/20 text-yellow-200"
                   }`}
                 >
@@ -1160,23 +1918,11 @@ export default function EditorLayout({
                   <>
                     <div
                       className="w-full h-10 rounded-lg border border-yellow-500/20"
-                      style={{
-                        background: `linear-gradient(135deg, ${overlayColor1}, ${overlayColor2})`,
-                      }}
+                      style={{ background: `linear-gradient(135deg, ${overlayColor1}, ${overlayColor2})` }}
                     />
                     <div className="flex gap-2">
-                      <input
-                        type="color"
-                        value={overlayColor1}
-                        onChange={(e) => setOverlayColor1(e.target.value)}
-                        className="w-16 h-10 rounded-lg border border-yellow-500/20 bg-black/30"
-                      />
-                      <input
-                        type="color"
-                        value={overlayColor2}
-                        onChange={(e) => setOverlayColor2(e.target.value)}
-                        className="w-16 h-10 rounded-lg border border-yellow-500/20 bg-black/30"
-                      />
+                      <input type="color" value={overlayColor1} onChange={(e) => setOverlayColor1(e.target.value)} className="w-16 h-10 rounded-lg border border-yellow-500/20 bg-black/30" />
+                      <input type="color" value={overlayColor2} onChange={(e) => setOverlayColor2(e.target.value)} className="w-16 h-10 rounded-lg border border-yellow-500/20 bg-black/30" />
                     </div>
                   </>
                 )}
@@ -1198,344 +1944,29 @@ export default function EditorLayout({
               </div>
             </div>
 
-            {/* ===== LAYERS + PROPERTIES (mobile/tablet) ===== */}
-            <div className="pt-4 border-t border-yellow-500/15">
-              <div className="text-yellow-300 font-semibold text-sm mb-3">Layers</div>
-
-              <div className="rounded-2xl border border-yellow-500/15 bg-black/30 p-3">
-                <LayersPanelV5
-                  layers={layers.filter((l: any) => l.id !== BACKGROUND_LAYER_ID)}
-                  selectedLayerId={selectedLayer?.id ?? null}
-                  onSelectLayer={selectLayer}
-                  onToggleVisible={toggleVisible}
-                  onReorder={reorder}
-                  onDuplicate={() => {}}
-                  onDelete={deleteLayer}
-                />
-
-                {selectedLayer && (
-                  <PropertiesDrawer
-                    open
-                    layer={selectedLayer}
-                    onClose={() => setShowProps(false)}
-                    onChange={(patch) => updateLayer(selectedLayer.id, patch)}
-                  />
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="hidden min-[640px]:block min-[1200px]:hidden fixed inset-x-0 bottom-0 z-[70] border-t border-yellow-500/15 bg-black/95 px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
-        <div className="grid grid-cols-3 gap-2">
-          <button
-            onClick={addText}
-            className="rounded-xl bg-[#ffb800] px-3 py-3 text-sm min-[640px]:text-base font-semibold text-black"
-          >
-            + Texte
-          </button>
-
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="rounded-xl border border-yellow-500/25 bg-yellow-500/10 px-3 py-3 text-sm min-[640px]:text-base text-yellow-200"
-          >
-            Image
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              if (mobileToolsSheetOpen) {
-                setMobileToolsLocalOpen(false);
-                onCloseMobileTools?.();
-              } else {
-                setMobileToolsLocalOpen(true);
-              }
-            }}
-            className="rounded-xl border border-yellow-500/25 bg-yellow-500/10 px-3 py-3 text-sm min-[640px]:text-base text-yellow-200"
-          >
-            {mobileToolsSheetOpen ? "Fermer" : "Outils"}
-          </button>
-        </div>
-      </div>
-
-      <div className="hidden min-[640px]:block w-full max-w-none min-[1200px]:max-w-[1800px] mx-auto px-0 min-[640px]:px-2 min-[900px]:px-4 min-[1200px]:px-6 pb-28 min-[1200px]:pb-10">
-        <div className="grid min-w-0 grid-cols-1 min-[1200px]:grid-cols-[280px_minmax(0,1fr)_360px] gap-4 min-[900px]:gap-6">
-          {/* LEFT (desktop only) */}
-          <aside className="hidden min-w-0 min-[1200px]:block rounded-2xl border border-yellow-500/15 bg-black/30 p-4">
-            <button
-              onClick={addText}
-              className="w-full rounded-xl bg-[#ffb800] text-black font-semibold py-3"
-            >
-              + Ajouter un texte
-            </button>
-
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="w-full mt-3 rounded-xl border border-yellow-500/25 bg-yellow-500/10 text-yellow-200 py-3"
-            >
-              📥 Importer une image
-            </button>
-
-            <button
-              onClick={reapplyAutoLayout}
-              className="w-full mt-3 rounded-xl border border-yellow-500/25 bg-yellow-500/10 text-yellow-200 py-3"
-            >
-              🔄 Auto-layout
-            </button>
-
-            {/* FORMAT */}
-            <div className="mt-4">
-              <label className="block text-yellow-400 text-sm mb-2">Format de publication</label>
-              <select
-                value={formatKey}
-                onChange={(e) => setFormatKey(e.target.value as CanvasFormatKey)}
-                className="w-full rounded-xl bg-black/40 border border-yellow-500/20 px-3 py-2 text-yellow-100"
-              >
-                {Object.entries(CANVAS_FORMATS).map(([key, f]: any) => (
-                  <option key={key} value={key}>
-                    {f.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* BACKGROUND */}
             <div className="mt-6 border-t border-yellow-500/15 pt-4">
-              <label className="block text-yellow-400 text-sm mb-2">Fond du post</label>
-
-              <div className="flex gap-2 mb-4">
-                {(["color", "gradient", "image"] as BackgroundMode[]).map((mode) => (
-                  <button
-                    key={mode}
-                    onClick={() => setBgMode(mode)}
-                    className={`flex-1 rounded-lg py-2 text-sm border ${
-                      bgMode === mode
-                        ? "bg-[#ffb800] text-black"
-                        : "border-yellow-500/20 text-yellow-200"
-                    }`}
-                  >
-                    {mode === "color" ? "Couleur" : mode === "gradient" ? "Gradient" : "Image"}
-                  </button>
-                ))}
+              <label className="block text-yellow-400 text-sm mb-2">CTA Systeme.io</label>
+              <div className="text-xs text-white/55 mb-3">
+                Lien utilisé pour l’export HTML et les CTA générés par le copilote.
               </div>
-
-              {bgMode === "color" && (
-                <input
-                  type="color"
-                  value={bgColor}
-                  onChange={(e) => setBgColor(e.target.value)}
-                  className="w-full h-10 rounded-lg bg-black/40 border border-yellow-500/20"
-                />
-              )}
-
-              {bgMode === "gradient" && (
-                <>
-                  <div
-                    className="w-full h-10 rounded-lg border border-yellow-500/20 mb-3"
-                    style={{
-                      background: `linear-gradient(${bgAngle}deg, ${bgColor1}, ${bgColor2})`,
-                    }}
-                  />
-                  <div className="flex gap-2 mb-3">
-                    <input
-                      type="color"
-                      value={bgColor1}
-                      onChange={(e) => setBgColor1(e.target.value)}
-                      className="w-16 h-10 rounded-lg border border-yellow-500/20 bg-black/30"
-                    />
-                    <input
-                      type="color"
-                      value={bgColor2}
-                      onChange={(e) => setBgColor2(e.target.value)}
-                      className="w-16 h-10 rounded-lg border border-yellow-500/20 bg-black/30"
-                    />
-                  </div>
-
-                  <label className="block text-yellow-400 text-xs mb-2">Angle ({bgAngle}°)</label>
-                  <input
-                    type="range"
-                    min={0}
-                    max={360}
-                    value={bgAngle}
-                    onChange={(e) => setBgAngle(Number(e.target.value))}
-                    className="w-full"
-                  />
-
-                  <div className="grid grid-cols-2 gap-2 mt-4">
-                    {GRADIENT_PRESETS.map((p) => (
-                      <button
-                        key={p.label}
-                        onClick={() => {
-                          setBgMode("gradient");
-                          setBgColor1(p.color1);
-                          setBgColor2(p.color2);
-                          setBgAngle(p.angle);
-                        }}
-                        className="rounded-lg border border-yellow-500/20 bg-black/40 px-3 py-2 text-yellow-200 text-sm hover:bg-yellow-500/10"
-                      >
-                        {p.label}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-
-              {bgMode === "image" && (
-                <div className="space-y-3">
-                  <button
-                    onClick={() => bgImageInputRef.current?.click()}
-                    className="w-full rounded-lg border border-yellow-500/25 bg-yellow-500/10 text-yellow-200 py-2"
-                  >
-                    📸 Importer / remplacer
-                  </button>
-
-                  {bgImage && (
-                    <button
-                      onClick={removeBackgroundImage}
-                      className="w-full rounded-lg border border-red-500/30 bg-red-500/10 text-red-300 py-2"
-                    >
-                      ❌ Supprimer l’image
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* OVERLAY */}
-            <div className="mt-6 border-t border-yellow-500/15 pt-4">
-              <div className="flex items-center justify-between mb-2">
-                <label className="block text-yellow-400 text-sm">Overlay</label>
-
-                <button
-                  onClick={() => setOverlayEnabled((v) => !v)}
-                  className={`rounded-lg px-3 py-1 text-xs border ${
-                    overlayEnabled
-                      ? "bg-[#ffb800] text-black border-[#ffb800]"
-                      : "border-yellow-500/20 text-yellow-200"
-                  }`}
-                >
-                  {overlayEnabled ? "Activé" : "Désactivé"}
-                </button>
-              </div>
-
-              <p className="text-xs text-yellow-100/60 mb-3">
-                Assombrit / améliore la lisibilité du texte au-dessus d’une image.
-              </p>
-
-              <div className={`space-y-3 ${overlayEnabled ? "" : "opacity-50 pointer-events-none"}`}>
-                <div className="flex gap-2">
-                  {(["color", "gradient"] as OverlayType[]).map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => setOverlayType(t)}
-                      className={`flex-1 rounded-lg py-2 text-sm border ${
-                        overlayType === t
-                          ? "bg-[#ffb800] text-black"
-                          : "border-yellow-500/20 text-yellow-200"
-                      }`}
-                    >
-                      {t === "color" ? "Couleur" : "Gradient"}
-                    </button>
-                  ))}
-                </div>
-
-                {overlayType === "color" && (
-                  <div>
-                    <label className="block text-yellow-400 text-xs mb-2">Couleur overlay</label>
-                    <input
-                      type="color"
-                      value={overlayColor1}
-                      onChange={(e) => setOverlayColor1(e.target.value)}
-                      className="w-full h-10 rounded-lg bg-black/40 border border-yellow-500/20"
-                    />
-                  </div>
-                )}
-
-                {overlayType === "gradient" && (
-                  <div>
-                    <label className="block text-yellow-400 text-xs mb-2">Gradient overlay</label>
-                    <div
-                      className="w-full h-10 rounded-lg border border-yellow-500/20 mb-3"
-                      style={{
-                        background: `linear-gradient(135deg, ${overlayColor1}, ${overlayColor2})`,
-                      }}
-                    />
-                    <div className="flex gap-2">
-                      <input
-                        type="color"
-                        value={overlayColor1}
-                        onChange={(e) => setOverlayColor1(e.target.value)}
-                        className="w-16 h-10 rounded-lg border border-yellow-500/20 bg-black/30"
-                      />
-                      <input
-                        type="color"
-                        value={overlayColor2}
-                        onChange={(e) => setOverlayColor2(e.target.value)}
-                        className="w-16 h-10 rounded-lg border border-yellow-500/20 bg-black/30"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-yellow-400 text-xs mb-2">
-                    Opacité ({Math.round(overlayOpacity * 100)}%)
-                  </label>
-                  <input
-                    type="range"
-                    min={0}
-                    max={1}
-                    step={0.01}
-                    value={overlayOpacity}
-                    onChange={(e) => setOverlayOpacity(Number(e.target.value))}
-                    className="w-full"
-                  />
-                </div>
-              </div>
+              <input
+                type="text"
+                value={ctaUrl}
+                onChange={(e) => onCtaUrlChange?.(e.target.value)}
+                placeholder="https://ton-lien-systeme.io/ton-formulaire"
+                className="w-full rounded-xl border border-yellow-500/15 bg-black/40 px-3 py-3 text-sm text-white/85 outline-none placeholder:text-white/25"
+              />
             </div>
           </aside>
 
-          {/* CENTER */}
-          <main className="min-w-0 rounded-none min-[640px]:rounded-2xl border-0 min-[640px]:border border-white/10 bg-black/25 p-0 min-[640px]:p-2 min-[900px]:p-4 min-[1200px]:p-5 relative flex items-start justify-center overflow-x-hidden">
+          <main className="rounded-2xl border border-white/10 bg-black/25 p-5 relative flex items-start justify-center">
             <div
-              ref={stageWrapRef}
-              className="w-full max-w-none rounded-none min-[640px]:rounded-2xl border-0 min-[640px]:border border-yellow-500/20 overflow-hidden relative min-[1200px]:h-[72vh]"
-              style={{
-                aspectRatio: `${format.w} / ${format.h}`,
-                width: "100%",
-                minHeight: "240px",
-                maxWidth: "100%",
-              }}
+              data-lead-engine-canvas-export="true"
+              className="w-full rounded-2xl border border-yellow-500/20 overflow-hidden relative"
+              style={{ height: `${canvasHeight}px` }}
             >
-              {/* CANVA center guides (light) */}
-              <div
-                className="pointer-events-none absolute inset-0"
-                style={{ opacity: 0.55 }}
-              >
-                <div
-                  className="absolute top-0 bottom-0 w-px bg-yellow-400/25"
-                  style={{ left: `${centerX}px` }}
-                />
-                <div
-                  className="absolute left-0 right-0 h-px bg-yellow-400/25"
-                  style={{ top: `${centerY}px` }}
-                />
-              </div>
-
-              {/* distance labels (selected layer) */}
-              {selectedMetrics && (
-                <div className="pointer-events-none absolute inset-0">
-                  <div className="absolute left-3 top-3 text-[11px] text-yellow-200/70">
-                    L:{Math.round(selectedMetrics.left)} · T:{Math.round(selectedMetrics.top)} ·
-                    R:{Math.round(selectedMetrics.right)} · B:{Math.round(selectedMetrics.bottom)}
-                  </div>
-                </div>
-              )}
-
               <CanvasStage
-                key={formatKey}
+                key={`${formatKey}-${canvasHeight}`}
                 layers={layers}
                 setLayers={setLayers}
                 onSelectLayer={selectLayer}
@@ -1544,8 +1975,37 @@ export default function EditorLayout({
             </div>
           </main>
 
-          {/* RIGHT (desktop only) */}
-          <aside className="hidden min-w-0 min-[1200px]:block rounded-2xl border border-yellow-500/15 bg-black/30 p-4">
+          <aside className="hidden min-[900px]:block rounded-2xl border border-yellow-500/15 bg-black/30 p-4">
+            <div className="mb-4 rounded-2xl border border-yellow-500/15 bg-black/30 p-3">
+              <div className="text-yellow-300 font-semibold text-sm mb-3">
+                Hauteur du canvas
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => bumpCanvasHeight(-200)}
+                  className="flex-1 rounded-xl border border-yellow-500/25 bg-yellow-500/10 px-3 py-2 text-yellow-200"
+                >
+                  - 200
+                </button>
+                <div className="min-w-[92px] text-center text-sm font-bold text-white">
+                  {canvasHeight}px
+                </div>
+                <button
+                  type="button"
+                  onClick={() => bumpCanvasHeight(200)}
+                  className="flex-1 rounded-xl bg-[#ffb800] px-3 py-2 font-bold text-black"
+                >
+                  + 200
+                </button>
+              </div>
+
+              <div className="mt-3 text-[12px] text-white/55">
+                Réglage manuel stable. Plus d’agrandissement automatique pendant le drag.
+              </div>
+            </div>
+
             <LayersPanelV5
               layers={layers.filter((l: any) => l.id !== BACKGROUND_LAYER_ID)}
               selectedLayerId={selectedLayer?.id ?? null}
@@ -1557,12 +2017,14 @@ export default function EditorLayout({
             />
 
             {selectedLayer && (
-              <PropertiesDrawer
-                open
-                layer={selectedLayer}
-                onClose={() => setShowProps(false)}
-                onChange={(patch) => updateLayer(selectedLayer.id, patch)}
-              />
+              <div className="mt-4">
+                <PropertiesDrawer
+                  open
+                  layer={selectedLayer}
+                  onClose={() => setShowProps(false)}
+                  onChange={(patch) => updateLayer(selectedLayer.id, patch)}
+                />
+              </div>
             )}
           </aside>
         </div>
@@ -1570,6 +2032,3 @@ export default function EditorLayout({
     </div>
   );
 }
-
-
-
