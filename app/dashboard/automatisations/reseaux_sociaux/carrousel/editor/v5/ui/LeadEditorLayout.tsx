@@ -1025,65 +1025,67 @@ export default function EditorLayout({
     };
   }
 
-  function buildCopilotBrief(action: CopilotAction) {
-    const offer = briefOffer.trim() || "ton offre";
+  function getCopilotObjectiveLabel() {
     const objectiveMap: Record<string, string> = {
-      leads: "générer des leads qualifiés",
-      sale: "vendre une offre",
-      call: "réserver un appel",
-      optin: "capturer un email",
+      leads: "Générer des leads",
+      sales: "Vendre une offre",
+      sale: "Vendre une offre",
+      trust: "Créer de la confiance",
+      launch: "Lancement",
+      call: "Réserver un appel",
+      optin: "Capturer un email",
     };
 
-    return [
-      `Offre / sujet : ${offer}`,
-      `Objectif : ${objectiveMap[briefGoal] || briefGoal}`,
-      `Angle : ${briefAngle}`,
-      `Audience : ${briefAudience}`,
-      `Ton : ${briefTone}`,
-      `Format attendu : ${action === "landing" ? "landing complète premium multi-blocs" : "réponse courte ciblée"}`,
-      `URL CTA : ${ctaUrl || "non précisée"}`,
-      `Action demandée : ${action}`,
-    ].join("\n");
-  }
-
-  function getEffectiveCopilotMaxLength(action: CopilotAction) {
-    // Longueur auto LGD : l'utilisateur choisit le besoin marketing,
-    // pas un nombre de caractères qui bride la qualité IA.
-    if (action === "landing") return 7000;
-    if (action === "variants") return 2200;
-    if (action === "benefits") return 1600;
-    if (action === "hooks") return 1400;
-    if (action === "cta") return 900;
-    return 1800;
+    return objectiveMap[briefGoal] || briefGoal;
   }
 
   function getCopilotPageType(action: CopilotAction) {
     if (action !== "landing") return "modular";
-    if (briefGoal === "leads" || briefGoal === "optin" || briefAngle === "lead-magnet") return "lead_magnet";
+    if (briefGoal === "sales" || briefGoal === "sale") return "sales";
     if (briefGoal === "call") return "appointment";
-    if (briefGoal === "sale") return "sales";
+    if (briefGoal === "launch") return "bridge";
     return "lead_magnet";
   }
 
+  function getCopilotAutoLength(action: CopilotAction) {
+    if (action === "hooks") return 900;
+    if (action === "cta") return 700;
+    if (action === "benefits") return 1200;
+    if (action === "variants") return 1600;
+    return getCopilotPageType(action) === "sales" ? 7600 : 6800;
+  }
+
+  function buildCopilotBrief(action: CopilotAction) {
+    const offer = briefOffer.trim() || "ton offre";
+
+    return [
+      `Offre / sujet : ${offer}`,
+      `Objectif : ${getCopilotObjectiveLabel()}`,
+      `Angle : ${briefAngle}`,
+      `Audience : ${briefAudience}`,
+      `Ton : ${briefTone}`,
+      `URL CTA : ${ctaUrl || "non précisée"}`,
+      `Action demandée : ${action}`,
+      `Mode attendu : DONE FOR YOU. LGD rédige le contenu final prêt à utiliser, pas des conseils, pas une méthode à suivre.`,
+    ].join("\n");
+  }
+
   function buildCopilotBusinessContext(action: CopilotAction) {
-    const effectiveMaxLength = getEffectiveCopilotMaxLength(action);
-    const pageType = getCopilotPageType(action);
-    const base = `lead-engine-copilot | action=${action} | objective=${briefGoal} | page_type=${pageType} | audience=${briefAudience} | angle=${briefAngle} | tone=${briefTone} | auto_length_profile=${effectiveMaxLength} | cta_url=${ctaUrl || ""}`;
+    const base = `lead-engine-copilot | action=${action} | objectif=${getCopilotObjectiveLabel()} | audience=${briefAudience} | angle=${briefAngle} | tone=${briefTone} | cta_url=${ctaUrl || ""}`;
 
     if (action === "hooks") {
-      return `${base} | Retourne exactement 10 hooks puissants en français, un par ligne, sans introduction.`;
+      return `${base} | DONE FOR YOU | Retourne exactement 10 hooks finaux puissants en français, un par ligne, sans conseils.`;
     }
     if (action === "cta") {
-      return `${base} | Retourne exactement 6 CTA en français, un par ligne, orientés conversion.`;
+      return `${base} | DONE FOR YOU | Retourne exactement 8 CTA finaux en français, un par ligne, orientés conversion.`;
     }
     if (action === "benefits") {
-      return `${base} | Retourne exactement 6 bénéfices en français, un par ligne, concrets et orientés valeur.`;
+      return `${base} | DONE FOR YOU | Retourne exactement 8 bénéfices finaux en français, un par ligne, concrets et orientés valeur.`;
     }
     if (action === "variants") {
-      return `${base} | Retourne exactement 4 variantes marketing en français, une par ligne, avec des angles nettement différents.`;
+      return `${base} | DONE FOR YOU | Retourne exactement 4 variantes marketing finales en français, une par ligne, avec des angles nettement différents.`;
     }
-
-    return `${base} | Retourne une landing complète de lead magnet expert en 6 à 8 blocs distincts. Format obligatoire : BLOC 1 — HERO, BLOC 2 — IDENTIFICATION, BLOC 3 — PROMESSE DU GUIDE, BLOC 4 — CE QUE TU VAS RECEVOIR, BLOC 5 — POURQUOI ÇA MARCHE, BLOC 6 — RÉASSURANCE, BLOC 7 — CTA FINAL, BLOC 8 — MICRO FAQ. Chaque bloc doit contenir du texte utile et injectable.`;
+    return `${base} | DONE FOR YOU | Retourne une vraie page finale complète, rédigée, vendable, sans conseils, structurée en blocs internes BLOC 1 à BLOC 8. Les labels BLOC servent uniquement au parser. Le contenu de chaque bloc doit être propre pour le canvas.`;
   }
 
   async function saveCopilotMemory(action: CopilotAction) {
@@ -1095,6 +1097,7 @@ export default function EditorLayout({
       business_context: buildCopilotBusinessContext(action),
       metadata_json: JSON.stringify({
         action,
+        objective: getCopilotObjectiveLabel(),
         audience: briefAudience,
         angle: briefAngle,
         tone: briefTone,
@@ -1121,81 +1124,66 @@ export default function EditorLayout({
       .split(/\n+/)
       .map((line) => line.trim())
       .map((line) => line.replace(/^[-•\d.\)\s]+/, "").trim())
+      .map((line) => cleanGeneratedTextForCanvas(line))
       .filter(Boolean);
   }
 
-  function inferGeneratedKind(label: string): GeneratedItem["kind"] {
-    const raw = String(label || "").toLowerCase();
-    if (raw.includes("cta")) return "cta";
-    if (raw.includes("bénéf") || raw.includes("benef") || raw.includes("reçois") || raw.includes("recevoir")) return "benefit";
-    if (raw.includes("faq") || raw.includes("réassurance") || raw.includes("objection")) return "closing";
-    if (raw.includes("identification") || raw.includes("douleur") || raw.includes("promesse") || raw.includes("mécanisme") || raw.includes("mecanisme")) return "subtitle";
-    return "hook";
+  function cleanGeneratedTextForCanvas(value: string) {
+    return String(value || "")
+      .replace(/^\s*(BLOC\s*\d+\s*[—-]\s*)/gim, "")
+      .replace(/^\s*(TITRE|SOUS-TITRE|SUBTITLE|CTA|URL CTA|HERO|DOULEUR|IDENTIFICATION|BÉNÉFICES|BENEFICES|PROMESSE|MÉCANISME|MECANISME|RÉASSURANCE|REASSURANCE|FAQ|QUESTION|RÉPONSE|REPONSE)\s*:\s*/gim, "")
+      .replace(/^\s*(Voici|Structure|Conseil|À faire|A faire|Tu pourrais|Clarifie|Renforce)\s*:?\s*/gim, "")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
   }
 
-  function parseLandingBlocks(text: string): GeneratedItem[] {
-    const source = String(text || "").replace(/\r\n/g, "\n").trim();
-    if (!source) return [];
+  function parseLandingBlocks(content: string): GeneratedItem[] {
+    const text = String(content || "").trim();
+    if (!text) return [];
 
-    const blockHeaderRegex = /^\s*BLOC\s*(\d+)\s*[—\-:]\s*(.+?)\s*$/gim;
-    const matches = Array.from(source.matchAll(blockHeaderRegex));
+    const blocks = text
+      .split(/(?=^\s*BLOC\s*\d+\s*[—-])/gim)
+      .map((block) => block.trim())
+      .filter(Boolean);
 
-    if (matches.length > 0) {
-      return matches.map((match, index) => {
-        const number = Number(match[1] || index + 1);
-        const title = String(match[2] || `Bloc ${number}`).trim();
-        const start = Number(match.index || 0) + String(match[0] || "").length;
-        const end = index + 1 < matches.length ? Number(matches[index + 1].index || source.length) : source.length;
-        const body = source.slice(start, end).trim();
-        const label = `Bloc ${number} — ${title}`;
-        const blockText = body ? `${title}\n\n${body}` : title;
+    const sourceBlocks = blocks.length >= 2
+      ? blocks
+      : text.split(/\n\s*\n+/).map((block) => block.trim()).filter(Boolean);
 
-        return {
-          id: `ai-landing-block-${number}-${index}`,
-          kind: inferGeneratedKind(title),
-          label,
-          text: blockText.trim(),
-        };
-      }).filter((item) => item.text.trim().length > 0);
-    }
-
-    const legacyRules: Array<{ regex: RegExp; kind: GeneratedItem["kind"]; label: string }> = [
-      { regex: /^HERO\s*:/i, kind: "hook", label: "Bloc 1 — Hero" },
-      { regex: /^SUBTITLE\s*:/i, kind: "subtitle", label: "Bloc 2 — Sous-titre" },
-      { regex: /^CTA\s*:/i, kind: "cta", label: "Bloc 3 — CTA" },
-      { regex: /^BENEFIT\s*:/i, kind: "benefit", label: "Bloc bénéfice" },
-      { regex: /^CLOSING\s*:/i, kind: "closing", label: "Bloc closing" },
+    const labels = [
+      "Accroche principale",
+      "Identification",
+      "Promesse",
+      "Ce que le prospect reçoit",
+      "Mécanisme",
+      "Réassurance",
+      "CTA final",
+      "FAQ",
     ];
 
-    const legacyItems: GeneratedItem[] = [];
-    source.split(/\n+/).map((line) => line.trim()).filter(Boolean).forEach((line, index) => {
-      const rule = legacyRules.find((candidate) => candidate.regex.test(line));
-      if (!rule) return;
-      legacyItems.push({
-        id: `ai-landing-legacy-${index}`,
-        kind: rule.kind,
-        label: rule.label,
-        text: line.replace(rule.regex, "").trim(),
-      });
-    });
+    const kinds: GeneratedItem["kind"][] = ["hook", "subtitle", "benefit", "benefit", "subtitle", "benefit", "cta", "closing"];
 
-    if (legacyItems.length > 0) return legacyItems;
+    const items = sourceBlocks
+      .map((block, index) => {
+        const cleanText = cleanGeneratedTextForCanvas(block);
+        if (!cleanText) return null;
+        return {
+          id: `ai-landing-${index + 1}`,
+          kind: kinds[index] || "closing",
+          label: labels[index] || `Section ${index + 1}`,
+          text: cleanText,
+        } satisfies GeneratedItem;
+      })
+      .filter(Boolean) as GeneratedItem[];
 
-    const chunks = source
-      .split(/\n{2,}/)
-      .map((chunk) => chunk.trim())
-      .filter(Boolean);
+    if (items.length > 0) return items;
 
-    if (chunks.length > 1) {
-      return chunks.map((chunk, index) => ({
-        id: `ai-landing-chunk-${index + 1}`,
-        kind: index === 0 ? "hook" : index === chunks.length - 1 ? "cta" : "subtitle",
-        label: `Bloc ${index + 1}`,
-        text: chunk,
-      }));
-    }
-
-    return [{ id: "ai-landing-fallback", kind: "closing", label: "Landing complète", text: source }];
+    return [{
+      id: "ai-landing-fallback",
+      kind: "closing",
+      label: "Landing complète",
+      text: cleanGeneratedTextForCanvas(text),
+    }];
   }
 
   function parseGeneratedItemsFromAI(action: CopilotAction, content: string): GeneratedItem[] {
@@ -1239,11 +1227,7 @@ export default function EditorLayout({
         setGeneratedItems([]);
         setCopilotRawResult("");
 
-        const effectiveMaxLength = getEffectiveCopilotMaxLength(action);
-        const pageType = getCopilotPageType(action);
-        const brief = `${buildCopilotBrief(action)}
-Profil de génération automatique : ${effectiveMaxLength} caractères cible backend
-Type de page effectif : ${pageType}`;
+        const brief = buildCopilotBrief(action);
         await saveCopilotMemory(action);
 
         const goal = action === "landing" ? "landing_complete" : action;
@@ -1256,15 +1240,15 @@ Type de page effectif : ${pageType}`;
           body: JSON.stringify({
             goal,
             brief,
-            emotional_style: `${briefTone}, humain, premium, sincère, expert marketing digital`,
+            emotional_style: `${briefTone}, humain, premium, sincère, expert marketing digital, mode done for you`,
             business_context: buildCopilotBusinessContext(action),
-            objective: briefGoal,
+            objective: getCopilotObjectiveLabel(),
             angle: briefAngle,
             audience: briefAudience,
             tone: briefTone,
-            max_length: effectiveMaxLength,
-            cta_url: ctaUrl,
-            page_type: pageType,
+            cta_url: ctaUrl || "",
+            page_type: getCopilotPageType(action),
+            max_length: getCopilotAutoLength(action),
           }),
         });
 
@@ -1457,7 +1441,6 @@ Type de page effectif : ${pageType}`;
                     />
                   </div>
 
-
                   <div>
                     <label className="mb-2 block text-xs font-semibold text-yellow-300">Objectif</label>
                     <select
@@ -1623,7 +1606,7 @@ Type de page effectif : ${pageType}`;
                         </div>
 
                         <div className="mt-2 text-sm leading-6 text-white/80 whitespace-pre-wrap">
-                          {item.text.length > 420 ? `${item.text.slice(0, 420)}…` : item.text}
+                          {item.text}
                         </div>
                       </div>
                     ))
