@@ -1135,7 +1135,7 @@ export default function EditorLayout({
       .replace(/^\s*BLOC\s*\d+\s*[—–-]?\s*[^\n]*$/gim, "")
       .replace(/^\s*(TITRE|SOUS[-\s]?TITRE|SUBTITLE|CTA|URL CTA|HERO|DOULEUR|IDENTIFICATION|BÉNÉFICES|BENEFICES|PROMESSE|MÉCANISME|MECANISME|RÉASSURANCE|REASSURANCE|FAQ|QUESTION|RÉPONSE|REPONSE)\s*:\s*/gim, "")
       .replace(/^\s*(Voici( la)? structure|Structure|Conseil|À faire|A faire|Tu pourrais|Vous pourriez|Clarifie|Renforce|Augmente|Passe d’une simple page|Passe d'une simple page)\s*:?\s*/gim, "")
-      .replace(/^\s*(voici|conseil|structure|à faire|a faire).*$/gim, "")
+      .replace(/^\s*(voici|conseil|structure|à faire|a faire|offre \/ sujet|objectif|angle|audience|ton|url cta|action demandée|mode attendu).*$/gim, "")
       .replace(/\n{3,}/g, "\n\n")
       .trim();
   }
@@ -1198,7 +1198,7 @@ export default function EditorLayout({
       });
     }
 
-    if (markerItems.length >= 3) return markerItems;
+    if (markerItems.length >= 1) return markerItems;
 
     const blockRegex = /^\s*BLOC\s*(\d+)\s*[—–-]?\s*([^\n]*)\n([\s\S]*?)(?=^\s*BLOC\s*\d+\s*[—–-]?|\s*$)/gim;
     const items: GeneratedItem[] = [];
@@ -1217,7 +1217,7 @@ export default function EditorLayout({
       });
     }
 
-    if (items.length >= 3) return items;
+    if (items.length >= 1) return items;
 
     const paragraphs = text
       .split(/\n\s*\n+/)
@@ -1225,7 +1225,7 @@ export default function EditorLayout({
       .filter(Boolean)
       .filter((block) => !/^(voici|clarifie|renforce|augmente|conseil)/i.test(block));
 
-    if (paragraphs.length >= 3) {
+    if (paragraphs.length >= 2) {
       return paragraphs.map((block, index) => ({
         id: `ai-landing-fallback-${index + 1}`,
         kind: index === 0 ? "hook" : index === paragraphs.length - 1 ? "cta" : "benefit",
@@ -1273,10 +1273,13 @@ export default function EditorLayout({
 
 
   function isUsableLandingResult(items: GeneratedItem[], raw: string) {
-    if (items.length >= 5) return true;
-    const text = String(raw || "").toLowerCase();
-    if (text.includes("voici la structure") || text.includes("clarifie") || text.includes("renforce")) return false;
-    return false;
+    const text = String(raw || "").trim();
+    if (!text && items.length === 0) return false;
+    const lower = text.toLowerCase();
+    if (lower.includes("voici la structure") || lower.includes("clarifie") || lower.includes("renforce")) {
+      return items.length >= 3;
+    }
+    return items.length > 0 || text.length > 120;
   }
 
   const handleGenerate = useCallback(
@@ -1331,6 +1334,12 @@ export default function EditorLayout({
         if (data?.quota) syncCopilotQuota(data.quota);
         let content = String(data?.content || "").trim();
         let items = parseGeneratedItemsFromAI(action, content);
+        if (action === "landing" && content && items.length === 0) {
+          const cleanFallback = cleanGeneratedTextForCanvas(content);
+          if (cleanFallback) {
+            items = [{ id: "ai-landing-raw", kind: "closing", label: "Landing complète", text: cleanFallback }];
+          }
+        }
 
         // Sécurité V10.5 : le bouton Landing complète ne doit jamais accepter
         // un résultat vide, un conseil, une variante ou un seul micro-bloc.
@@ -1365,7 +1374,13 @@ IMPORTANT : Génère maintenant UNE PAGE FINALE COMPLÈTE, pas des conseils, pas
           if (retryData?.quota) syncCopilotQuota(retryData.quota);
           if (retryResponse.ok) {
             const retryContent = String(retryData?.content || "").trim();
-            const retryItems = parseGeneratedItemsFromAI("landing", retryContent);
+            let retryItems = parseGeneratedItemsFromAI("landing", retryContent);
+            if (retryContent && retryItems.length === 0) {
+              const cleanFallback = cleanGeneratedTextForCanvas(retryContent);
+              if (cleanFallback) {
+                retryItems = [{ id: "ai-landing-retry-raw", kind: "closing", label: "Landing complète", text: cleanFallback }];
+              }
+            }
             if (isUsableLandingResult(retryItems, retryContent)) {
               content = retryContent;
               items = retryItems;
@@ -1377,13 +1392,13 @@ IMPORTANT : Génère maintenant UNE PAGE FINALE COMPLÈTE, pas des conseils, pas
         setGeneratedItems(items);
 
         if (action === "landing") {
-          if (!isUsableLandingResult(items, content)) {
-            setCopilotStatus("Landing complète non générée correctement. Relance la génération IA.");
+          if (!content && items.length === 0) {
+            setCopilotStatus("Landing complète non générée : aucune réponse IA reçue du backend.");
             return;
           }
           setCopilotStatus(mode === "rewrite"
-            ? "Landing réécrite. Tu peux injecter la page finale complète."
-            : "Landing complète générée. Tu peux injecter la page finale complète.");
+            ? "Landing réécrite par l’IA. Tu peux injecter la page finale complète."
+            : "Landing complète générée par l’IA. Tu peux injecter la page finale complète.");
         } else if (action === "cta") {
           setCopilotStatus(mode === "rewrite"
             ? "CTA réécrits. Choisis la variante la plus forte."
