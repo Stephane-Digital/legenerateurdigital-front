@@ -519,6 +519,11 @@ const LEAD_SECTION_ALIASES: Record<string, string> = {
 
 function cleanLeadLine(value: string) {
   return String(value || "")
+    .replace(/^\s*[{\[]\s*$/g, "")
+    .replace(/^\s*[}\]]\s*,?\s*$/g, "")
+    .replace(/^\s*"?(title|heading|name|type|body|text|content|copy|value|sections|blocks|landing)"?\s*:\s*/i, "")
+    .replace(/^\s*"/, "")
+    .replace(/",?\s*$/, "")
     .replace(/^#{1,6}\s*/g, "")
     .replace(/\*\*/g, "")
     .replace(/^\[\s*LGD_BLOCK\s*:\s*([^\]]+)\]\s*/i, "$1")
@@ -615,11 +620,149 @@ function splitInlineLeadHeading(
   return { title, body };
 }
 
+
+function stringifyLeadJsonValue(value: unknown): string {
+  if (value === null || value === undefined) return "";
+
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return String(value).trim();
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => stringifyLeadJsonValue(item))
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  if (typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    const preferredKeys = [
+      "body",
+      "text",
+      "content",
+      "copy",
+      "paragraph",
+      "description",
+      "value",
+      "message",
+      "titre",
+      "title",
+      "subtitle",
+      "sous_titre",
+      "cta",
+    ];
+
+    const directParts = preferredKeys
+      .map((key) => stringifyLeadJsonValue(record[key]))
+      .filter(Boolean);
+
+    if (directParts.length > 0) return directParts.join("\n");
+
+    return Object.entries(record)
+      .map(([key, entry]) => {
+        const normalizedKey = normalizeLeadHeading(key);
+        const valueText = stringifyLeadJsonValue(entry);
+        if (!valueText) return "";
+        return normalizedKey ? `${normalizedKey}\n${valueText}` : valueText;
+      })
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  return "";
+}
+
+function normalizeLeadAiRawContent(content: string): string {
+  const raw = String(content || "")
+    .replace(/```(?:json|JSON|ts|typescript)?/g, "")
+    .replace(/```/g, "")
+    .trim();
+
+  if (!raw) return "";
+
+  const candidates = [raw];
+  const firstBrace = raw.search(/[\[{]/);
+  const lastBrace = Math.max(raw.lastIndexOf("}"), raw.lastIndexOf("]"));
+  if (firstBrace >= 0 && lastBrace > firstBrace) {
+    candidates.push(raw.slice(firstBrace, lastBrace + 1));
+  }
+
+  for (const candidate of candidates) {
+    try {
+      const parsed = JSON.parse(candidate);
+
+      if (Array.isArray(parsed)) {
+        return parsed
+          .map((item) => {
+            if (typeof item === "string") return item;
+            const record = (item || {}) as Record<string, unknown>;
+            const title = normalizeLeadHeading(
+              String(record.title || record.heading || record.name || record.type || ""),
+            );
+            const body = stringifyLeadJsonValue(
+              record.body || record.text || record.content || record.copy || record.value || item,
+            );
+            return title ? `${title}\n${body}` : body;
+          })
+          .filter(Boolean)
+          .join("\n\n");
+      }
+
+      if (parsed && typeof parsed === "object") {
+        const record = parsed as Record<string, unknown>;
+        const sectionsValue = record.sections || record.blocks || record.landing || record.content;
+
+        if (Array.isArray(sectionsValue)) {
+          return sectionsValue
+            .map((item) => {
+              const section = (item || {}) as Record<string, unknown>;
+              const title = normalizeLeadHeading(
+                String(section.title || section.heading || section.name || section.type || ""),
+              );
+              const body = stringifyLeadJsonValue(
+                section.body || section.text || section.content || section.copy || section.value || item,
+              );
+              return title ? `${title}\n${body}` : body;
+            })
+            .filter(Boolean)
+            .join("\n\n");
+        }
+
+        return LEAD_SECTION_ORDER
+          .map((title) => {
+            const matchingKey = Object.keys(record).find(
+              (key) => normalizeLeadHeading(key) === title,
+            );
+            if (!matchingKey) return "";
+            const body = stringifyLeadJsonValue(record[matchingKey]);
+            return body ? `${title}\n${body}` : "";
+          })
+          .filter(Boolean)
+          .join("\n\n") || stringifyLeadJsonValue(record);
+      }
+    } catch {
+      // Not JSON. Continue with text cleanup below.
+    }
+  }
+
+  return raw
+    .replace(/^\s*[{\[]\s*$/gm, "")
+    .replace(/^\s*[}\]]\s*,?\s*$/gm, "")
+    .replace(/^\s*"?(title|heading|name|type|body|text|content|copy|value|sections|blocks|landing)"?\s*:\s*/gim, "")
+    .replace(/^\s*"?([A-ZÀ-Ÿ_ /-]{3,80})"?\s*:\s*$/gm, "$1")
+    .replace(/^\s*"?([A-ZÀ-Ÿ_ /-]{3,80})"?\s*:\s*/gm, "$1\n")
+    .replace(/[",]+\s*$/gm, "")
+    .trim();
+}
+
 function parseLeadSections(content: string): LeadSection[] {
-  const text = String(content || "")
-    .replace(/\r/g, "")
+  const text = normalizeLeadAiRawContent(content)
+    .replace(/\n/g, "")
     .replace(/\[\s*LGD_BLOCK\s*:\s*([^\]]+)\]\s*/gi, "\n$1\n")
     .replace(/\[\s*\/\s*LGD_BLOCK\s*\]\s*/gi, "\n")
+    .replace(/^\s*[{\[]\s*$/gm, "")
+    .replace(/^\s*[}\]]\s*,?\s*$/gm, "")
     .trim();
   if (!text) return [];
 
@@ -1441,36 +1584,48 @@ export default function LeadEnginePage() {
     const cleanBody = cleanLeadBody(section.body);
     if (!cleanBody) return;
 
-    const baseY = 80;
+    const normalizedSnapshot = normalizeLayersSnapshot(layers);
     const titleHeight = estimateLeadTextHeight(cleanTitle, 760, 30, 1.1);
     const bodyHeight = estimateLeadTextHeight(cleanBody, 820, 22, 1.32);
     const gapAfterTitle = 24;
-    const gapAfterBlock = 72;
+    const gapAfterBlock = 88;
     const insertionHeight = Math.max(
-      260,
+      280,
       titleHeight + gapAfterTitle + bodyHeight + gapAfterBlock,
     );
-    const stamp = Date.now();
-    const shiftedLayers = normalizeLayersSnapshot(layers).map((layer: any) => ({
-      ...layer,
-      y: typeof layer?.y === "number" ? layer.y + insertionHeight : layer?.y,
-    })) as LayerData[];
-    const nextHeight = Math.max(
-      canvasHeight + insertionHeight,
-      baseY + insertionHeight + 320,
-    );
 
-    const nextLayers: LayerData[] = [
+    const aiBlocks = normalizedSnapshot.filter((layer: any) =>
+      String(layer?.id || "").startsWith("lead-ai-block-"),
+    );
+    const aiBottom = aiBlocks.reduce((max, layer: any) => {
+      const y = typeof layer?.y === "number" ? layer.y : 0;
+      const height = typeof layer?.height === "number" ? layer.height : 0;
+      return Math.max(max, y + height);
+    }, 0);
+
+    const insertionY = aiBottom > 0 ? aiBottom + 72 : 80;
+    const stamp = Date.now();
+    const shiftedLayers = normalizedSnapshot.map((layer: any) => {
+      const y = typeof layer?.y === "number" ? layer.y : 0;
+      const isAiBlock = String(layer?.id || "").startsWith("lead-ai-block-");
+      const mustShift = aiBottom > 0 ? !isAiBlock && y >= insertionY : true;
+      return {
+        ...layer,
+        y: mustShift && typeof layer?.y === "number" ? layer.y + insertionHeight : layer?.y,
+      };
+    }) as LayerData[];
+
+    const newSectionLayers: LayerData[] = [
       {
         id: `lead-ai-block-title-${stamp}-${index}`,
         type: "text",
         x: 84,
-        y: baseY,
+        y: insertionY,
         width: 760,
         height: titleHeight,
         visible: true,
         selected: false,
-        zIndex: 200 + index * 2,
+        zIndex: 2000 + index * 2,
         text: cleanTitle,
         style: {
           fontSize: 30,
@@ -1484,12 +1639,12 @@ export default function LeadEnginePage() {
         id: `lead-ai-block-body-${stamp}-${index}`,
         type: "text",
         x: 84,
-        y: baseY + titleHeight + gapAfterTitle,
+        y: insertionY + titleHeight + gapAfterTitle,
         width: 820,
         height: bodyHeight,
         visible: true,
         selected: false,
-        zIndex: 201 + index * 2,
+        zIndex: 2001 + index * 2,
         text: cleanBody,
         style: {
           fontSize: 22,
@@ -1499,8 +1654,18 @@ export default function LeadEnginePage() {
           lineHeight: 1.32,
         },
       } as LayerData,
-      ...shiftedLayers,
     ];
+
+    const nextLayers = [...shiftedLayers, ...newSectionLayers].sort((a: any, b: any) => {
+      const zA = typeof a?.zIndex === "number" ? a.zIndex : 0;
+      const zB = typeof b?.zIndex === "number" ? b.zIndex : 0;
+      return zA - zB;
+    }) as LayerData[];
+
+    const nextHeight = Math.max(
+      canvasHeight + insertionHeight,
+      insertionY + insertionHeight + 320,
+    );
 
     setLayers(nextLayers);
     setInitialLayers(nextLayers);
