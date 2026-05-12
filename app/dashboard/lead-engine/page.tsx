@@ -694,42 +694,29 @@ function normalizeLeadAiRawContent(content: string): string {
 
       if (Array.isArray(parsed)) {
         return parsed
-          .map((item) => {
-            if (typeof item === "string") return item;
-            const record = (item || {}) as Record<string, unknown>;
-            const title = normalizeLeadHeading(
-              String(record.title || record.heading || record.name || record.type || ""),
-            );
-            const body = stringifyLeadJsonValue(
-              record.body || record.text || record.content || record.copy || record.value || item,
-            );
-            return title ? `${title}\n${body}` : body;
-          })
+          .map((item, index) => stringifyLeadSectionCandidate(item, index))
           .filter(Boolean)
           .join("\n\n");
       }
 
       if (parsed && typeof parsed === "object") {
         const record = parsed as Record<string, unknown>;
-        const sectionsValue = record.sections || record.blocks || record.landing || record.content;
+        const sectionsValue =
+          record.sections ||
+          record.blocks ||
+          record.landing_blocks ||
+          record.landingBlocks ||
+          record.landing ||
+          record.content;
 
         if (Array.isArray(sectionsValue)) {
           return sectionsValue
-            .map((item) => {
-              const section = (item || {}) as Record<string, unknown>;
-              const title = normalizeLeadHeading(
-                String(section.title || section.heading || section.name || section.type || ""),
-              );
-              const body = stringifyLeadJsonValue(
-                section.body || section.text || section.content || section.copy || section.value || item,
-              );
-              return title ? `${title}\n${body}` : body;
-            })
+            .map((item, index) => stringifyLeadSectionCandidate(item, index))
             .filter(Boolean)
             .join("\n\n");
         }
 
-        return LEAD_SECTION_ORDER
+        const ordered = LEAD_SECTION_ORDER
           .map((title) => {
             const matchingKey = Object.keys(record).find(
               (key) => normalizeLeadHeading(key) === title,
@@ -739,7 +726,23 @@ function normalizeLeadAiRawContent(content: string): string {
             return body ? `${title}\n${body}` : "";
           })
           .filter(Boolean)
-          .join("\n\n") || stringifyLeadJsonValue(record);
+          .join("\n\n");
+
+        if (ordered) return ordered;
+
+        const objectEntries = Object.entries(record)
+          .map(([key, entry], index) => {
+            const normalizedKey = normalizeLeadHeading(key);
+            const valueText = stringifyLeadJsonValue(entry);
+            if (!valueText) return "";
+            return normalizedKey
+              ? `${normalizedKey}\n${valueText}`
+              : stringifyLeadSectionCandidate(entry, index);
+          })
+          .filter(Boolean)
+          .join("\n\n");
+
+        if (objectEntries) return objectEntries;
       }
     } catch {
       // Not JSON. Continue with text cleanup below.
@@ -749,11 +752,47 @@ function normalizeLeadAiRawContent(content: string): string {
   return raw
     .replace(/^\s*[{\[]\s*$/gm, "")
     .replace(/^\s*[}\]]\s*,?\s*$/gm, "")
-    .replace(/^\s*"?(title|heading|name|type|body|text|content|copy|value|sections|blocks|landing)"?\s*:\s*/gim, "")
+    .replace(/^\s*"?(title|heading|name|type|body|text|content|copy|value|sections|blocks|landing|landing_blocks)"?\s*:\s*/gim, "")
     .replace(/^\s*"?([A-ZÀ-Ÿ_ /-]{3,80})"?\s*:\s*$/gm, "$1")
     .replace(/^\s*"?([A-ZÀ-Ÿ_ /-]{3,80})"?\s*:\s*/gm, "$1\n")
     .replace(/[",]+\s*$/gm, "")
     .trim();
+}
+
+function stringifyLeadSectionCandidate(value: unknown, index: number): string {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string") return value.trim();
+
+  if (typeof value !== "object") return String(value || "").trim();
+
+  const record = value as Record<string, unknown>;
+  const rawTitle = String(
+    record.title ||
+      record.heading ||
+      record.name ||
+      record.type ||
+      record.kind ||
+      record.key ||
+      "",
+  ).trim();
+  const normalizedTitle = normalizeLeadHeading(rawTitle);
+  const title = normalizedTitle || (rawTitle ? cleanLeadLine(rawTitle) : `BLOC ${index + 1}`);
+
+  const body = stringifyLeadJsonValue(
+    record.body ||
+      record.text ||
+      record.content ||
+      record.copy ||
+      record.paragraph ||
+      record.description ||
+      record.value ||
+      record.items ||
+      record.lines,
+  );
+
+  const cleanedBody = cleanLeadBody(body);
+  if (!cleanedBody) return title;
+  return `${title}\n${cleanedBody}`.trim();
 }
 
 function parseLeadSections(content: string): LeadSection[] {
@@ -784,7 +823,6 @@ function parseLeadSections(content: string): LeadSection[] {
     }
 
     const inlineHeading = splitInlineLeadHeading(line);
-
     if (inlineHeading) {
       flush();
       currentTitle = inlineHeading.title;
@@ -793,7 +831,6 @@ function parseLeadSections(content: string): LeadSection[] {
     }
 
     const detected = normalizeLeadHeading(line);
-
     if (detected) {
       flush();
       currentTitle = detected;
@@ -806,21 +843,37 @@ function parseLeadSections(content: string): LeadSection[] {
 
   flush();
 
-  if (sections.length === 0) {
-    return [{ title: "CONTENU LANDING", body: cleanLeadBody(text) }];
+  const cleanedSections = sections
+    .map((section) => ({
+      title: section.title,
+      body: cleanLeadBody(section.body),
+    }))
+    .filter((section) => section.body && section.body !== "1");
+
+  if (cleanedSections.length === 0) {
+    return [{ title: "CONTENU LANDING", body: cleanLeadBody(text) }].filter(
+      (section) => !!section.body,
+    );
   }
 
   const merged: LeadSection[] = [];
-  for (const section of sections) {
+  for (const section of cleanedSections) {
     const last = merged[merged.length - 1];
     if (last && last.title === section.title) {
       last.body = `${last.body}\n${section.body}`.trim();
     } else {
-      merged.push({ title: section.title, body: cleanLeadBody(section.body) });
+      merged.push({ title: section.title, body: section.body });
     }
   }
 
-  return merged;
+  const ordered = LEAD_SECTION_ORDER
+    .map((title) => merged.find((section) => section.title === title))
+    .filter(Boolean) as LeadSection[];
+  const others = merged.filter(
+    (section) => !LEAD_SECTION_ORDER.includes(section.title),
+  );
+
+  return [...ordered, ...others];
 }
 
 function shortLines(content: string, maxLines: number) {
@@ -838,7 +891,14 @@ function cleanLeadBody(content: string) {
     .replace(/\[\s*\/\s*LGD_BLOCK\s*\]\s*/gi, "")
     .split(/\r?\n/)
     .map((line) => cleanLeadLine(line))
-    .filter(Boolean)
+    .filter((line) => {
+      if (!line) return false;
+      if (/^[{\[}\]],?$/.test(line)) return false;
+      if (/^"?[,}]?$/.test(line)) return false;
+      if (/^\d+$/.test(line)) return false;
+      if (/^(sections|blocks|landing|content)$/i.test(line)) return false;
+      return true;
+    })
     .join("\n")
     .trim();
 }
@@ -909,14 +969,14 @@ function buildStructuredLandingLayers(
   const blockStyle = {
     fontFamily: "Inter",
     color: "#ffffff",
-    fontWeight: 600,
-    lineHeight: 1.28,
+    fontWeight: 500,
+    lineHeight: 1.32,
   };
 
   const labelStyle = {
     fontFamily: "Inter",
     color: "#ffb800",
-    fontWeight: 900,
+    fontWeight: 800,
     lineHeight: 1.1,
   };
 
@@ -1295,47 +1355,44 @@ export default function LeadEnginePage() {
   }
 
   function extractAIContent(data: any): string {
-    const direct = String(
-      data?.content ||
-        data?.result ||
-        data?.text ||
-        data?.message ||
-        data?.output ||
-        "",
-    ).trim();
-
-    if (direct) return direct;
-
     const blocks = Array.isArray(data?.blocks)
       ? data.blocks
       : Array.isArray(data?.sections)
         ? data.sections
         : Array.isArray(data?.landing_blocks)
           ? data.landing_blocks
-          : [];
+          : Array.isArray(data?.landingBlocks)
+            ? data.landingBlocks
+            : [];
 
-    if (!blocks.length) return "";
+    if (blocks.length) {
+      return blocks
+        .map((block: any, index: number) => stringifyLeadSectionCandidate(block, index))
+        .filter(Boolean)
+        .join("\n\n");
+    }
 
-    return blocks
-      .map((block: any, index: number) => {
-        if (typeof block === "string") return block.trim();
+    const directValue =
+      data?.content ??
+      data?.result ??
+      data?.text ??
+      data?.message ??
+      data?.output ??
+      data?.landing ??
+      "";
 
-        const title = String(
-          block?.title || block?.heading || block?.name || `BLOC ${index + 1}`,
-        ).trim();
-        const body = String(
-          block?.body ||
-            block?.content ||
-            block?.text ||
-            block?.description ||
-            "",
-        ).trim();
+    if (Array.isArray(directValue)) {
+      return directValue
+        .map((block: any, index: number) => stringifyLeadSectionCandidate(block, index))
+        .filter(Boolean)
+        .join("\n\n");
+    }
 
-        if (!body) return title;
-        return `${title}\n${body}`.trim();
-      })
-      .filter(Boolean)
-      .join("\n\n");
+    if (directValue && typeof directValue === "object") {
+      return normalizeLeadAiRawContent(JSON.stringify(directValue));
+    }
+
+    return String(directValue || "").trim();
   }
 
   function handleCtaUrlChange(nextValue: string) {
@@ -1631,7 +1688,7 @@ export default function LeadEnginePage() {
           fontSize: 30,
           fontFamily: "Inter",
           color: "#ffb800",
-          fontWeight: 900,
+          fontWeight: 800,
           lineHeight: 1.1,
         },
       } as LayerData,
@@ -1650,8 +1707,8 @@ export default function LeadEnginePage() {
           fontSize: 22,
           fontFamily: "Inter",
           color: "#ffffff",
-          fontWeight: 600,
-          lineHeight: 1.32,
+          fontWeight: 500,
+          lineHeight: 1.38,
         },
       } as LayerData,
     ];
