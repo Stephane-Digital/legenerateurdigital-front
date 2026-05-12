@@ -697,7 +697,7 @@ export default function EditorLayout({
         visible: true,
         selected: true,
         style: {
-          fontSize: 48,
+          fontSize: 20,
           color: "#ffffff",
           fontFamily: "Inter",
         },
@@ -817,7 +817,7 @@ export default function EditorLayout({
       const styleByKind: Record<GeneratedItem["kind"], any> = {
         hook: { fontSize: 58, fontFamily: "Inter", color: "#ffffff", fontWeight: 800, lineHeight: 1.05 },
         subtitle: { fontSize: 24, fontFamily: "Inter", color: "#e4e4e7", fontWeight: 500, lineHeight: 1.4 },
-        cta: { fontSize: 22, fontFamily: "Inter", color: "#111111", fontWeight: 800, lineHeight: 1.2, backgroundColor: "#ffb800" },
+        cta: { fontSize: 22, fontFamily: "Inter", color: "#ffb800", fontWeight: 900, lineHeight: 1.2 },
         benefit: { fontSize: 20, fontFamily: "Inter", color: "#ffffff", fontWeight: 600, lineHeight: 1.32 },
         closing: { fontSize: 22, fontFamily: "Inter", color: "#f4f4f5", fontWeight: 600, lineHeight: 1.35 },
       };
@@ -858,7 +858,7 @@ export default function EditorLayout({
           : briefTone === "story"
             ? "Et si tu pouvais enfin"
             : briefTone === "sio"
-              ? "Voici la structure pour"
+              ? "Découvre comment"
               : "Découvre comment";
     return Array.from({ length: 5 }).map((_, i) => ({
       id: `hook-${i}`,
@@ -871,9 +871,9 @@ export default function EditorLayout({
   const buildBenefits = useCallback(() => {
     const offer = briefOffer.trim() || "ton offre";
     return [
-      { id: "benefit-1", kind: "benefit" as const, label: "Bénéfice 1", text: `• Clarifie la valeur de ${offer} en quelques secondes.` },
-      { id: "benefit-2", kind: "benefit" as const, label: "Bénéfice 2", text: "• Renforce la perception premium de ta page." },
-      { id: "benefit-3", kind: "benefit" as const, label: "Bénéfice 3", text: "• Augmente l’intention de clic sur ton CTA." },
+      { id: "benefit-1", kind: "benefit" as const, label: "Bénéfice 1", text: `• Transforme ton offre en prochaine action évidente.` },
+      { id: "benefit-2", kind: "benefit" as const, label: "Bénéfice 2", text: "• Donne envie de laisser son email sans forcer la vente." },
+      { id: "benefit-3", kind: "benefit" as const, label: "Bénéfice 3", text: "• Rassure les prospects avant le passage à l’action." },
     ];
   }, [briefOffer]);
 
@@ -912,7 +912,7 @@ export default function EditorLayout({
         id: "closing-main",
         kind: "closing" as const,
         label: "Closing",
-        text: "Passe d’une simple page à une landing optimisée pour capter des leads puis laisse l’éditeur te permettre de tout ajuster librement.",
+        text: "Télécharge le guide et découvre la première étape pour passer de l’idée au premier système qui attire des prospects.",
       },
     ];
   }, [briefOffer, buildHooks, buildBenefits, buildCtas]);
@@ -1135,6 +1135,7 @@ export default function EditorLayout({
       .replace(/^\s*BLOC\s*\d+\s*[—–-]?\s*[^\n]*$/gim, "")
       .replace(/^\s*(TITRE|SOUS[-\s]?TITRE|SUBTITLE|CTA|URL CTA|HERO|DOULEUR|IDENTIFICATION|BÉNÉFICES|BENEFICES|PROMESSE|MÉCANISME|MECANISME|RÉASSURANCE|REASSURANCE|FAQ|QUESTION|RÉPONSE|REPONSE)\s*:\s*/gim, "")
       .replace(/^\s*(Voici( la)? structure|Structure|Conseil|À faire|A faire|Tu pourrais|Vous pourriez|Clarifie|Renforce|Augmente|Passe d’une simple page|Passe d'une simple page)\s*:?\s*/gim, "")
+      .replace(/^\s*(voici|conseil|structure|à faire|a faire).*$/gim, "")
       .replace(/\n{3,}/g, "\n\n")
       .trim();
   }
@@ -1370,7 +1371,11 @@ export default function EditorLayout({
   );
 
   const injectFullLanding = useCallback(() => {
-    const items = generatedItems.length ? generatedItems : buildLanding();
+    const items = lastAction === "landing" ? generatedItems : [];
+    if (!items.length) {
+      setCopilotStatus("Génère d’abord une Landing complète avec l’IA avant d’injecter la page.");
+      return;
+    }
     const background = layers.find((l: any) => l.id === BACKGROUND_LAYER_ID) as any;
     const visualLayers = layers
       .filter((l: any) => l.id !== BACKGROUND_LAYER_ID && l.type !== "text")
@@ -1390,7 +1395,7 @@ export default function EditorLayout({
     ] as any);
     setShowProps(true);
     setCopilotStatus("Landing injectée proprement dans le canvas. La mise en page a été recalculée automatiquement.");
-  }, [lastAction, generatedItems, buildLanding, layers, makeTextLayer, canvasHeight, onCanvasHeightChange, format.w]);
+  }, [lastAction, generatedItems, layers, canvasHeight, onCanvasHeightChange]);
 
   function bumpCanvasHeight(delta: number) {
     const next = Math.max(1200, Math.min(5000, canvasHeight + delta));
