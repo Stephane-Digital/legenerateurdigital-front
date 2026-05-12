@@ -293,7 +293,6 @@ export default function EditorLayout({
   const [briefAngle, setBriefAngle] = useState("lead-magnet");
   const [briefAudience, setBriefAudience] = useState("entrepreneurs");
   const [briefTone, setBriefTone] = useState("premium");
-  const [briefLength, setBriefLength] = useState(120);
   const [generatedItems, setGeneratedItems] = useState<GeneratedItem[]>([]);
   const [copilotStatus, setCopilotStatus] = useState("");
   const [lastAction, setLastAction] = useState<CopilotAction | null>(null);
@@ -1041,14 +1040,35 @@ export default function EditorLayout({
       `Angle : ${briefAngle}`,
       `Audience : ${briefAudience}`,
       `Ton : ${briefTone}`,
-      `Longueur max cible : ${briefLength}`,
+      `Format attendu : ${action === "landing" ? "landing complète premium multi-blocs" : "réponse courte ciblée"}`,
       `URL CTA : ${ctaUrl || "non précisée"}`,
       `Action demandée : ${action}`,
     ].join("\n");
   }
 
+  function getEffectiveCopilotMaxLength(action: CopilotAction) {
+    // Longueur auto LGD : l'utilisateur choisit le besoin marketing,
+    // pas un nombre de caractères qui bride la qualité IA.
+    if (action === "landing") return 7000;
+    if (action === "variants") return 2200;
+    if (action === "benefits") return 1600;
+    if (action === "hooks") return 1400;
+    if (action === "cta") return 900;
+    return 1800;
+  }
+
+  function getCopilotPageType(action: CopilotAction) {
+    if (action !== "landing") return "modular";
+    if (briefGoal === "leads" || briefGoal === "optin" || briefAngle === "lead-magnet") return "lead_magnet";
+    if (briefGoal === "call") return "appointment";
+    if (briefGoal === "sale") return "sales";
+    return "lead_magnet";
+  }
+
   function buildCopilotBusinessContext(action: CopilotAction) {
-    const base = `lead-engine-copilot | action=${action} | audience=${briefAudience} | angle=${briefAngle} | tone=${briefTone} | cta_url=${ctaUrl || ""}`;
+    const effectiveMaxLength = getEffectiveCopilotMaxLength(action);
+    const pageType = getCopilotPageType(action);
+    const base = `lead-engine-copilot | action=${action} | objective=${briefGoal} | page_type=${pageType} | audience=${briefAudience} | angle=${briefAngle} | tone=${briefTone} | auto_length_profile=${effectiveMaxLength} | cta_url=${ctaUrl || ""}`;
 
     if (action === "hooks") {
       return `${base} | Retourne exactement 10 hooks puissants en français, un par ligne, sans introduction.`;
@@ -1062,7 +1082,8 @@ export default function EditorLayout({
     if (action === "variants") {
       return `${base} | Retourne exactement 4 variantes marketing en français, une par ligne, avec des angles nettement différents.`;
     }
-    return `${base} | IMPORTANT: bouton Landing complète. Retourne une landing lead magnet complète en blocs séparés. Format obligatoire: BLOC 1 — HERO, BLOC 2 — DOULEUR / IDENTIFICATION, BLOC 3 — PROMESSE LEAD MAGNET, BLOC 4 — BENEFICES, BLOC 5 — MECANISME, BLOC 6 — REASSURANCE, BLOC 7 — CTA FINAL, BLOC 8 — MICRO FAQ. Respecte la longueur max cible=${briefLength} caractères environ. Objectif=${briefGoal}. Angle=${briefAngle}. Audience=${briefAudience}. Ton=${briefTone}. URL CTA=${ctaUrl || "non précisée"}. Chaque bloc doit être injectable séparément. Ne retourne pas un seul CTA isolé.`;
+
+    return `${base} | Retourne une landing complète de lead magnet expert en 6 à 8 blocs distincts. Format obligatoire : BLOC 1 — HERO, BLOC 2 — IDENTIFICATION, BLOC 3 — PROMESSE DU GUIDE, BLOC 4 — CE QUE TU VAS RECEVOIR, BLOC 5 — POURQUOI ÇA MARCHE, BLOC 6 — RÉASSURANCE, BLOC 7 — CTA FINAL, BLOC 8 — MICRO FAQ. Chaque bloc doit contenir du texte utile et injectable.`;
   }
 
   async function saveCopilotMemory(action: CopilotAction) {
@@ -1103,138 +1124,86 @@ export default function EditorLayout({
       .filter(Boolean);
   }
 
+  function inferGeneratedKind(label: string): GeneratedItem["kind"] {
+    const raw = String(label || "").toLowerCase();
+    if (raw.includes("cta")) return "cta";
+    if (raw.includes("bénéf") || raw.includes("benef") || raw.includes("reçois") || raw.includes("recevoir")) return "benefit";
+    if (raw.includes("faq") || raw.includes("réassurance") || raw.includes("objection")) return "closing";
+    if (raw.includes("identification") || raw.includes("douleur") || raw.includes("promesse") || raw.includes("mécanisme") || raw.includes("mecanisme")) return "subtitle";
+    return "hook";
+  }
+
+  function parseLandingBlocks(text: string): GeneratedItem[] {
+    const source = String(text || "").replace(/\r\n/g, "\n").trim();
+    if (!source) return [];
+
+    const blockHeaderRegex = /^\s*BLOC\s*(\d+)\s*[—\-:]\s*(.+?)\s*$/gim;
+    const matches = Array.from(source.matchAll(blockHeaderRegex));
+
+    if (matches.length > 0) {
+      return matches.map((match, index) => {
+        const number = Number(match[1] || index + 1);
+        const title = String(match[2] || `Bloc ${number}`).trim();
+        const start = Number(match.index || 0) + String(match[0] || "").length;
+        const end = index + 1 < matches.length ? Number(matches[index + 1].index || source.length) : source.length;
+        const body = source.slice(start, end).trim();
+        const label = `Bloc ${number} — ${title}`;
+        const blockText = body ? `${title}\n\n${body}` : title;
+
+        return {
+          id: `ai-landing-block-${number}-${index}`,
+          kind: inferGeneratedKind(title),
+          label,
+          text: blockText.trim(),
+        };
+      }).filter((item) => item.text.trim().length > 0);
+    }
+
+    const legacyRules: Array<{ regex: RegExp; kind: GeneratedItem["kind"]; label: string }> = [
+      { regex: /^HERO\s*:/i, kind: "hook", label: "Bloc 1 — Hero" },
+      { regex: /^SUBTITLE\s*:/i, kind: "subtitle", label: "Bloc 2 — Sous-titre" },
+      { regex: /^CTA\s*:/i, kind: "cta", label: "Bloc 3 — CTA" },
+      { regex: /^BENEFIT\s*:/i, kind: "benefit", label: "Bloc bénéfice" },
+      { regex: /^CLOSING\s*:/i, kind: "closing", label: "Bloc closing" },
+    ];
+
+    const legacyItems: GeneratedItem[] = [];
+    source.split(/\n+/).map((line) => line.trim()).filter(Boolean).forEach((line, index) => {
+      const rule = legacyRules.find((candidate) => candidate.regex.test(line));
+      if (!rule) return;
+      legacyItems.push({
+        id: `ai-landing-legacy-${index}`,
+        kind: rule.kind,
+        label: rule.label,
+        text: line.replace(rule.regex, "").trim(),
+      });
+    });
+
+    if (legacyItems.length > 0) return legacyItems;
+
+    const chunks = source
+      .split(/\n{2,}/)
+      .map((chunk) => chunk.trim())
+      .filter(Boolean);
+
+    if (chunks.length > 1) {
+      return chunks.map((chunk, index) => ({
+        id: `ai-landing-chunk-${index + 1}`,
+        kind: index === 0 ? "hook" : index === chunks.length - 1 ? "cta" : "subtitle",
+        label: `Bloc ${index + 1}`,
+        text: chunk,
+      }));
+    }
+
+    return [{ id: "ai-landing-fallback", kind: "closing", label: "Landing complète", text: source }];
+  }
+
   function parseGeneratedItemsFromAI(action: CopilotAction, content: string): GeneratedItem[] {
     const text = String(content || "").trim();
     if (!text) return [];
 
     if (action === "landing") {
-      const source = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
-      const rawLines = source.split("\n").map((line) => line.trim()).filter(Boolean);
-      const items: GeneratedItem[] = [];
-
-      const inferKind = (label: string): GeneratedItem["kind"] => {
-        const key = label.toLowerCase();
-        if (key.includes("hero") || key.includes("hook") || key.includes("titre")) return "hook";
-        if (key.includes("douleur") || key.includes("identification") || key.includes("sous-titre") || key.includes("subtitle")) return "subtitle";
-        if (key.includes("cta")) return "cta";
-        if (key.includes("bénéf") || key.includes("benef") || key.includes("promesse") || key.includes("lead magnet") || key.includes("mécanisme") || key.includes("mecanisme")) return "benefit";
-        return "closing";
-      };
-
-      const cleanHeading = (value: string) =>
-        value
-          .replace(/^#+\s*/, "")
-          .replace(/^\*+|\*+$/g, "")
-          .replace(/\s+/g, " ")
-          .trim();
-
-      const isHeading = (line: string) => {
-        const cleaned = cleanHeading(line).replace(/\s*:\s*$/, "");
-        const bloc = cleaned.match(/^BLOC\s*(\d+)\s*(?:[—–\-:]+\s*)?(.*)$/i);
-        if (bloc) {
-          const title = cleanHeading(bloc[2] || `Bloc ${bloc[1]}`);
-          return `Bloc ${bloc[1]}${title ? ` — ${title}` : ""}`;
-        }
-
-        const key = cleaned.toLowerCase();
-        const known =
-          key === "hero" ||
-          key.includes("hero") ||
-          key.includes("hook") ||
-          key.includes("douleur") ||
-          key.includes("identification") ||
-          key.includes("promesse") ||
-          key.includes("lead magnet") ||
-          key.includes("bénéfice") ||
-          key.includes("benefice") ||
-          key.includes("benefit") ||
-          key.includes("mécanisme") ||
-          key.includes("mecanisme") ||
-          key.includes("réassurance") ||
-          key.includes("reassurance") ||
-          key.includes("objection") ||
-          key.includes("faq") ||
-          key.includes("cta") ||
-          key.includes("prioritaire") ||
-          key.includes("closing");
-
-        if (known && /^[A-ZÀ-Ÿ0-9\s\/\-–—:]{3,90}$/.test(cleaned.toUpperCase())) {
-          return cleaned;
-        }
-        return "";
-      };
-
-      let currentLabel = "";
-      let currentLines: string[] = [];
-
-      const flush = () => {
-        const body = currentLines.join("\n").trim();
-        if (!currentLabel || !body) return;
-        items.push({
-          id: `ai-landing-${items.length + 1}`,
-          kind: inferKind(currentLabel),
-          label: currentLabel,
-          text: body,
-        });
-      };
-
-      for (const line of rawLines) {
-        const heading = isHeading(line);
-        if (heading) {
-          flush();
-          currentLabel = heading;
-          currentLines = [];
-          continue;
-        }
-
-        const prefixed = line.match(/^(HERO|TITLE|TITRE|SUBTITLE|SOUS[-\s]?TITRE|CTA(?:\s+PRINCIPAL)?|URL CTA|BENEFIT|BÉNÉFICE|BENEFICE|CLOSING)\s*:\s*(.*)$/i);
-        if (prefixed && !currentLabel) {
-          const label = prefixed[1].toUpperCase();
-          const body = prefixed[2].trim();
-          if (body) {
-            items.push({
-              id: `ai-landing-${items.length + 1}`,
-              kind: inferKind(label),
-              label: label === "SUBTITLE" ? "Sous-titre" : label,
-              text: body,
-            });
-          }
-          continue;
-        }
-
-        currentLines.push(line);
-      }
-      flush();
-
-      if (items.length > 0) return items;
-
-      const legacyItems: GeneratedItem[] = [];
-      let benefitIndex = 1;
-      for (const line of rawLines) {
-        if (/^HERO\s*:/i.test(line)) {
-          legacyItems.push({ id: `ai-hero-${legacyItems.length + 1}`, kind: "hook", label: "Hero", text: line.replace(/^HERO\s*:/i, "").trim() });
-          continue;
-        }
-        if (/^SUBTITLE\s*:/i.test(line) || /^SOUS[-\s]?TITRE\s*:/i.test(line)) {
-          legacyItems.push({ id: `ai-subtitle-${legacyItems.length + 1}`, kind: "subtitle", label: "Sous-titre", text: line.replace(/^(SUBTITLE|SOUS[-\s]?TITRE)\s*:/i, "").trim() });
-          continue;
-        }
-        if (/^CTA(?:\s+PRINCIPAL)?\s*:/i.test(line)) {
-          legacyItems.push({ id: `ai-cta-${legacyItems.length + 1}`, kind: "cta", label: "CTA principal", text: line.replace(/^CTA(?:\s+PRINCIPAL)?\s*:/i, "").trim() });
-          continue;
-        }
-        if (/^(BENEFIT|BÉNÉFICE|BENEFICE)\s*:/i.test(line)) {
-          legacyItems.push({ id: `ai-benefit-${benefitIndex}`, kind: "benefit", label: `Bénéfice ${benefitIndex}`, text: line.replace(/^(BENEFIT|BÉNÉFICE|BENEFICE)\s*:/i, "").trim() });
-          benefitIndex += 1;
-          continue;
-        }
-        if (/^CLOSING\s*:/i.test(line)) {
-          legacyItems.push({ id: `ai-closing-${legacyItems.length + 1}`, kind: "closing", label: "Closing", text: line.replace(/^CLOSING\s*:/i, "").trim() });
-        }
-      }
-
-      if (legacyItems.length > 0) return legacyItems;
-      return [{ id: "ai-landing-fallback", kind: "closing", label: "Landing complète", text }];
+      return parseLandingBlocks(text);
     }
 
     const lines = normalizeListLines(text);
@@ -1270,7 +1239,11 @@ export default function EditorLayout({
         setGeneratedItems([]);
         setCopilotRawResult("");
 
-        const brief = buildCopilotBrief(action);
+        const effectiveMaxLength = getEffectiveCopilotMaxLength(action);
+        const pageType = getCopilotPageType(action);
+        const brief = `${buildCopilotBrief(action)}
+Profil de génération automatique : ${effectiveMaxLength} caractères cible backend
+Type de page effectif : ${pageType}`;
         await saveCopilotMemory(action);
 
         const goal = action === "landing" ? "landing_complete" : action;
@@ -1285,6 +1258,13 @@ export default function EditorLayout({
             brief,
             emotional_style: `${briefTone}, humain, premium, sincère, expert marketing digital`,
             business_context: buildCopilotBusinessContext(action),
+            objective: briefGoal,
+            angle: briefAngle,
+            audience: briefAudience,
+            tone: briefTone,
+            max_length: effectiveMaxLength,
+            cta_url: ctaUrl,
+            page_type: pageType,
           }),
         });
 
@@ -1330,7 +1310,7 @@ export default function EditorLayout({
         setCopilotLoading(false);
       }
     },
-    [briefOffer, briefGoal, briefAngle, briefAudience, briefTone, briefLength, ctaUrl, aiQuotaRemaining, aiQuotaPlan, onAiQuotaSync]
+    [briefOffer, briefGoal, briefAngle, briefAudience, briefTone, ctaUrl, aiQuotaRemaining, aiQuotaPlan, onAiQuotaSync]
   );
 
   const injectGeneratedItem = useCallback(
@@ -1477,17 +1457,6 @@ export default function EditorLayout({
                     />
                   </div>
 
-                  <div>
-                    <label className="mb-2 block text-xs font-semibold text-yellow-300">Longueur max</label>
-                    <input
-                      type="number"
-                      min={40}
-                      max={10000}
-                      value={briefLength}
-                      onChange={(e) => setBriefLength(Number(e.target.value) || 120)}
-                      className="w-full rounded-2xl border border-yellow-500/15 bg-black/40 px-4 py-3 text-sm text-white/85 outline-none"
-                    />
-                  </div>
 
                   <div>
                     <label className="mb-2 block text-xs font-semibold text-yellow-300">Objectif</label>
@@ -1654,7 +1623,7 @@ export default function EditorLayout({
                         </div>
 
                         <div className="mt-2 text-sm leading-6 text-white/80 whitespace-pre-wrap">
-                          {item.text.length > briefLength ? `${item.text.slice(0, briefLength)}…` : item.text}
+                          {item.text.length > 420 ? `${item.text.slice(0, 420)}…` : item.text}
                         </div>
                       </div>
                     ))
