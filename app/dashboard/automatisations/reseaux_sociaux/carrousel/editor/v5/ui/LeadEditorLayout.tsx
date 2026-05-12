@@ -697,7 +697,7 @@ export default function EditorLayout({
         visible: true,
         selected: true,
         style: {
-          fontSize: 20,
+          fontSize: 48,
           color: "#ffffff",
           fontFamily: "Inter",
         },
@@ -1270,6 +1270,15 @@ export default function EditorLayout({
     }));
   }
 
+
+
+  function isUsableLandingResult(items: GeneratedItem[], raw: string) {
+    if (items.length >= 5) return true;
+    const text = String(raw || "").toLowerCase();
+    if (text.includes("voici la structure") || text.includes("clarifie") || text.includes("renforce")) return false;
+    return false;
+  }
+
   const handleGenerate = useCallback(
     async (action: CopilotAction, mode: "generate" | "rewrite" = "generate") => {
       try {
@@ -1291,6 +1300,7 @@ export default function EditorLayout({
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/lead-engine/ai/generate`, {
           method: "POST",
           credentials: "include",
+          cache: "no-store",
           headers: {
             "Content-Type": "application/json",
           },
@@ -1298,14 +1308,7 @@ export default function EditorLayout({
             goal,
             brief,
             emotional_style: `${briefTone}, humain, premium, sincère, expert marketing digital, mode done for you`,
-            business_context: buildCopilotBusinessContext(action),
-            objective: getCopilotObjectiveLabel(),
-            angle: briefAngle,
-            audience: briefAudience,
-            tone: briefTone,
-            cta_url: ctaUrl || "",
-            page_type: getCopilotPageType(action),
-            max_length: getCopilotAutoLength(action),
+            business_context: `${buildCopilotBusinessContext(action)} | page_type=${getCopilotPageType(action)} | auto_length=${getCopilotAutoLength(action)}`,
           }),
         });
 
@@ -1318,12 +1321,50 @@ export default function EditorLayout({
         }
 
         if (data?.quota) syncCopilotQuota(data.quota);
-        const content = String(data?.content || "").trim();
-        const items = parseGeneratedItemsFromAI(action, content);
+        let content = String(data?.content || "").trim();
+        let items = parseGeneratedItemsFromAI(action, content);
+
+        // Sécurité V10.5 : le bouton Landing complète ne doit jamais accepter
+        // un résultat vide, un conseil, une variante ou un seul micro-bloc.
+        // Si la première réponse est trop faible, on relance une fois avec une consigne stricte.
+        if (action === "landing" && !isUsableLandingResult(items, content)) {
+          const retryResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/lead-engine/ai/generate`, {
+            method: "POST",
+            credentials: "include",
+            cache: "no-store",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              goal: "landing_complete",
+              brief: `${brief}
+
+IMPORTANT : Génère maintenant UNE PAGE FINALE COMPLÈTE, pas des conseils, pas une structure, pas des variantes. Minimum 8 sections finales. Chaque section doit être utilisable telle quelle sur la page.`,
+              emotional_style: `${briefTone}, humain, premium, sincère, expert marketing digital, mode done for you`,
+              business_context: `${buildCopilotBusinessContext("landing")} | page_type=${getCopilotPageType("landing")} | auto_length=${getCopilotAutoLength("landing")} | RETRY_STRICT | La réponse précédente était insuffisante. Produis 8 blocs finaux exploitables, sans conseils.`,
+            }),
+          });
+
+          const retryData = await retryResponse.json().catch(() => ({}));
+          if (retryData?.quota) syncCopilotQuota(retryData.quota);
+          if (retryResponse.ok) {
+            const retryContent = String(retryData?.content || "").trim();
+            const retryItems = parseGeneratedItemsFromAI("landing", retryContent);
+            if (isUsableLandingResult(retryItems, retryContent)) {
+              content = retryContent;
+              items = retryItems;
+            }
+          }
+        }
+
         setCopilotRawResult(content);
         setGeneratedItems(items);
 
         if (action === "landing") {
+          if (!isUsableLandingResult(items, content)) {
+            setCopilotStatus("Landing complète non générée correctement. Relance la génération IA.");
+            return;
+          }
           setCopilotStatus(mode === "rewrite"
             ? "Landing réécrite. Tu peux injecter la page finale complète."
             : "Landing complète générée. Tu peux injecter la page finale complète.");
@@ -1346,7 +1387,9 @@ export default function EditorLayout({
         }
       } catch (error) {
         console.error("[LeadEngine Copilot AI]", error);
-        setCopilotStatus("Génération IA impossible pour le moment.");
+        setGeneratedItems([]);
+        setCopilotRawResult("");
+        setCopilotStatus("Génération IA impossible pour le moment. Vérifie la console / Network si le backend répond 4xx ou 5xx.");
       } finally {
         setCopilotLoading(false);
       }
@@ -1586,7 +1629,7 @@ export default function EditorLayout({
                   <button type="button" onClick={() => void handleGenerate("cta")} disabled={copilotLoading || aiQuotaRemaining <= 0} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-200 disabled:opacity-50">{copilotLoading && lastAction === "cta" ? "Génération..." : "CTA"}</button>
                   <button type="button" onClick={() => void handleGenerate("benefits")} disabled={copilotLoading || aiQuotaRemaining <= 0} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-200 disabled:opacity-50">{copilotLoading && lastAction === "benefits" ? "Génération..." : "Bénéfices"}</button>
                   <button type="button" onClick={() => void handleGenerate("variants")} disabled={copilotLoading || aiQuotaRemaining <= 0} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-200 disabled:opacity-50">{copilotLoading && lastAction === "variants" ? "Génération..." : "Variantes A/B"}</button>
-                  <button type="button" onClick={() => void handleGenerate("landing")} disabled={copilotLoading || aiQuotaRemaining <= 0} className="rounded-2xl bg-[#ffb800] px-4 py-3 text-sm font-bold text-black disabled:opacity-50">{copilotLoading && lastAction === "landing" ? "Génération..." : "Landing complète"}</button>
+                  <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void handleGenerate("landing"); }} disabled={copilotLoading || aiQuotaRemaining <= 0} className="rounded-2xl bg-[#ffb800] px-4 py-3 text-sm font-bold text-black disabled:opacity-50">{copilotLoading && lastAction === "landing" ? "Génération..." : "Landing complète"}</button>
                 </div>
 
                 <div className="mt-3 flex flex-wrap items-center gap-2">
