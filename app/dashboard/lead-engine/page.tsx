@@ -509,12 +509,20 @@ const LEAD_SECTION_ALIASES: Record<string, string> = {
   "À UTILISER EN PRIORITÉ": "A UTILISER EN PRIORITE",
   "BLOC PRIORITAIRE A INJECTER": "A UTILISER EN PRIORITE",
   "BLOC PRIORITAIRE À INJECTER": "A UTILISER EN PRIORITE",
+  REASSURANCE: "PREUVE / RASSURANCE",
+  MICRO_TRANSFORMATION: "MECANISME",
+  TRANSFORMATION: "MECANISME",
+  ACTIVATION: "CTA FINAL",
+  AUTHORITY: "PREUVE / RASSURANCE",
+  AUTORITE: "PREUVE / RASSURANCE",
 };
 
 function cleanLeadLine(value: string) {
   return String(value || "")
     .replace(/^#{1,6}\s*/g, "")
     .replace(/\*\*/g, "")
+    .replace(/^\[\s*LGD_BLOCK\s*:\s*([^\]]+)\]\s*/i, "$1")
+    .replace(/\[\s*\/\s*LGD_BLOCK\s*\]/gi, "")
     .replace(/^[•\-–]\s*/g, "• ")
     .trim();
 }
@@ -589,11 +597,15 @@ function normalizeLeadHeading(value: string) {
   return "";
 }
 
-function splitInlineLeadHeading(line: string): { title: string; body: string } | null {
+function splitInlineLeadHeading(
+  line: string,
+): { title: string; body: string } | null {
   const cleaned = cleanLeadLine(line);
   if (!cleaned) return null;
 
-  const inlineMatch = cleaned.match(/^(.{2,80}?)(?:\s*[:：]\s+|\s+[—–-]\s+)(.+)$/);
+  const inlineMatch = cleaned.match(
+    /^(.{2,80}?)(?:\s*[:：]\s+|\s+[—–-]\s+)(.+)$/,
+  );
   if (!inlineMatch) return null;
 
   const title = normalizeLeadHeading(inlineMatch[1] || "");
@@ -606,6 +618,8 @@ function splitInlineLeadHeading(line: string): { title: string; body: string } |
 function parseLeadSections(content: string): LeadSection[] {
   const text = String(content || "")
     .replace(/\r/g, "")
+    .replace(/\[\s*LGD_BLOCK\s*:\s*([^\]]+)\]\s*/gi, "\n$1\n")
+    .replace(/\[\s*\/\s*LGD_BLOCK\s*\]\s*/gi, "\n")
     .trim();
   if (!text) return [];
 
@@ -614,13 +628,18 @@ function parseLeadSections(content: string): LeadSection[] {
   let currentLines: string[] = [];
 
   const flush = () => {
-    const body = currentLines.join("\n").trim();
+    const body = cleanLeadBody(currentLines.join("\n"));
     if (currentTitle && body) sections.push({ title: currentTitle, body });
     currentLines = [];
   };
 
   for (const rawLine of text.split("\n")) {
     const line = rawLine.trim();
+    if (!line) {
+      if (currentLines.length > 0) currentLines.push("");
+      continue;
+    }
+
     const inlineHeading = splitInlineLeadHeading(line);
 
     if (inlineHeading) {
@@ -645,7 +664,7 @@ function parseLeadSections(content: string): LeadSection[] {
   flush();
 
   if (sections.length === 0) {
-    return [{ title: "CONTENU LANDING", body: text }];
+    return [{ title: "CONTENU LANDING", body: cleanLeadBody(text) }];
   }
 
   const merged: LeadSection[] = [];
@@ -654,7 +673,7 @@ function parseLeadSections(content: string): LeadSection[] {
     if (last && last.title === section.title) {
       last.body = `${last.body}\n${section.body}`.trim();
     } else {
-      merged.push(section);
+      merged.push({ title: section.title, body: cleanLeadBody(section.body) });
     }
   }
 
@@ -668,6 +687,36 @@ function shortLines(content: string, maxLines: number) {
     .filter(Boolean)
     .slice(0, maxLines)
     .join("\n");
+}
+
+function cleanLeadBody(content: string) {
+  return String(content || "")
+    .replace(/\[\s*LGD_BLOCK\s*:\s*([^\]]+)\]\s*/gi, "")
+    .replace(/\[\s*\/\s*LGD_BLOCK\s*\]\s*/gi, "")
+    .split(/\r?\n/)
+    .map((line) => cleanLeadLine(line))
+    .filter(Boolean)
+    .join("\n")
+    .trim();
+}
+
+function estimateLeadTextHeight(
+  text: string,
+  width: number,
+  fontSize: number,
+  lineHeight = 1.3,
+) {
+  const safeText = String(text || "").trim();
+  if (!safeText) return Math.round(fontSize * lineHeight * 2);
+
+  const averageCharWidth = Math.max(7, fontSize * 0.54);
+  const charsPerLine = Math.max(18, Math.floor(width / averageCharWidth));
+  const visualLines = safeText.split(/\r?\n/).reduce((total, line) => {
+    const length = Math.max(1, cleanLeadLine(line).length);
+    return total + Math.max(1, Math.ceil(length / charsPerLine));
+  }, 0);
+
+  return Math.ceil(visualLines * fontSize * lineHeight + 22);
 }
 
 function buildStructuredLandingLayers(
@@ -1102,7 +1151,6 @@ export default function LeadEnginePage() {
     window.alert(String(message));
   }
 
-
   function extractAIContent(data: any): string {
     const direct = String(
       data?.content ||
@@ -1133,7 +1181,11 @@ export default function LeadEnginePage() {
           block?.title || block?.heading || block?.name || `BLOC ${index + 1}`,
         ).trim();
         const body = String(
-          block?.body || block?.content || block?.text || block?.description || "",
+          block?.body ||
+            block?.content ||
+            block?.text ||
+            block?.description ||
+            "",
         ).trim();
 
         if (!body) return title;
@@ -1386,17 +1438,27 @@ export default function LeadEnginePage() {
 
   function injectSingleAiSection(section: LeadSection, index: number) {
     const cleanTitle = section.title.trim() || `BLOC ${index + 1}`;
-    const cleanBody = section.body.trim();
+    const cleanBody = cleanLeadBody(section.body);
     if (!cleanBody) return;
 
     const baseY = 80;
-    const insertionHeight = 390;
+    const titleHeight = estimateLeadTextHeight(cleanTitle, 760, 30, 1.1);
+    const bodyHeight = estimateLeadTextHeight(cleanBody, 820, 22, 1.32);
+    const gapAfterTitle = 24;
+    const gapAfterBlock = 72;
+    const insertionHeight = Math.max(
+      260,
+      titleHeight + gapAfterTitle + bodyHeight + gapAfterBlock,
+    );
     const stamp = Date.now();
     const shiftedLayers = normalizeLayersSnapshot(layers).map((layer: any) => ({
       ...layer,
       y: typeof layer?.y === "number" ? layer.y + insertionHeight : layer?.y,
     })) as LayerData[];
-    const nextHeight = Math.max(canvasHeight + insertionHeight, baseY + insertionHeight + 320);
+    const nextHeight = Math.max(
+      canvasHeight + insertionHeight,
+      baseY + insertionHeight + 320,
+    );
 
     const nextLayers: LayerData[] = [
       {
@@ -1405,7 +1467,7 @@ export default function LeadEnginePage() {
         x: 84,
         y: baseY,
         width: 760,
-        height: 56,
+        height: titleHeight,
         visible: true,
         selected: false,
         zIndex: 200 + index * 2,
@@ -1422,9 +1484,9 @@ export default function LeadEnginePage() {
         id: `lead-ai-block-body-${stamp}-${index}`,
         type: "text",
         x: 84,
-        y: baseY + 72,
+        y: baseY + titleHeight + gapAfterTitle,
         width: 820,
-        height: 260,
+        height: bodyHeight,
         visible: true,
         selected: false,
         zIndex: 201 + index * 2,
@@ -1434,7 +1496,7 @@ export default function LeadEnginePage() {
           fontFamily: "Inter",
           color: "#ffffff",
           fontWeight: 600,
-          lineHeight: 1.3,
+          lineHeight: 1.32,
         },
       } as LayerData,
       ...shiftedLayers,
@@ -2006,7 +2068,9 @@ export default function LeadEnginePage() {
                   <button
                     type="button"
                     onClick={rewritePremiumResult}
-                    disabled={aiLoading || (!aiResult.trim() && !aiBrief.trim())}
+                    disabled={
+                      aiLoading || (!aiResult.trim() && !aiBrief.trim())
+                    }
                     className="rounded-2xl border border-yellow-600/20 bg-yellow-500/10 px-5 py-3 font-semibold text-yellow-200 disabled:opacity-50"
                   >
                     Réécrire court
