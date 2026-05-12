@@ -758,7 +758,7 @@ function normalizeLeadAiRawContent(content: string): string {
 
 function parseLeadSections(content: string): LeadSection[] {
   const text = normalizeLeadAiRawContent(content)
-    .replace(/\n/g, "")
+    .replace(/\r\n/g, "\n")
     .replace(/\[\s*LGD_BLOCK\s*:\s*([^\]]+)\]\s*/gi, "\n$1\n")
     .replace(/\[\s*\/\s*LGD_BLOCK\s*\]\s*/gi, "\n")
     .replace(/^\s*[{\[]\s*$/gm, "")
