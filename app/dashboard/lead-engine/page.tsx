@@ -50,6 +50,360 @@ const DEFAULT_AI_QUOTA: AIQuotaState = {
   tokens_limit: 0,
 };
 
+type PromptLibraryGoal =
+  | "landing_complete"
+  | "hooks"
+  | "cta"
+  | "benefits"
+  | "variants";
+
+type PromptLibraryItem = {
+  id: string;
+  category: string;
+  title: string;
+  description: string;
+  goal: PromptLibraryGoal;
+  prompt: string;
+};
+
+const PROMPT_LIBRARY: PromptLibraryItem[] = [
+  {
+    id: "lead-magnet-affiliation-lgd",
+    category: "Affiliation",
+    title: "Lead magnet affiliation LGD",
+    description:
+      "Promouvoir LGD via affiliation sans vente agressive, avec capture email premium.",
+    goal: "landing_complete",
+    prompt: `OFFRE : Promouvoir Le Générateur Digital via programme partenaire.
+OBJECTIF : Récupérer des emails avec un lead magnet premium avant de vendre.
+CIBLE : personnes bloquées dans le business en ligne, MRR, affiliation, IA, formations ou revenus complémentaires.
+ANGLE : montrer un chemin clair, réaliste et progressif pour reprendre le contrôle avec le digital et l'IA.
+TON : humain, empathique, premium, expert marketing digital, sans bullshit.
+CONTRAINTE : ne pas promettre de revenus garantis, ne pas vendre agressivement, préparer naturellement la valeur de LGD.`,
+  },
+  {
+    id: "mrr-bloque-apres-formations",
+    category: "MRR / Formations",
+    title: "Bloqué après formations",
+    description:
+      "Parler aux personnes qui ont acheté plusieurs formations sans résultat.",
+    goal: "landing_complete",
+    prompt: `CIBLE : personnes qui ont acheté des formations MRR, affiliation, crypto, IA, dropshipping ou business en ligne sans obtenir de résultat concret.
+DOULEURS : honte, fatigue mentale, peur de s'être encore trompé, peur du regard des proches, impression de tourner en rond.
+PROMESSE : clarifier un chemin simple pour arrêter d'accumuler les formations et passer à une action structurée.
+OBJECTIF : capturer l'email avec un guide premium qui explique quoi faire maintenant, sans surpromesse.
+TON : direct, empathique, crédible, anti-bullshit.`,
+  },
+  {
+    id: "maman-revenu-maison",
+    category: "Personas",
+    title: "Maman au foyer",
+    description:
+      "Créer une page émotionnelle pour générer un revenu sans sacrifier ses enfants.",
+    goal: "landing_complete",
+    prompt: `PERSONA : maman au foyer ou parent très présent qui veut créer un revenu complémentaire depuis la maison.
+DOULEURS : manque de temps, culpabilité, peur de ne pas être à la hauteur, besoin de rester disponible pour ses enfants.
+PROMESSE : comprendre comment construire progressivement une activité digitale simple et structurée, sans devenir influenceuse et sans compétences techniques.
+OBJECTIF : obtenir l'email avec un lead magnet rassurant, clair et actionnable.
+TON : chaleureux, humain, premium, réaliste.`,
+  },
+  {
+    id: "papa-salarie-fatigue",
+    category: "Personas",
+    title: "Papa salarié fatigué",
+    description:
+      "Créer une landing pour un salarié épuisé qui cherche une issue réaliste.",
+    goal: "landing_complete",
+    prompt: `PERSONA : salarié ou père de famille fatigué qui ne veut plus subir son travail, ses horaires et son stress financier.
+DOULEURS : impression de survivre, manque d'énergie, peur de rester bloqué, frustration de ne pas profiter assez de sa famille.
+PROMESSE : découvrir une méthode progressive pour construire une source de revenu complémentaire avec le digital et l'IA, sans tout quitter du jour au lendemain.
+OBJECTIF : capturer l'email avec un guide crédible et rassurant.
+TON : mature, empathique, concret, sans rêve irréaliste.`,
+  },
+  {
+    id: "audience-froide",
+    category: "Lead Magnet",
+    title: "Audience froide",
+    description:
+      "Transformer une audience qui ne connaît pas encore la marque en prospects curieux.",
+    goal: "landing_complete",
+    prompt: `CONTEXTE : audience froide qui ne connaît pas encore la marque.
+OBJECTIF : créer une landing de capture très claire qui attire l'attention sans forcer la vente.
+STRUCTURE : problème concret, identification, mécanisme simple, valeur du guide, CTA email.
+TON : pédagogique, humain, premium.
+CONTRAINTE : éviter les promesses trop fortes et construire la confiance avant la conversion.`,
+  },
+  {
+    id: "audience-chaude",
+    category: "Lead Magnet",
+    title: "Audience chaude",
+    description: "Convertir une audience déjà intéressée en inscription email.",
+    goal: "landing_complete",
+    prompt: `CONTEXTE : audience déjà intéressée par le digital, l'IA, l'affiliation ou le business en ligne.
+OBJECTIF : transformer l'intérêt en inscription email avec un lead magnet premium.
+ANGLE : montrer que le guide aide à clarifier les prochaines étapes et éviter les erreurs classiques.
+TON : expert, rassurant, orienté action.
+CTA : recevoir gratuitement le guide et passer à une étape plus structurée.`,
+  },
+  {
+    id: "anti-bullshit",
+    category: "Objections",
+    title: "Casser les objections",
+    description:
+      "Traiter les objections fortes sans agressivité ni promesse fake.",
+    goal: "landing_complete",
+    prompt: `OBJECTIF : créer une landing qui casse ces objections : encore un système bullshit, je n'ai pas le temps, je ne suis pas technique, j'ai déjà trop dépensé, le marché est saturé, je vais abandonner.
+MÉTHODE : répondre avec empathie, preuve de simplicité, progression réaliste et clarté.
+TON : ferme, rassurant, premium, sans manipulation.
+CTA : recevoir un guide gratuit avant d'investir encore dans une solution.`,
+  },
+  {
+    id: "webinaire",
+    category: "Tunnel",
+    title: "Inscription webinaire",
+    description:
+      "Créer une landing pour inscrire à un atelier ou webinaire marketing digital.",
+    goal: "landing_complete",
+    prompt: `OFFRE GRATUITE : atelier ou webinaire sur le marketing digital, l'IA et l'automatisation.
+OBJECTIF : donner envie de s'inscrire en expliquant le résultat concret de la session.
+CIBLE : débutants ou personnes bloquées qui veulent comprendre quoi faire maintenant.
+TON : expert accessible, premium, concret.
+CONTRAINTE : pas de promesse de revenus, montrer une méthode claire et progressive.`,
+  },
+  {
+    id: "checklist-digital",
+    category: "Lead Magnet",
+    title: "Checklist business digital",
+    description:
+      "Créer une page de capture pour une checklist simple et actionnable.",
+    goal: "landing_complete",
+    prompt: `LEAD MAGNET : checklist pour lancer ou débloquer une activité digitale avec l'IA.
+OBJECTIF : montrer que la checklist permet de clarifier les étapes, éviter la dispersion et passer à l'action.
+CIBLE : débutants, freelances, salariés frustrés, personnes qui tournent en rond.
+TON : clair, premium, pratique, rassurant.
+CTA : recevoir la checklist gratuitement.`,
+  },
+  {
+    id: "guide-ia",
+    category: "IA / Automatisation",
+    title: "Mini-guide IA accessible",
+    description:
+      "Créer une capture email autour d'un guide IA pour non-techniciens.",
+    goal: "landing_complete",
+    prompt: `LEAD MAGNET : mini-guide pour utiliser l'IA et l'automatisation dans un business digital sans être technique.
+DOULEURS : peur de la technique, surcharge d'outils, impression d'être en retard.
+PROMESSE : comprendre les usages simples qui font gagner du temps et clarifient l'action.
+TON : accessible, expert, premium, anti-jargon.
+CTA : recevoir gratuitement le mini-guide.`,
+  },
+  {
+    id: "offre-premium",
+    category: "Offre",
+    title: "Clarifier une offre premium",
+    description:
+      "Transformer une offre confuse en proposition claire et désirable.",
+    goal: "landing_complete",
+    prompt: `OBJECTIF : créer une landing qui clarifie une offre premium et la rend immédiatement compréhensible.
+À METTRE EN AVANT : cible, problème, transformation, mécanisme, bénéfices, objections, CTA.
+TON : premium, limpide, expert marketing.
+CONTRAINTE : éviter les phrases vagues, chaque bloc doit rendre l'offre plus claire.`,
+  },
+  {
+    id: "freelance-prospection",
+    category: "Freelance",
+    title: "Freelance prospects",
+    description:
+      "Créer une landing pour attirer des leads qualifiés sans prospecter dans le vide.",
+    goal: "landing_complete",
+    prompt: `CIBLE : freelance ou indépendant qui veut attirer des prospects qualifiés sans prospecter dans le vide.
+DOULEURS : irrégularité des demandes, peur du mois vide, difficulté à expliquer sa valeur.
+PROMESSE : créer une page de capture claire qui transforme l'attention en opportunités commerciales.
+TON : professionnel, humain, premium, orienté conversion.`,
+  },
+  {
+    id: "coach-consultant",
+    category: "Coach / Consultant",
+    title: "Coach / consultant",
+    description:
+      "Créer une landing pour capter des prospects autour d'une expertise.",
+    goal: "landing_complete",
+    prompt: `CIBLE : coach, consultant ou expert qui veut obtenir des prospects qualifiés avec un contenu gratuit de valeur.
+OBJECTIF : créer une landing de capture qui montre la valeur de l'expertise sans tout dévoiler.
+STRUCTURE : problème précis, transformation, méthode, preuve de crédibilité, CTA.
+TON : premium, pédagogique, rassurant.`,
+  },
+  {
+    id: "capture-simple",
+    category: "Email Capture",
+    title: "Capture email directe",
+    description: "Créer une page courte, claire et orientée inscription.",
+    goal: "landing_complete",
+    prompt: `OBJECTIF : créer une landing courte pour récupérer un email rapidement.
+STYLE : très clair, sans longueur inutile, bénéfice immédiat, CTA fort.
+CONTENU : accroche, problème, valeur du lead magnet, rassurance, CTA final.
+TON : humain, premium, direct, crédible.`,
+  },
+  {
+    id: "hooks-reseaux",
+    category: "Réseaux sociaux",
+    title: "Hooks réseaux sociaux",
+    description:
+      "Générer des angles d'accroche pour promouvoir le lead magnet.",
+    goal: "hooks",
+    prompt: `OBJECTIF : générer des hooks puissants pour promouvoir un lead magnet marketing digital.
+CIBLE : personnes bloquées, fatiguées des formations, attirées par l'IA et le business en ligne.
+TON : émotionnel, crédible, non agressif.
+CONTRAINTE : hooks courts, variés, sans promesse fake.`,
+  },
+  {
+    id: "cta-premium",
+    category: "CTA",
+    title: "CTA capture premium",
+    description:
+      "Créer plusieurs CTA premium pour inciter à laisser son email.",
+    goal: "cta",
+    prompt: `OBJECTIF : générer des CTA premium pour une page de capture email.
+CONTEXTE : lead magnet gratuit, audience prudente, peur de se tromper encore.
+TON : rassurant, clair, orienté action.
+CONTRAINTE : éviter les CTA agressifs ou trop commerciaux.`,
+  },
+  {
+    id: "benefices-transformation",
+    category: "Bénéfices",
+    title: "Bénéfices transformation",
+    description:
+      "Transformer des caractéristiques en bénéfices émotionnels et concrets.",
+    goal: "benefits",
+    prompt: `OBJECTIF : générer des bénéfices clairs pour une landing de capture.
+ANGLE : ne pas lister des fonctionnalités, mais montrer ce que la personne va comprendre, ressentir et pouvoir faire après le lead magnet.
+TON : humain, concret, premium.
+CONTRAINTE : bénéfices spécifiques, pas de banalités.`,
+  },
+  {
+    id: "variants-hero",
+    category: "Variantes",
+    title: "Variantes A/B Hero",
+    description:
+      "Créer plusieurs angles de hero pour tester la meilleure accroche.",
+    goal: "variants",
+    prompt: `OBJECTIF : générer plusieurs variantes de hero pour une page de capture.
+VARIER : émotion, clarté, douleur, promesse, curiosité, mécanisme.
+CIBLE : débutants marketing digital ou personnes bloquées après formations.
+TON : premium, humain, crédible.
+CONTRAINTE : aucune promesse de richesse rapide.`,
+  },
+  {
+    id: "anti-procrastination",
+    category: "Psychologie",
+    title: "Anti-procrastination business",
+    description:
+      "Créer une capture autour du blocage, de la dispersion et de l'action.",
+    goal: "landing_complete",
+    prompt: `CIBLE : personnes qui consomment beaucoup de contenu business mais n'agissent pas vraiment.
+DOULEURS : dispersion, peur de mal faire, fatigue mentale, honte de repousser encore.
+PROMESSE : obtenir un plan simple pour reprendre une action claire cette semaine.
+TON : empathique, lucide, premium, sans jugement.
+CTA : recevoir le plan gratuit.`,
+  },
+  {
+    id: "business-local",
+    category: "Business local",
+    title: "Business local digitalisé",
+    description: "Aider un indépendant local à capter des prospects en ligne.",
+    goal: "landing_complete",
+    prompt: `CIBLE : indépendant, artisan ou petit business local qui veut obtenir plus de demandes via le digital.
+DOULEURS : manque de visibilité, bouche-à-oreille insuffisant, peur de la technique.
+PROMESSE : comprendre comment créer un système simple de capture de prospects en ligne.
+TON : accessible, concret, professionnel, premium.`,
+  },
+  {
+    id: "createur-monetisation",
+    category: "Créateur",
+    title: "Créateur qui veut monétiser",
+    description: "Convertir une audience en prospects avant de vendre.",
+    goal: "landing_complete",
+    prompt: `CIBLE : créateur de contenu qui a une audience mais ne sait pas comment la monétiser proprement.
+OBJECTIF : créer une page de capture pour transformer l'attention en liste email.
+ANGLE : ne pas dépendre uniquement des algorithmes, construire un actif durable.
+TON : stratégique, premium, concret, humain.`,
+  },
+  {
+    id: "chatgpt-vs-lgd",
+    category: "Positionnement",
+    title: "Pourquoi pas juste ChatGPT ?",
+    description:
+      "Expliquer la valeur d'une méthode guidée plutôt qu'un outil brut.",
+    goal: "landing_complete",
+    prompt: `OBJECTIF : créer une landing qui explique pourquoi une personne bloquée a besoin d'un chemin guidé, pas seulement d'un outil IA brut.
+ANGLE : ChatGPT peut répondre, mais LGD structure l'action, les modules, les étapes et la transformation marketing.
+TON : respectueux, crédible, premium, sans dénigrer les autres outils.
+CTA : recevoir le guide gratuit pour voir le chemin complet.`,
+  },
+  {
+    id: "urgence-douce",
+    category: "Conversion",
+    title: "Urgence douce",
+    description: "Créer une tension émotionnelle sans manipulation agressive.",
+    goal: "landing_complete",
+    prompt: `OBJECTIF : créer une page qui montre le coût de l'inaction sans faire peur artificiellement.
+DOULEURS : repousser encore, rester bloqué, continuer à consommer sans construire, perdre confiance.
+PROMESSE : faire un premier pas simple et structuré grâce au lead magnet.
+TON : lucide, humain, premium, sans pression excessive.`,
+  },
+  {
+    id: "tunnel-affiliation",
+    category: "Tunnel",
+    title: "Tunnel affiliation complet",
+    description: "Préparer naturellement une séquence email d'affiliation.",
+    goal: "landing_complete",
+    prompt: `OBJECTIF : créer une landing de capture qui prépare une vente par affiliation dans une séquence email.
+CONTEXTE : ne pas vendre immédiatement, récupérer l'email avec un lead magnet puissant, puis nourrir la relation.
+CONTENU : identification, problème, guide gratuit, bénéfices, rassurance, CTA.
+TON : premium, humain, expert marketing, sans agressivité.`,
+  },
+];
+
+const PROMPT_LIBRARY_CATEGORIES = Array.from(
+  new Set(PROMPT_LIBRARY.map((item) => item.category)),
+);
+
+function readMarketingProfileContext(): string {
+  if (typeof window === "undefined") return "";
+
+  const storageKeys = [
+    "lgd_user_marketing_profile",
+    "lgd_marketing_profile",
+    "user_marketing_profile",
+    "lgd_persona_profile",
+    "lgd_cmo_user_context",
+  ];
+
+  for (const key of storageKeys) {
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object") continue;
+
+      const entries = Object.entries(parsed as Record<string, unknown>)
+        .filter(
+          ([, value]) =>
+            value !== null && value !== undefined && String(value).trim(),
+        )
+        .slice(0, 18)
+        .map(([field, value]) => `- ${field} : ${String(value).slice(0, 260)}`);
+
+      if (entries.length) {
+        return `\n\nPERSONA / PROFIL MARKETING UTILISATEUR DÉJÀ CONNU PAR LGD :\n${entries.join("\n")}\n\nCONSIGNE : adapte le prompt à ce persona sans lui demander de tout répéter.`;
+      }
+    } catch {
+      // profil absent ou ancien format ignoré volontairement
+    }
+  }
+
+  return "";
+}
+
 function getAuthHeaders(): Record<string, string> {
   if (typeof window === "undefined") return {};
 
@@ -521,7 +875,10 @@ function cleanLeadLine(value: string) {
   return String(value || "")
     .replace(/^\s*[{\[]\s*$/g, "")
     .replace(/^\s*[}\]]\s*,?\s*$/g, "")
-    .replace(/^\s*"?(title|heading|name|type|body|text|content|copy|value|sections|blocks|landing)"?\s*:\s*/i, "")
+    .replace(
+      /^\s*"?(title|heading|name|type|body|text|content|copy|value|sections|blocks|landing)"?\s*:\s*/i,
+      "",
+    )
     .replace(/^\s*"/, "")
     .replace(/",?\s*$/, "")
     .replace(/^#{1,6}\s*/g, "")
@@ -620,11 +977,14 @@ function splitInlineLeadHeading(
   return { title, body };
 }
 
-
 function stringifyLeadJsonValue(value: unknown): string {
   if (value === null || value === undefined) return "";
 
-  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+  if (
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  ) {
     return String(value).trim();
   }
 
@@ -716,15 +1076,14 @@ function normalizeLeadAiRawContent(content: string): string {
             .join("\n\n");
         }
 
-        const ordered = LEAD_SECTION_ORDER
-          .map((title) => {
-            const matchingKey = Object.keys(record).find(
-              (key) => normalizeLeadHeading(key) === title,
-            );
-            if (!matchingKey) return "";
-            const body = stringifyLeadJsonValue(record[matchingKey]);
-            return body ? `${title}\n${body}` : "";
-          })
+        const ordered = LEAD_SECTION_ORDER.map((title) => {
+          const matchingKey = Object.keys(record).find(
+            (key) => normalizeLeadHeading(key) === title,
+          );
+          if (!matchingKey) return "";
+          const body = stringifyLeadJsonValue(record[matchingKey]);
+          return body ? `${title}\n${body}` : "";
+        })
           .filter(Boolean)
           .join("\n\n");
 
@@ -752,7 +1111,10 @@ function normalizeLeadAiRawContent(content: string): string {
   return raw
     .replace(/^\s*[{\[]\s*$/gm, "")
     .replace(/^\s*[}\]]\s*,?\s*$/gm, "")
-    .replace(/^\s*"?(title|heading|name|type|body|text|content|copy|value|sections|blocks|landing|landing_blocks)"?\s*:\s*/gim, "")
+    .replace(
+      /^\s*"?(title|heading|name|type|body|text|content|copy|value|sections|blocks|landing|landing_blocks)"?\s*:\s*/gim,
+      "",
+    )
     .replace(/^\s*"?([A-ZÀ-Ÿ_ /-]{3,80})"?\s*:\s*$/gm, "$1")
     .replace(/^\s*"?([A-ZÀ-Ÿ_ /-]{3,80})"?\s*:\s*/gm, "$1\n")
     .replace(/[",]+\s*$/gm, "")
@@ -776,7 +1138,9 @@ function stringifyLeadSectionCandidate(value: unknown, index: number): string {
       "",
   ).trim();
   const normalizedTitle = normalizeLeadHeading(rawTitle);
-  const title = normalizedTitle || (rawTitle ? cleanLeadLine(rawTitle) : `BLOC ${index + 1}`);
+  const title =
+    normalizedTitle ||
+    (rawTitle ? cleanLeadLine(rawTitle) : `BLOC ${index + 1}`);
 
   const body = stringifyLeadJsonValue(
     record.body ||
@@ -795,11 +1159,13 @@ function stringifyLeadSectionCandidate(value: unknown, index: number): string {
   return `${title}\n${cleanedBody}`.trim();
 }
 
-
 function orderLeadSections(sections: LeadSection[]): LeadSection[] {
   const cleanedSections = sections
     .map((section) => ({
-      title: normalizeLeadHeading(section.title) || cleanLeadLine(section.title) || "CONTENU LANDING",
+      title:
+        normalizeLeadHeading(section.title) ||
+        cleanLeadLine(section.title) ||
+        "CONTENU LANDING",
       body: cleanLeadBody(section.body),
     }))
     .filter((section) => section.body && section.body !== "1");
@@ -814,9 +1180,9 @@ function orderLeadSections(sections: LeadSection[]): LeadSection[] {
     }
   }
 
-  const ordered = LEAD_SECTION_ORDER
-    .map((title) => merged.find((section) => section.title === title))
-    .filter(Boolean) as LeadSection[];
+  const ordered = LEAD_SECTION_ORDER.map((title) =>
+    merged.find((section) => section.title === title),
+  ).filter(Boolean) as LeadSection[];
   const others = merged.filter(
     (section) => !LEAD_SECTION_ORDER.includes(section.title),
   );
@@ -829,11 +1195,13 @@ function parseTaggedLeadBlocks(content: string): LeadSection[] {
   if (!/\[\s*LGD_BLOCK\s*:/i.test(raw)) return [];
 
   const sections: LeadSection[] = [];
-  const tagRegex = /\[\s*LGD_BLOCK\s*:\s*([^\]]+)\]\s*([\s\S]*?)(?=\[\s*LGD_BLOCK\s*:|\[\s*\/\s*LGD_BLOCK\s*\]|$)/gi;
+  const tagRegex =
+    /\[\s*LGD_BLOCK\s*:\s*([^\]]+)\]\s*([\s\S]*?)(?=\[\s*LGD_BLOCK\s*:|\[\s*\/\s*LGD_BLOCK\s*\]|$)/gi;
   let match: RegExpExecArray | null;
 
   while ((match = tagRegex.exec(raw)) !== null) {
-    const title = normalizeLeadHeading(match[1] || "") || cleanLeadLine(match[1] || "");
+    const title =
+      normalizeLeadHeading(match[1] || "") || cleanLeadLine(match[1] || "");
     const body = cleanLeadBody(match[2] || "");
     if (title && body) sections.push({ title, body });
   }
@@ -842,7 +1210,10 @@ function parseTaggedLeadBlocks(content: string): LeadSection[] {
   return [];
 }
 
-function extractLeadSectionsFromJsonValue(value: unknown, fallbackTitle = "CONTENU LANDING"): LeadSection[] {
+function extractLeadSectionsFromJsonValue(
+  value: unknown,
+  fallbackTitle = "CONTENU LANDING",
+): LeadSection[] {
   if (value === null || value === undefined) return [];
 
   if (typeof value === "string") {
@@ -851,7 +1222,9 @@ function extractLeadSectionsFromJsonValue(value: unknown, fallbackTitle = "CONTE
 
   if (Array.isArray(value)) {
     return value
-      .flatMap((item, index) => extractLeadSectionsFromJsonValue(item, `BLOC ${index + 1}`))
+      .flatMap((item, index) =>
+        extractLeadSectionsFromJsonValue(item, `BLOC ${index + 1}`),
+      )
       .filter((section) => section.body);
   }
 
@@ -871,7 +1244,8 @@ function extractLeadSectionsFromJsonValue(value: unknown, fallbackTitle = "CONTE
       fallbackTitle ||
       "CONTENU LANDING",
   ).trim();
-  const title = normalizeLeadHeading(rawTitle) || cleanLeadLine(rawTitle) || fallbackTitle;
+  const title =
+    normalizeLeadHeading(rawTitle) || cleanLeadLine(rawTitle) || fallbackTitle;
 
   const nestedSections =
     record.sections ||
@@ -966,8 +1340,12 @@ function parseLeadSections(content: string): LeadSection[] {
       continue;
     }
 
-    const markdownBlockMatch = cleanLeadLine(line).match(/^BLOC\s*\d+\s*(?:[—–-]|:)?\s*(.+)$/i);
-    const markdownDetected = markdownBlockMatch ? normalizeLeadHeading(markdownBlockMatch[1] || "") : "";
+    const markdownBlockMatch = cleanLeadLine(line).match(
+      /^BLOC\s*\d+\s*(?:[—–-]|:)?\s*(.+)$/i,
+    );
+    const markdownDetected = markdownBlockMatch
+      ? normalizeLeadHeading(markdownBlockMatch[1] || "")
+      : "";
     if (markdownDetected) {
       flush();
       currentTitle = markdownDetected;
@@ -1373,6 +1751,8 @@ export default function LeadEnginePage() {
   const [aiQuotaUnavailable, setAiQuotaUnavailable] = useState(false);
   const [aiQuotaMessage, setAiQuotaMessage] = useState("");
   const [premiumOpen, setPremiumOpen] = useState(true);
+  const [promptLibraryOpen, setPromptLibraryOpen] = useState(false);
+  const [promptLibraryCategory, setPromptLibraryCategory] = useState("Tous");
   const [cmoLoading, setCmoLoading] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
@@ -1402,6 +1782,13 @@ export default function LeadEnginePage() {
       : aiQuotaKnown
         ? `Quota IA : ${aiQuota.remaining.toLocaleString()} / ${aiQuota.tokens_limit.toLocaleString()} • Plan ${aiQuota.plan}`
         : "Quota IA : synchronisation en cours • génération autorisée";
+
+  const visiblePromptLibrary = useMemo(() => {
+    if (promptLibraryCategory === "Tous") return PROMPT_LIBRARY;
+    return PROMPT_LIBRARY.filter(
+      (item) => item.category === promptLibraryCategory,
+    );
+  }, [promptLibraryCategory]);
 
   function syncQuotaFromPayload(raw: any) {
     if (!raw || typeof raw !== "object") return;
@@ -1478,7 +1865,9 @@ export default function LeadEnginePage() {
 
     if (blocks.length) {
       return blocks
-        .map((block: any, index: number) => stringifyLeadSectionCandidate(block, index))
+        .map((block: any, index: number) =>
+          stringifyLeadSectionCandidate(block, index),
+        )
         .filter(Boolean)
         .join("\n\n");
     }
@@ -1494,7 +1883,9 @@ export default function LeadEnginePage() {
 
     if (Array.isArray(directValue)) {
       return directValue
-        .map((block: any, index: number) => stringifyLeadSectionCandidate(block, index))
+        .map((block: any, index: number) =>
+          stringifyLeadSectionCandidate(block, index),
+        )
         .filter(Boolean)
         .join("\n\n");
     }
@@ -1645,10 +2036,26 @@ export default function LeadEnginePage() {
     return () => window.clearTimeout(timer);
   }, [aiBrief]);
 
+  function applyPromptLibraryItem(item: PromptLibraryItem) {
+    const personaContext = readMarketingProfileContext();
+    const nextBrief = `${item.prompt}${personaContext}`.trim();
+
+    setAiGoal(item.goal);
+    setAiLastGoal(item.goal);
+    setAiBrief(nextBrief);
+    setAiResult("");
+    setPremiumOpen(true);
+    setPromptLibraryOpen(false);
+
+    window.setTimeout(() => {
+      rootRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 80);
+  }
 
   function buildPremiumAIBrief(sourceBrief: string, goal: string) {
     const userBrief = String(sourceBrief || "").trim();
-    const safeBrief = userBrief || "Créer une landing premium orientée conversion.";
+    const safeBrief =
+      userBrief || "Créer une landing premium orientée conversion.";
 
     return `
 ${safeBrief}
@@ -1842,7 +2249,10 @@ OBJECTIF TECHNIQUE : ${goal}
       const mustShift = aiBottom > 0 ? !isAiBlock && y >= insertionY : true;
       return {
         ...layer,
-        y: mustShift && typeof layer?.y === "number" ? layer.y + insertionHeight : layer?.y,
+        y:
+          mustShift && typeof layer?.y === "number"
+            ? layer.y + insertionHeight
+            : layer?.y,
       };
     }) as LayerData[];
 
@@ -1887,11 +2297,13 @@ OBJECTIF TECHNIQUE : ${goal}
       } as LayerData,
     ];
 
-    const nextLayers = [...shiftedLayers, ...newSectionLayers].sort((a: any, b: any) => {
-      const zA = typeof a?.zIndex === "number" ? a.zIndex : 0;
-      const zB = typeof b?.zIndex === "number" ? b.zIndex : 0;
-      return zA - zB;
-    }) as LayerData[];
+    const nextLayers = [...shiftedLayers, ...newSectionLayers].sort(
+      (a: any, b: any) => {
+        const zA = typeof a?.zIndex === "number" ? a.zIndex : 0;
+        const zB = typeof b?.zIndex === "number" ? b.zIndex : 0;
+        return zA - zB;
+      },
+    ) as LayerData[];
 
     const nextHeight = Math.max(
       canvasHeight + insertionHeight,
@@ -2432,17 +2844,28 @@ OBJECTIF TECHNIQUE : ${goal}
           {premiumOpen && (
             <div className="mt-4 grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
               <div className="rounded-2xl border border-yellow-600/20 bg-[#111] p-4">
-                <select
-                  value={aiGoal}
-                  onChange={(e) => setAiGoal(e.target.value as typeof aiGoal)}
-                  className="rounded-xl border border-yellow-600/20 bg-black/30 px-3 py-2 text-sm text-white outline-none"
-                >
-                  <option value="landing_complete">Landing complète</option>
-                  <option value="hooks">Hooks</option>
-                  <option value="cta">CTA</option>
-                  <option value="benefits">Bénéfices</option>
-                  <option value="variants">Variantes A/B</option>
-                </select>
+                <div className="flex flex-wrap items-center gap-3">
+                  <select
+                    value={aiGoal}
+                    onChange={(e) => setAiGoal(e.target.value as typeof aiGoal)}
+                    className="rounded-xl border border-yellow-600/20 bg-black/30 px-3 py-2 text-sm text-white outline-none"
+                  >
+                    <option value="landing_complete">Landing complète</option>
+                    <option value="hooks">Hooks</option>
+                    <option value="cta">CTA</option>
+                    <option value="benefits">Bénéfices</option>
+                    <option value="variants">Variantes A/B</option>
+                  </select>
+
+                  <button
+                    type="button"
+                    onClick={() => setPromptLibraryOpen(true)}
+                    className="inline-flex items-center gap-2 rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-2 text-sm font-semibold text-yellow-200 hover:bg-yellow-500/15"
+                  >
+                    <FaMagic />
+                    Bibliothèque de prompts marketing
+                  </button>
+                </div>
 
                 <textarea
                   value={aiBrief}
@@ -2566,6 +2989,86 @@ OBJECTIF TECHNIQUE : ${goal}
             </div>
           )}
         </div>
+
+        {promptLibraryOpen && (
+          <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/80 px-4 py-6 backdrop-blur-sm">
+            <div className="max-h-[88vh] w-full max-w-6xl overflow-hidden rounded-[30px] border border-yellow-500/30 bg-[#080808] shadow-[0_0_55px_rgba(255,184,0,0.16)]">
+              <div className="flex flex-wrap items-start justify-between gap-4 border-b border-yellow-600/15 px-6 py-5">
+                <div>
+                  <div className="text-xs font-bold uppercase tracking-[0.22em] text-yellow-300">
+                    Bibliothèque LGD
+                  </div>
+                  <div className="mt-2 text-2xl font-extrabold text-white">
+                    Prompts marketing digital optimisés
+                  </div>
+                  <div className="mt-2 max-w-3xl text-sm leading-relaxed text-white/55">
+                    Choisis une situation : LGD préremplit le brief Premium et
+                    ajoute automatiquement le persona marketing connu si un
+                    profil existe déjà dans la mémoire locale.
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setPromptLibraryOpen(false)}
+                  className="rounded-2xl border border-yellow-600/20 bg-black/40 px-4 py-2 text-sm font-semibold text-white/75 hover:text-white"
+                >
+                  Fermer
+                </button>
+              </div>
+
+              <div className="border-b border-yellow-600/10 px-6 py-4">
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {["Tous", ...PROMPT_LIBRARY_CATEGORIES].map((category) => (
+                    <button
+                      key={category}
+                      type="button"
+                      onClick={() => setPromptLibraryCategory(category)}
+                      className={`shrink-0 rounded-full border px-4 py-2 text-xs font-bold transition ${
+                        promptLibraryCategory === category
+                          ? "border-yellow-400 bg-yellow-400 text-black"
+                          : "border-yellow-600/20 bg-black/30 text-white/70 hover:text-yellow-200"
+                      }`}
+                    >
+                      {category}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="max-h-[58vh] overflow-y-auto px-6 py-5">
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {visiblePromptLibrary.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex min-h-[230px] flex-col justify-between rounded-2xl border border-yellow-600/15 bg-[#111] p-4"
+                    >
+                      <div>
+                        <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-yellow-300">
+                          {item.category}
+                        </div>
+                        <div className="mt-2 text-lg font-extrabold text-white">
+                          {item.title}
+                        </div>
+                        <div className="mt-2 text-sm leading-relaxed text-white/55">
+                          {item.description}
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => applyPromptLibraryItem(item)}
+                        className="mt-4 rounded-2xl bg-[#ffb800] px-4 py-3 text-sm font-extrabold text-black hover:bg-yellow-300"
+                      >
+                        Utiliser ce prompt
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="mb-8 rounded-[28px] border border-yellow-600/20 bg-[#0b0b0b] p-5">
           <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
