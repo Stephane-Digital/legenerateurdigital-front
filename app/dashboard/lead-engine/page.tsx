@@ -1645,6 +1645,72 @@ export default function LeadEnginePage() {
     return () => window.clearTimeout(timer);
   }, [aiBrief]);
 
+
+  function buildPremiumAIBrief(sourceBrief: string, goal: string) {
+    const userBrief = String(sourceBrief || "").trim();
+    const safeBrief = userBrief || "Créer une landing premium orientée conversion.";
+
+    return `
+${safeBrief}
+
+CONSIGNE QUALITÉ LGD — À RESPECTER STRICTEMENT :
+Tu écris pour une landing de capture email premium, pas pour une page de vente agressive.
+Le but est de donner envie de laisser son email pour recevoir un lead magnet très utile, puis de préparer naturellement la conversion.
+
+NIVEAU ATTENDU :
+- émotion forte mais crédible ;
+- expertise marketing digital réelle ;
+- ton humain, empathique, premium, sans bullshit ;
+- aucune promesse de richesse rapide ;
+- aucune phrase générique de type IA ;
+- aucun jargon technique inutile ;
+- aucune formule corporate froide.
+
+TU DOIS EXPLOITER LES ÉLÉMENTS DU BRIEF UTILISATEUR :
+- l'offre ;
+- la cible ;
+- les personas ;
+- les douleurs visibles ;
+- les douleurs cachées ;
+- les objections ;
+- la promesse ;
+- le résultat rêvé ;
+- le CTA final.
+
+SI LE BRIEF PARLE DE LGD, MRR, affiliation, business en ligne, formations, IA, automatisation ou revenus complémentaires :
+- parle à une personne qui a déjà essayé plusieurs méthodes sans résultat ;
+- montre que tu comprends la fatigue mentale, la honte, la peur de se tromper encore et la peur du regard des proches ;
+- rassure sans infantiliser ;
+- explique que le digital peut devenir un chemin progressif, structuré et réaliste ;
+- prépare naturellement la valeur de LGD sans vendre LGD brutalement.
+
+STRUCTURE OBLIGATOIRE :
+Garde une sortie multi-blocs claire avec ces sections logiques quand elles sont pertinentes :
+HERO, DOULEUR / IDENTIFICATION, MECANISME, PREUVE / RASSURANCE, OBJECTIONS, AGITATION, CE_QUE_TU_RECOIS, CTA_FINAL.
+Chaque bloc doit contenir un vrai contenu utile, pas une phrase vide.
+
+STYLE DES BLOCS :
+- HERO : accroche directe, bénéfice clair, tension émotionnelle maîtrisée.
+- DOULEUR / IDENTIFICATION : vécu réel de la cible, pas de banalités.
+- MECANISME : explique le chemin concret sans surpromesse.
+- PREUVE / RASSURANCE : crédibilité, progression, sécurité, simplicité.
+- OBJECTIONS : casse les objections sans agressivité.
+- AGITATION : intensifie le coût de l'inaction sans manipulation excessive.
+- CE_QUE_TU_RECOIS : valeur concrète du lead magnet.
+- CTA_FINAL : invitation premium à recevoir gratuitement le guide.
+
+INTERDITS :
+- ne génère pas un seul pavé ;
+- ne mets pas d'accolades JSON visibles ;
+- ne mets pas de markdown avec ** ;
+- ne répète pas les mêmes idées ;
+- ne tutoie/vouvoie pas au hasard : garde le vouvoiement ;
+- ne promets jamais des revenus garantis.
+
+OBJECTIF TECHNIQUE : ${goal}
+`.trim();
+  }
+
   async function generateWithAI(goal: string, forcedBrief?: string) {
     try {
       setAiLoading(true);
@@ -1662,14 +1728,11 @@ export default function LeadEnginePage() {
           },
           body: JSON.stringify({
             goal,
-            brief:
-              forcedBrief ||
-              aiBrief ||
-              "Créer une landing premium orientée conversion.",
+            brief: buildPremiumAIBrief(forcedBrief || aiBrief, goal),
             emotional_style:
               goal === "rewrite_landing"
-                ? "réécriture courte, claire, landing, sans pavé"
-                : "humain, authentique, expert, sincère, orienté conversion",
+                ? "réécriture courte, claire, landing, sans pavé, premium, sans texte générique"
+                : "humain, émotionnel, premium, expert marketing digital, empathique, crédible, orienté capture email",
             business_context: `lead generation premium | cta_url=${normalizeExportUrl(ctaUrl)}`,
           }),
         },
