@@ -589,6 +589,20 @@ function normalizeLeadHeading(value: string) {
   return "";
 }
 
+function splitInlineLeadHeading(line: string): { title: string; body: string } | null {
+  const cleaned = cleanLeadLine(line);
+  if (!cleaned) return null;
+
+  const inlineMatch = cleaned.match(/^(.{2,80}?)(?:\s*[:：]\s+|\s+[—–-]\s+)(.+)$/);
+  if (!inlineMatch) return null;
+
+  const title = normalizeLeadHeading(inlineMatch[1] || "");
+  const body = String(inlineMatch[2] || "").trim();
+
+  if (!title || !body) return null;
+  return { title, body };
+}
+
 function parseLeadSections(content: string): LeadSection[] {
   const text = String(content || "")
     .replace(/\r/g, "")
@@ -607,6 +621,15 @@ function parseLeadSections(content: string): LeadSection[] {
 
   for (const rawLine of text.split("\n")) {
     const line = rawLine.trim();
+    const inlineHeading = splitInlineLeadHeading(line);
+
+    if (inlineHeading) {
+      flush();
+      currentTitle = inlineHeading.title;
+      currentLines.push(inlineHeading.body);
+      continue;
+    }
+
     const detected = normalizeLeadHeading(line);
 
     if (detected) {
@@ -1079,6 +1102,47 @@ export default function LeadEnginePage() {
     window.alert(String(message));
   }
 
+
+  function extractAIContent(data: any): string {
+    const direct = String(
+      data?.content ||
+        data?.result ||
+        data?.text ||
+        data?.message ||
+        data?.output ||
+        "",
+    ).trim();
+
+    if (direct) return direct;
+
+    const blocks = Array.isArray(data?.blocks)
+      ? data.blocks
+      : Array.isArray(data?.sections)
+        ? data.sections
+        : Array.isArray(data?.landing_blocks)
+          ? data.landing_blocks
+          : [];
+
+    if (!blocks.length) return "";
+
+    return blocks
+      .map((block: any, index: number) => {
+        if (typeof block === "string") return block.trim();
+
+        const title = String(
+          block?.title || block?.heading || block?.name || `BLOC ${index + 1}`,
+        ).trim();
+        const body = String(
+          block?.body || block?.content || block?.text || block?.description || "",
+        ).trim();
+
+        if (!body) return title;
+        return `${title}\n${body}`.trim();
+      })
+      .filter(Boolean)
+      .join("\n\n");
+  }
+
   function handleCtaUrlChange(nextValue: string) {
     const normalized = normalizeExportUrl(nextValue);
     setCtaUrl(normalized);
@@ -1266,7 +1330,7 @@ export default function LeadEnginePage() {
         throw new Error(typeof detail === "string" ? detail : "Erreur IA");
       }
 
-      const content = String((data as any)?.content || "");
+      const content = extractAIContent(data);
       setAiQuotaMessage("");
       if ((data as any)?.quota) syncQuotaFromPayload((data as any).quota);
       setAiResult(content);
@@ -1325,12 +1389,16 @@ export default function LeadEnginePage() {
     const cleanBody = section.body.trim();
     if (!cleanBody) return;
 
-    const baseY = Math.max(120, canvasHeight - 420);
-    const nextHeight = Math.max(canvasHeight, baseY + 420);
+    const baseY = 80;
+    const insertionHeight = 390;
     const stamp = Date.now();
+    const shiftedLayers = normalizeLayersSnapshot(layers).map((layer: any) => ({
+      ...layer,
+      y: typeof layer?.y === "number" ? layer.y + insertionHeight : layer?.y,
+    })) as LayerData[];
+    const nextHeight = Math.max(canvasHeight + insertionHeight, baseY + insertionHeight + 320);
 
     const nextLayers: LayerData[] = [
-      ...normalizeLayersSnapshot(layers),
       {
         id: `lead-ai-block-title-${stamp}-${index}`,
         type: "text",
@@ -1340,7 +1408,7 @@ export default function LeadEnginePage() {
         height: 56,
         visible: true,
         selected: false,
-        zIndex: 80 + index * 2,
+        zIndex: 200 + index * 2,
         text: cleanTitle,
         style: {
           fontSize: 30,
@@ -1359,7 +1427,7 @@ export default function LeadEnginePage() {
         height: 260,
         visible: true,
         selected: false,
-        zIndex: 81 + index * 2,
+        zIndex: 201 + index * 2,
         text: cleanBody,
         style: {
           fontSize: 22,
@@ -1369,6 +1437,7 @@ export default function LeadEnginePage() {
           lineHeight: 1.3,
         },
       } as LayerData,
+      ...shiftedLayers,
     ];
 
     setLayers(nextLayers);
@@ -2153,4 +2222,3 @@ export default function LeadEnginePage() {
     </div>
   );
 }
-
