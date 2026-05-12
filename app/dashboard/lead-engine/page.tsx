@@ -795,13 +795,142 @@ function stringifyLeadSectionCandidate(value: unknown, index: number): string {
   return `${title}\n${cleanedBody}`.trim();
 }
 
+
+function orderLeadSections(sections: LeadSection[]): LeadSection[] {
+  const cleanedSections = sections
+    .map((section) => ({
+      title: normalizeLeadHeading(section.title) || cleanLeadLine(section.title) || "CONTENU LANDING",
+      body: cleanLeadBody(section.body),
+    }))
+    .filter((section) => section.body && section.body !== "1");
+
+  const merged: LeadSection[] = [];
+  for (const section of cleanedSections) {
+    const last = merged[merged.length - 1];
+    if (last && last.title === section.title) {
+      last.body = `${last.body}\n${section.body}`.trim();
+    } else {
+      merged.push({ title: section.title, body: section.body });
+    }
+  }
+
+  const ordered = LEAD_SECTION_ORDER
+    .map((title) => merged.find((section) => section.title === title))
+    .filter(Boolean) as LeadSection[];
+  const others = merged.filter(
+    (section) => !LEAD_SECTION_ORDER.includes(section.title),
+  );
+
+  return [...ordered, ...others];
+}
+
+function parseTaggedLeadBlocks(content: string): LeadSection[] {
+  const raw = String(content || "");
+  if (!/\[\s*LGD_BLOCK\s*:/i.test(raw)) return [];
+
+  const sections: LeadSection[] = [];
+  const tagRegex = /\[\s*LGD_BLOCK\s*:\s*([^\]]+)\]\s*([\s\S]*?)(?=\[\s*LGD_BLOCK\s*:|\[\s*\/\s*LGD_BLOCK\s*\]|$)/gi;
+  let match: RegExpExecArray | null;
+
+  while ((match = tagRegex.exec(raw)) !== null) {
+    const title = normalizeLeadHeading(match[1] || "") || cleanLeadLine(match[1] || "");
+    const body = cleanLeadBody(match[2] || "");
+    if (title && body) sections.push({ title, body });
+  }
+
+  if (sections.length > 0) return orderLeadSections(sections);
+  return [];
+}
+
+function extractLeadSectionsFromJsonValue(value: unknown, fallbackTitle = "CONTENU LANDING"): LeadSection[] {
+  if (value === null || value === undefined) return [];
+
+  if (typeof value === "string") {
+    return parseLeadSections(value);
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .flatMap((item, index) => extractLeadSectionsFromJsonValue(item, `BLOC ${index + 1}`))
+      .filter((section) => section.body);
+  }
+
+  if (typeof value !== "object") {
+    const body = cleanLeadBody(String(value || ""));
+    return body ? [{ title: fallbackTitle, body }] : [];
+  }
+
+  const record = value as Record<string, unknown>;
+  const rawTitle = String(
+    record.title ||
+      record.heading ||
+      record.name ||
+      record.type ||
+      record.kind ||
+      record.key ||
+      fallbackTitle ||
+      "CONTENU LANDING",
+  ).trim();
+  const title = normalizeLeadHeading(rawTitle) || cleanLeadLine(rawTitle) || fallbackTitle;
+
+  const nestedSections =
+    record.sections ||
+    record.blocks ||
+    record.landing_blocks ||
+    record.landingBlocks ||
+    record.landing;
+
+  if (nestedSections && nestedSections !== value) {
+    const extracted = extractLeadSectionsFromJsonValue(nestedSections, title);
+    if (extracted.length > 0) return extracted;
+  }
+
+  const body = stringifyLeadJsonValue(
+    record.body ||
+      record.text ||
+      record.content ||
+      record.copy ||
+      record.paragraph ||
+      record.description ||
+      record.value ||
+      record.items ||
+      record.lines ||
+      "",
+  );
+
+  const cleanedBody = cleanLeadBody(body);
+  if (cleanedBody) return [{ title, body: cleanedBody }];
+
+  const byKnownKeys = Object.entries(record)
+    .flatMap(([key, entry]) => {
+      const normalizedKey = normalizeLeadHeading(key);
+      if (!normalizedKey) return [];
+      return extractLeadSectionsFromJsonValue(entry, normalizedKey);
+    })
+    .filter((section) => section.body);
+
+  return byKnownKeys;
+}
+
 function parseLeadSections(content: string): LeadSection[] {
-  const text = normalizeLeadAiRawContent(content)
+  const rawContent = String(content || "").trim();
+  if (!rawContent) return [];
+
+  const taggedFromRaw = parseTaggedLeadBlocks(rawContent);
+  if (taggedFromRaw.length > 1) return taggedFromRaw;
+
+  const normalizedContent = normalizeLeadAiRawContent(rawContent);
+  const taggedFromNormalized = parseTaggedLeadBlocks(normalizedContent);
+  if (taggedFromNormalized.length > 1) return taggedFromNormalized;
+
+  const text = normalizedContent
     .replace(/\r\n/g, "\n")
     .replace(/\[\s*LGD_BLOCK\s*:\s*([^\]]+)\]\s*/gi, "\n$1\n")
     .replace(/\[\s*\/\s*LGD_BLOCK\s*\]\s*/gi, "\n")
     .replace(/^\s*[{\[]\s*$/gm, "")
     .replace(/^\s*[}\]]\s*,?\s*$/gm, "")
+    .replace(/^\s*"?([A-ZÀ-Ÿ0-9_ /’'()-]{3,90})"?\s*:\s*$/gm, "\n$1\n")
+    .replace(/^\s*"?([A-ZÀ-Ÿ0-9_ /’'()-]{3,90})"?\s*:\s*/gm, "\n$1\n")
     .trim();
   if (!text) return [];
 
@@ -837,45 +966,27 @@ function parseLeadSections(content: string): LeadSection[] {
       continue;
     }
 
+    const markdownBlockMatch = cleanLeadLine(line).match(/^BLOC\s*\d+\s*(?:[—–-]|:)?\s*(.+)$/i);
+    const markdownDetected = markdownBlockMatch ? normalizeLeadHeading(markdownBlockMatch[1] || "") : "";
+    if (markdownDetected) {
+      flush();
+      currentTitle = markdownDetected;
+      continue;
+    }
+
     if (!currentTitle && line) currentTitle = "CONTENU LANDING";
     currentLines.push(rawLine);
   }
 
   flush();
 
-  const cleanedSections = sections
-    .map((section) => ({
-      title: section.title,
-      body: cleanLeadBody(section.body),
-    }))
-    .filter((section) => section.body && section.body !== "1");
+  const orderedSections = orderLeadSections(sections);
+  if (orderedSections.length > 0) return orderedSections;
 
-  if (cleanedSections.length === 0) {
-    return [{ title: "CONTENU LANDING", body: cleanLeadBody(text) }].filter(
-      (section) => !!section.body,
-    );
-  }
-
-  const merged: LeadSection[] = [];
-  for (const section of cleanedSections) {
-    const last = merged[merged.length - 1];
-    if (last && last.title === section.title) {
-      last.body = `${last.body}\n${section.body}`.trim();
-    } else {
-      merged.push({ title: section.title, body: section.body });
-    }
-  }
-
-  const ordered = LEAD_SECTION_ORDER
-    .map((title) => merged.find((section) => section.title === title))
-    .filter(Boolean) as LeadSection[];
-  const others = merged.filter(
-    (section) => !LEAD_SECTION_ORDER.includes(section.title),
+  return [{ title: "CONTENU LANDING", body: cleanLeadBody(text) }].filter(
+    (section) => !!section.body,
   );
-
-  return [...ordered, ...others];
 }
-
 function shortLines(content: string, maxLines: number) {
   return String(content || "")
     .split(/\r?\n/)
@@ -2236,7 +2347,7 @@ export default function LeadEnginePage() {
               </div>
               <div className="mt-1 text-sm text-white/55">
                 Bloc prioritaire placé en haut de page : génère, vérifie, puis
-                injecte la landing structurée dans l’éditeur en dessous.
+                injecte la landing structurée en haut de l’éditeur.
               </div>
             </div>
 
