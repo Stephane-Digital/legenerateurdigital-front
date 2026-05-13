@@ -1858,15 +1858,6 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
                     </button>
 
                     <button
-                      onClick={() => runCopilot("slideText")}
-                      disabled={aiLoading || copilotDisabled}
-                      className="rounded-xl px-4 py-2 text-sm font-extrabold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60 shadow-[0_0_18px_rgba(255,184,0,0.16)]"
-                      title="Génère un contenu de slide avec le scénario Performeur Réseaux™, le réseau, l’objectif, l’angle et le ton sélectionnés."
-                    >
-                      ✨ Générer Performeur
-                    </button>
-
-                    <button
                       onClick={() => runCopilot("hooks")}
                       disabled={aiLoading || copilotDisabled}
                       className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
@@ -2113,6 +2104,17 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
                     </div>
 
                     <div className="lg:col-span-8">
+                      <div className="mb-3 flex justify-center">
+                        <button
+                          onClick={() => runCopilot("slideText")}
+                          disabled={aiLoading || copilotDisabled}
+                          className="rounded-2xl px-8 py-3 text-sm font-extrabold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60 shadow-[0_0_22px_rgba(255,184,0,0.20)]"
+                          title="Génère un contenu de slide avec le scénario Performeur Réseaux™, le réseau, l’objectif, l’angle et le ton sélectionnés."
+                        >
+                          ✨ Générer Performeur
+                        </button>
+                      </div>
+
                       <div className="rounded-3xl p-4 bg-black/30 border border-yellow-500/15">
                         <div className="flex items-center justify-between gap-3">
                           <div className="text-yellow-200 font-semibold">Résultat IA</div>
