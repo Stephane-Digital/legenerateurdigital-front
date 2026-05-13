@@ -1308,39 +1308,25 @@ export default function PostEditor({
                     </div>
                   </div>
 
-                  <div className="mt-3 grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-yellow-300 text-xs mb-2">Angle</label>
-                      <select
-                        value={angle}
-                        onChange={(e) => {
-                          userTouchedAngleRef.current = true;
-                          setAngle(e.target.value as Angle);
-                        }}
-                        className="w-full rounded-2xl bg-black/40 border border-yellow-500/20 px-4 py-3 text-yellow-100 outline-none"
-                      >
-                        <option>MRR débutant</option>
-                        <option>Produit digital</option>
-                        <option>Objection</option>
-                        <option>Storytelling</option>
-                        <option>Preuve</option>
-                        <option>Tutoriel</option>
-                        <option>Erreur fréquente</option>
-                        <option>Mindset / discipline</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-yellow-300 text-xs mb-2">Longueur max (caractères)</label>
-                      <input
-                        type="number"
-                        min={0}
-                        value={maxChars}
-                        onChange={(e) => setMaxChars(Number(e.target.value || 0))}
-                        className="w-full rounded-2xl bg-black/40 border border-yellow-500/20 px-4 py-3 text-yellow-100 outline-none"
-                      />
-                      <div className="mt-1 text-[11px] text-white/45">0 = auto. (approx. caractères, pas mots)</div>
-                    </div>
+                  <div className="mt-3">
+                    <label className="block text-yellow-300 text-xs mb-2">Angle</label>
+                    <select
+                      value={angle}
+                      onChange={(e) => {
+                        userTouchedAngleRef.current = true;
+                        setAngle(e.target.value as Angle);
+                      }}
+                      className="w-full rounded-2xl bg-black/40 border border-yellow-500/20 px-4 py-3 text-yellow-100 outline-none"
+                    >
+                      <option>MRR débutant</option>
+                      <option>Produit digital</option>
+                      <option>Objection</option>
+                      <option>Storytelling</option>
+                      <option>Preuve</option>
+                      <option>Tutoriel</option>
+                      <option>Erreur fréquente</option>
+                      <option>Mindset / discipline</option>
+                    </select>
                   </div>
 
                   <div className="mt-3">
