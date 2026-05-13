@@ -454,6 +454,119 @@ function ensureFontStylesheetLoaded(font?: string) {
   document.head.appendChild(style);
 }
 
+
+function estimateSocialTextHeight({
+  text,
+  width,
+  fontSize,
+  fontFamily,
+  lineHeight,
+}: {
+  text: string;
+  width: number;
+  fontSize: number;
+  fontFamily: string;
+  lineHeight: number;
+}) {
+  const safeText = String(text ?? "");
+  const safeWidth = Math.max(120, Math.round(width || 0));
+  const safeFontSize = Math.max(10, Number(fontSize || 24));
+  const safeLineHeight = Math.max(0.8, Number(lineHeight || 1.2));
+  const horizontalPadding = 24;
+  const innerWidth = Math.max(40, safeWidth - horizontalPadding);
+
+  const measureWithCanvas = () => {
+    if (typeof document === "undefined") return null;
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+
+    ctx.font = `${safeFontSize}px ${fontFamily || "Inter"}`;
+    const paragraphs = safeText.split("\n");
+    let lines = 0;
+
+    for (const paragraph of paragraphs) {
+      const words = String(paragraph || "").split(/\s+/).filter(Boolean);
+      if (!words.length) {
+        lines += 1;
+        continue;
+      }
+
+      let current = "";
+      for (const word of words) {
+        const candidate = current ? `${current} ${word}` : word;
+        const candidateWidth = ctx.measureText(candidate).width;
+        if (candidateWidth <= innerWidth || !current) {
+          current = candidate;
+          continue;
+        }
+        lines += 1;
+        current = word;
+      }
+      if (current) lines += 1;
+    }
+
+    return Math.max(1, lines);
+  };
+
+  const measuredLines = measureWithCanvas();
+  const approxLines = measuredLines ?? Math.max(1, Math.ceil((safeText.length * safeFontSize * 0.58) / innerWidth));
+  const verticalPadding = 24;
+  return Math.max(48, Math.ceil(approxLines * safeFontSize * safeLineHeight + verticalPadding));
+}
+
+type SocialCopilotBlock = {
+  role: "hook" | "body" | "cta";
+  text: string;
+};
+
+function stripSocialSectionLabel(line: string) {
+  return String(line || "")
+    .replace(/^\s*(hook|accroche|titre)\s*[:\-–]\s*/i, "")
+    .replace(/^\s*(body|corps|l[ée]gende|contenu)\s*[:\-–]\s*/i, "")
+    .replace(/^\s*(cta|appel à l'action|appel a l'action)\s*[:\-–]\s*/i, "")
+    .trim();
+}
+
+function parseSocialCopilotBlocks(value: string): SocialCopilotBlock[] {
+  const text = String(value || "").replace(/\r/g, "").trim();
+  if (!text) return [];
+
+  const hookMatch = text.match(/(?:^|\n)\s*(?:HOOK|ACCROCHE|TITRE)\s*[:\-–]\s*([\s\S]*?)(?=\n\s*(?:BODY|CORPS|L[ÉE]GENDE|CONTENU|CTA|APPEL À L'ACTION|APPEL A L'ACTION)\s*[:\-–]|$)/i);
+  const bodyMatch = text.match(/(?:^|\n)\s*(?:BODY|CORPS|L[ÉE]GENDE|CONTENU)\s*[:\-–]\s*([\s\S]*?)(?=\n\s*(?:CTA|APPEL À L'ACTION|APPEL A L'ACTION)\s*[:\-–]|$)/i);
+  const ctaMatch = text.match(/(?:^|\n)\s*(?:CTA|APPEL À L'ACTION|APPEL A L'ACTION)\s*[:\-–]\s*([\s\S]*?)$/i);
+
+  const blocks: SocialCopilotBlock[] = [];
+  const clean = (raw: string) =>
+    raw
+      .split("\n")
+      .map((line) => stripSocialSectionLabel(line))
+      .join("\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+
+  if (hookMatch?.[1]) blocks.push({ role: "hook", text: clean(hookMatch[1]) });
+  if (bodyMatch?.[1]) blocks.push({ role: "body", text: clean(bodyMatch[1]) });
+  if (ctaMatch?.[1]) blocks.push({ role: "cta", text: clean(ctaMatch[1]) });
+
+  if (blocks.length >= 2) return blocks.filter((block) => block.text.length > 0);
+
+  const paragraphs = text
+    .split(/\n{2,}/)
+    .map((part) => clean(part))
+    .filter(Boolean);
+
+  if (paragraphs.length >= 3) {
+    return [
+      { role: "hook", text: paragraphs[0] },
+      { role: "body", text: paragraphs.slice(1, -1).join("\n\n") },
+      { role: "cta", text: paragraphs[paragraphs.length - 1] },
+    ].filter((block) => block.text.length > 0) as SocialCopilotBlock[];
+  }
+
+  return [{ role: "body", text: clean(text) }];
+}
+
 export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, brief }: Props) {
   const [slides, setSlides] = useState<SlideDraft[]>(() => {
     const parsed = safeJsonParse(typeof window !== "undefined" ? window.localStorage.getItem(LS_CARROUSEL) : null);
@@ -674,6 +787,7 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
 
   const [aiOutput, setAiOutput] = useState<string>("");
   const [aiHooks, setAiHooks] = useState<string[]>([]);
+  const [lastCopilotTask, setLastCopilotTask] = useState<CopilotTask | null>(null);
   const { schedule, loading: scheduleLoading } = useSchedulePlanner();
   const [scheduleOpen, setScheduleOpen] = useState(false);
 
@@ -722,6 +836,74 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
     },
     [slides, activeSlide?.layers, activeSlideId, targetLayerId, defaultTargetId, updateLayersForSlide, syncEditorSelection]
   );
+
+  const injectCopilotOutputToCanvas = useCallback(
+    (value: string) => {
+      const blocks = parseSocialCopilotBlocks(value);
+      if (!blocks.length) return;
+
+      const slideId = activeSlideIdRef.current || activeSlideId;
+      if (!slideId) return;
+
+      const layers = (slides.find((s) => s.id === slideId)?.layers ?? activeSlide?.layers ?? []) as LayerData[];
+      const canvasW = 1080;
+      const canvasH = 1080;
+      const blockWidth = Math.round(canvasW * 0.78);
+      const x = Math.round((canvasW - blockWidth) / 2);
+      const top = Math.round(canvasH * 0.12);
+      const gap = 42;
+      const now = Date.now();
+      let y = top;
+      const baseZ = layers.length + 10;
+
+      const built = blocks.map((block, index) => {
+        const isHook = block.role === "hook";
+        const isCta = block.role === "cta";
+        const fontSize = isHook ? 54 : isCta ? 34 : 28;
+        const fontFamily = isHook ? "Montserrat" : "Inter";
+        const lineHeight = isHook ? 1.04 : 1.22;
+        const height = estimateSocialTextHeight({
+          text: block.text,
+          width: blockWidth,
+          fontSize,
+          fontFamily,
+          lineHeight,
+        });
+
+        const layer = {
+          id: `copilot-social-${now}-${index}`,
+          type: "text",
+          text: block.text,
+          x,
+          y,
+          width: blockWidth,
+          height,
+          visible: true,
+          selected: index === 0,
+          zIndex: baseZ + index,
+          style: {
+            fontSize,
+            fontFamily,
+            color: isCta ? "#ffcf66" : "#ffffff",
+            fontWeight: isHook || isCta ? 800 : 500,
+            lineHeight,
+          },
+        } as any;
+
+        y += height + (isHook || isCta ? gap + 20 : gap);
+        return layer;
+      });
+
+      updateLayersForSlide(slideId, [
+        ...layers.map((layer: any) => ({ ...layer, selected: false })),
+        ...built,
+      ] as any);
+      syncEditorSelection(String((built[0] as any)?.id || ""));
+      setEditorRefreshKey((v) => v + 1);
+    },
+    [slides, activeSlide?.layers, activeSlideId, updateLayersForSlide, syncEditorSelection]
+  );
+
 
   function normalizeWhitespace(value: string) {
     return String(value || "")
@@ -777,7 +959,7 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
   function normalizeCopilotOutput(task: CopilotTask, value: string) {
     if (task === "hashtags") return extractHashtagsOnly(value);
     if (task === "cta") return extractCtasOnly(value);
-    if (task === "caption") return extractShortCaptionOnly(value);
+    if (task === "caption") return String(value || "").replace(/\r/g, "").replace(/\n{3,}/g, "\n\n").trim();
     return normalizeWhitespace(String(value || ""));
   }
 
@@ -846,9 +1028,16 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
       } else if (task === "caption") {
         prompt = [
           ctx,
-          "Génère UNE légende courte pour accompagner ce carrousel sur Instagram.",
-          "Format STRICT : 2 à 4 lignes maximum, texte court, naturel, engageant.",
-          "Aucun hashtag. Aucun bloc CTA. Aucun titre. Aucune explication.",
+          "Génère UN contenu social premium prêt à injecter dans le canvas du carrousel.",
+          "Structure obligatoire : HOOK, BODY, CTA.",
+          "HOOK : 1 à 3 phrases fortes qui posent l'idée centrale de la slide active.",
+          "BODY : 2 à 4 courts paragraphes qui clarifient l'idée et donnent envie de lire la suite du carrousel.",
+          "CTA : 1 phrase finale claire, orientée sauvegarde, commentaire, DM ou prochaine action.",
+          "Ne mets aucun hashtag. Ne donne aucune explication. Ne fais pas de liste technique.",
+          "Format STRICT :",
+          "HOOK: <texte>",
+          "BODY: <texte>",
+          "CTA: <texte>",
           `Sujet: ${topic}`,
         ].join("\n");
       } else if (task === "cta") {
@@ -890,9 +1079,11 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
 
         setAiHooks(lines.slice(0, 10));
         setAiOutput(out);
+        setLastCopilotTask(task);
       } else {
         setAiHooks([]);
         setAiOutput(normalizeCopilotOutput(task, out));
+        setLastCopilotTask(task);
       }
     } catch (e: any) {
       setAiError(e?.message || "Erreur IA");
