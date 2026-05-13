@@ -1812,6 +1812,8 @@ export default function LeadEnginePage() {
   const [promptLibraryCategory, setPromptLibraryCategory] = useState("Tous");
   const [cmoLoading, setCmoLoading] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const layersRef = useRef<LayerData[]>(layers);
+  const canvasHeightRef = useRef<number>(canvasHeight);
 
   const aiResultSections = useMemo(() => {
     if (aiLastGoal !== "landing_complete") return [];
@@ -1963,6 +1965,14 @@ export default function LeadEnginePage() {
       // noop
     }
   }
+
+  useEffect(() => {
+    layersRef.current = layers;
+  }, [layers]);
+
+  useEffect(() => {
+    canvasHeightRef.current = canvasHeight;
+  }, [canvasHeight]);
 
   useEffect(() => {
     try {
@@ -2279,27 +2289,62 @@ OBJECTIF TECHNIQUE : ${goal}
     const cleanBody = cleanLeadBody(section.body);
     if (!cleanBody) return;
 
-    const normalizedSnapshot = normalizeLayersSnapshot(layers);
-    const normalizedSectionTitle = normalizeLeadHeading(cleanTitle) || cleanTitle.toUpperCase();
-    const isHeroSection = normalizedSectionTitle === "HERO" && aiLastGoal === "landing_complete";
+    const normalizedSectionTitle =
+      normalizeLeadHeading(cleanTitle) || cleanTitle.toUpperCase();
+    const isHeroSection =
+      normalizedSectionTitle === "HERO" && aiLastGoal === "landing_complete";
     const isCtaSection = normalizedSectionTitle === "CTA FINAL";
-    const isBenefitsInjection = aiLastGoal === "benefits" || normalizedSectionTitle === "BENEFICES";
+    const isBenefitsInjection =
+      aiLastGoal === "benefits" || normalizedSectionTitle === "BENEFICES";
+
     const canvasBody = isBenefitsInjection
       ? formatLeadBenefitsForCanvas(cleanBody)
       : cleanBody;
-    const bodyFontSize = isHeroSection ? 42 : isBenefitsInjection ? 18 : isCtaSection ? 24 : 21;
-    const bodyFontWeight = isHeroSection ? 900 : isBenefitsInjection ? 600 : isCtaSection ? 800 : 500;
-    const bodyLineHeight = isHeroSection ? 1.05 : isBenefitsInjection ? 1.42 : isCtaSection ? 1.22 : 1.36;
+
+    const bodyFontSize = isHeroSection
+      ? 42
+      : isBenefitsInjection
+        ? 18
+        : isCtaSection
+          ? 24
+          : 21;
+    const bodyFontWeight = isHeroSection
+      ? 900
+      : isBenefitsInjection
+        ? 600
+        : isCtaSection
+          ? 800
+          : 500;
+    const bodyLineHeight = isHeroSection
+      ? 1.05
+      : isBenefitsInjection
+        ? 1.48
+        : isCtaSection
+          ? 1.22
+          : 1.36;
     const titleHeight = isBenefitsInjection ? 42 : 0;
     const bodyWidth = isHeroSection ? 760 : isBenefitsInjection ? 780 : 820;
-    const bodyHeight = estimateLeadTextHeight(canvasBody, bodyWidth, bodyFontSize, bodyLineHeight);
-    const gapAfterTitle = isBenefitsInjection ? 16 : 0;
-    const gapAfterBlock = isHeroSection ? 96 : isBenefitsInjection ? 72 : 84;
+    const paragraphCount = Math.max(
+      1,
+      canvasBody.split(/\n\s*\n/).filter((part) => part.trim()).length,
+    );
+    const bodyHeight =
+      estimateLeadTextHeight(canvasBody, bodyWidth, bodyFontSize, bodyLineHeight) +
+      (isBenefitsInjection ? paragraphCount * 18 : 0);
+    const gapAfterTitle = isBenefitsInjection ? 18 : 0;
+    const gapAfterBlock = isHeroSection
+      ? 110
+      : isBenefitsInjection
+        ? 96
+        : isCtaSection
+          ? 104
+          : 88;
     const insertionHeight = Math.max(
-      isHeroSection ? 360 : 240,
+      isHeroSection ? 380 : isBenefitsInjection ? 260 : 240,
       titleHeight + gapAfterTitle + bodyHeight + gapAfterBlock,
     );
 
+    const normalizedSnapshot = normalizeLayersSnapshot(layersRef.current);
     const aiBlocks = normalizedSnapshot.filter((layer: any) =>
       String(layer?.id || "").startsWith("lead-ai-block-"),
     );
@@ -2309,7 +2354,7 @@ OBJECTIF TECHNIQUE : ${goal}
       return Math.max(max, y + height);
     }, 0);
 
-    const insertionY = aiBottom > 0 ? aiBottom + 72 : 80;
+    const insertionY = aiBottom > 0 ? aiBottom + 96 : 80;
     const stamp = Date.now();
     const shiftedLayers = normalizedSnapshot.map((layer: any) => {
       const y = typeof layer?.y === "number" ? layer.y : 0;
@@ -2374,10 +2419,12 @@ OBJECTIF TECHNIQUE : ${goal}
     ) as LayerData[];
 
     const nextHeight = Math.max(
-      canvasHeight + insertionHeight,
-      insertionY + insertionHeight + 320,
+      canvasHeightRef.current + insertionHeight,
+      insertionY + insertionHeight + 360,
     );
 
+    layersRef.current = nextLayers;
+    canvasHeightRef.current = nextHeight;
     setLayers(nextLayers);
     setInitialLayers(nextLayers);
     setCanvasHeight(nextHeight);
