@@ -48,6 +48,95 @@ type Angle =
   | "Erreur fréquente"
   | "Mindset / discipline";
 
+
+type SocialPromptTemplate = {
+  id: string;
+  category: string;
+  title: string;
+  description: string;
+  idea: string;
+  network: Network;
+  objective: Objective;
+  angle: Angle;
+  tone: string;
+  maxChars: number;
+};
+
+const SOCIAL_PROMPT_LIBRARY: SocialPromptTemplate[] = [
+  {
+    id: "hook-scroll-stop",
+    category: "Hook",
+    title: "Scroll-stopper business",
+    description: "Créer un post qui arrête le scroll et ouvre une tension marketing forte.",
+    idea: "Crée un contenu pour une audience qui consomme beaucoup de conseils business mais qui n'arrive pas à passer à l'action. Le post doit ouvrir par un hook fort, expliquer le vrai blocage et finir par un CTA doux.",
+    network: "Instagram",
+    objective: "Attirer",
+    angle: "Objection",
+    tone: "premium, direct, humain, sans jugement, orienté déclic",
+    maxChars: 900,
+  },
+  {
+    id: "authority-expert",
+    category: "Autorité",
+    title: "Post expertise premium",
+    description: "Montrer une expertise sans donner l'impression de vendre agressivement.",
+    idea: "Crée un post d'autorité pour expliquer pourquoi une stratégie simple et exécutée vaut mieux qu'une accumulation d'outils IA. Le contenu doit être clair, expert et crédible.",
+    network: "LinkedIn",
+    objective: "Éduquer",
+    angle: "Preuve",
+    tone: "expert, premium, pédagogique, concret",
+    maxChars: 1300,
+  },
+  {
+    id: "soft-conversion",
+    category: "Conversion",
+    title: "Vente douce / DM",
+    description: "Amener vers un commentaire, un DM ou un lead magnet sans forcer.",
+    idea: "Crée un post de vente douce pour inviter une personne bloquée à demander une ressource gratuite. Le post doit créer de la confiance, montrer le problème et proposer une action simple.",
+    network: "Instagram",
+    objective: "Convertir",
+    angle: "Produit digital",
+    tone: "humain, rassurant, premium, orienté action",
+    maxChars: 1000,
+  },
+  {
+    id: "storytelling-failure",
+    category: "Storytelling",
+    title: "Erreur → prise de conscience",
+    description: "Transformer une erreur fréquente en contenu engageant.",
+    idea: "Crée un post storytelling autour d'une erreur fréquente : croire qu'il faut encore apprendre avant d'agir. Le post doit partir d'une scène réelle, créer une prise de conscience et finir par une action simple.",
+    network: "Facebook",
+    objective: "Story",
+    angle: "Erreur fréquente",
+    tone: "narratif, lucide, empathique, concret",
+    maxChars: 1200,
+  },
+  {
+    id: "mrr-blocked",
+    category: "Persona",
+    title: "MRR / formation bloqué",
+    description: "Parler aux personnes qui ont acheté des formations sans résultat.",
+    idea: "Crée un post pour une personne qui a acheté plusieurs formations MRR, affiliation ou business en ligne, mais qui reste bloquée. Le post doit reconnaître la fatigue mentale, la dispersion et proposer un chemin plus simple.",
+    network: "Instagram",
+    objective: "Convertir",
+    angle: "MRR débutant",
+    tone: "empathique, premium, direct, sans promesse magique",
+    maxChars: 1100,
+  },
+  {
+    id: "carousel-plan",
+    category: "Carrousel",
+    title: "Mini-plan en carrousel",
+    description: "Créer une structure claire en 5 à 7 slides.",
+    idea: "Crée un carrousel éducatif qui explique comment passer d'une idée floue à une première action marketing claire. Structure chaque idée pour une slide courte, avec un hook fort et un CTA final.",
+    network: "Instagram",
+    objective: "Éduquer",
+    angle: "Tutoriel",
+    tone: "clair, premium, structuré, actionnable",
+    maxChars: 1400,
+  },
+];
+
 type CopilotTask = "hooks" | "slideText" | "steps" | "caption" | "cta" | "hashtags" | "rewrite";
 
 function apiBase() {
@@ -578,6 +667,7 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
   const [angle, setAngle] = useState<Angle>("MRR débutant");
   const [tone, setTone] = useState<string>("coach direct, clair, concret, orienté résultats");
   const [maxChars, setMaxChars] = useState<number>(0);
+  const [promptLibraryOpen, setPromptLibraryOpen] = useState<boolean>(false);
 
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
@@ -705,6 +795,20 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
     if (!b) return base;
     return [base, "---", "Brief du coach (à respecter):", b].join("\n");
   }
+
+
+  const applySocialPromptTemplate = useCallback((template: SocialPromptTemplate) => {
+    userTouchedIdeaRef.current = true;
+    userTouchedObjectiveRef.current = true;
+    userTouchedAngleRef.current = true;
+    setIdea(template.idea);
+    setNetwork(template.network);
+    setObjective(template.objective);
+    setAngle(template.angle);
+    setTone(template.tone);
+    setMaxChars(template.maxChars);
+    setPromptLibraryOpen(false);
+  }, []);
 
   async function runCopilot(task: CopilotTask) {
     setAiError(null);
@@ -1063,6 +1167,15 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
               {copilotOpen ? (
                 <div className="px-5 pb-5">
                   <div className="flex flex-wrap gap-2">
+
+                    <button
+                      type="button"
+                      onClick={() => setPromptLibraryOpen((v) => !v)}
+                      className="rounded-xl px-3 py-2 text-sm font-semibold border border-yellow-500/25 bg-yellow-500/10 text-yellow-200 hover:bg-yellow-500/15"
+                    >
+                      📚 Bibliothèque
+                    </button>
+
                     <button
                       onClick={() => runCopilot("hooks")}
                       disabled={aiLoading || copilotDisabled}
@@ -1115,6 +1228,41 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
                   </div>
 
                   <div className="mt-4 grid grid-cols-1 lg:grid-cols-12 gap-4">
+
+                {promptLibraryOpen ? (
+                  <div className="lg:col-span-12 rounded-3xl border border-yellow-500/20 bg-black/35 p-4">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                      <div>
+                        <div className="text-xs font-bold uppercase tracking-[0.18em] text-yellow-300">Bibliothèque IA Social LGD</div>
+                        <div className="mt-1 text-sm text-white/60">Choisis une situation : LGD préremplit le brief, l’objectif, l’angle, le réseau et le ton.</div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setPromptLibraryOpen(false)}
+                        className="rounded-xl border border-yellow-500/20 bg-black/30 px-3 py-2 text-xs font-semibold text-yellow-100 hover:bg-black/50"
+                      >
+                        Fermer
+                      </button>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                      {SOCIAL_PROMPT_LIBRARY.map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => applySocialPromptTemplate(item)}
+                          className="group rounded-2xl border border-yellow-500/15 bg-black/45 p-4 text-left transition hover:border-yellow-400/45 hover:bg-yellow-500/10"
+                        >
+                          <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-yellow-300">{item.category}</div>
+                          <div className="mt-2 text-base font-extrabold text-white group-hover:text-yellow-100">{item.title}</div>
+                          <div className="mt-2 text-sm leading-6 text-white/60">{item.description}</div>
+                          <div className="mt-4 inline-flex rounded-xl bg-[#ffb800] px-3 py-2 text-xs font-bold text-black">Utiliser ce prompt</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
                     <div className="lg:col-span-4">
                       <label className="block text-yellow-300 text-xs mb-2">Sujet / idée (optionnel)</label>
                       <input
