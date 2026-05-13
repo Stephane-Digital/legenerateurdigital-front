@@ -249,10 +249,10 @@ function planLabelFrom(plan?: string, limit?: number) {
 
   // Fallback seulement si aucun plan fiable n'est fourni.
   const n = Number(limit || 0);
-  if (n === 70_000) return "AZUR";
-  if (n === 2_500_000) return "Ultime";
-  if (n === 1_000_000) return "Pro";
-  if (n === 400_000) return "Essentiel";
+  if (n === 150_000) return "AZUR";
+  if (n === 15_000_000) return "Ultime";
+  if (n === 6_000_000) return "Pro";
+  if (n === 2_000_000) return "Essentiel";
 
   return "";
 }
@@ -360,20 +360,22 @@ export default function AlexV2Shell() {
 
   const planMonthlyLimit = useMemo(() => {
     const p = (planLabel || "").toLowerCase();
-    if (p.includes("azur")) return 70_000;
-    if (p.includes("ult")) return 2_500_000;
-    if (p.includes("pro")) return 1_000_000;
-    if (p.includes("ess")) return 400_000;
+    if (p.includes("azur")) return 150_000;
+    if (p.includes("ult")) return 15_000_000;
+    if (p.includes("pro")) return 6_000_000;
+    if (p.includes("ess")) return 2_000_000;
 
     const n = Number(limit || 0);
     if (n > 0) return n;
-    return 400_000;
+    return 2_000_000;
   }, [planLabel, limit]);
 
   const planDailySoft = useMemo(() => {
     const p = (planLabel || "").toLowerCase();
-    if (p.includes("azur")) return 10_000;
-    return Math.round(planMonthlyLimit / 30);
+    if (p.includes("azur")) return 20_000;
+    if (p.includes("ult") || planMonthlyLimit === 15_000_000) return 500_000;
+    if (p.includes("pro") || planMonthlyLimit === 6_000_000) return 250_000;
+    return 80_000;
   }, [planLabel, planMonthlyLimit]);
 
   const remainingValue = useMemo(() => {
