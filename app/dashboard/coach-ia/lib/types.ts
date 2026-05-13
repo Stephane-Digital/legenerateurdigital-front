@@ -53,10 +53,10 @@ export type CoachSession = {
 
 function planFromLimit(limit?: unknown): CoachUserPlan {
   const n = Number(limit ?? 0);
-  if (n === 70_000) return "azur";
-  if (n === 2_500_000) return "ultime";
-  if (n === 1_000_000) return "pro";
-  if (n === 400_000) return "essentiel";
+  if (n === 150_000) return "azur";
+  if (n === 15_000_000) return "ultime";
+  if (n === 6_000_000) return "pro";
+  if (n === 2_000_000) return "essentiel";
   return "essentiel";
 }
 
@@ -95,10 +95,19 @@ export function planLabel(plan: CoachUserPlan | undefined, limit?: number): stri
 
 export function planTokenLimit(plan: CoachUserPlan | undefined): number {
   const p = normalizeCoachUserPlan(plan);
-  if (p === "azur") return 70_000;
-  if (p === "ultime") return 2_500_000;
-  if (p === "pro") return 1_000_000;
-  return 400_000;
+  if (p === "azur") return 150_000;
+  if (p === "ultime") return 15_000_000;
+  if (p === "pro") return 6_000_000;
+  return 2_000_000;
+}
+
+export function dailyLimitFromPlan(plan?: CoachUserPlan | string, limit?: number): number {
+  const p = normalizeCoachUserPlan(plan, limit);
+  const n = clampTokens(limit || 0);
+  if (p === "azur" || n === 150_000) return 20_000;
+  if (p === "ultime" || n === 15_000_000) return 500_000;
+  if (p === "pro" || n === 6_000_000) return 250_000;
+  return 80_000;
 }
 
 export function normalizeMessage(m: any): CoachMessage {
@@ -165,7 +174,7 @@ export function normalizeQuota(q: any): CoachQuotaResponse {
     plan,
     display_plan: q.display_plan ?? (plan === "azur" ? "azur" : plan),
     plan_key: q.plan_key ?? plan,
-    daily_limit: clampTokens(q.daily_limit ?? (limit === 70_000 ? 10_000 : Math.round(limit / 30))),
+    daily_limit: clampTokens(q.daily_limit ?? dailyLimitFromPlan(plan, limit)),
     limit_tokens: limit,
     tokens_limit: limit,
     tokens_used: used,
