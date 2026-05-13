@@ -406,6 +406,119 @@ function ensureFontStylesheetLoaded(font?: string) {
   document.head.appendChild(style);
 }
 
+
+function estimateSocialTextHeight({
+  text,
+  width,
+  fontSize,
+  fontFamily,
+  lineHeight,
+}: {
+  text: string;
+  width: number;
+  fontSize: number;
+  fontFamily: string;
+  lineHeight: number;
+}) {
+  const safeText = String(text ?? "");
+  const safeWidth = Math.max(120, Math.round(width || 0));
+  const safeFontSize = Math.max(10, Number(fontSize || 24));
+  const safeLineHeight = Math.max(0.8, Number(lineHeight || 1.2));
+  const horizontalPadding = 24;
+  const innerWidth = Math.max(40, safeWidth - horizontalPadding);
+
+  const measureWithCanvas = () => {
+    if (typeof document === "undefined") return null;
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+
+    ctx.font = `${safeFontSize}px ${fontFamily || "Inter"}`;
+    const paragraphs = safeText.split("\n");
+    let lines = 0;
+
+    for (const paragraph of paragraphs) {
+      const words = String(paragraph || "").split(/\s+/).filter(Boolean);
+      if (!words.length) {
+        lines += 1;
+        continue;
+      }
+
+      let current = "";
+      for (const word of words) {
+        const candidate = current ? `${current} ${word}` : word;
+        const candidateWidth = ctx.measureText(candidate).width;
+        if (candidateWidth <= innerWidth || !current) {
+          current = candidate;
+          continue;
+        }
+        lines += 1;
+        current = word;
+      }
+      if (current) lines += 1;
+    }
+
+    return Math.max(1, lines);
+  };
+
+  const measuredLines = measureWithCanvas();
+  const approxLines = measuredLines ?? Math.max(1, Math.ceil((safeText.length * safeFontSize * 0.58) / innerWidth));
+  const verticalPadding = 24;
+  return Math.max(48, Math.ceil(approxLines * safeFontSize * safeLineHeight + verticalPadding));
+}
+
+type SocialCopilotBlock = {
+  role: "hook" | "body" | "cta";
+  text: string;
+};
+
+function stripSocialSectionLabel(line: string) {
+  return String(line || "")
+    .replace(/^\s*(hook|accroche|titre)\s*[:\-–]\s*/i, "")
+    .replace(/^\s*(body|corps|l[ée]gende|contenu)\s*[:\-–]\s*/i, "")
+    .replace(/^\s*(cta|appel à l'action|appel a l'action)\s*[:\-–]\s*/i, "")
+    .trim();
+}
+
+function parseSocialCopilotBlocks(value: string): SocialCopilotBlock[] {
+  const text = String(value || "").replace(/\r/g, "").trim();
+  if (!text) return [];
+
+  const hookMatch = text.match(/(?:^|\n)\s*(?:HOOK|ACCROCHE|TITRE)\s*[:\-–]\s*([\s\S]*?)(?=\n\s*(?:BODY|CORPS|L[ÉE]GENDE|CONTENU|CTA|APPEL À L'ACTION|APPEL A L'ACTION)\s*[:\-–]|$)/i);
+  const bodyMatch = text.match(/(?:^|\n)\s*(?:BODY|CORPS|L[ÉE]GENDE|CONTENU)\s*[:\-–]\s*([\s\S]*?)(?=\n\s*(?:CTA|APPEL À L'ACTION|APPEL A L'ACTION)\s*[:\-–]|$)/i);
+  const ctaMatch = text.match(/(?:^|\n)\s*(?:CTA|APPEL À L'ACTION|APPEL A L'ACTION)\s*[:\-–]\s*([\s\S]*?)$/i);
+
+  const blocks: SocialCopilotBlock[] = [];
+  const clean = (raw: string) =>
+    raw
+      .split("\n")
+      .map((line) => stripSocialSectionLabel(line))
+      .join("\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+
+  if (hookMatch?.[1]) blocks.push({ role: "hook", text: clean(hookMatch[1]) });
+  if (bodyMatch?.[1]) blocks.push({ role: "body", text: clean(bodyMatch[1]) });
+  if (ctaMatch?.[1]) blocks.push({ role: "cta", text: clean(ctaMatch[1]) });
+
+  if (blocks.length >= 2) return blocks.filter((block) => block.text.length > 0);
+
+  const paragraphs = text
+    .split(/\n{2,}/)
+    .map((part) => clean(part))
+    .filter(Boolean);
+
+  if (paragraphs.length >= 3) {
+    return [
+      { role: "hook", text: paragraphs[0] },
+      { role: "body", text: paragraphs.slice(1, -1).join("\n\n") },
+      { role: "cta", text: paragraphs[paragraphs.length - 1] },
+    ].filter((block) => block.text.length > 0) as SocialCopilotBlock[];
+  }
+
+  return [{ role: "body", text: clean(text) }];
+}
+
 export default function PostEditor({
   mobileToolsOpen,
   onCloseMobileTools,
@@ -564,6 +677,7 @@ export default function PostEditor({
   const [tone, setTone] = useState<string>("coach direct, clair, concret, orienté résultats");
   const [maxChars, setMaxChars] = useState<number>(0);
   const [promptLibraryOpen, setPromptLibraryOpen] = useState<boolean>(false);
+  const [lastCopilotTask, setLastCopilotTask] = useState<"hooks" | "caption" | "cta" | "hashtags" | "ab" | "rewrite" | null>(null);
 
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
@@ -667,6 +781,70 @@ export default function PostEditor({
     [draftLayers, targetLayerId, defaultTargetId, handleLayersChange, syncEditorSelection]
   );
 
+  const injectCopilotOutputToCanvas = useCallback(
+    (value: string) => {
+      const blocks = parseSocialCopilotBlocks(value);
+      if (!blocks.length) return;
+
+      const canvasW = 1080;
+      const canvasH = 1080;
+      const blockWidth = Math.round(canvasW * 0.78);
+      const x = Math.round((canvasW - blockWidth) / 2);
+      const top = Math.round(canvasH * 0.12);
+      const gap = 42;
+      const now = Date.now();
+      let y = top;
+      const prev = draftLayers ?? [];
+      const baseZ = prev.length + 10;
+
+      const built = blocks.map((block, index) => {
+        const isHook = block.role === "hook";
+        const isCta = block.role === "cta";
+        const fontSize = isHook ? 54 : isCta ? 34 : 28;
+        const fontFamily = isHook ? "Montserrat" : "Inter";
+        const lineHeight = isHook ? 1.04 : 1.22;
+        const height = estimateSocialTextHeight({
+          text: block.text,
+          width: blockWidth,
+          fontSize,
+          fontFamily,
+          lineHeight,
+        });
+
+        const layer = {
+          id: `copilot-social-${now}-${index}`,
+          type: "text",
+          text: block.text,
+          x,
+          y,
+          width: blockWidth,
+          height,
+          visible: true,
+          selected: index === 0,
+          zIndex: baseZ + index,
+          style: {
+            fontSize,
+            fontFamily,
+            color: isCta ? "#ffcf66" : "#ffffff",
+            fontWeight: isHook || isCta ? 800 : 500,
+            lineHeight,
+          },
+        } as any;
+
+        y += height + (isHook || isCta ? gap + 20 : gap);
+        return layer;
+      });
+
+      handleLayersChange([
+        ...prev.map((layer: any) => ({ ...layer, selected: false })),
+        ...built,
+      ] as any);
+      syncEditorSelection(String((built[0] as any)?.id || ""));
+    },
+    [draftLayers, handleLayersChange, syncEditorSelection]
+  );
+
+
   function normalizeWhitespace(value: string) {
     return String(value || "")
       .replace(/\r/g, "")
@@ -721,16 +899,16 @@ export default function PostEditor({
   function normalizeCopilotOutput(task: "hooks" | "caption" | "cta" | "hashtags" | "ab" | "rewrite", value: string) {
     if (task === "hashtags") return extractHashtagsOnly(value);
     if (task === "cta") return extractCtasOnly(value);
-    if (task === "caption") return extractShortCaptionOnly(value);
+    if (task === "caption") return String(value || "").replace(/\r/g, "").replace(/\n{3,}/g, "\n\n").trim();
     return normalizeWhitespace(String(value || ""));
   }
 
   function buildContext() {
     const base = [
-      "Tu es LGD Copilot : spécialiste du marketing digital, produits digitaux, formation, MRR (Master Resell Rights).",
-      "Tu écris pour fédérer sur les réseaux sociaux et convertir vers une offre MRR / formation.",
-      "Tu évites le blabla et les généralités : concret, actionnable, orienté résultats.",
-      "Tu utilises un français naturel, impactant, crédible, et tu restes dans la niche marketing digital.",
+      "Tu es LGD Copilot Social : copywriter senior spécialisé posts réseaux sociaux, produits digitaux, IA, MRR, affiliation et marketing digital.",
+      "Tu écris pour capter l'attention, créer de la confiance et donner envie d'agir sans jamais faire de promesse magique.",
+      "Tu évites le blabla, les phrases génériques et le ton motivationnel vide : chaque phrase doit servir le hook, la tension, la clarté ou le CTA.",
+      "Tu produis du contenu prêt à publier, naturel, premium, humain, orienté engagement et conversion douce.",
       `Réseau: ${network}. Objectif: ${objective}. Angle: ${angle}.`,
     ].join("\n");
     const b = (brief || "").trim();
@@ -773,9 +951,16 @@ export default function PostEditor({
       } else if (task === "caption") {
         prompt = [
           ctx,
-          "Génère UNE légende courte prête à poster pour Instagram.",
-          "Format STRICT : 2 à 4 lignes maximum, texte court, naturel, engageant.",
-          "Aucun hashtag. Aucun bloc CTA. Aucun titre. Aucune explication.",
+          "Génère UN post social premium prêt à injecter dans un canvas.",
+          "Structure obligatoire : HOOK, BODY, CTA.",
+          "HOOK : 1 à 3 phrases fortes, très lisibles, qui arrêtent le scroll.",
+          "BODY : 2 à 4 courts paragraphes qui clarifient l'idée, créent confiance et donnent envie d'agir.",
+          "CTA : 1 phrase finale claire, orientée commentaire, DM, sauvegarde ou action douce.",
+          "Ne mets aucun hashtag. Ne donne aucune explication. Ne fais pas de liste technique.",
+          "Format STRICT :",
+          "HOOK: <texte>",
+          "BODY: <texte>",
+          "CTA: <texte>",
           `Sujet: ${topic}`,
         ].join("\n");
       } else if (task === "cta") {
@@ -828,9 +1013,11 @@ export default function PostEditor({
 
         setAiHooks(lines.slice(0, 10));
         setAiOutput(out);
+        setLastCopilotTask(task);
       } else {
         setAiHooks([]);
         setAiOutput(normalizeCopilotOutput(task, out));
+        setLastCopilotTask(task);
       }
     } catch (e: any) {
       setAiError(e?.message || "Erreur IA");
@@ -1202,9 +1389,16 @@ export default function PostEditor({
                       <div className="text-yellow-200 font-semibold">Résultat IA</div>
                       <div className="flex items-center gap-2">
                         <button
+                          onClick={() => injectCopilotOutputToCanvas(aiOutput)}
+                          disabled={aiLoading || !aiOutput || lastCopilotTask === "hashtags"}
+                          className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
+                        >
+                          Injecter dans le canvas
+                        </button>
+                        <button
                           onClick={() => applyToLayer(aiOutput)}
                           disabled={aiLoading || !aiOutput || textLayers.length === 0}
-                          className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
+                          className="rounded-xl px-3 py-2 text-sm font-semibold text-yellow-100 border border-yellow-500/25 bg-black/40 hover:bg-black/55 disabled:opacity-60"
                         >
                           Appliquer au layer
                         </button>
