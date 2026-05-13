@@ -1410,6 +1410,28 @@ function cleanLeadBody(content: string) {
     .trim();
 }
 
+function formatLeadBenefitsForCanvas(content: string) {
+  const lines = cleanLeadBody(content)
+    .split(/\r?\n/)
+    .map((line) =>
+      cleanLeadLine(line)
+        .replace(/^[-•*]+\s*/g, "")
+        .replace(/^\d+[.)\-:]\s*/g, "")
+        .trim(),
+    )
+    .filter(Boolean);
+
+  if (lines.length === 0) return "";
+  if (lines.length === 1) return lines[0];
+
+  return lines
+    .map((line) => {
+      if (/^[A-ZÀ-Ÿ0-9 _'’/-]{3,42}:$/i.test(line)) return line;
+      return `• ${line}`;
+    })
+    .join("\n\n");
+}
+
 function looksLikeRawLeadPayloadText(value: string) {
   const text = String(value || "").trim();
   if (!text) return false;
@@ -2259,15 +2281,20 @@ OBJECTIF TECHNIQUE : ${goal}
 
     const normalizedSnapshot = normalizeLayersSnapshot(layers);
     const normalizedSectionTitle = normalizeLeadHeading(cleanTitle) || cleanTitle.toUpperCase();
-    const isHeroSection = normalizedSectionTitle === "HERO";
+    const isHeroSection = normalizedSectionTitle === "HERO" && aiLastGoal === "landing_complete";
     const isCtaSection = normalizedSectionTitle === "CTA FINAL";
-    const bodyFontSize = isHeroSection ? 42 : isCtaSection ? 24 : 21;
-    const bodyFontWeight = isHeroSection ? 900 : isCtaSection ? 800 : 500;
-    const bodyLineHeight = isHeroSection ? 1.05 : isCtaSection ? 1.22 : 1.36;
-    const titleHeight = 0;
-    const bodyHeight = estimateLeadTextHeight(cleanBody, isHeroSection ? 760 : 820, bodyFontSize, bodyLineHeight);
-    const gapAfterTitle = 0;
-    const gapAfterBlock = isHeroSection ? 96 : 84;
+    const isBenefitsInjection = aiLastGoal === "benefits" || normalizedSectionTitle === "BENEFICES";
+    const canvasBody = isBenefitsInjection
+      ? formatLeadBenefitsForCanvas(cleanBody)
+      : cleanBody;
+    const bodyFontSize = isHeroSection ? 42 : isBenefitsInjection ? 18 : isCtaSection ? 24 : 21;
+    const bodyFontWeight = isHeroSection ? 900 : isBenefitsInjection ? 600 : isCtaSection ? 800 : 500;
+    const bodyLineHeight = isHeroSection ? 1.05 : isBenefitsInjection ? 1.42 : isCtaSection ? 1.22 : 1.36;
+    const titleHeight = isBenefitsInjection ? 42 : 0;
+    const bodyWidth = isHeroSection ? 760 : isBenefitsInjection ? 780 : 820;
+    const bodyHeight = estimateLeadTextHeight(canvasBody, bodyWidth, bodyFontSize, bodyLineHeight);
+    const gapAfterTitle = isBenefitsInjection ? 16 : 0;
+    const gapAfterBlock = isHeroSection ? 96 : isBenefitsInjection ? 72 : 84;
     const insertionHeight = Math.max(
       isHeroSection ? 360 : 240,
       titleHeight + gapAfterTitle + bodyHeight + gapAfterBlock,
@@ -2303,18 +2330,18 @@ OBJECTIF TECHNIQUE : ${goal}
         type: "text",
         x: 84,
         y: insertionY,
-        width: 0,
-        height: 0,
-        visible: false,
+        width: isBenefitsInjection ? 780 : 0,
+        height: titleHeight,
+        visible: isBenefitsInjection,
         selected: false,
         zIndex: 2000 + index * 2,
-        text: "",
+        text: isBenefitsInjection ? "Bénéfices clés" : "",
         style: {
-          fontSize: 0,
+          fontSize: isBenefitsInjection ? 24 : 0,
           fontFamily: "Inter",
           color: "#ffb800",
-          fontWeight: 800,
-          lineHeight: 1,
+          fontWeight: 900,
+          lineHeight: 1.16,
         },
       } as LayerData,
       {
@@ -2322,12 +2349,12 @@ OBJECTIF TECHNIQUE : ${goal}
         type: "text",
         x: 84,
         y: insertionY + titleHeight + gapAfterTitle,
-        width: isHeroSection ? 760 : 820,
+        width: bodyWidth,
         height: bodyHeight,
         visible: true,
         selected: false,
         zIndex: 2001 + index * 2,
-        text: cleanBody,
+        text: canvasBody,
         style: {
           fontSize: bodyFontSize,
           fontFamily: "Inter",
