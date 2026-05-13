@@ -12,10 +12,10 @@ function formatInt(n: number) {
 
 function planFromLimit(limit?: number): string {
   const safeLimit = Number(limit || 0);
-  if (safeLimit === 70_000) return "AZUR";
-  if (safeLimit === 2_500_000) return "ULTIME";
-  if (safeLimit === 1_000_000) return "PRO";
-  if (safeLimit === 400_000) return "ESSENTIEL";
+  if (safeLimit === 150_000) return "AZUR";
+  if (safeLimit === 15_000_000) return "ULTIME";
+  if (safeLimit === 6_000_000) return "PRO";
+  if (safeLimit === 2_000_000) return "ESSENTIEL";
   return "ESSENTIEL";
 }
 
@@ -42,6 +42,14 @@ function plansUrl() {
   return process.env.NEXT_PUBLIC_SYSTEME_PLANS_URL || "https://legenerateurdigital.systeme.io/plans";
 }
 
+function dailyLimitForDisplayPlan(plan: string, limit: number): number {
+  const p = String(plan || "").toUpperCase();
+  if (p === "AZUR" || Number(limit || 0) === 150_000) return 20_000;
+  if (p === "ULTIME" || Number(limit || 0) === 15_000_000) return 500_000;
+  if (p === "PRO" || Number(limit || 0) === 6_000_000) return 250_000;
+  return 80_000;
+}
+
 export default function QuotaMeter(props: {
   used: number;
   limit: number;
@@ -61,11 +69,7 @@ export default function QuotaMeter(props: {
   const resolvedDaily =
     Number.isFinite(dailyLimit as number) && Number(dailyLimit || 0) > 0
       ? Number(dailyLimit)
-      : displayPlan === "AZUR"
-        ? 10_000
-        : totalMonthly > 0
-          ? Math.round(totalMonthly / 30)
-          : 0;
+      : totalMonthly > 0 ? dailyLimitForDisplayPlan(displayPlan, totalMonthly) : 0;
 
   const ratio = safeLimit > 0 ? Math.min(100, Math.max(0, (safeUsed / safeLimit) * 100)) : 0;
 
