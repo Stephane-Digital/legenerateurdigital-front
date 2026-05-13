@@ -2223,12 +2223,18 @@ OBJECTIF TECHNIQUE : ${goal}
     if (!cleanBody) return;
 
     const normalizedSnapshot = normalizeLayersSnapshot(layers);
-    const titleHeight = estimateLeadTextHeight(cleanTitle, 760, 30, 1.1);
-    const bodyHeight = estimateLeadTextHeight(cleanBody, 820, 22, 1.32);
-    const gapAfterTitle = 24;
-    const gapAfterBlock = 88;
+    const normalizedSectionTitle = normalizeLeadHeading(cleanTitle) || cleanTitle.toUpperCase();
+    const isHeroSection = normalizedSectionTitle === "HERO";
+    const isCtaSection = normalizedSectionTitle === "CTA FINAL";
+    const bodyFontSize = isHeroSection ? 42 : isCtaSection ? 24 : 21;
+    const bodyFontWeight = isHeroSection ? 900 : isCtaSection ? 800 : 500;
+    const bodyLineHeight = isHeroSection ? 1.05 : isCtaSection ? 1.22 : 1.36;
+    const titleHeight = 0;
+    const bodyHeight = estimateLeadTextHeight(cleanBody, isHeroSection ? 760 : 820, bodyFontSize, bodyLineHeight);
+    const gapAfterTitle = 0;
+    const gapAfterBlock = isHeroSection ? 96 : 84;
     const insertionHeight = Math.max(
-      280,
+      isHeroSection ? 360 : 240,
       titleHeight + gapAfterTitle + bodyHeight + gapAfterBlock,
     );
 
@@ -2262,18 +2268,18 @@ OBJECTIF TECHNIQUE : ${goal}
         type: "text",
         x: 84,
         y: insertionY,
-        width: 760,
-        height: titleHeight,
-        visible: true,
+        width: 0,
+        height: 0,
+        visible: false,
         selected: false,
         zIndex: 2000 + index * 2,
-        text: cleanTitle,
+        text: "",
         style: {
-          fontSize: 30,
+          fontSize: 0,
           fontFamily: "Inter",
           color: "#ffb800",
           fontWeight: 800,
-          lineHeight: 1.1,
+          lineHeight: 1,
         },
       } as LayerData,
       {
@@ -2281,18 +2287,18 @@ OBJECTIF TECHNIQUE : ${goal}
         type: "text",
         x: 84,
         y: insertionY + titleHeight + gapAfterTitle,
-        width: 820,
+        width: isHeroSection ? 760 : 820,
         height: bodyHeight,
         visible: true,
         selected: false,
         zIndex: 2001 + index * 2,
         text: cleanBody,
         style: {
-          fontSize: 22,
+          fontSize: bodyFontSize,
           fontFamily: "Inter",
-          color: "#ffffff",
-          fontWeight: 500,
-          lineHeight: 1.38,
+          color: isCtaSection ? "#ffb800" : "#ffffff",
+          fontWeight: bodyFontWeight,
+          lineHeight: bodyLineHeight,
         },
       } as LayerData,
     ];
