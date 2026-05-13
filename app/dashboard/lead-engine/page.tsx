@@ -1392,6 +1392,63 @@ function cleanLeadBody(content: string) {
     .trim();
 }
 
+function looksLikeRawLeadPayloadText(value: string) {
+  const text = String(value || "").trim();
+  if (!text) return false;
+
+  const lowered = text.toLowerCase();
+  const jsonLikeLines = text
+    .split(/\r?\n/)
+    .filter((line) => /^\s*"?[a-zA-Z0-9_ -]{2,60}"?\s*:/.test(line))
+    .length;
+
+  return (
+    /\[\s*LGD_BLOCK\s*:/i.test(text) ||
+    jsonLikeLines >= 3 ||
+    lowered.includes('"sections"') ||
+    lowered.includes('"blocks"') ||
+    lowered.includes('"landing_blocks"') ||
+    lowered.includes('"landingblocks"') ||
+    lowered.includes('"content"') ||
+    lowered.includes('"body"') ||
+    lowered.includes('"text"')
+  );
+}
+
+function sanitizeLeadPayloadForCanvasText(value: string) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+
+  if (!looksLikeRawLeadPayloadText(text)) return text;
+
+  const sections = parseLeadSections(text);
+  const fromSections = sections
+    .map((section) => cleanLeadBody(section.body))
+    .filter(Boolean)
+    .join("\n\n")
+    .trim();
+
+  if (fromSections) return fromSections;
+
+  const normalized = normalizeLeadAiRawContent(text);
+  const cleaned = cleanLeadBody(normalized);
+  return cleaned || text;
+}
+
+function sanitizeLeadEditorLayers(nextLayers: LayerData[]) {
+  return normalizeLayersSnapshot(nextLayers).map((layer: any) => {
+    if (layer?.type !== "text" || typeof layer?.text !== "string") return layer;
+
+    const cleanedText = sanitizeLeadPayloadForCanvasText(layer.text);
+    if (!cleanedText || cleanedText === layer.text) return layer;
+
+    return {
+      ...layer,
+      text: cleanedText,
+    };
+  }) as LayerData[];
+}
+
 function estimateLeadTextHeight(
   text: string,
   width: number,
@@ -2363,7 +2420,7 @@ OBJECTIF TECHNIQUE : ${goal}
   }
 
   function handleLayersChange(nextLayers: LayerData[]) {
-    const snapshot = normalizeLayersSnapshot(nextLayers);
+    const snapshot = sanitizeLeadEditorLayers(nextLayers);
     if (snapshot.length === 0) return;
 
     setLayers(snapshot);
