@@ -1679,6 +1679,7 @@ export default function PostEditor({
                   ✨ Performeur Réseaux™
                 </button>
 
+
                 <button
                   onClick={() => runCopilot("hooks")}
                   disabled={aiLoading || copilotDisabled}
@@ -1917,21 +1918,17 @@ export default function PostEditor({
 
                 <div className="lg:col-span-8">
                   <div className="rounded-3xl p-4 bg-black/30 border border-yellow-500/15">
-                    <div className="mb-4 flex justify-center">
-                      <button
-                        type="button"
-                        onClick={() => runCopilot("caption")}
-                        disabled={aiLoading || copilotDisabled}
-                        className="rounded-2xl px-6 py-3 text-sm font-extrabold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60 shadow-[0_0_22px_rgba(255,184,0,0.20)]"
-                        title="Génère un contenu complet avec le scénario Performeur Réseaux™, le réseau, l’objectif, l’angle et le ton sélectionnés."
-                      >
-                        ✨ Générer Performeur
-                      </button>
-                    </div>
-
                     <div className="flex items-center justify-between gap-3">
                       <div className="text-yellow-200 font-semibold">Résultat IA</div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        <button
+                          onClick={() => runCopilot("caption")}
+                          disabled={aiLoading || copilotDisabled}
+                          className="rounded-xl px-4 py-2 text-sm font-extrabold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60 shadow-[0_0_18px_rgba(255,184,0,0.16)]"
+                          title="Génère un contenu complet avec le scénario Performeur Réseaux™, le réseau, l’objectif, l’angle et le ton sélectionnés."
+                        >
+                          ✨ Générer Performeur
+                        </button>
                         <button
                           onClick={() => injectCopilotOutputToCanvas(aiOutput)}
                           disabled={aiLoading || !aiOutput || lastCopilotTask === "hashtags"}
