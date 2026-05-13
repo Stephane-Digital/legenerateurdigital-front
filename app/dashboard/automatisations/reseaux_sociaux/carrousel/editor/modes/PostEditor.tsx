@@ -1680,6 +1680,15 @@ export default function PostEditor({
                 </button>
 
                 <button
+                  onClick={() => runCopilot("caption")}
+                  disabled={aiLoading || copilotDisabled}
+                  className="rounded-xl px-4 py-2 text-sm font-extrabold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60 shadow-[0_0_18px_rgba(255,184,0,0.16)]"
+                  title="Génère un contenu complet avec le scénario Performeur Réseaux™, le réseau, l’objectif, l’angle et le ton sélectionnés."
+                >
+                  ✨ Générer Performeur
+                </button>
+
+                <button
                   onClick={() => runCopilot("hooks")}
                   disabled={aiLoading || copilotDisabled}
                   className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
