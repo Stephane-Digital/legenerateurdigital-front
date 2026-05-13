@@ -817,6 +817,9 @@ const LEAD_SECTION_ORDER = [
   "HOOK ANTI-SCROLL",
   "HERO",
   "DOULEUR / IDENTIFICATION",
+  "AGITATION",
+  "MICRO TRANSFORMATION",
+  "CE QUE TU RECOIS",
   "BENEFICES",
   "MECANISME",
   "PREUVE / RASSURANCE",
@@ -836,7 +839,13 @@ const LEAD_SECTION_ALIASES: Record<string, string> = {
   DOULEUR: "DOULEUR / IDENTIFICATION",
   "DOULEUR IDENTIFICATION": "DOULEUR / IDENTIFICATION",
   "DOULEUR / IDENTIFICATION": "DOULEUR / IDENTIFICATION",
-  "CE QUE TU VAS RECEVOIR": "BENEFICES",
+  AGITATION: "AGITATION",
+  "MICRO TRANSFORMATION": "MICRO TRANSFORMATION",
+  MICRO_TRANSFORMATION: "MICRO TRANSFORMATION",
+  "CE QUE TU RECOIS": "CE QUE TU RECOIS",
+  "CE QUE TU REÇOIS": "CE QUE TU RECOIS",
+  CE_QUE_TU_RECOIS: "CE QUE TU RECOIS",
+  "CE QUE TU VAS RECEVOIR": "CE QUE TU RECOIS",
   "CE QUE VOUS ALLEZ RECEVOIR": "BENEFICES",
   BENEFICE: "BENEFICES",
   BENEFICES: "BENEFICES",
@@ -931,6 +940,16 @@ function normalizeLeadHeading(value: string) {
   if (normalized.includes("HERO")) return "HERO";
   if (normalized.includes("IDENTIFICATION") || normalized.includes("DOULEUR"))
     return "DOULEUR / IDENTIFICATION";
+  if (normalized.includes("AGITATION")) return "AGITATION";
+  if (normalized.includes("MICRO TRANSFORMATION") || normalized.includes("MICRO_TRANSFORMATION"))
+    return "MICRO TRANSFORMATION";
+  if (
+    normalized.includes("CE QUE TU RECOIS") ||
+    normalized.includes("CE_QUE_TU_RECOIS") ||
+    normalized.includes("CE QUE VOUS RECEVEZ") ||
+    normalized.includes("CE QUE VOUS ALLEZ RECEVOIR")
+  )
+    return "CE QUE TU RECOIS";
   if (
     normalized.includes("RECEVOIR") ||
     normalized.includes("BENEFICE") ||
@@ -1476,11 +1495,15 @@ function buildStructuredLandingLayers(
   if (sections.length === 0) return null;
 
   const byTitle = new Map(
-    sections.map((section) => [section.title, section.body]),
+    sections.map((section) => [section.title, cleanLeadBody(section.body)]),
   );
+
   const hook = byTitle.get("HOOK ANTI-SCROLL") || "";
   const hero = byTitle.get("HERO") || sections[0]?.body || "";
   const identification = byTitle.get("DOULEUR / IDENTIFICATION") || "";
+  const agitation = byTitle.get("AGITATION") || "";
+  const microTransformation = byTitle.get("MICRO TRANSFORMATION") || "";
+  const received = byTitle.get("CE QUE TU RECOIS") || "";
   const benefits = byTitle.get("BENEFICES") || "";
   const mechanism = byTitle.get("MECANISME") || "";
   const proof = byTitle.get("PREUVE / RASSURANCE") || "";
@@ -1489,273 +1512,229 @@ function buildStructuredLandingLayers(
   const faq = byTitle.get("FAQ COURTE") || "";
   const priority = byTitle.get("A UTILISER EN PRIORITE") || "";
 
+  const heroClean = cleanLeadBody(hero || hook);
+  const heroLines = heroClean
+    .split(/\r?\n/)
+    .map(cleanLeadLine)
+    .filter(Boolean);
+
   const title =
-    extractLeadValue(hero, ["TITRE", "TITLE"]) ||
-    shortLines(hero, 1) ||
-    shortLines(hook, 1) ||
-    "Transforme ton audience en prospects qualifiés";
+    extractLeadValue(heroClean, ["TITRE", "TITLE"]) ||
+    heroLines[0] ||
+    "Transformez vos idées en actions marketing concrètes";
+
   const subtitle =
-    extractLeadValue(hero, ["SOUS-TITRE", "SOUS TITRE", "SUBTITLE"]) ||
-    shortLines(hero, 3) ||
+    extractLeadValue(heroClean, ["SOUS-TITRE", "SOUS TITRE", "SUBTITLE"]) ||
+    heroLines.slice(1, 4).join("\n") ||
     shortLines(identification, 2) ||
-    "Une landing claire, premium et orientée conversion.";
+    "Un chemin clair pour passer des réponses IA à une vraie exécution marketing.";
+
   const cta =
-    extractLeadValue(hero, ["CTA PRINCIPAL", "CTA"]) ||
+    extractLeadValue(heroClean, ["CTA PRINCIPAL", "CTA"]) ||
     shortLines(ctaFinal, 1) ||
     shortLines(priority, 1) ||
-    "Recevoir l’accès maintenant";
+    "Recevoir le guide gratuit";
 
-  const compactIdentification = shortLines(identification || hook, 4);
-  const compactBenefits = shortLines(benefits, 5);
-  const compactMechanism = shortLines(mechanism, 5);
-  const compactProof = shortLines(proof, 4);
-  const compactObjections = shortLines(objections, 5);
-  const compactFaq = shortLines(faq, 6);
+  const stamp = Date.now();
+  const nextLayers: LayerData[] = [];
+  let cursorY = 80;
+  let zIndex = 10;
 
-  const blockStyle = {
-    fontFamily: "Inter",
-    color: "#ffffff",
+  const pushText = ({
+    id,
+    text,
+    x = 84,
+    width = 790,
+    fontSize,
+    fontWeight,
+    color = "#ffffff",
+    lineHeight = 1.28,
+    backgroundColor,
+    minHeight,
+    gap = 0,
+  }: {
+    id: string;
+    text: string;
+    x?: number;
+    width?: number;
+    fontSize: number;
+    fontWeight: number;
+    color?: string;
+    lineHeight?: number;
+    backgroundColor?: string;
+    minHeight?: number;
+    gap?: number;
+  }) => {
+    const cleanText = cleanLeadBody(text);
+    if (!cleanText) return;
+
+    const estimatedHeight = Math.max(
+      minHeight || 24,
+      estimateLeadTextHeight(cleanText, width, fontSize, lineHeight),
+    );
+
+    nextLayers.push({
+      id: `${id}-${stamp}-${zIndex}`,
+      type: "text",
+      x,
+      y: cursorY,
+      width,
+      height: estimatedHeight,
+      visible: true,
+      selected: false,
+      zIndex,
+      text: cleanText,
+      style: {
+        fontSize,
+        fontFamily: "Inter",
+        color,
+        fontWeight,
+        lineHeight,
+        ...(backgroundColor ? { backgroundColor } : {}),
+      },
+    } as LayerData);
+
+    zIndex += 1;
+    cursorY += estimatedHeight + gap;
+  };
+
+  const pushSection = (label: string, body: string, options?: { accent?: boolean }) => {
+    const cleanBody = cleanLeadBody(body);
+    if (!cleanBody) return;
+
+    cursorY += 32;
+    pushText({
+      id: `lead-ai-section-label-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+      text: label,
+      fontSize: 24,
+      fontWeight: 900,
+      color: "#ffb800",
+      lineHeight: 1.12,
+      minHeight: 36,
+      gap: 12,
+    });
+
+    pushText({
+      id: `lead-ai-section-body-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+      text: cleanBody,
+      fontSize: options?.accent ? 22 : 20,
+      fontWeight: options?.accent ? 700 : 500,
+      color: options?.accent ? "#ffb800" : "#ffffff",
+      lineHeight: options?.accent ? 1.22 : 1.34,
+      minHeight: 80,
+      gap: 18,
+    });
+  };
+
+  pushText({
+    id: "lead-ai-hero-title",
+    x: 80,
+    width: 790,
+    text: title,
+    fontSize: 42,
+    fontWeight: 900,
+    lineHeight: 1.06,
+    minHeight: 120,
+    gap: 28,
+  });
+
+  pushText({
+    id: "lead-ai-hero-subtitle",
+    x: 84,
+    width: 760,
+    text: subtitle,
+    fontSize: 22,
     fontWeight: 500,
-    lineHeight: 1.32,
-  };
+    color: "#e4e4e7",
+    lineHeight: 1.35,
+    minHeight: 90,
+    gap: 34,
+  });
 
-  const labelStyle = {
-    fontFamily: "Inter",
-    color: "#ffb800",
-    fontWeight: 800,
-    lineHeight: 1.1,
-  };
+  pushText({
+    id: "lead-ai-hero-cta",
+    x: 84,
+    width: 500,
+    text: cta,
+    fontSize: 22,
+    fontWeight: 900,
+    color: "#111111",
+    lineHeight: 1.18,
+    backgroundColor: "#ffb800",
+    minHeight: 72,
+    gap: 52,
+  });
 
-  const nextLayers: LayerData[] = [
-    {
-      id: `lead-ai-hero-title-${Date.now()}`,
-      type: "text",
-      x: 80,
-      y: 80,
-      width: 760,
-      height: 170,
-      visible: true,
-      selected: false,
-      zIndex: 10,
-      text: title,
-      style: {
-        fontSize: 52,
-        fontFamily: "Inter",
-        color: "#ffffff",
-        fontWeight: 900,
-        lineHeight: 1.05,
-      },
-    } as LayerData,
-    {
-      id: `lead-ai-hero-subtitle-${Date.now()}`,
-      type: "text",
-      x: 84,
-      y: 280,
-      width: 720,
-      height: 120,
-      visible: true,
-      selected: false,
-      zIndex: 11,
-      text: subtitle,
-      style: {
-        fontSize: 23,
-        fontFamily: "Inter",
-        color: "#e4e4e7",
-        fontWeight: 500,
-        lineHeight: 1.35,
-      },
-    } as LayerData,
-    {
-      id: `lead-ai-hero-cta-${Date.now()}`,
-      type: "text",
-      x: 84,
-      y: 430,
-      width: 380,
-      height: 74,
-      visible: true,
-      selected: false,
-      zIndex: 12,
-      text: cta,
-      style: {
-        fontSize: 22,
-        fontFamily: "Inter",
-        color: "#111111",
-        fontWeight: 900,
-        lineHeight: 1.2,
-        backgroundColor: "#ffb800",
-      },
-    } as LayerData,
-    {
-      id: `lead-ai-section-identification-title-${Date.now()}`,
-      type: "text",
-      x: 84,
-      y: 590,
-      width: 520,
-      height: 48,
-      visible: true,
-      selected: false,
-      zIndex: 13,
-      text: "Pourquoi tu bloques",
-      style: { ...labelStyle, fontSize: 30 },
-    } as LayerData,
-    {
-      id: `lead-ai-section-identification-body-${Date.now()}`,
-      type: "text",
-      x: 84,
-      y: 656,
-      width: 790,
-      height: 170,
-      visible: true,
-      selected: false,
-      zIndex: 14,
-      text:
-        compactIdentification ||
-        "Tu as déjà essayé plusieurs méthodes, mais aucune ne t’a donné une page claire pour capturer des emails.",
-      style: { ...blockStyle, fontSize: 21 },
-    } as LayerData,
-    {
-      id: `lead-ai-section-benefits-title-${Date.now()}`,
-      type: "text",
-      x: 84,
-      y: 890,
-      width: 360,
-      height: 48,
-      visible: true,
-      selected: false,
-      zIndex: 13,
-      text: "Bénéfices clés",
-      style: { ...labelStyle, fontSize: 32 },
-    } as LayerData,
-    {
-      id: `lead-ai-section-benefits-body-${Date.now()}`,
-      type: "text",
-      x: 84,
-      y: 960,
-      width: 790,
-      height: 220,
-      visible: true,
-      selected: false,
-      zIndex: 14,
-      text:
-        compactBenefits ||
-        "• Clarifie ta promesse.\n• Transforme l’attention en action.\n• Donne envie de s’inscrire maintenant.",
-      style: { ...blockStyle, fontSize: 22 },
-    } as LayerData,
-    {
-      id: `lead-ai-section-mechanism-title-${Date.now()}`,
-      type: "text",
-      x: 84,
-      y: 1260,
-      width: 420,
-      height: 48,
-      visible: true,
-      selected: false,
-      zIndex: 15,
-      text: "Comment ça marche",
-      style: { ...labelStyle, fontSize: 30 },
-    } as LayerData,
-    {
-      id: `lead-ai-section-mechanism-body-${Date.now()}`,
-      type: "text",
-      x: 84,
-      y: 1328,
-      width: 790,
-      height: 180,
-      visible: true,
-      selected: false,
-      zIndex: 16,
-      text:
-        compactMechanism ||
-        "Une méthode simple pour passer de l’idée à une page visible, claire et prête à convertir.",
-      style: { ...blockStyle, fontSize: 21 },
-    } as LayerData,
-    {
-      id: `lead-ai-section-proof-title-${Date.now()}`,
-      type: "text",
-      x: 84,
-      y: 1840,
-      width: 450,
-      height: 48,
-      visible: true,
-      selected: false,
-      zIndex: 17,
-      text: "Preuve / réassurance",
-      style: { ...labelStyle, fontSize: 30 },
-    } as LayerData,
-    {
-      id: `lead-ai-section-proof-body-${Date.now()}`,
-      type: "text",
-      x: 84,
-      y: 1908,
-      width: 790,
-      height: 150,
-      visible: true,
-      selected: false,
-      zIndex: 18,
-      text:
-        compactProof ||
-        "LGD t’aide à créer une page exploitable sans repartir de zéro ni dépendre d’un autre template.",
-      style: { ...blockStyle, fontSize: 21 },
-    } as LayerData,
-    {
-      id: `lead-ai-section-objections-title-${Date.now()}`,
-      type: "text",
-      x: 84,
-      y: 1560,
-      width: 380,
-      height: 48,
-      visible: true,
-      selected: false,
-      zIndex: 19,
-      text: "Objections traitées",
-      style: { ...labelStyle, fontSize: 30 },
-    } as LayerData,
-    {
-      id: `lead-ai-section-objections-body-${Date.now()}`,
-      type: "text",
-      x: 84,
-      y: 1628,
-      width: 790,
-      height: 210,
-      visible: true,
-      selected: false,
-      zIndex: 20,
-      text:
-        compactObjections ||
-        "• Je ne sais pas par où commencer.\n• Je n’ai pas le temps.\n• Je veux éviter une page amateur.",
-      style: { ...blockStyle, fontSize: 20 },
-    } as LayerData,
-    {
-      id: `lead-ai-section-faq-title-${Date.now()}`,
-      type: "text",
-      x: 84,
-      y: 2180,
-      width: 260,
-      height: 48,
-      visible: true,
-      selected: false,
-      zIndex: 21,
-      text: "FAQ",
-      style: { ...labelStyle, fontSize: 30 },
-    } as LayerData,
-    {
-      id: `lead-ai-section-faq-body-${Date.now()}`,
-      type: "text",
-      x: 84,
-      y: 2248,
-      width: 790,
-      height: 260,
-      visible: true,
-      selected: false,
-      zIndex: 22,
-      text:
-        compactFaq ||
-        `Q: À quoi sert LGD ?\nR: À transformer tes idées en contenus, pages et actions concrètes.\n\nQ: Est-ce adapté aux débutants ?\nR: Oui, la structure guide chaque étape.`,
-      style: { ...blockStyle, fontSize: 19 },
-    } as LayerData,
-  ];
+  pushSection(
+    "Pourquoi c’est important",
+    identification || hook || "Vous avez des idées, mais il manque encore un chemin clair pour les transformer en action.",
+  );
 
-  return { layers: nextLayers, canvasHeight: 2650 };
+  pushSection(
+    "Ce que ça coûte de rester bloqué",
+    agitation,
+  );
+
+  pushSection(
+    "La transformation promise",
+    microTransformation || benefits,
+  );
+
+  pushSection(
+    "Ce que vous recevez",
+    received || benefits,
+  );
+
+  pushSection(
+    "Comment ça marche",
+    mechanism || "LGD aide à passer de l’idée à une page, puis à une action marketing claire.",
+  );
+
+  pushSection(
+    "Pourquoi c’est crédible",
+    proof,
+  );
+
+  pushSection(
+    "Objections levées",
+    objections,
+  );
+
+  pushSection(
+    "Questions fréquentes",
+    faq,
+  );
+
+  if (ctaFinal) {
+    cursorY += 34;
+    pushText({
+      id: "lead-ai-final-cta",
+      text: ctaFinal,
+      fontSize: 24,
+      fontWeight: 900,
+      color: "#ffb800",
+      lineHeight: 1.22,
+      minHeight: 96,
+      gap: 40,
+    });
+  }
+
+  const safeCtaUrl = normalizeExportUrl(ctaUrl);
+  if (safeCtaUrl && !nextLayers.some((layer: any) => String(layer.text || "").includes(safeCtaUrl))) {
+    pushText({
+      id: "lead-ai-final-url",
+      text: safeCtaUrl,
+      fontSize: 18,
+      fontWeight: 800,
+      color: "#ffb800",
+      lineHeight: 1.2,
+      minHeight: 36,
+      gap: 20,
+    });
+  }
+
+  const canvasHeight = Math.max(1800, Math.ceil(cursorY + 180));
+  return { layers: nextLayers, canvasHeight };
 }
 
 function parseLinearGradient(input: string | undefined | null) {
