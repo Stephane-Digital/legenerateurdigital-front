@@ -81,11 +81,10 @@ function toInt(n: any): number {
 
 function planDefaultDailyLimit(plan: Plan): number {
   // Rappel LGD : limites mensuelles stockées côté backend.
-  // Le quota journalier affiché dans Coach = limite mensuelle / 30.
-  if (plan === "azur") return 70_000;
-  if (plan === "pro") return 1_000_000;
-  if (plan === "ultime") return 2_500_000;
-  return 400_000; // essentiel
+  if (plan === "azur") return 150_000;
+  if (plan === "pro") return 6_000_000;
+  if (plan === "ultime") return 15_000_000;
+  return 2_000_000; // essentiel
 }
 
 function fmtInt(n: number): string {
@@ -99,9 +98,9 @@ function coalesce(...vals: any[]): any {
 }
 
 function inferPlanFromLimit(limit: number): Plan {
-  if (limit === 70_000) return "azur";
-  if (limit === 1_000_000) return "pro";
-  if (limit === 2_500_000) return "ultime";
+  if (limit === 150_000) return "azur";
+  if (limit === 6_000_000) return "pro";
+  if (limit === 15_000_000) return "ultime";
   return "essentiel";
 }
 
@@ -111,7 +110,7 @@ function normalizePlanValue(rawPlan: any, limit: number): Plan {
   if (planRaw === "pro") return "pro";
   if (planRaw === "ultime") return "ultime";
   if (planRaw === "essentiel") {
-    return limit === 70_000 ? "azur" : "essentiel";
+    return limit === 150_000 ? "azur" : "essentiel";
   }
   return inferPlanFromLimit(limit);
 }
@@ -405,7 +404,7 @@ export default function AdminIAQuotasShell() {
 
   // Quick tests panel state
   const [quickUserId, setQuickUserId] = useState<string>("");
-  const [quickLimit, setQuickLimit] = useState<string>("2500000");
+  const [quickLimit, setQuickLimit] = useState<string>("15000000");
   const [quickFeature, setQuickFeature] = useState<Feature>("global");
   const quickUserIdInt = useMemo(() => Number(quickUserId), [quickUserId]);
 
@@ -690,7 +689,7 @@ export default function AdminIAQuotasShell() {
             </div>
 
             <div className="mt-3 text-xs text-zinc-600">
-              Rappel limites / mois : Essentiel 400 000 • Pro 1 000 000 • Ultime 2 500 000. Le quota jour réel = limite mensuelle / 30.
+              Rappel limites / mois : Essentiel 2 000 000 • Pro 6 000 000 • Ultime 15 000 000. Limites / jour : Essentiel 80 000 • Pro 250 000 • Ultime 500 000.
             </div>
           </div>
         </div>
@@ -702,14 +701,14 @@ export default function AdminIAQuotasShell() {
 
 // === LGD FINAL DISPLAY FIX (SAFE / NO DUPLICATES) ===
 const LGD_PLAN_LIMITS: Record<string, number> = {
-  essentiel: 400_000,
-  pro: 1_000_000,
-  ultime: 2_500_000,
+  essentiel: 2_000_000,
+  pro: 6_000_000,
+  ultime: 15_000_000,
 };
 
 function lgdLimitJour(plan?: string, manualLimit?: number) {
   if (manualLimit && manualLimit > 0) return manualLimit;
   if (plan && LGD_PLAN_LIMITS[plan]) return LGD_PLAN_LIMITS[plan];
-  return 400_000;
+  return 2_000_000;
 }
 // === END LGD FINAL DISPLAY FIX ===
