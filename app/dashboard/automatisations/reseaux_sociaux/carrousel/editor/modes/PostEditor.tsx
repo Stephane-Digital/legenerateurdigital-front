@@ -1130,7 +1130,7 @@ export default function PostEditor({
   const [network, setNetwork] = useState<Network>("Instagram");
   const [objective, setObjective] = useState<Objective>("Convertir");
   const [angle, setAngle] = useState<Angle>("MRR débutant");
-  const [tone, setTone] = useState<string>("coach direct, clair, concret, orienté résultats");
+    const [tone, setTone] = useState<string>("coach direct, clair, concret, orienté résultats, humain, envoyé depuis un Iphone");
   const [maxChars, setMaxChars] = useState<number>(0);
   const [promptLibraryOpen, setPromptLibraryOpen] = useState<boolean>(false);
   const [lastCopilotTask, setLastCopilotTask] = useState<"hooks" | "caption" | "cta" | "hashtags" | "ab" | "rewrite" | null>(null);
