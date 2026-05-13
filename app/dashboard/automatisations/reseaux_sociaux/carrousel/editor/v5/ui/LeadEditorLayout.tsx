@@ -697,7 +697,7 @@ export default function EditorLayout({
         visible: true,
         selected: true,
         style: {
-          fontSize: 48,
+          fontSize: 20,
           color: "#ffffff",
           fontFamily: "Inter",
         },
