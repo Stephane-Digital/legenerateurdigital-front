@@ -64,19 +64,19 @@ function normalizePlan(...values: Array<string | undefined | null>): string {
 
 function planFromLimit(limit?: number): string {
   const n = Number(limit || 0);
-  if (n === 70_000) return "azur";
-  if (n === 2_500_000) return "ultime";
-  if (n === 1_000_000) return "pro";
-  if (n === 400_000) return "essentiel";
+  if (n === 150_000) return "azur";
+  if (n === 15_000_000) return "ultime";
+  if (n === 6_000_000) return "pro";
+  if (n === 2_000_000) return "essentiel";
   return "";
 }
 
 function monthlyLimitFromPlan(plan: string, fallbackLimit?: number): number {
   const p = String(plan || "").toLowerCase();
-  if (p === "azur") return 70_000;
-  if (p === "ultime") return 2_500_000;
-  if (p === "pro") return 1_000_000;
-  if (p === "essentiel") return 400_000;
+  if (p === "azur") return 150_000;
+  if (p === "ultime") return 15_000_000;
+  if (p === "pro") return 6_000_000;
+  if (p === "essentiel") return 2_000_000;
   return Number(fallbackLimit || 0);
 }
 
@@ -86,6 +86,15 @@ function displayPlanFrom(plan: string): string {
   if (plan === "pro") return "Pro";
   if (plan === "essentiel") return "Essentiel";
   return "Essentiel";
+}
+
+function dailyLimitFromPlan(plan: string, monthlyLimit?: number): number {
+  const p = normalizePlan(plan) || String(plan || "").toLowerCase();
+  const limit = Number(monthlyLimit || 0);
+  if (p === "azur" || limit === 150_000) return 20_000;
+  if (p === "ultime" || limit === 15_000_000) return 500_000;
+  if (p === "pro" || limit === 6_000_000) return 250_000;
+  return 80_000;
 }
 
 export async function coachQuota(): Promise<{
@@ -102,7 +111,7 @@ export async function coachQuota(): Promise<{
 
     // ✅ Source de vérité LGD : le plan renvoyé par ia-quotas prime sur une limite héritée.
     // Cas corrigé : nouveau compte AZUR affiché Essentiel dans Coach IA car l'ancien helper
-    // déduisait le plan uniquement depuis tokens_limit (=400000).
+    // déduisait le plan uniquement depuis tokens_limit (=2000000).
     const canonicalPlan =
       normalizePlan(q.display_plan, q.plan_key, q.plan) || planFromLimit(rawLimit) || "essentiel";
 
@@ -111,9 +120,7 @@ export async function coachQuota(): Promise<{
     const daily =
       Number(q.daily_limit || 0) > 0
         ? Number(q.daily_limit || 0)
-        : canonicalPlan === "azur"
-          ? 10_000
-          : Math.round(tokensLimit / 30);
+        : dailyLimitFromPlan(canonicalPlan, tokensLimit);
 
     const remaining =
       typeof q.remaining === "number"
@@ -191,4 +198,3 @@ export async function coachNextAction(): Promise<any> {
     };
   }
 }
-
