@@ -1237,6 +1237,40 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
   const [tone, setTone] = useState<string>("coach direct, clair, concret, orienté résultats, humain, envoyé depuis un Iphone");
   const [maxChars, setMaxChars] = useState<number>(0);
   const [promptLibraryOpen, setPromptLibraryOpen] = useState<boolean>(false);
+  const [selectedSocialPromptCategory, setSelectedSocialPromptCategory] = useState<string>("Hooks psychologiques");
+  const [socialPromptMode, setSocialPromptMode] = useState<"Simple" | "Expert">("Simple");
+
+  const socialPromptCategories = useMemo(
+    () => [
+      { key: "Hooks psychologiques", label: "Hooks" },
+      { key: "Psychologie & engagement", label: "Engagement" },
+      { key: "Autorité / expertise", label: "Autorité" },
+      { key: "Conversion douce", label: "Conversion" },
+      { key: "Carrousel premium", label: "Carrousel" },
+      { key: "Personas marketing", label: "Personas" },
+      { key: "Stratégie contenu", label: "Stratégie" },
+    ].filter((category) => SOCIAL_PROMPT_LIBRARY.some((item) => item.category === category.key)),
+    []
+  );
+
+  const visibleSocialPromptLibrary = useMemo(() => {
+    const byCategory = SOCIAL_PROMPT_LIBRARY.filter((item) => item.category === selectedSocialPromptCategory);
+    if (socialPromptMode === "Expert") {
+      const expertItems = byCategory.slice(6, 12);
+      return (expertItems.length ? expertItems : byCategory.slice(0, 6));
+    }
+    return byCategory.slice(0, 6);
+  }, [selectedSocialPromptCategory, socialPromptMode]);
+
+  const recommendedSocialPrompt = useMemo(() => {
+    const exact = SOCIAL_PROMPT_LIBRARY.find(
+      (item) => item.network === network && item.objective === objective && item.category === selectedSocialPromptCategory
+    );
+    const byObjective = SOCIAL_PROMPT_LIBRARY.find(
+      (item) => item.objective === objective && item.category === selectedSocialPromptCategory
+    );
+    return exact || byObjective || visibleSocialPromptLibrary[0] || SOCIAL_PROMPT_LIBRARY[0] || null;
+  }, [network, objective, selectedSocialPromptCategory, visibleSocialPromptLibrary]);
 
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
@@ -1881,7 +1915,7 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                       <div>
                         <div className="text-xs font-bold uppercase tracking-[0.18em] text-yellow-300">✨ Performeur Réseaux™</div>
-                        <div className="mt-1 text-sm text-white/60">Scénarios marketing experts pour créer des contenus qui captent l’attention, engagent et convertissent.</div>
+                        <div className="mt-1 text-sm text-white/60">Scénarios marketing experts, filtrés par intention, pour créer des contenus qui captent l’attention, engagent et convertissent.</div>
                       </div>
                       <button
                         type="button"
@@ -1892,8 +1926,64 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
                       </button>
                     </div>
 
+                    <div className="mt-4 rounded-2xl border border-yellow-500/10 bg-black/25 p-3">
+                      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                        <div className="flex flex-wrap gap-2">
+                          {socialPromptCategories.map((category) => {
+                            const active = selectedSocialPromptCategory === category.key;
+                            return (
+                              <button
+                                key={category.key}
+                                type="button"
+                                onClick={() => setSelectedSocialPromptCategory(category.key)}
+                                className={`rounded-full px-3 py-2 text-xs font-extrabold transition ${
+                                  active
+                                    ? "bg-[#ffb800] text-black shadow-[0_0_18px_rgba(255,184,0,0.18)]"
+                                    : "border border-yellow-500/20 bg-black/35 text-yellow-100 hover:bg-yellow-500/10"
+                                }`}
+                              >
+                                {category.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        <div className="inline-flex w-fit rounded-full border border-yellow-500/20 bg-black/35 p-1">
+                          {["Simple", "Expert"].map((mode) => (
+                            <button
+                              key={mode}
+                              type="button"
+                              onClick={() => setSocialPromptMode(mode as "Simple" | "Expert")}
+                              className={`rounded-full px-3 py-1.5 text-xs font-extrabold transition ${
+                                socialPromptMode === mode ? "bg-[#ffb800] text-black" : "text-yellow-100 hover:bg-yellow-500/10"
+                              }`}
+                            >
+                              {mode}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {recommendedSocialPrompt ? (
+                        <button
+                          type="button"
+                          onClick={() => applySocialPromptTemplate(recommendedSocialPrompt)}
+                          className="mt-4 w-full rounded-2xl border border-yellow-400/25 bg-yellow-500/10 p-4 text-left transition hover:border-yellow-300/50 hover:bg-yellow-500/15"
+                        >
+                          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                            <div>
+                              <div className="text-[11px] font-black uppercase tracking-[0.18em] text-yellow-300">⭐ Recommandé pour toi</div>
+                              <div className="mt-1 text-base font-extrabold text-white">{recommendedSocialPrompt.title}</div>
+                              <div className="mt-1 text-sm leading-6 text-white/65">{recommendedSocialPrompt.description}</div>
+                            </div>
+                            <span className="shrink-0 rounded-xl bg-[#ffb800] px-3 py-2 text-xs font-black text-black">Utiliser</span>
+                          </div>
+                        </button>
+                      ) : null}
+                    </div>
+
                     <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                      {SOCIAL_PROMPT_LIBRARY.map((item) => (
+                      {visibleSocialPromptLibrary.map((item) => (
                         <button
                           key={item.id}
                           type="button"
@@ -1903,7 +1993,7 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
                           <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-yellow-300">{item.category}</div>
                           <div className="mt-2 text-base font-extrabold text-white group-hover:text-yellow-100">{item.title}</div>
                           <div className="mt-2 text-sm leading-6 text-white/60">{item.description}</div>
-                          <div className="mt-4 inline-flex rounded-xl bg-[#ffb800] px-3 py-2 text-xs font-bold text-black">Utiliser ce prompt</div>
+                          <div className="mt-4 inline-flex rounded-xl bg-[#ffb800] px-3 py-2 text-xs font-bold text-black">Utiliser ce scénario</div>
                         </button>
                       ))}
                     </div>
