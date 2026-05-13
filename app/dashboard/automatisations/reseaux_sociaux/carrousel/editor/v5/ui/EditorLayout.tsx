@@ -9,6 +9,7 @@ import { applyAutoLayoutImages } from "../utils/autoLayout";
 import CanvasStage from "./CanvasStage";
 import LayersPanelV5 from "./LayersPanelV5";
 import PropertiesDrawer from "./PropertiesDrawer";
+import SocialAiModal, { type SocialAiGeneratedBlock } from "../social-ai/SocialAiModal";
 
 const BACKGROUND_LAYER_ID = "background-post";
 
@@ -262,6 +263,7 @@ export default function EditorLayout({
 
   const [layers, setLayers] = useState<LayerData[]>([]);
   const [showProps, setShowProps] = useState(false);
+  const [socialAiOpen, setSocialAiOpen] = useState(false);
 
   /* ================= BACKGROUND STATE ================= */
   const [bgMode, setBgMode] = useState<BackgroundMode>(initialUI?.bgMode ?? "color");
@@ -738,6 +740,86 @@ export default function EditorLayout({
     setShowProps(true);
   }, [format.w, format.h]);
 
+  const injectSocialAiBlocks = useCallback(
+    (blocks: SocialAiGeneratedBlock[]) => {
+      const cleanBlocks = (blocks || [])
+        .map((block) => ({
+          ...block,
+          text: String(block?.text || "")
+            .replace(/\r/g, "")
+            .replace(/\n{3,}/g, "\n\n")
+            .trim(),
+        }))
+        .filter((block) => block.text.length > 0);
+
+      if (!cleanBlocks.length) return;
+
+      const canvasW = Math.max(320, Number(format.w || 1080));
+      const canvasH = Math.max(320, Number(format.h || 1080));
+      const blockWidth = Math.round(canvasW * 0.78);
+      const x = Math.round((canvasW - blockWidth) / 2);
+      const top = Math.round(canvasH * 0.12);
+      const gap = Math.max(34, Math.round(canvasH * 0.038));
+      const now = Date.now();
+
+      setLayers((prev: any[]) => {
+        let y = top;
+        const baseZ = prev.length + 10;
+
+        const built = cleanBlocks.map((block, index) => {
+          const isHook = block.role === "hook" || block.role === "title";
+          const isCta = block.role === "cta";
+          const isSlide = block.role === "slide";
+          const fontSize = isHook
+            ? Math.max(30, Math.round(canvasW * 0.048))
+            : isCta
+              ? Math.max(22, Math.round(canvasW * 0.033))
+              : Math.max(19, Math.round(canvasW * 0.027));
+          const lineHeight = isHook ? 1.08 : 1.22;
+          const height = estimateWrappedTextHeight({
+            text: block.text,
+            width: blockWidth,
+            fontSize,
+            fontFamily: isHook ? "Montserrat" : "Inter",
+            lineHeight,
+          });
+
+          const layer = {
+            id: `social-ai-${now}-${index}`,
+            type: "text",
+            text: block.text,
+            x,
+            y,
+            width: blockWidth,
+            height,
+            visible: true,
+            selected: index === 0,
+            zIndex: baseZ + index,
+            style: {
+              fontSize,
+              fontFamily: isHook ? "Montserrat" : "Inter",
+              color: isCta ? "#ffcf66" : "#ffffff",
+              fontWeight: isHook || isCta ? 800 : isSlide ? 650 : 500,
+              lineHeight,
+            },
+          } as any;
+
+          y += height + (isHook || isCta ? gap + 18 : gap);
+          return layer;
+        });
+
+        return [
+          ...prev.map((layer) => ({ ...layer, selected: false })),
+          ...built,
+        ];
+      });
+
+      setShowProps(true);
+      setSocialAiOpen(false);
+    },
+    [format.w, format.h]
+  );
+
   const reapplyAutoLayout = useCallback(() => {
     setLayers((prev) => applyAutoLayoutSafe(prev));
   }, [applyAutoLayoutSafe]);
@@ -869,6 +951,11 @@ export default function EditorLayout({
   /* ================= RENDER ================= */
   return (
     <div className="w-full h-full relative overflow-x-hidden text-[14px] min-[640px]:text-[15px] min-[1200px]:text-base">
+      <SocialAiModal
+        open={socialAiOpen}
+        onClose={() => setSocialAiOpen(false)}
+        onInject={injectSocialAiBlocks}
+      />
       <input
         ref={fileInputRef}
         type="file"
@@ -994,6 +1081,14 @@ export default function EditorLayout({
               className="w-full rounded-xl border border-yellow-500/25 bg-yellow-500/10 text-yellow-200 py-3"
             >
               🔄 Auto-layout
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSocialAiOpen(true)}
+              className="w-full rounded-xl border border-yellow-500/35 bg-gradient-to-r from-yellow-500/20 to-yellow-300/10 text-yellow-100 py-3 font-semibold shadow-[0_0_24px_rgba(255,184,0,0.10)]"
+            >
+              ✨ IA Réseaux Sociaux Expert
             </button>
 
             {/* ===== FORMAT ===== */}
@@ -1283,6 +1378,14 @@ export default function EditorLayout({
               className="w-full mt-3 rounded-xl border border-yellow-500/25 bg-yellow-500/10 text-yellow-200 py-3"
             >
               🔄 Auto-layout
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSocialAiOpen(true)}
+              className="w-full mt-3 rounded-xl border border-yellow-500/35 bg-gradient-to-r from-yellow-500/20 to-yellow-300/10 text-yellow-100 py-3 font-semibold shadow-[0_0_24px_rgba(255,184,0,0.10)]"
+            >
+              ✨ IA Réseaux Sociaux Expert
             </button>
 
             {/* FORMAT */}
