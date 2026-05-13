@@ -102,7 +102,7 @@ function estimateWrappedTextHeight({
 }) {
   const safeText = String(text ?? "");
   const safeWidth = Math.max(120, Math.round(width || 0));
-  const safeFontSize = Math.max(10, Number(fontSize || 48));
+  const safeFontSize = Math.max(10, Number(fontSize || 20));
   const safeLineHeight = Math.max(0.8, Number(lineHeight || 1.2));
   const horizontalPadding = 24;
   const innerWidth = Math.max(40, safeWidth - horizontalPadding);
@@ -171,7 +171,7 @@ function autoFitTextLayerSize(layer: LayerData, patch: Partial<LayerData>) {
   const nextHeight = estimateWrappedTextHeight({
     text: nextText,
     width: nextWidth,
-    fontSize: typeof nextStyle.fontSize === "number" ? nextStyle.fontSize : 48,
+    fontSize: typeof nextStyle.fontSize === "number" ? nextStyle.fontSize : 20,
     fontFamily: typeof nextStyle.fontFamily === "string" ? nextStyle.fontFamily : "Inter",
     lineHeight: typeof nextStyle.lineHeight === "number" ? nextStyle.lineHeight : 1.2,
   });
