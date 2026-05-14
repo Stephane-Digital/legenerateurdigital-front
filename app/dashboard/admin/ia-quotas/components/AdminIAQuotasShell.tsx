@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
-type Plan = "azur" | "essentiel" | "pro" | "ultime";
+type Plan = "azur" | "essentiel" | "pro" | "ultime" | "canceled";
 type Feature = "coach" | "posts" | "carrousel" | "audit" | "global";
 
 type QuotaRow = {
@@ -81,6 +81,7 @@ function toInt(n: any): number {
 
 function planDefaultDailyLimit(plan: Plan): number {
   // Rappel LGD : limites mensuelles stockées côté backend.
+  if (plan === "canceled") return 0;
   if (plan === "azur") return 150_000;
   if (plan === "pro") return 6_000_000;
   if (plan === "ultime") return 15_000_000;
@@ -98,6 +99,7 @@ function coalesce(...vals: any[]): any {
 }
 
 function inferPlanFromLimit(limit: number): Plan {
+  if (limit <= 0) return "canceled";
   if (limit === 150_000) return "azur";
   if (limit === 6_000_000) return "pro";
   if (limit === 15_000_000) return "ultime";
@@ -106,6 +108,7 @@ function inferPlanFromLimit(limit: number): Plan {
 
 function normalizePlanValue(rawPlan: any, limit: number): Plan {
   const planRaw = String(rawPlan || "").toLowerCase().trim();
+  if (planRaw === "canceled" || planRaw === "cancelled" || planRaw === "inactive" || planRaw === "stopped") return "canceled";
   if (planRaw === "azur" || planRaw === "trial" || planRaw === "starter" || planRaw === "decouverte" || planRaw === "découverte") return "azur";
   if (planRaw === "pro") return "pro";
   if (planRaw === "ultime") return "ultime";
@@ -376,24 +379,14 @@ export default function AdminIAQuotasShell() {
     setLoading(true);
     setError(null);
 
-    // Reset bonus = supprime seulement l'override temporaire.
-    // Le retour se fait vers le base_plan réel : azur, essentiel, pro ou ultime.
+    // Reset bonus : supprime uniquement l'override temporaire.
+    // Le retour au plan réel (Azur, Essentiel, Pro, Ultime ou Canceled) est calculé côté backend.
     delete planOverridesRef.current[userId];
 
     try {
       const url = `${apiBase()}/admin/ia/users/${userId}/plan-clear`;
-      const data: any = await fetchJSON(url + qs({ admin_key: query.admin_key }), { method: "POST" });
-
-      const returnedPlan = normalizePlanValue(
-        data?.plan_state?.effective_plan || data?.plan_state?.base_plan || data?.cleared?.effective_plan || data?.cleared?.base_plan,
-        0
-      );
-      const limitJour = planDefaultDailyLimit(returnedPlan);
-
+      await fetchJSON(url + qs({ admin_key: query.admin_key }), { method: "POST" });
       delete limitOverridesRef.current[`${userId}:${feature}`];
-      patchUserPlan(userId, returnedPlan);
-      patchRow(userId, feature, { limit: limitJour });
-
       await refresh();
     } catch (e: any) {
       setError(e?.message || String(e));
@@ -402,22 +395,19 @@ export default function AdminIAQuotasShell() {
     }
   }
 
-  async function forceBasePlan(userId: number, feature: Feature, plan: Plan) {
+  async function setBasePlan(userId: number, feature: Feature, plan: Plan) {
     setLoading(true);
     setError(null);
 
-    // Correction commerciale admin : remet le base_plan réel et supprime le bonus actif.
-    delete planOverridesRef.current[userId];
-    delete limitOverridesRef.current[`${userId}:${feature}`];
+    planOverridesRef.current[userId] = plan;
+    const limit = planDefaultDailyLimit(plan);
+    limitOverridesRef.current[`${userId}:${feature}`] = limit;
     patchUserPlan(userId, plan);
-    patchRow(userId, feature, { limit: planDefaultDailyLimit(plan) });
+    patchRow(userId, feature, { limit });
 
     try {
       const url = `${apiBase()}/admin/ia/users/${userId}/base-plan`;
-      await fetchJSON(url + qs({ admin_key: query.admin_key, plan }), {
-        method: "POST",
-        body: JSON.stringify({ plan }),
-      });
+      await fetchJSON(url + qs({ admin_key: query.admin_key, plan }), { method: "POST" });
       await refresh();
     } catch (e: any) {
       setError(e?.message || String(e));
@@ -425,6 +415,7 @@ export default function AdminIAQuotasShell() {
       setLoading(false);
     }
   }
+
 
   // Quick tests panel state
   const [quickUserId, setQuickUserId] = useState<string>("");
@@ -478,6 +469,7 @@ export default function AdminIAQuotasShell() {
                   <option value="">Tous</option>
                   <option value="azur">azur</option>
                   <option value="essentiel">essentiel</option>
+                  <option value="canceled">canceled</option>
                   <option value="pro">pro</option>
                   <option value="ultime">ultime</option>
                 </select>
@@ -546,6 +538,7 @@ export default function AdminIAQuotasShell() {
                 <thead className="bg-black/30">
                   <tr className="text-left text-zinc-400">
                     <th className="px-4 py-3 min-w-[260px]">User</th>
+                    <th className="px-4 py-3 min-w-[80px]">ID</th>
                     <th className="px-4 py-3 min-w-[110px]">Plan</th>
                     <th className="px-4 py-3 min-w-[110px]">Feature</th>
                     <th className="px-4 py-3 min-w-[120px] text-right">Used</th>
@@ -558,14 +551,15 @@ export default function AdminIAQuotasShell() {
                 <tbody className="[&_*]:tabular-nums">
                   {rows.length === 0 ? (
                     <tr>
-                      <td className="px-4 py-5 text-zinc-500" colSpan={8}>
+                      <td className="px-4 py-5 text-zinc-500" colSpan={9}>
                         {loading ? "Chargement..." : "Aucun résultat."}
                       </td>
                     </tr>
                   ) : (
-                    rows.map((r) => (
+                    rows.map((r, index) => (
                       <tr key={`${r.user_id}:${r.feature}`} className="border-t border-yellow-500/10">
                         <td className="px-4 py-3 text-zinc-200 truncate max-w-[260px]">{r.email || `user#${r.user_id}`}</td>
+                        <td className="px-4 py-3 text-zinc-300">{(query.page - 1) * query.page_size + index + 1}</td>
                         <td className="px-4 py-3 text-zinc-300">{r.plan}</td>
                         <td className="px-4 py-3 text-zinc-300">{r.feature}</td>
                         <td className="px-4 py-3 text-zinc-300 text-right">{fmtInt(r.used)}</td>
@@ -582,10 +576,9 @@ export default function AdminIAQuotasShell() {
                               Reset bonus
                             </button>
                             <button
-                              className="h-9 px-3 rounded-xl border border-sky-300/20 hover:border-sky-300/40 text-xs text-sky-100"
-                              onClick={() => forceBasePlan(r.user_id, r.feature, "azur")}
+                              className="h-9 px-3 rounded-xl border border-yellow-500/20 hover:border-yellow-500/40 text-xs"
+                              onClick={() => setBasePlan(r.user_id, r.feature, "azur")}
                               disabled={loading}
-                              title="Force le base_plan sur Azur / Essai et supprime le bonus actif"
                             >
                               Azur / Essai
                             </button>
@@ -698,9 +691,9 @@ export default function AdminIAQuotasShell() {
 
             <div className="mt-4 flex gap-2">
               <button
-                className="h-10 px-4 rounded-xl border border-sky-300/20 hover:border-sky-300/40 text-sm text-sky-100"
+                className="h-10 px-4 rounded-xl border border-yellow-500/20 hover:border-yellow-500/40 text-sm"
                 disabled={loading || !Number.isFinite(quickUserIdInt)}
-                onClick={() => forceBasePlan(quickUserIdInt, quickFeature, "azur")}
+                onClick={() => setBasePlan(quickUserIdInt, quickFeature, "azur")}
               >
                 Azur / Essai
               </button>
@@ -728,7 +721,7 @@ export default function AdminIAQuotasShell() {
             </div>
 
             <div className="mt-3 text-xs text-zinc-600">
-              Rappel limites / mois : Azur 150 000 • Essentiel 2 000 000 • Pro 6 000 000 • Ultime 15 000 000. Limites / jour : Azur 20 000 • Essentiel 80 000 • Pro 250 000 • Ultime 500 000.
+              Rappel limites / mois : Azur 150 000 • Essentiel 2 000 000 • Pro 6 000 000 • Ultime 15 000 000 • Canceled 0. Limites / jour : Azur 20 000 • Essentiel 80 000 • Pro 250 000 • Ultime 500 000.
             </div>
           </div>
         </div>
@@ -740,6 +733,8 @@ export default function AdminIAQuotasShell() {
 
 // === LGD FINAL DISPLAY FIX (SAFE / NO DUPLICATES) ===
 const LGD_PLAN_LIMITS: Record<string, number> = {
+  canceled: 0,
+  azur: 150_000,
   essentiel: 2_000_000,
   pro: 6_000_000,
   ultime: 15_000_000,
