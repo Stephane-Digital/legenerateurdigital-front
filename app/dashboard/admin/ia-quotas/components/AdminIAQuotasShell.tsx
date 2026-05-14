@@ -376,24 +376,48 @@ export default function AdminIAQuotasShell() {
     setLoading(true);
     setError(null);
 
-    // instant UI: back to essentiel
+    // Reset bonus = supprime seulement l'override temporaire.
+    // Le retour se fait vers le base_plan réel : azur, essentiel, pro ou ultime.
     delete planOverridesRef.current[userId];
-    patchUserPlan(userId, "essentiel");
 
     try {
       const url = `${apiBase()}/admin/ia/users/${userId}/plan-clear`;
-      await fetchJSON(url + qs({ admin_key: query.admin_key }), { method: "POST" });
-      // Ensure backend quota limit is reset to Essentiel daily limit
-      const limitJour = planDefaultDailyLimit("essentiel");
-      limitOverridesRef.current[`${userId}:${feature}`] = limitJour;
+      const data: any = await fetchJSON(url + qs({ admin_key: query.admin_key }), { method: "POST" });
+
+      const returnedPlan = normalizePlanValue(
+        data?.plan_state?.effective_plan || data?.plan_state?.base_plan || data?.cleared?.effective_plan || data?.cleared?.base_plan,
+        0
+      );
+      const limitJour = planDefaultDailyLimit(returnedPlan);
+
+      delete limitOverridesRef.current[`${userId}:${feature}`];
+      patchUserPlan(userId, returnedPlan);
       patchRow(userId, feature, { limit: limitJour });
 
-      const url2 = `${apiBase()}/admin/ia/users/${userId}/quota/limit`;
-      await fetchJSON(url2 + qs({ admin_key: query.admin_key, feature, limit_tokens: limitJour }), {
-        method: "POST",
-        body: JSON.stringify({ feature, limit_tokens: limitJour }),
-      });
+      await refresh();
+    } catch (e: any) {
+      setError(e?.message || String(e));
+    } finally {
+      setLoading(false);
+    }
+  }
 
+  async function forceBasePlan(userId: number, feature: Feature, plan: Plan) {
+    setLoading(true);
+    setError(null);
+
+    // Correction commerciale admin : remet le base_plan réel et supprime le bonus actif.
+    delete planOverridesRef.current[userId];
+    delete limitOverridesRef.current[`${userId}:${feature}`];
+    patchUserPlan(userId, plan);
+    patchRow(userId, feature, { limit: planDefaultDailyLimit(plan) });
+
+    try {
+      const url = `${apiBase()}/admin/ia/users/${userId}/base-plan`;
+      await fetchJSON(url + qs({ admin_key: query.admin_key, plan }), {
+        method: "POST",
+        body: JSON.stringify({ plan }),
+      });
       await refresh();
     } catch (e: any) {
       setError(e?.message || String(e));
@@ -555,7 +579,15 @@ export default function AdminIAQuotasShell() {
                               onClick={() => clearPlan(r.user_id, r.feature)}
                               disabled={loading}
                             >
-                              Reset (Essentiel)
+                              Reset bonus
+                            </button>
+                            <button
+                              className="h-9 px-3 rounded-xl border border-sky-300/20 hover:border-sky-300/40 text-xs text-sky-100"
+                              onClick={() => forceBasePlan(r.user_id, r.feature, "azur")}
+                              disabled={loading}
+                              title="Force le base_plan sur Azur / Essai et supprime le bonus actif"
+                            >
+                              Azur / Essai
                             </button>
                             <button
                               className="h-9 px-3 rounded-xl border border-yellow-500/20 hover:border-yellow-500/40 text-xs"
@@ -666,6 +698,13 @@ export default function AdminIAQuotasShell() {
 
             <div className="mt-4 flex gap-2">
               <button
+                className="h-10 px-4 rounded-xl border border-sky-300/20 hover:border-sky-300/40 text-sm text-sky-100"
+                disabled={loading || !Number.isFinite(quickUserIdInt)}
+                onClick={() => forceBasePlan(quickUserIdInt, quickFeature, "azur")}
+              >
+                Azur / Essai
+              </button>
+              <button
                 className="h-10 px-4 rounded-xl border border-yellow-500/20 hover:border-yellow-500/40 text-sm"
                 disabled={loading || !Number.isFinite(quickUserIdInt)}
                 onClick={() => applyPlan(quickUserIdInt, quickFeature, "pro", 3)}
@@ -684,12 +723,12 @@ export default function AdminIAQuotasShell() {
                 disabled={loading || !Number.isFinite(quickUserIdInt)}
                 onClick={() => clearPlan(quickUserIdInt, quickFeature)}
               >
-                Reset (Essentiel)
+                Reset bonus
               </button>
             </div>
 
             <div className="mt-3 text-xs text-zinc-600">
-              Rappel limites / mois : Essentiel 2 000 000 • Pro 6 000 000 • Ultime 15 000 000. Limites / jour : Essentiel 80 000 • Pro 250 000 • Ultime 500 000.
+              Rappel limites / mois : Azur 150 000 • Essentiel 2 000 000 • Pro 6 000 000 • Ultime 15 000 000. Limites / jour : Azur 20 000 • Essentiel 80 000 • Pro 250 000 • Ultime 500 000.
             </div>
           </div>
         </div>
