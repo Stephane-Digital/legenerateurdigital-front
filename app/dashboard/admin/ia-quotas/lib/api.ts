@@ -125,3 +125,75 @@ export async function adminReset(opts: { admin_key: string; user_id: number; fea
     return { ok: true }
   }
 }
+
+export async function adminOverridePlan(opts: {
+  admin_key: string
+  user_id: number
+  plan: PlanKey
+  months?: number
+}): Promise<any> {
+  const url = buildUrl(`/admin/ia/users/${opts.user_id}/plan-override`, {
+    admin_key: opts.admin_key,
+    plan: opts.plan,
+    months: opts.months ?? 3,
+  })
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { Accept: "application/json" },
+  })
+
+  const text = await res.text()
+  if (!res.ok) throw new Error(text || `HTTP ${res.status}`)
+
+  try {
+    return JSON.parse(text)
+  } catch {
+    return { ok: true }
+  }
+}
+
+export async function adminClearOverride(opts: { admin_key: string; user_id: number }): Promise<any> {
+  const url = buildUrl(`/admin/ia/users/${opts.user_id}/plan-clear`, {
+    admin_key: opts.admin_key,
+  })
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { Accept: "application/json" },
+  })
+
+  const text = await res.text()
+  if (!res.ok) throw new Error(text || `HTTP ${res.status}`)
+
+  try {
+    return JSON.parse(text)
+  } catch {
+    return { ok: true }
+  }
+}
+
+export async function adminForceBasePlan(opts: {
+  admin_key: string
+  user_id: number
+  plan: PlanKey
+}): Promise<any> {
+  const url = buildUrl(`/admin/ia/users/${opts.user_id}/base-plan`, {
+    admin_key: opts.admin_key,
+    plan: opts.plan,
+  })
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { Accept: "application/json" },
+  })
+
+  const text = await res.text()
+  if (!res.ok) throw new Error(text || `HTTP ${res.status}`)
+
+  try {
+    return JSON.parse(text)
+  } catch {
+    return { ok: true }
+  }
+}
