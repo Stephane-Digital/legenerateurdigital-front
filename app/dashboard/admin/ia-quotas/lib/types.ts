@@ -30,3 +30,4 @@ export type AdminQuotasQuery = {
   page?: number;
   page_size?: 10 | 25 | 50;
 };
+
