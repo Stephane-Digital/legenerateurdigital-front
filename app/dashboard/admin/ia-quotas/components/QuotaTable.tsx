@@ -114,6 +114,7 @@ export default function QuotaTable(props: {
           <thead className="text-white/60">
             <tr className="border-b border-white/10">
               <th className="px-4 py-3">User</th>
+              <th className="px-4 py-3">ID</th>
               <th className="px-4 py-3">Plan</th>
               <th className="px-4 py-3">Feature</th>
               <th className="px-4 py-3">Used</th>
@@ -127,18 +128,18 @@ export default function QuotaTable(props: {
           <tbody className="text-white/80">
             {loading ? (
               <tr>
-                <td className="px-4 py-6 text-white/50" colSpan={8}>
+                <td className="px-4 py-6 text-white/50" colSpan={9}>
                   Chargement…
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td className="px-4 py-6 text-white/50" colSpan={8}>
+                <td className="px-4 py-6 text-white/50" colSpan={9}>
                   Aucun résultat.
                 </td>
               </tr>
             ) : (
-              rows.map((r) => {
+              rows.map((r, index) => {
                 const used = Number(r.tokens_used ?? 0);
                 const limit = Number(r.tokens_limit ?? 0);
                 const remaining = Math.max(0, limit - used);
@@ -150,6 +151,7 @@ export default function QuotaTable(props: {
                       <div className="font-semibold text-white">{r.user_id}</div>
                       <div className="text-xs text-white/45">{r.email || '—'}</div>
                     </td>
+                    <td className="px-4 py-3 text-white/70">{(page - 1) * pageSize + index + 1}</td>
                     <td className="px-4 py-3">
                       <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-2 py-1 text-xs text-amber-200">
                         {r.plan || '—'}
