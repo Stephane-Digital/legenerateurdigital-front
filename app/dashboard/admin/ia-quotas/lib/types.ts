@@ -1,7 +1,7 @@
 /* app/dashboard/admin/ia-quotas/lib/types.ts
    LGD — Admin Quotas IA (frontend types)
 */
-export type AdminQuotaPlan = "azur" | "essentiel" | "pro" | "ultime";
+export type AdminQuotaPlan = "azur" | "essentiel" | "pro" | "ultime" | "canceled";
 export type AdminQuotaFeature = "global" | "coach" | "posts" | "carrousel" | "audit";
 export type AdminQuotaFeatureStrict = AdminQuotaFeature;
 
@@ -15,6 +15,12 @@ export type AdminQuotaItem = {
   tokens_used: number;
   tokens_limit: number;
   updated_at?: string | null;
+  base_plan?: AdminQuotaPlan | null;
+  effective_plan?: AdminQuotaPlan | null;
+  temporary_plan?: AdminQuotaPlan | null;
+  temporary_until?: string | null;
+  temporary_days_remaining?: number | null;
+  temporary_active?: boolean | null;
 };
 
 export type AdminQuotasMeta = {
@@ -30,4 +36,3 @@ export type AdminQuotasQuery = {
   page?: number;
   page_size?: 10 | 25 | 50;
 };
-
