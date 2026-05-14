@@ -28,6 +28,7 @@ export default function QuotaTable(props: {
   onSetLimit: (args: { user_id: number; feature: AdminQuotaFeatureStrict; tokens_limit: number }) => Promise<void>;
   onOverridePlan: (args: { user_id: number; override_plan: AdminQuotaPlan }) => Promise<void>;
   onClearOverride: (args: { user_id: number }) => Promise<void>;
+  onForceBasePlan?: (args: { user_id: number; base_plan: AdminQuotaPlan }) => Promise<void>;
 }) {
   const {
     rows,
@@ -43,6 +44,7 @@ export default function QuotaTable(props: {
     onSetLimit,
     onOverridePlan,
     onClearOverride,
+    onForceBasePlan,
   } = props;
 
   async function handleSetLimit(row: AdminQuotaItem) {
@@ -180,6 +182,14 @@ export default function QuotaTable(props: {
                           Limite
                         </button>
                         <button
+                          className="h-9 rounded-xl border border-sky-300/20 bg-black/30 px-3 text-xs text-sky-100 hover:border-sky-300/35 disabled:opacity-50"
+                          onClick={() => onForceBasePlan?.({ user_id: r.user_id, base_plan: 'azur' })}
+                          disabled={!onForceBasePlan}
+                          title="Force le base_plan sur Azur / Essai et supprime le bonus actif"
+                        >
+                          Azur / Essai
+                        </button>
+                        <button
                           className="h-9 rounded-xl border border-amber-300/20 bg-black/30 px-3 text-xs text-white/90 hover:border-amber-300/35"
                           onClick={() => onOverridePlan({ user_id: r.user_id, override_plan: 'pro' })}
                         >
@@ -195,7 +205,7 @@ export default function QuotaTable(props: {
                           className="h-9 rounded-xl border border-white/10 bg-black/25 px-3 text-xs text-white/70 hover:bg-black/45"
                           onClick={() => onClearOverride({ user_id: r.user_id })}
                         >
-                          Annuler
+                          Reset bonus
                         </button>
                       </div>
                     </td>
@@ -213,7 +223,7 @@ export default function QuotaTable(props: {
           Utile quand les filtres donnent 0 résultat : tu peux tester l'override/limit sur un user_id précis.
         </div>
 
-        <TestPanel onOverridePlan={onOverridePlan} onSetLimit={onSetLimit} onReset={onReset} />
+        <TestPanel onOverridePlan={onOverridePlan} onSetLimit={onSetLimit} onReset={onReset} onForceBasePlan={onForceBasePlan} />
       </div>
     </div>
   );
@@ -223,8 +233,9 @@ function TestPanel(props: {
   onReset: (args: { user_id: number; feature: AdminQuotaFeatureStrict }) => Promise<void>;
   onSetLimit: (args: { user_id: number; feature: AdminQuotaFeatureStrict; tokens_limit: number }) => Promise<void>;
   onOverridePlan: (args: { user_id: number; override_plan: AdminQuotaPlan }) => Promise<void>;
+  onForceBasePlan?: (args: { user_id: number; base_plan: AdminQuotaPlan }) => Promise<void>;
 }) {
-  const { onOverridePlan, onSetLimit, onReset } = props;
+  const { onOverridePlan, onSetLimit, onReset, onForceBasePlan } = props;
   const [userId, setUserId] = React.useState<string>('');
   const [limit, setLimit] = React.useState<string>('200000');
   const [feature, setFeature] = React.useState<AdminQuotaFeatureStrict>('global');
@@ -285,6 +296,13 @@ function TestPanel(props: {
           Set limit
         </button>
         <button
+          className="h-10 rounded-xl border border-sky-300/20 bg-black/30 px-4 text-xs text-sky-100 hover:border-sky-300/35 disabled:opacity-50"
+          disabled={!isOk || !onForceBasePlan}
+          onClick={() => onForceBasePlan?.({ user_id: uid, base_plan: 'azur' })}
+        >
+          Azur / Essai
+        </button>
+        <button
           className="h-10 rounded-xl border border-amber-300/20 bg-black/30 px-4 text-xs text-white/90 hover:border-amber-300/35 disabled:opacity-50"
           disabled={!isOk}
           onClick={() => onOverridePlan({ user_id: uid, override_plan: 'pro' })}
@@ -302,4 +320,3 @@ function TestPanel(props: {
     </div>
   );
 }
-
