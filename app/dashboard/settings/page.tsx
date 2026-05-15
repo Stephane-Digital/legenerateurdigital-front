@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { FaCog, FaEnvelope, FaRegCopy } from "react-icons/fa";
+import { FaCog, FaExternalLinkAlt, FaRegCopy } from "react-icons/fa";
 
 type MeResponse = {
   email?: string | null;
@@ -42,6 +42,8 @@ function normalizePlan(raw?: string | null) {
   if (plan === "ultime") return "ultime";
   if (plan === "pro") return "pro";
   if (plan === "essentiel" || plan === "free" || plan === "basic") return "essentiel";
+  if (plan === "trial" || plan === "azur") return "trial";
+  if (plan === "canceled") return "canceled";
   return "essentiel";
 }
 
@@ -49,6 +51,8 @@ function formatPlanBadge(plan?: string | null) {
   const p = normalizePlan(plan);
   if (p === "ultime") return "ULTIME";
   if (p === "pro") return "PRO";
+  if (p === "trial") return "AZUR / ESSAI";
+  if (p === "canceled") return "CANCELED";
   return "ESSENTIEL";
 }
 
@@ -56,14 +60,18 @@ function formatPlanName(plan?: string | null) {
   const p = normalizePlan(plan);
   if (p === "ultime") return "Plan Ultime LGD";
   if (p === "pro") return "Plan Pro LGD";
-  return "Accès de base LGD";
+  if (p === "trial") return "Essai gratuit Azur LGD";
+  if (p === "canceled") return "Abonnement résilié";
+  return "Plan Essentiel LGD";
 }
 
 function planQuotaLimit(plan?: string | null) {
   const p = normalizePlan(plan);
-  if (p === "ultime") return 2_500_000;
-  if (p === "pro") return 1_000_000;
-  return 400_000;
+  if (p === "ultime") return 15_000_000;
+  if (p === "pro") return 6_000_000;
+  if (p === "trial") return 150_000;
+  if (p === "canceled") return 0;
+  return 2_000_000;
 }
 
 function formatNumber(value?: number | null) {
@@ -104,12 +112,13 @@ export default function SettingsPage() {
   const [state, setState] = useState<UiState>({
     email: "",
     plan: "essentiel",
-    quotaLimit: 400_000,
-    quotaRemaining: 400_000,
+    quotaLimit: 2_000_000,
+    quotaRemaining: 2_000_000,
   });
 
   const apiBaseUrl = useMemo(() => getApiBaseUrl(), []);
   const supportEmail = "contact@legenerateurdigital.com";
+  const subscriptionManagementUrl = "https://legenerateurdigital.systeme.io/desabonnement-lgd";
 
   useEffect(() => {
     let active = true;
@@ -175,28 +184,8 @@ export default function SettingsPage() {
     };
   }, [apiBaseUrl]);
 
-  const mailSubject = encodeURIComponent("Demande de résiliation abonnement LGD");
-  const mailBody = encodeURIComponent(
-    `Bonjour,
-
-Je souhaite résilier mon abonnement LGD.
-
-Email du compte LGD : ${state.email || "[à compléter]"}
-Plan actuel : ${formatPlanBadge(state.plan)}
-Date de la demande : ${new Date().toLocaleDateString("fr-FR")}
-
-Merci de prendre en compte ma demande.
-
-Cordialement`
-  );
-  const mailtoUrl = `mailto:${supportEmail}?subject=${mailSubject}&body=${mailBody}`;
-
-  function handleMailto() {
-    try {
-      window.location.href = mailtoUrl;
-    } catch {
-      setError("Impossible d’ouvrir votre messagerie. Copie l’adresse email ci-dessous.");
-    }
+  function handleOpenSubscriptionManagement() {
+    window.open(subscriptionManagementUrl, "_blank", "noopener,noreferrer");
   }
 
   async function handleCopyEmail() {
@@ -211,7 +200,7 @@ Cordialement`
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <div className="mx-auto w-full max-w-6xl px-5 pb-12 pt-16 md:px-6">
+      <div className="mx-auto w-full max-w-6xl px-5 pb-12 pt-5 md:px-6">
         <div className="mx-auto mb-7 flex max-w-4xl flex-col items-center text-center">
           <div className="mb-3 flex items-center gap-3">
             <FaCog className="text-2xl text-[#cfc3d9]" />
@@ -221,7 +210,7 @@ Cordialement`
           </div>
 
           <p className="max-w-3xl text-sm text-white/80 md:text-base">
-            Gère ton abonnement LGD, vérifie ton plan actif et consulte la procédure officielle de résiliation.
+            Gère ton abonnement LGD, vérifie ton plan actif et accède à la page officielle de gestion d’abonnement.
           </p>
         </div>
 
@@ -238,7 +227,7 @@ Cordialement`
                 <p className="mb-1 text-[11px] uppercase tracking-[0.32em] text-[#d6a300]">
                   Abonnement LGD
                 </p>
-                <h2 className="text-xl font-semibold text-[#f5b700] md:text-2xl">
+                <h2 className="text-xl font-extrabold text-[#f5b700] md:text-2xl">
                   Statut du compte
                 </h2>
               </div>
@@ -251,7 +240,7 @@ Cordialement`
             <div className="space-y-4">
               <div className="rounded-[22px] border border-white/15 bg-white/[0.03] p-4">
                 <p className="mb-1 text-sm text-white/55">Compte</p>
-                <p className="break-all text-sm font-small-caps text-white md:text-xl">
+                <p className="break-all text-lg font-semibold text-white md:text-xl">
                   {loading ? "Chargement..." : state.email || "—"}
                 </p>
               </div>
@@ -279,36 +268,36 @@ Cordialement`
               <p className="mb-1 text-[11px] uppercase tracking-[0.32em] text-[#d6a300]">
                 Gestion abonnement
               </p>
-              <h2 className="text-xl font-semibold text-[#f5b700] md:text-2xl">
-                Résiliation par email
+              <h2 className="text-xl font-extrabold text-[#f5b700] md:text-2xl">
+                Gérer mon abonnement
               </h2>
             </div>
 
             <p className="mb-5 text-sm leading-7 text-white/82 md:text-base">
-              Pour résilier ton abonnement LGD, envoie simplement ta demande à notre équipe depuis l’adresse email liée à ton compte.
+              Accède à la page officielle de gestion d’abonnement LGD pour demander une résiliation, contacter le support ou nous transmettre un retour d’expérience.
             </p>
 
             <div className="mb-5 rounded-[22px] border border-[#6d5500] bg-[#231a00]/30 p-4">
               <p className="mb-2 text-[11px] uppercase tracking-[0.28em] text-[#d6a300]">
-                Adresse de contact
+                Page officielle
               </p>
-              <p className="break-all text-[8px] small-caps text-white md:text-base">
-                {supportEmail}
+              <p className="text-sm leading-7 text-white/82 md:text-base">
+                Cette page s’ouvre dans un nouvel onglet et permet de lancer la procédure de demande de désabonnement via Systeme.io.
               </p>
             </div>
 
-            <div className="mb-5 rounded-[22px] border border-white/15 bg-white/[0.03] p-4 text-[5px] leading-7 text-white/82 md:text-base">
-              Envoie ta demande de résiliation à <span className="font small-caps text-[#f5bf21]">{supportEmail}</span> depuis l’adresse email de ton compte LGD pour faciliter la vérification.
+            <div className="mb-5 rounded-[22px] border border-white/15 bg-white/[0.03] p-4 text-sm leading-7 text-white/82 md:text-base">
+              Pour faciliter le traitement, utilise l’adresse email liée à ton compte LGD lorsque tu fais une demande.
             </div>
 
             <div className="flex flex-col gap-3">
               <button
                 type="button"
-                onClick={handleMailto}
+                onClick={handleOpenSubscriptionManagement}
                 className="flex w-full items-center justify-center gap-3 rounded-[22px] bg-[#f5bf21] px-5 py-4 text-center text-lg font-extrabold text-black transition hover:brightness-105"
               >
-                <FaEnvelope className="text-base" />
-                Envoyer la demande de résiliation
+                <FaExternalLinkAlt className="text-base" />
+                Gérer mon abonnement
               </button>
 
               <button
@@ -317,9 +306,13 @@ Cordialement`
                 className="flex w-full items-center justify-center gap-3 rounded-[22px] border border-white/20 bg-white/[0.03] px-5 py-4 text-center text-base font-bold text-white transition hover:bg-white/[0.06]"
               >
                 <FaRegCopy className="text-sm" />
-                {copySuccess ? "Adresse email copiée" : "Copier l’adresse email de contact"}
+                {copySuccess ? "Adresse email copiée" : "Copier l’adresse email du support"}
               </button>
             </div>
+
+            <p className="mt-5 text-center text-xs leading-6 text-white/50">
+              Support LGD : <span className="text-[#f5bf21]">{supportEmail}</span>
+            </p>
           </section>
         </div>
       </div>
