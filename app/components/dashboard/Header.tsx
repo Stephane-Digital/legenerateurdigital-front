@@ -3,8 +3,8 @@
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
 import type { MouseEvent } from "react";
+import { useEffect, useState } from "react";
 
 type Plan = "none" | "azur" | "essentiel" | "pro" | "ultime";
 
@@ -15,6 +15,7 @@ const EDITOR_PATH = "/dashboard/automatisations/reseaux_sociaux/editor-intellige
 const COACH_PATH = "/dashboard/coach-ia";
 const LEADS_PATH = "/dashboard/lead-engine";
 const EMAIL_CAMPAIGNS_PATH = "/dashboard/email-campaigns";
+const SETTINGS_PATH = "/dashboard/settings";
 const LOGIN_PATH = "/auth/login";
 
 type NavItem = {
@@ -29,6 +30,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Leads IA", path: LEADS_PATH },
   { label: "Coach", path: COACH_PATH },
   { label: "Emailing IA", path: EMAIL_CAMPAIGNS_PATH },
+  { label: "Paramètres", path: SETTINGS_PATH },
 ];
 
 function planLabel(plan: Plan) {
@@ -45,16 +47,14 @@ function normalizePlan(input: any, tokensLimit?: any): Plan {
 
   if (v === "ultime") return "ultime";
   if (v === "pro") return "pro";
-  if (v === "essentiel") {
-    if (limit === 70000) return "azur";
-    return "essentiel";
-  }
+  if (v === "essentiel") return "essentiel";
   if (v === "trial" || v === "azur" || v === "starter" || v === "decouverte" || v === "découverte") return "azur";
 
-  if (limit === 70000) return "azur";
-  if (limit === 2500000) return "ultime";
-  if (limit === 1000000) return "pro";
-  if (limit === 400000) return "essentiel";
+  // Quotas LGD officiels 2026 + compat anciens quotas
+  if (limit === 150000 || limit === 70000) return "azur";
+  if (limit === 15000000 || limit === 2500000) return "ultime";
+  if (limit === 6000000 || limit === 1000000) return "pro";
+  if (limit === 2000000 || limit === 400000) return "essentiel";
 
   return "none";
 }
