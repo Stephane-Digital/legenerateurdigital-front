@@ -30,14 +30,13 @@ export default function AffiliationTermsPage() {
         <CardLuxe className="w-full px-6 pt-6 pb-7 text-left">
           <h2 className="text-lg font-semibold text-[#ffb800] mb-3">1) Objet</h2>
           <p className="text-gray-200 text-sm leading-relaxed">
-            Le programme d’affiliation LGD permet de recommander LGD et de percevoir une commission récurrente
-            à vie tant que les abonnés référés restent actifs.
+            Le programme d’affiliation LGD permet de recommander LGD via le tracking Systeme.io et de percevoir une commission récurrente tant que les abonnés référés restent actifs.
           </p>
 
           <h2 className="text-lg font-semibold text-[#ffb800] mt-6 mb-3">2) Commission</h2>
           <ul className="space-y-2 text-gray-200 text-sm leading-relaxed">
-            <li>• Taux : 60% sur l’abonnement (selon les règles commerciales en vigueur).</li>
-            <li>• Récurrent : chaque mois tant que l’abonné reste actif.</li>
+            <li>• Taux : jusqu’à 60% sur l’abonnement, selon les règles commerciales en vigueur.</li>
+            <li>• Récurrent : chaque mois tant que l’abonné reste actif et que l’attribution Systeme.io est valide.</li>
             <li>• Annulation : remboursements/chargebacks peuvent annuler la commission.</li>
           </ul>
 
@@ -50,8 +49,8 @@ export default function AffiliationTermsPage() {
 
           <h2 className="text-lg font-semibold text-[#ffb800] mt-6 mb-3">4) Attribution</h2>
           <ul className="space-y-2 text-gray-200 text-sm leading-relaxed">
-            <li>• Attribution via lien d’affiliation (cookie, last click).</li>
-            <li>• En cas de fraude ou attribution abusive : suspension.</li>
+            <li>• Attribution via lien Systeme.io au format https://legenerateurdigital.systeme.io?sa=ton_identifiant.</li>
+            <li>• Chaque affilié est responsable d’utiliser son propre identifiant Systeme.io. En cas de fraude ou attribution abusive : suspension.</li>
           </ul>
 
           <h2 className="text-lg font-semibold text-[#ffb800] mt-6 mb-3">5) Interdictions</h2>
