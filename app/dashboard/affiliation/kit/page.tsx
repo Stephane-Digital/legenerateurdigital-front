@@ -1,13 +1,13 @@
 "use client";
 
-import { motion } from "framer-motion";
 import CardLuxe from "@/components/ui/CardLuxe";
+import { motion } from "framer-motion";
 import AffiliationSubnav from "../components/AffiliationSubnav";
 
 const GOOGLE_DOCS_LINK =
-  "https://docs.google.com/document/d/17VMKD7tfE1lLoMI9GGFF2NzgLy1MQxi00Rs2wPBRyxY/edit?usp=sharing";
+  "https://docs.google.com/document/d/17VMKD7tfE1lLoMI9GGFF2NzgLy1MQxi00Rs2wPBRyxY/edit?tab=t.0";
 
-const CANVA_LINK = "https://canva.link/t5x0lkqdf3z76v4";
+const CANVA_LINK = "https://www.canva.com/design/DAHH2J0asfQ/zPebjpAzUXWM7dO2b8E9Dw/view?utm_content=DAHH2J0asfQ&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=h1044b0fdc1";
 
 const buttonPrimary =
   "inline-flex items-center justify-center text-center whitespace-nowrap w-full sm:w-auto min-w-[240px] py-3 px-6 bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] text-black font-semibold rounded-2xl shadow-lg shadow-yellow-500/20 hover:shadow-yellow-400/40 hover:-translate-y-0.5 transition-all duration-300";
@@ -26,8 +26,7 @@ export default function AffiliationKitPage() {
             Kit Marketing Affiliation LGD
           </h1>
           <p className="mx-auto max-w-3xl text-sm text-gray-300 leading-relaxed sm:text-base">
-            Tout le contenu marketing affilié LGD est désormais centralisé dans un Google Docs
-            premium, plus simple à consulter, copier et mettre à jour.
+            Tout le contenu marketing affilié LGD est centralisé ici. Utilise ces ressources avec le format officiel : https://legenerateurdigital.systeme.io?sa=ton_identifiant.
           </p>
         </motion.div>
 
@@ -45,11 +44,10 @@ export default function AffiliationKitPage() {
                 Affiliate Conversion Hub
               </p>
               <h2 className="text-2xl font-bold leading-tight text-[#ffb800] sm:text-3xl lg:text-4xl">
-                Accède à tout ton kit marketing affilié depuis un document central unique.
+                Accède aux ressources et ajoute toujours ton identifiant Systeme.io à l’URL LGD.
               </h2>
               <p className="mx-auto mt-4 max-w-3xl text-sm text-gray-300 leading-relaxed sm:text-base">
-                Emails, scripts DM, hooks, CTA, posts réseaux sociaux, angles de vente, scripts
-                Reels et ressources de promotion : tout est regroupé dans le Google Docs officiel.
+                Emails, scripts DM, hooks, CTA, posts réseaux sociaux, angles de vente, scripts Reels et visuels : tout est prêt. Tu ajoutes simplement ton lien au format https://legenerateurdigital.systeme.io?sa=ton_identifiant.
               </p>
             </div>
 
@@ -119,7 +117,7 @@ export default function AffiliationKitPage() {
                   },
                   {
                     title: "3) Ajoute ton lien affilié",
-                    text: "Utilise toujours ton lien affilié officiel dans tes messages et publications.",
+                    text: "Ajoute toujours ton lien affilié LGD au format https://legenerateurdigital.systeme.io?sa=ton_identifiant dans tes messages et publications.",
                   },
                   {
                     title: "4) Passe à l’action",
