@@ -15,7 +15,7 @@ export default function AffiliationPayoutsPage() {
       >
         <h1 className="text-3xl font-bold text-yellow-400 mb-3">Paiements & Commissions</h1>
         <p className="text-gray-300">
-          60% récurrent à vie tant que l’abonné reste actif. Paiement net 30, le 10 du mois suivant.
+          Jusqu’à 60% récurrent tant que l’abonné reste actif. Le suivi passe par ton lien Systeme.io : https://legenerateurdigital.systeme.io?sa=ton_identifiant
         </p>
       </motion.div>
 
@@ -30,8 +30,8 @@ export default function AffiliationPayoutsPage() {
         <CardLuxe className="min-w-[280px] w-full px-6 pt-6 pb-7 text-left">
           <h2 className="text-lg font-semibold text-[#ffb800] mb-3">Règles de commission</h2>
           <ul className="space-y-2 text-gray-200 text-sm leading-relaxed">
-            <li>• Commission : <span className="text-yellow-200 font-semibold">60%</span> sur l’abonnement.</li>
-            <li>• Récurrente : <span className="text-yellow-200 font-semibold">à vie</span> tant que l’abonné reste actif.</li>
+            <li>• Commission : jusqu’à <span className="text-yellow-200 font-semibold">60%</span> sur l’abonnement, selon les règles commerciales en vigueur.</li>
+            <li>• Récurrente : tant que l’abonné reste actif et que l’attribution Systeme.io est valide.</li>
             <li>• Si l’abonné se désabonne : la commission s’arrête.</li>
             <li>• Si remboursement/chargeback : commission annulée pour la période concernée.</li>
           </ul>
@@ -53,7 +53,7 @@ export default function AffiliationPayoutsPage() {
             <li>• Pas de spam (DM massif sans consentement).</li>
             <li>• Pas de promesses irréalistes (“argent garanti”).</li>
             <li>• Pas d’usurpation de marque / pub trompeuse.</li>
-            <li>• Le message gagnant : “outil que j’utilise + démo + bénéfices + lien”.</li>
+            <li>• Le message gagnant : “outil utile + bénéfices + lien au format https://legenerateurdigital.systeme.io?sa=ton_identifiant”.</li>
           </ul>
         </CardLuxe>
       </motion.div>
