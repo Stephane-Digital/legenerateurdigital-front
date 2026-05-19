@@ -13,6 +13,10 @@ import {
 } from "../lib/planPolicy";
 import type {
   AlexContext,
+  AlexBusinessGoal,
+  AlexBusinessModel,
+  AlexAudienceSize,
+  AlexMainBlocker,
   AlexIntent,
   AlexLevel,
   AlexRoadmap,
@@ -38,7 +42,7 @@ export default function StageRenderer(props: {
   today: AlexToday | null;
   logs: DailyLog[];
   onStartOnboarding: () => void;
-  onSubmitOnboarding: (data: { intent: AlexIntent; level: AlexLevel; timePerDay: TimePerDay }) => void;
+  onSubmitOnboarding: (data: { intent: AlexIntent; level: AlexLevel; timePerDay: TimePerDay; businessGoal: AlexBusinessGoal; businessModel: AlexBusinessModel; audienceSize: AlexAudienceSize; mainBlocker: AlexMainBlocker }) => void;
   onOpenPlan: () => void;
   onGoMission: () => void;
   onAskCommit: () => void;
@@ -181,22 +185,77 @@ export default function StageRenderer(props: {
   );
 }
 
-function OnboardingCard(props: { onSubmit: (data: { intent: AlexIntent; level: AlexLevel; timePerDay: TimePerDay }) => void }) {
+function OnboardingCard(props: { onSubmit: (data: { intent: AlexIntent; level: AlexLevel; timePerDay: TimePerDay; businessGoal: AlexBusinessGoal; businessModel: AlexBusinessModel; audienceSize: AlexAudienceSize; mainBlocker: AlexMainBlocker }) => void }) {
   const { onSubmit } = props;
   const [step, setStep] = useState(0);
   const [intent, setIntent] = useState<AlexIntent>("argent_vite");
   const [level, setLevel] = useState<AlexLevel>("debutant");
   const [timePerDay, setTimePerDay] = useState<TimePerDay>(30);
+  const [businessGoal, setBusinessGoal] = useState<AlexBusinessGoal>("premiers_revenus");
+  const [businessModel, setBusinessModel] = useState<AlexBusinessModel>("affiliation");
+  const [audienceSize, setAudienceSize] = useState<AlexAudienceSize>("moins_500");
+  const [mainBlocker, setMainBlocker] = useState<AlexMainBlocker>("dispersion");
 
   const canNext = useMemo(() => true, []);
+  const totalSteps = 7;
 
   return (
     <div className="rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-6">
-      <div className="text-3xl font-semibold text-yellow-400">Démarrage rapide</div>
-      <div className="mt-1 text-sm text-white/55">Alex t’emmène vers des ventes : MMR · MLR · Contenu.</div>
+      <div className="text-3xl font-semibold text-yellow-400">Coach IA V3 · Objectif Business</div>
+      <div className="mt-1 text-sm text-white/55">Alex construit un objectif clair, une trajectoire réaliste et une mission unique à exécuter.</div>
+
+      <div className="mt-5 rounded-2xl border border-yellow-500/20 bg-yellow-400/5 p-4">
+        <div className="text-xs font-semibold uppercase tracking-[0.22em] text-yellow-300/80">Étape {step + 1}/{totalSteps}</div>
+        <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-white/10">
+          <div className="h-full rounded-full bg-yellow-400" style={{ width: `${Math.round(((step + 1) / totalSteps) * 100)}%` }} />
+        </div>
+      </div>
 
       <div className="mt-6 rounded-2xl border border-[#2a2416] bg-black/20 p-5">
         {step === 0 ? (
+          <>
+            <div className="text-white/85 font-semibold">Quel objectif veux-tu atteindre en priorité ?</div>
+            <div className="mt-3 grid grid-cols-1 gap-2">
+              <PickRow checked={businessGoal === "premiers_revenus"} onClick={() => setBusinessGoal("premiers_revenus")} label="Obtenir mes premiers revenus" />
+              <PickRow checked={businessGoal === "revenu_500"} onClick={() => setBusinessGoal("revenu_500")} label="Atteindre 500€/mois" />
+              <PickRow checked={businessGoal === "premiers_clients"} onClick={() => setBusinessGoal("premiers_clients")} label="Trouver mes premiers clients" />
+              <PickRow checked={businessGoal === "quitter_job"} onClick={() => setBusinessGoal("quitter_job")} label="Préparer une sortie progressive du salariat" />
+              <PickRow checked={businessGoal === "business_stable"} onClick={() => setBusinessGoal("business_stable")} label="Construire un business stable" />
+            </div>
+          </>
+        ) : step === 1 ? (
+          <>
+            <div className="text-white/85 font-semibold">Quel modèle business Alex doit-il privilégier ?</div>
+            <div className="mt-3 grid grid-cols-1 gap-2">
+              <PickRow checked={businessModel === "affiliation"} onClick={() => setBusinessModel("affiliation")} label="Affiliation" />
+              <PickRow checked={businessModel === "offre_digitale"} onClick={() => setBusinessModel("offre_digitale")} label="Produit digital / formation" />
+              <PickRow checked={businessModel === "coaching"} onClick={() => setBusinessModel("coaching")} label="Coaching / accompagnement" />
+              <PickRow checked={businessModel === "contenu"} onClick={() => setBusinessModel("contenu")} label="Contenu + audience" />
+              <PickRow checked={businessModel === "pas_encore"} onClick={() => setBusinessModel("pas_encore")} label="Je n’ai pas encore choisi" />
+            </div>
+          </>
+        ) : step === 2 ? (
+          <>
+            <div className="text-white/85 font-semibold">Ton audience actuelle ?</div>
+            <div className="mt-3 grid grid-cols-1 gap-2">
+              <PickRow checked={audienceSize === "zero"} onClick={() => setAudienceSize("zero")} label="Je pars de zéro" />
+              <PickRow checked={audienceSize === "moins_500"} onClick={() => setAudienceSize("moins_500")} label="Moins de 500 abonnés" />
+              <PickRow checked={audienceSize === "500_5000"} onClick={() => setAudienceSize("500_5000")} label="Entre 500 et 5 000 abonnés" />
+              <PickRow checked={audienceSize === "plus_5000"} onClick={() => setAudienceSize("plus_5000")} label="Plus de 5 000 abonnés" />
+            </div>
+          </>
+        ) : step === 3 ? (
+          <>
+            <div className="text-white/85 font-semibold">Ton blocage principal aujourd’hui ?</div>
+            <div className="mt-3 grid grid-cols-1 gap-2">
+              <PickRow checked={mainBlocker === "dispersion"} onClick={() => setMainBlocker("dispersion")} label="Je me disperse trop" />
+              <PickRow checked={mainBlocker === "temps"} onClick={() => setMainBlocker("temps")} label="Je manque de temps" />
+              <PickRow checked={mainBlocker === "technique"} onClick={() => setMainBlocker("technique")} label="Je bloque sur la technique" />
+              <PickRow checked={mainBlocker === "vente"} onClick={() => setMainBlocker("vente")} label="Je ne sais pas vendre" />
+              <PickRow checked={mainBlocker === "confiance"} onClick={() => setMainBlocker("confiance")} label="Je manque de confiance" />
+            </div>
+          </>
+        ) : step === 4 ? (
           <>
             <div className="text-white/85 font-semibold">Pourquoi tu veux réussir maintenant ?</div>
             <div className="mt-3 grid grid-cols-1 gap-2">
@@ -206,7 +265,7 @@ function OnboardingCard(props: { onSubmit: (data: { intent: AlexIntent; level: A
               <PickRow checked={intent === "discipline"} onClick={() => setIntent("discipline")} label="Arrêter de procrastiner" />
             </div>
           </>
-        ) : step === 1 ? (
+        ) : step === 5 ? (
           <>
             <div className="text-white/85 font-semibold">Où en es-tu aujourd’hui ?</div>
             <div className="mt-3 grid grid-cols-1 gap-2">
@@ -240,11 +299,11 @@ function OnboardingCard(props: { onSubmit: (data: { intent: AlexIntent; level: A
             Retour
           </button>
 
-          {step < 2 ? (
+          {step < totalSteps - 1 ? (
             <button
               onClick={() => {
                 if (!canNext) return;
-                setStep((s) => Math.min(2, s + 1));
+                setStep((s) => Math.min(totalSteps - 1, s + 1));
               }}
               className="rounded-2xl bg-yellow-400 px-5 py-3 text-sm font-semibold text-black hover:bg-yellow-300 transition"
             >
@@ -252,18 +311,18 @@ function OnboardingCard(props: { onSubmit: (data: { intent: AlexIntent; level: A
             </button>
           ) : (
             <button
-              onClick={() => onSubmit({ intent, level, timePerDay })}
+              onClick={() => onSubmit({ intent, level, timePerDay, businessGoal, businessModel, audienceSize, mainBlocker })}
               className="rounded-2xl bg-yellow-400 px-5 py-3 text-sm font-semibold text-black hover:bg-yellow-300 transition"
             >
-              Générer mon plan
+              Générer ma trajectoire
             </button>
           )}
         </div>
       </div>
 
       <div className="mt-4 rounded-2xl border border-[#2a2416] bg-black/10 p-4">
-        <div className="text-xs text-white/50">Réseaux</div>
-        <div className="mt-1 text-sm text-white/70">Instagram d’abord. Facebook ensuite. Pinterest plus tard.</div>
+        <div className="text-xs text-white/50">Coach IA V3</div>
+        <div className="mt-1 text-sm text-white/70">Alex ne te donne pas juste une mission : il fixe un objectif, élimine la dispersion et construit le chemin A → B.</div>
       </div>
     </div>
   );
