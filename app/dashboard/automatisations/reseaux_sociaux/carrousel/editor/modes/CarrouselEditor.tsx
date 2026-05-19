@@ -1317,7 +1317,7 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
       const next = layers.map((l: any) => {
         if (String(l?.id) !== String(id)) return l;
         if (l?.type !== "text") return l;
-        return { ...l, text };
+        return { ...l, text, html: copilotTextToHtml(text) };
       });
 
       updateLayersForSlide(slideId, next as any);
@@ -1403,6 +1403,14 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
       .trim();
   }
 
+  function copilotTextToHtml(value: string) {
+    return String(value || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\n/g, "<br/>");
+  }
+
   function extractHashtagsOnly(value: string) {
     const matches =
       String(value || "").match(/#[A-Za-z0-9À-ÖØ-öø-ÿ_-]+/g) || [];
@@ -1410,7 +1418,7 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
     for (const tag of matches) {
       if (!unique.includes(tag)) unique.push(tag);
     }
-    return unique.slice(0, 20).join(" ");
+    return unique.slice(0, 5).join(" ");
   }
 
   function extractShortCaptionOnly(value: string) {
@@ -1540,8 +1548,8 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
       } else if (task === "hashtags") {
         prompt = [
           ctx,
-          "Génère 20 hashtags pertinents pour accompagner ce carrousel.",
-          "Format STRICT : une seule ligne composée uniquement de hashtags séparés par des espaces.",
+          "Génère exactement 5 hashtags performants et réellement utilisés actuellement pour accompagner ce carrousel.",
+          "Format STRICT : une seule ligne composée uniquement de 5 hashtags séparés par des espaces.",
           "Aucun mot hors hashtag. Aucune phrase. Aucune explication.",
           `Sujet: ${topic}`,
         ].join("\n");
