@@ -2,6 +2,7 @@ export type AlexIntent = "argent_vite" | "quitter_job" | "complement" | "discipl
 export type AlexLevel = "debutant" | "sans_resultat" | "quelques_ventes" | (string & {});
 export type TimePerDay = 30 | 60 | 90 | number;
 
+
 export type AlexBusinessGoal =
   | "premiers_revenus"
   | "revenu_500"
