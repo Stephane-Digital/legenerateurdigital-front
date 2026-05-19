@@ -27,6 +27,10 @@ import {
 
 import type {
   AlexContext,
+  AlexBusinessGoal,
+  AlexBusinessModel,
+  AlexAudienceSize,
+  AlexMainBlocker,
   AlexIntent,
   AlexLevel,
   AlexRoadmap,
@@ -628,8 +632,8 @@ useEffect(() => {
     goStage("ONBOARDING");
   }
 
-  function onSubmitOnboarding(data: { intent: AlexIntent; level: AlexLevel; timePerDay: TimePerDay }) {
-    const ctx = createInitialContext({ intent: data.intent, level: data.level, timePerDay: data.timePerDay });
+  function onSubmitOnboarding(data: { intent: AlexIntent; level: AlexLevel; timePerDay: TimePerDay; businessGoal?: AlexBusinessGoal; businessModel?: AlexBusinessModel; audienceSize?: AlexAudienceSize; mainBlocker?: AlexMainBlocker }) {
+    const ctx = createInitialContext({ intent: data.intent, level: data.level, timePerDay: data.timePerDay, businessGoal: data.businessGoal, businessModel: data.businessModel, audienceSize: data.audienceSize, mainBlocker: data.mainBlocker });
     const rm = createInitialRoadmap(ctx);
     const td = buildTodayFromRoadmap({ ctx, roadmap: rm, weekIndex: 1, dayIndex: 1 });
 
