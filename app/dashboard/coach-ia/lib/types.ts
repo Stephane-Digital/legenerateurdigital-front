@@ -1,3 +1,39 @@
+export type AlexBusinessGoal =
+  | "premiers_revenus"
+  | "revenu_500"
+  | "quitter_job"
+  | "premiers_clients"
+  | "business_stable";
+
+export type AlexBusinessModel =
+  | "affiliation"
+  | "offre_digitale"
+  | "coaching"
+  | "contenu"
+  | "pas_encore";
+
+export type AlexAudienceSize =
+  | "zero"
+  | "moins_500"
+  | "500_5000"
+  | "plus_5000";
+
+export type AlexContext = {
+  businessGoal?: AlexBusinessGoal;
+  businessModel?: AlexBusinessModel;
+  audienceSize?: AlexAudienceSize;
+  niche?: string;
+  offer?: string;
+  audience?: string;
+  stage?: string;
+  level?: string;
+  timePerDay?: number;
+  time_per_day?: number;
+  mainBlocker?: string;
+  lastAction?: string;
+  last_action?: string;
+};
+
 export type CoachUserPlan = "azur" | "essentiel" | "pro" | "ultime" | (string & {});
 export type CoachFocus = "jour" | "objectif" | "diagnostic" | (string & {});
 
