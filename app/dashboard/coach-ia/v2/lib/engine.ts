@@ -1,5 +1,9 @@
 import type {
   AlexContext,
+  AlexBusinessGoal,
+  AlexBusinessModel,
+  AlexAudienceSize,
+  AlexMainBlocker,
   AlexIntent,
   AlexLevel,
   AlexRoadmap,
@@ -1131,8 +1135,76 @@ function dayTemplate(weekIndex: number, dayIndex: number, intent: AlexIntent, le
   });
 }
 
-export function createInitialContext(args: { intent: AlexIntent; level: AlexLevel; timePerDay: TimePerDay }): AlexContext {
+function targetFromBusinessGoal(goal?: AlexBusinessGoal): { label: string; revenue: number; days: number } {
+  switch (goal) {
+    case "revenu_500":
+      return { label: "Atteindre 500€/mois", revenue: 500, days: 90 };
+    case "quitter_job":
+      return { label: "Préparer une sortie progressive du salariat", revenue: 2000, days: 180 };
+    case "premiers_clients":
+      return { label: "Obtenir les premiers clients", revenue: 300, days: 60 };
+    case "business_stable":
+      return { label: "Construire un business stable", revenue: 1000, days: 120 };
+    case "premiers_revenus":
+    default:
+      return { label: "Obtenir les premiers revenus", revenue: 100, days: 30 };
+  }
+}
+
+function blockerAdvice(blocker?: AlexMainBlocker): string[] {
+  switch (blocker) {
+    case "temps":
+      return ["ne pas multiplier les réseaux", "ne pas créer de tunnel complexe", "ne pas changer de méthode cette semaine"];
+    case "technique":
+      return ["ne pas refaire le site", "ne pas installer 5 outils", "ne pas bloquer sur la perfection"];
+    case "vente":
+      return ["ne pas publier sans CTA", "ne pas éviter les conversations", "ne pas rester uniquement dans le contenu gratuit"];
+    case "confiance":
+      return ["ne pas viser le post parfait", "ne pas se comparer", "ne pas attendre d’être légitime"];
+    case "dispersion":
+    default:
+      return ["ne pas changer de stratégie", "ne pas ouvrir un nouveau canal", "ne pas consommer plus que tu n’exécutes"];
+  }
+}
+
+function createTrajectory(args: {
+  businessGoal?: AlexBusinessGoal;
+  businessModel?: AlexBusinessModel;
+  audienceSize?: AlexAudienceSize;
+  mainBlocker?: AlexMainBlocker;
+}) {
+  const target = targetFromBusinessGoal(args.businessGoal);
+  const priorityModel: AlexBusinessModel = args.businessModel || "affiliation";
+
+  return {
+    targetLabel: target.label,
+    targetRevenueMonthly: target.revenue,
+    horizonDays: target.days,
+    priorityChannel: "instagram" as const,
+    priorityModel,
+    currentStep: args.audienceSize === "zero" ? "Créer une base de confiance" : "Transformer l’audience existante en conversations",
+    forbiddenFocus: blockerAdvice(args.mainBlocker),
+    milestones: [
+      { label: "Base", objective: "clarifier promesse, profil et angle", weekFrom: 1, weekTo: 1 },
+      { label: "Audience", objective: "publier régulièrement et attirer les bons profils", weekFrom: 2, weekTo: 4 },
+      { label: "Conversations", objective: "convertir l’attention en DM qualifiés", weekFrom: 5, weekTo: 8 },
+      { label: "Revenus", objective: "faire les premières ventes puis stabiliser", weekFrom: 9, weekTo: 12 },
+    ],
+  };
+}
+
+export function createInitialContext(args: {
+  intent: AlexIntent;
+  level: AlexLevel;
+  timePerDay: TimePerDay;
+  businessGoal?: AlexBusinessGoal;
+  businessModel?: AlexBusinessModel;
+  audienceSize?: AlexAudienceSize;
+  mainBlocker?: AlexMainBlocker;
+}): AlexContext {
   const ts = nowISO();
+  const trajectory = createTrajectory(args);
+
   return {
     version: 2,
     intent: args.intent,
@@ -1144,6 +1216,13 @@ export function createInitialContext(args: { intent: AlexIntent; level: AlexLeve
       facebookUnlocked: false,
       pinterestUnlocked: false,
     },
+    businessGoal: args.businessGoal || "premiers_revenus",
+    businessModel: args.businessModel || "affiliation",
+    audienceSize: args.audienceSize || "moins_500",
+    mainBlocker: args.mainBlocker || "dispersion",
+    revenueGoalMonthly: trajectory.targetRevenueMonthly,
+    deadlineDays: trajectory.horizonDays,
+    trajectory,
     startedAtISO: ts,
     lastUpdatedAtISO: ts,
   };
@@ -1236,6 +1315,10 @@ export function buildTodayFromRoadmap(args: { ctx: AlexContext; roadmap: AlexRoa
       checklist: day.checklist,
       kpiLabel: day.kpiLabel,
       tone,
+      businessGoal: ctx.businessGoal,
+      revenueGoalMonthly: ctx.revenueGoalMonthly,
+      deadlineDays: ctx.deadlineDays,
+      mainBlocker: ctx.mainBlocker,
     },
   };
 
