@@ -2,6 +2,11 @@ export type AlexIntent = "argent_vite" | "quitter_job" | "complement" | "discipl
 export type AlexLevel = "debutant" | "sans_resultat" | "quelques_ventes";
 export type TimePerDay = 30 | 60 | 90;
 
+export type AlexBusinessGoal = "premiers_revenus" | "revenu_500" | "quitter_job" | "premiers_clients" | "business_stable";
+export type AlexBusinessModel = "affiliation" | "offre_digitale" | "coaching" | "contenu" | "pas_encore";
+export type AlexAudienceSize = "zero" | "moins_500" | "500_5000" | "plus_5000";
+export type AlexMainBlocker = "dispersion" | "temps" | "technique" | "vente" | "confiance";
+
 export type AlexPlatform = "instagram" | "facebook" | "pinterest";
 export type MissionType = "content" | "conversation" | "vente";
 export type MissionFormat = "post" | "carrousel" | "story" | "dm_script";
@@ -25,6 +30,22 @@ export type NetworkProgress = {
   pinterestUnlocked: boolean;
 };
 
+export type AlexGoalTrajectory = {
+  targetLabel: string;
+  targetRevenueMonthly: number;
+  horizonDays: number;
+  priorityChannel: "instagram";
+  priorityModel: AlexBusinessModel;
+  currentStep: string;
+  forbiddenFocus: string[];
+  milestones: Array<{
+    label: string;
+    objective: string;
+    weekFrom: number;
+    weekTo: number;
+  }>;
+};
+
 export type AlexContext = {
   version: 2;
   intent: AlexIntent;
@@ -35,6 +56,15 @@ export type AlexContext = {
   networkProgress: NetworkProgress;
   startedAtISO: string;
   lastUpdatedAtISO: string;
+
+  /** Coach IA V3 — objectif clair + trajectoire business personnalisée */
+  businessGoal?: AlexBusinessGoal;
+  businessModel?: AlexBusinessModel;
+  audienceSize?: AlexAudienceSize;
+  mainBlocker?: AlexMainBlocker;
+  revenueGoalMonthly?: number;
+  deadlineDays?: number;
+  trajectory?: AlexGoalTrajectory;
 };
 
 export type MissionBrief = {
@@ -49,12 +79,11 @@ export type MissionBrief = {
   kpiLabel: string;
   durationMin: number;
   tone: "direct" | "calme" | "motivant";
-  // payload libre pour l’éditeur intelligent (pas de dépendance côté éditeur)
   editorPayload: Record<string, any>;
 };
 
 export type DayPlan = {
-  dayIndex: number; // 1..7
+  dayIndex: number;
   title: string;
   objective: string;
   checklist: string[];
@@ -66,9 +95,9 @@ export type DayPlan = {
 };
 
 export type WeekPlan = {
-  weekIndex: number; // 1..4
+  weekIndex: number;
   label: string;
-  days: DayPlan[]; // 7 jours
+  days: DayPlan[];
 };
 
 export type AlexRoadmap = {
