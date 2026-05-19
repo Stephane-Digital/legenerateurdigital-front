@@ -2,7 +2,6 @@ export type AlexIntent = "argent_vite" | "quitter_job" | "complement" | "discipl
 export type AlexLevel = "debutant" | "sans_resultat" | "quelques_ventes" | (string & {});
 export type TimePerDay = 30 | 60 | 90 | number;
 
-
 export type AlexBusinessGoal =
   | "premiers_revenus"
   | "revenu_500"
@@ -78,16 +77,74 @@ export type AlexContext = {
   [key: string]: any;
 };
 
+export type MissionBrief = {
+  platform: AlexPlatform;
+  type: MissionType;
+  format: MissionFormat;
+  goal: "attract" | "engage" | "convert";
+  businessModel: "MMR" | "MLR" | "CONTENT";
+  title: string;
+  objective: string;
+  checklist: string[];
+  kpiLabel: string;
+  durationMin: number;
+  tone: "direct" | "calme" | "motivant";
+  editorPayload: Record<string, any>;
+};
+
+export type DayPlan = {
+  dayIndex: number;
+  title: string;
+  objective: string;
+  checklist: string[];
+  kpiLabel: string;
+  durationMin: number;
+  missionType: MissionType;
+  format: MissionFormat;
+  businessModel: MissionBrief["businessModel"];
+};
+
 export type WeekPlan = {
   weekIndex: number;
   label: string;
-  days: any[];
+  days: DayPlan[];
 };
 
 export type AlexRoadmap = {
   version?: number;
   createdAtISO?: string;
   weeks: WeekPlan[];
+  [key: string]: any;
+};
+
+export type AlexToday = {
+  version?: number;
+  weekIndex: number;
+  dayIndex: number;
+  mission: MissionBrief;
+  commitRequired: true;
+  committedAtISO?: string;
+  startedAtISO?: string;
+  completedAtISO?: string;
+  [key: string]: any;
+};
+
+export type DailyLog = {
+  version?: number;
+  weekIndex: number;
+  dayIndex: number;
+  done: boolean;
+  kpiValue: number;
+  blocker:
+    | "idees"
+    | "oser"
+    | "pas_de_reponses"
+    | "temps"
+    | "message"
+    | "autre"
+    | (string & {});
+  note?: string;
+  createdAtISO: string;
   [key: string]: any;
 };
 
