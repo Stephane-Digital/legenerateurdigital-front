@@ -105,6 +105,30 @@ function getLayerTextAlign(style: any): "left" | "center" | "right" | "justify" 
 }
 
 
+function buildTextShadow(style: any): string | undefined {
+  if (style?.textShadowEnabled !== true) return undefined;
+
+  const color =
+    typeof style?.textShadowColor === "string" && style.textShadowColor.trim()
+      ? style.textShadowColor
+      : "rgba(0,0,0,0.65)";
+  const blur =
+    typeof style?.textShadowBlur === "number" && Number.isFinite(style.textShadowBlur)
+      ? Math.max(0, Math.min(80, style.textShadowBlur))
+      : 0;
+  const offsetX =
+    typeof style?.textShadowOffsetX === "number" && Number.isFinite(style.textShadowOffsetX)
+      ? Math.max(-80, Math.min(80, style.textShadowOffsetX))
+      : 0;
+  const offsetY =
+    typeof style?.textShadowOffsetY === "number" && Number.isFinite(style.textShadowOffsetY)
+      ? Math.max(-80, Math.min(80, style.textShadowOffsetY))
+      : 0;
+
+  if (blur <= 0 && offsetX === 0 && offsetY === 0) return undefined;
+  return `${offsetX}px ${offsetY}px ${blur}px ${color}`;
+}
+
 export default function CanvasStage({
   layers,
   setLayers,
@@ -844,6 +868,7 @@ export default function CanvasStage({
     const minHeight = typeof layer?.height === "number" ? layer.height : 60;
     const html = getTextLayerHtml(layer);
     const textAlign = getLayerTextAlign(style);
+    const textShadow = buildTextShadow(style);
     const color = style.fill || style.color || style.textColor || "#ffffff";
     const backgroundColor = style.backgroundColor ? String(style.backgroundColor) : "";
     const isCta = String(layer?.id || "").includes("lead-cta") || String(layer?.id || "").includes("cta");
@@ -864,6 +889,7 @@ export default function CanvasStage({
       lineHeight: Math.max(0.8, Number(style.lineHeight ?? 1.2)),
       textAlign,
       textDecoration: String(style.textDecoration || "none"),
+      textShadow,
       whiteSpace: "normal",
       wordBreak: "break-word",
       overflowWrap: "anywhere",
@@ -1152,6 +1178,8 @@ export default function CanvasStage({
                   ? layer.style.textAlign
                   : "left";
 
+              const textShadow = buildTextShadow(layer.style ?? {});
+
               const w = typeof layer.width === "number" ? layer.width : 420;
               const h = typeof layer.height === "number" ? layer.height : 120;
               const html = typeof layer.html === "string" && layer.html.trim()
@@ -1176,6 +1204,7 @@ export default function CanvasStage({
                     textDecoration,
                     lineHeight: layer.style?.lineHeight ?? 1.35,
                     textAlign,
+                    textShadow,
                     cursor: isEditing ? "text" : "move",
                     boxShadow: "none",
                     padding: 6,
