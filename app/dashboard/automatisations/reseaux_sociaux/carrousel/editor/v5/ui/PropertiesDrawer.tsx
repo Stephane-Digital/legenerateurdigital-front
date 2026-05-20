@@ -209,6 +209,44 @@ export default function PropertiesDrawer({ open, layer, onClose, onChange }: Pro
     setStyle({ fill: c, color: c, textColor: c });
   };
 
+  const shadowEnabled = style.textShadowEnabled === true;
+  const shadowColor =
+    typeof style.textShadowColor === "string" && style.textShadowColor.trim()
+      ? normalizeHex(style.textShadowColor)
+      : "#000000";
+  const shadowBlur =
+    typeof style.textShadowBlur === "number" && Number.isFinite(style.textShadowBlur)
+      ? clamp(style.textShadowBlur, 0, 80)
+      : 0;
+  const shadowOffsetX =
+    typeof style.textShadowOffsetX === "number" && Number.isFinite(style.textShadowOffsetX)
+      ? clamp(style.textShadowOffsetX, -80, 80)
+      : 0;
+  const shadowOffsetY =
+    typeof style.textShadowOffsetY === "number" && Number.isFinite(style.textShadowOffsetY)
+      ? clamp(style.textShadowOffsetY, -80, 80)
+      : 0;
+
+  const setShadow = (patch: any) => {
+    setStyle({
+      textShadowEnabled: true,
+      textShadowColor: shadowColor,
+      textShadowBlur: shadowBlur,
+      textShadowOffsetX: shadowOffsetX,
+      textShadowOffsetY: shadowOffsetY,
+      ...(patch ?? {}),
+    });
+  };
+
+  const resetShadow = () => {
+    setStyle({
+      textShadowEnabled: false,
+      textShadowBlur: 0,
+      textShadowOffsetX: 0,
+      textShadowOffsetY: 0,
+    });
+  };
+
   const setLineHeight = (v: number) => {
     setStyle({ lineHeight: clampFloat(v, 0.8, 3) });
   };
@@ -403,6 +441,100 @@ export default function PropertiesDrawer({ open, layer, onClose, onChange }: Pro
                 >
                   Droite
                 </button>
+              </div>
+            </div>
+          </div>
+
+
+          <div className="rounded-2xl border border-yellow-500/15 bg-black/30 p-3">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <label className="block text-yellow-400 text-xs">Ombre du texte</label>
+                <div className="mt-1 text-[11px] text-white/45">
+                  Couleur, intensité et décalage précis de l’ombre.
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  shadowEnabled
+                    ? resetShadow()
+                    : setShadow({ textShadowEnabled: true, textShadowBlur: 12, textShadowOffsetX: 2, textShadowOffsetY: 3 })
+                }
+                className={`rounded-lg border px-3 py-2 text-xs ${
+                  shadowEnabled
+                    ? "bg-[#ffb800] text-black border-[#ffb800]"
+                    : "border-yellow-500/20 text-yellow-200 bg-black/30 hover:bg-yellow-500/10"
+                }`}
+              >
+                {shadowEnabled ? "Activée" : "Désactivée"}
+              </button>
+            </div>
+
+            <div className={`space-y-3 ${shadowEnabled ? "" : "opacity-50 pointer-events-none"}`}>
+              <div>
+                <label className="block text-yellow-400 text-xs mb-2">Couleur ombre</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={shadowColor}
+                    onChange={(e) => setShadow({ textShadowColor: normalizeHex(e.target.value) })}
+                    className="h-11 w-12 rounded-xl bg-black/40 border border-yellow-500/20"
+                  />
+                  <input
+                    value={shadowColor}
+                    onChange={(e) => setShadow({ textShadowColor: normalizeHex(e.target.value) })}
+                    className="flex-1 rounded-xl bg-black/40 border border-yellow-500/20 px-3 py-2 text-yellow-100"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-yellow-400 text-xs mb-2">
+                  Intensité ({Math.round(shadowBlur)}px)
+                </label>
+                <input
+                  type="range"
+                  min={0}
+                  max={80}
+                  step={1}
+                  value={shadowBlur}
+                  onChange={(e) => setShadow({ textShadowBlur: clamp(Number(e.target.value || 0), 0, 80) })}
+                  className="w-full accent-[#ffb800]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-yellow-400 text-xs mb-2">
+                    Avancer / reculer X ({Math.round(shadowOffsetX)}px)
+                  </label>
+                  <input
+                    type="range"
+                    min={-80}
+                    max={80}
+                    step={1}
+                    value={shadowOffsetX}
+                    onChange={(e) => setShadow({ textShadowOffsetX: clamp(Number(e.target.value || 0), -80, 80) })}
+                    className="w-full accent-[#ffb800]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-yellow-400 text-xs mb-2">
+                    Avancer / reculer Y ({Math.round(shadowOffsetY)}px)
+                  </label>
+                  <input
+                    type="range"
+                    min={-80}
+                    max={80}
+                    step={1}
+                    value={shadowOffsetY}
+                    onChange={(e) => setShadow({ textShadowOffsetY: clamp(Number(e.target.value || 0), -80, 80) })}
+                    className="w-full accent-[#ffb800]"
+                  />
+                </div>
               </div>
             </div>
           </div>
