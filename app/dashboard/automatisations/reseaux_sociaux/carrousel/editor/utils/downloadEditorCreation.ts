@@ -19,6 +19,13 @@ type LayerStyle = {
   textDecoration?: string;
   letterSpacing?: number;
   textTransform?: string;
+
+  // Ombre texte
+  textShadowEnabled?: boolean;
+  textShadowColor?: string;
+  textShadowBlur?: number;
+  textShadowOffsetX?: number;
+  textShadowOffsetY?: number;
 };
 
 type LayerData = {
@@ -209,6 +216,33 @@ function getLayerTextAlign(style: Record<string, any>): "left" | "center" | "rig
   return "left";
 }
 
+function getTextShadowCss(style: Record<string, any>): string {
+  if (style?.textShadowEnabled !== true) return "none";
+
+  const color = firstNonEmptyString(style?.textShadowColor, "rgba(0,0,0,0.65)");
+  const blur = Math.max(0, Math.min(80, Number(style?.textShadowBlur ?? 0) || 0));
+  const offsetX = Math.max(-80, Math.min(80, Number(style?.textShadowOffsetX ?? 0) || 0));
+  const offsetY = Math.max(-80, Math.min(80, Number(style?.textShadowOffsetY ?? 0) || 0));
+
+  if (blur <= 0 && offsetX === 0 && offsetY === 0) return "none";
+  return `${offsetX}px ${offsetY}px ${blur}px ${color}`;
+}
+
+function applyCanvasTextShadow(ctx: CanvasRenderingContext2D, style: Record<string, any>) {
+  if (style?.textShadowEnabled !== true) {
+    ctx.shadowColor = "transparent";
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+    return;
+  }
+
+  ctx.shadowColor = firstNonEmptyString(style?.textShadowColor, "rgba(0,0,0,0.65)");
+  ctx.shadowBlur = Math.max(0, Math.min(80, Number(style?.textShadowBlur ?? 0) || 0));
+  ctx.shadowOffsetX = Math.max(-80, Math.min(80, Number(style?.textShadowOffsetX ?? 0) || 0));
+  ctx.shadowOffsetY = Math.max(-80, Math.min(80, Number(style?.textShadowOffsetY ?? 0) || 0));
+}
+
 function getTextLayerHtml(layer: LayerData) {
   if (typeof layer?.html === "string" && layer.html.trim()) return layer.html;
   return textToHtml(String(layer?.text ?? ""));
@@ -289,6 +323,7 @@ async function drawTextLayerRich(ctx: CanvasRenderingContext2D, layer: LayerData
   const textDecoration = String(style?.textDecoration || (style?.underline ? "underline" : "none"));
   const letterSpacing = typeof style?.letterSpacing === "number" ? `${style.letterSpacing}px` : "normal";
   const textTransform = style?.textTransform ? String(style.textTransform) : "none";
+  const textShadow = getTextShadowCss(style);
   const layerOpacity = typeof layer?.opacity === "number" ? layer.opacity : 1;
   const containerStyles = [
     `width:${w}px`,
@@ -302,6 +337,7 @@ async function drawTextLayerRich(ctx: CanvasRenderingContext2D, layer: LayerData
     `line-height:${lineHeight}`,
     `text-align:${textAlign}`,
     `text-decoration:${escapeXml(textDecoration)}`,
+    `text-shadow:${escapeXml(textShadow)}`,
     `white-space:pre-wrap`,
     `word-break:break-word`,
     `overflow-wrap:break-word`,
@@ -524,6 +560,7 @@ async function drawTextLayer(
 
   ctx.font = buildFont(style);
   ctx.fillStyle = color;
+  applyCanvasTextShadow(ctx, style);
   ctx.textBaseline = "top";
   ctx.textAlign = align;
 
