@@ -276,7 +276,7 @@ export default function EditorLayout({
   const [overlayType, setOverlayType] = useState<OverlayType>(initialUI?.overlayType ?? "color");
   const [overlayColor1, setOverlayColor1] = useState(initialUI?.overlayColor1 ?? "#000000");
   const [overlayColor2, setOverlayColor2] = useState(initialUI?.overlayColor2 ?? "#000000");
-  const [overlayOpacity, setOverlayOpacity] = useState(initialUI?.overlayOpacity ?? 0.35);
+  const [overlayOpacity, setOverlayOpacity] = useState(initialUI?.overlayOpacity ?? 0);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const bgImageInputRef = useRef<HTMLInputElement | null>(null);
