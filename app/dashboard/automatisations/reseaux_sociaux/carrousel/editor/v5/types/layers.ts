@@ -24,8 +24,21 @@ export interface LayerData {
     fontSize?: number;
     fontFamily?: string;
     color?: string;
-    fontWeight?: number;
+    fill?: string;
+    textColor?: string;
+    fontWeight?: string | number;
+    fontStyle?: string;
     italic?: boolean;
     underline?: boolean;
+    textDecoration?: string;
+    textAlign?: "left" | "center" | "right";
+    lineHeight?: number;
+
+    // Ombre texte — propriété visuelle persistée
+    textShadowEnabled?: boolean;
+    textShadowColor?: string;
+    textShadowBlur?: number;
+    textShadowOffsetX?: number;
+    textShadowOffsetY?: number;
   };
 }
