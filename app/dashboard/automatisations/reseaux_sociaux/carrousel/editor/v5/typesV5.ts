@@ -23,6 +23,13 @@ export interface LayerStyle {
   lineHeight?: number;
   backgroundColor?: string;
   borderRadius?: number;
+
+  // Ombre texte — propriété visuelle persistée
+  textShadowEnabled?: boolean;
+  textShadowColor?: string;
+  textShadowBlur?: number;
+  textShadowOffsetX?: number;
+  textShadowOffsetY?: number;
 }
 
 // ------------------------------------------------------
