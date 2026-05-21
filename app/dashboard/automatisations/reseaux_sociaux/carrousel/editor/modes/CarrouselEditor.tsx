@@ -891,6 +891,97 @@ async function consumeCoachQuota(amount: number) {
   }
 }
 
+
+type SocialAiLiveBlock = {
+  role?: "hook" | "body" | "cta" | "slide" | "title" | string;
+  text?: string;
+};
+
+function cleanLiveText(value: unknown) {
+  return String(value || "")
+    .replace(/\*\*/g, "")
+    .replace(/\r/g, "")
+    .replace(/^\s*(HOOK|BODY|CTA|TITRE|LÉGENDE|LEGENDE|SLIDE)\s*[:：-]\s*/gim, "")
+    .trim();
+}
+
+function liveBlocksToCopilotText(blocks: SocialAiLiveBlock[]) {
+  const safeBlocks = Array.isArray(blocks) ? blocks : [];
+  const hook = safeBlocks.find((b) => String(b?.role || "").toLowerCase() === "hook")?.text;
+  const cta = safeBlocks.find((b) => String(b?.role || "").toLowerCase() === "cta")?.text;
+  const body = safeBlocks
+    .filter((b) => {
+      const role = String(b?.role || "").toLowerCase();
+      return role !== "hook" && role !== "cta";
+    })
+    .map((b) => cleanLiveText(b?.text))
+    .filter(Boolean)
+    .join("\n\n");
+
+  const parts: string[] = [];
+  if (cleanLiveText(hook)) parts.push(`HOOK: ${cleanLiveText(hook)}`);
+  if (cleanLiveText(body)) parts.push(`BODY: ${cleanLiveText(body)}`);
+  if (cleanLiveText(cta)) parts.push(`CTA: ${cleanLiveText(cta)}`);
+
+  return parts.join("\n\n").trim();
+}
+
+async function generateSocialAiLive(args: {
+  format: string;
+  network: string;
+  goal: string;
+  objective: string;
+  category: string;
+  tone: string;
+  prompt: string;
+  context?: string;
+  subject?: string;
+}) {
+  const base = apiBase();
+  if (!base) throw new Error("NEXT_PUBLIC_API_URL manquant");
+
+  const res = await fetch(`${base}/social-ai/live/generate`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
+    credentials: "include",
+    body: JSON.stringify({
+      format: args.format,
+      network: args.network,
+      goal: args.goal,
+      objective: args.objective,
+      category: args.category,
+      tone: args.tone,
+      prompt: args.prompt,
+      brief: args.prompt,
+      context: args.context || args.prompt,
+      offer: args.subject || args.prompt,
+      product: args.subject || args.prompt,
+      subject: args.subject || args.prompt,
+      cta: "CTA court, humain, naturel, sans pression commerciale.",
+    }),
+  });
+
+  if (!res.ok) {
+    let detail = "";
+    try {
+      const j = await res.json();
+      detail = typeof j?.detail === "string" ? j.detail : JSON.stringify(j?.detail || j);
+    } catch {
+      detail = await res.text();
+    }
+    throw new Error(detail || `Social AI LIVE indisponible (HTTP ${res.status})`);
+  }
+
+  const data = await res.json().catch(() => ({} as any));
+  const out = liveBlocksToCopilotText(data?.blocks || []);
+  if (!out) throw new Error("Réponse Social AI LIVE invalide");
+  return out;
+}
+
+
 async function aiRewriteText(args: { text: string; tone?: string; max_length?: number }) {
   const base = apiBase();
   if (!base) throw new Error("NEXT_PUBLIC_API_URL manquant");
@@ -1795,11 +1886,23 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
         ].join("\n");
       }
 
-      const out = await aiRewriteText({
-        text: prompt,
-        tone: tone?.trim() ? tone.trim() : undefined,
-        max_length: maxChars > 0 ? maxChars : undefined,
-      });
+      const out = task === "caption"
+        ? await generateSocialAiLive({
+            format: "carrousel",
+            network,
+            goal: objective,
+            objective,
+            category: angle,
+            tone: tone?.trim() ? tone.trim() : "direct, humain, premium, anti-blabla",
+            prompt,
+            context: ctx,
+            subject: topic,
+          })
+        : await aiRewriteText({
+            text: prompt,
+            tone: tone?.trim() ? tone.trim() : undefined,
+            max_length: maxChars > 0 ? maxChars : undefined,
+          });
 
       if (task === "hooks") {
         const lines = out
