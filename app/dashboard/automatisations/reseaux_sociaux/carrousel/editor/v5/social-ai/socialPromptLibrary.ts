@@ -11,10 +11,12 @@ export type SocialPromptCategory =
   | "CTA"
   | "MRR"
   | "Personas"
-  | "Conversion"
   | "Conseils"
   | "Algorithmes"
-  | "Viralité";
+  | "Viralité"
+  | "Conversion"
+  | "Stratégie"
+  | "Conseils 90 jours";
 
 export type SocialPromptTemplate = {
   id: string;
@@ -700,6 +702,35 @@ export const SOCIAL_PROMPT_LIBRARY: SocialPromptTemplate[] = [
     description: "Faire comprendre l’adéquation.",
     prompt: `Crée un post qui explique pourquoi l’offre correspond à la situation de l’audience sans argumentaire lourd. ${RULES}`,
   },
+
+  {
+    id: "strategy-week-content-system",
+    category: "Stratégie",
+    title: "Système éditorial 7 jours",
+    description: "Plan simple pour publier sans repartir de zéro.",
+    prompt: `Crée une stratégie de contenu sur 7 jours pour l’audience de l’utilisateur : objectif de chaque jour, angle, format recommandé, hook, conseil à transmettre et CTA. Le plan doit préparer une génération LIVE IA complète ensuite. ${RULES}`,
+  },
+  {
+    id: "strategy-authority-engine",
+    category: "Stratégie",
+    title: "Moteur d’autorité",
+    description: "Alterner expertise, preuve, pédagogie et conversion.",
+    prompt: `Crée une stratégie éditoriale d’autorité pour 30 jours : catégories de contenu, fréquence, objectifs, types de conseils à donner et angles de conversion douce. ${RULES}`,
+  },
+  {
+    id: "advice-90-days-live-plan",
+    category: "Conseils 90 jours",
+    title: "Conseils 90 jours — LIVE IA",
+    description: "Prépare un calendrier long terme de conseils experts pour l’audience.",
+    prompt: `Prépare un calendrier stratégique de 90 jours de conseils experts pour l’audience de l’utilisateur. Pour chaque jour : thème, angle, objectif, format recommandé, conseil à donner, idée de hook, CTA naturel, astuce algorithme. Ne génère pas un contenu générique : chaque jour doit apporter une vraie valeur différente. ${RULES}`,
+  },
+  {
+    id: "advice-90-days-authority",
+    category: "Conseils 90 jours",
+    title: "90 jours autorité",
+    description: "Devenir la personne intéressante à suivre dans sa niche.",
+    prompt: `Crée un plan de 90 jours pour positionner l’utilisateur comme une référence utile dans sa niche : conseils, erreurs à éviter, mini-frameworks, objections, cas pratiques, contenus sauvegardables, posts conversationnels et appels à l’action. ${RULES}`,
+  },
 ];
 
 export const SOCIAL_PROMPT_CATEGORIES: SocialPromptCategory[] = [
@@ -715,8 +746,10 @@ export const SOCIAL_PROMPT_CATEGORIES: SocialPromptCategory[] = [
   "CTA",
   "MRR",
   "Personas",
-  "Conversion",
   "Conseils",
   "Algorithmes",
   "Viralité",
+  "Conversion",
+  "Stratégie",
+  "Conseils 90 jours",
 ];
