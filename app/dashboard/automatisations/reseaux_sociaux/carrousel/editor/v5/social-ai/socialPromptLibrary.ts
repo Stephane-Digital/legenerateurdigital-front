@@ -753,3 +753,4 @@ export const SOCIAL_PROMPT_CATEGORIES: SocialPromptCategory[] = [
   "Stratégie",
   "Conseils 90 jours",
 ];
+
