@@ -459,16 +459,20 @@ function buildAuthorityAdviceBlocks({
       ? "Algorithme"
       : categoryKey === "Viralité"
         ? "Viralité douce"
-        : categoryKey === "Conseils"
-          ? "Conseil d'expert"
-          : "Autorité";
+        : categoryKey === "Conseils 90 jours"
+            ? "Plan de conseils 90 jours"
+            : categoryKey === "Conseils"
+              ? "Conseil d'expert"
+              : "Autorité";
 
   const hook =
     categoryKey === "Algorithmes"
       ? "Ton contenu ne floppe pas toujours parce qu'il est mauvais. Souvent, il commence trop lentement."
       : categoryKey === "Viralité"
         ? "Le contenu viral ne crie pas plus fort. Il touche une tension que beaucoup vivent en silence."
-        : "Un bon conseil ne donne pas juste une astuce. Il aide ton audience à comprendre pourquoi elle bloque.";
+        : categoryKey === "Conseils 90 jours"
+          ? "Une audience ne s’attache pas à un compte parce qu’il publie une fois fort. Elle s’attache parce qu’il l’aide régulièrement."
+          : "Un bon conseil ne donne pas juste une astuce. Il aide ton audience à comprendre pourquoi elle bloque.";
 
   const body = [
     `${angle} :`,
@@ -486,7 +490,9 @@ function buildAuthorityAdviceBlocks({
       ? "Sur les réseaux, les premières secondes servent à créer une raison de rester. Si le lecteur ne comprend pas vite pourquoi ça le concerne, il part."
       : categoryKey === "Viralité"
         ? "Un contenu partageable donne souvent cette sensation : “je pensais être le seul à vivre ça”. C'est cette reconnaissance qui crée la réaction."
-        : "L'autorité ne vient pas du vocabulaire compliqué. Elle vient de la précision avec laquelle tu nommes le problème.",
+        : categoryKey === "Conseils 90 jours"
+          ? "Le bon système consiste à alterner conseils pratiques, erreurs fréquentes, mini-frameworks, objections, algorithmes, storytelling et appels à l’action. C’est cette variété qui évite la répétition."
+          : "L'autorité ne vient pas du vocabulaire compliqué. Elle vient de la précision avec laquelle tu nommes le problème.",
     "",
     `Le meilleur angle ici : montrer comment passer de “${context.pain}” à “${context.promise}”, sans promettre de miracle.`,
     "",
@@ -514,7 +520,9 @@ function buildLocalGeneration({
   prompt: string;
   category?: SocialPromptCategory;
 }): SocialAiGeneratedBlock[] {
-  if (category && ["Conseils", "Algorithmes", "Viralité"].includes(category)) {
+  const authorityAdviceCategories: SocialPromptCategory[] = ["Conseils", "Algorithmes", "Viralité", "Conseils 90 jours"];
+
+  if (category && authorityAdviceCategories.includes(category)) {
     return buildAuthorityAdviceBlocks({ format, network, goal, tone, prompt, category });
   }
 
