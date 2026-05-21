@@ -459,3 +459,4 @@ export default function SocialAiModal({ open, onClose, onInject }: Props) {
     </div>
   );
 }
+
