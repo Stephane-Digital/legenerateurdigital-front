@@ -433,6 +433,70 @@ function buildStoryBlocks({
   ];
 }
 
+
+function buildAuthorityAdviceBlocks({
+  goal,
+  network,
+  tone,
+  prompt,
+  format,
+  category,
+}: {
+  goal: SocialGoal;
+  network: SocialNetwork;
+  tone: SocialTone;
+  prompt: string;
+  format: ContentFormat;
+  category: SocialPromptCategory;
+}): SocialAiGeneratedBlock[] {
+  const context = buildMegaPrompt({ format, network, goal, tone, prompt });
+  const cta = ctaForGoal(goal);
+
+  const angle =
+    category === "Algorithmes"
+      ? "Algorithme"
+      : category === "Viralité"
+        ? "Viralité douce"
+        : category === "Conseils"
+          ? "Conseil d'expert"
+          : "Autorité";
+
+  const hook =
+    category === "Algorithmes"
+      ? "Ton contenu ne floppe pas toujours parce qu'il est mauvais. Souvent, il commence trop lentement."
+      : category === "Viralité"
+        ? "Le contenu viral ne crie pas plus fort. Il touche une tension que beaucoup vivent en silence."
+        : "Un bon conseil ne donne pas juste une astuce. Il aide ton audience à comprendre pourquoi elle bloque.";
+
+  const body = [
+    `${angle} :`,
+    "",
+    hook,
+    "",
+    `Si tu parles à ${context.audience}, commence par nommer le vrai blocage : ${context.pain}.`,
+    "",
+    "Ensuite, donne une seule idée simple.",
+    "Pas 12 astuces.",
+    "Pas un cours complet.",
+    "Une idée claire que la personne peut retenir, sauvegarder ou appliquer aujourd'hui.",
+    "",
+    category === "Algorithmes"
+      ? "Sur les réseaux, les premières secondes servent à créer une raison de rester. Si le lecteur ne comprend pas vite pourquoi ça le concerne, il part."
+      : category === "Viralité"
+        ? "Un contenu partageable donne souvent cette sensation : “je pensais être le seul à vivre ça”. C'est cette reconnaissance qui crée la réaction."
+        : "L'autorité ne vient pas du vocabulaire compliqué. Elle vient de la précision avec laquelle tu nommes le problème.",
+    "",
+    `Le meilleur angle ici : montrer comment passer de “${context.pain}” à “${context.promise}”, sans promettre de miracle.`,
+    "",
+    cta,
+  ].join("\n");
+
+  return [
+    { role: "hook", text: cleanText(hook) },
+    { role: "body", text: cleanText(body) },
+  ];
+}
+
 function buildLocalGeneration({
   format,
   network,
@@ -445,7 +509,12 @@ function buildLocalGeneration({
   goal: SocialGoal;
   tone: SocialTone;
   prompt: string;
+  category?: SocialPromptCategory;
 }): SocialAiGeneratedBlock[] {
+  if (category && ["Conseils", "Algorithmes", "Viralité"].includes(category)) {
+    return buildAuthorityAdviceBlocks({ format, network, goal, tone, prompt, category });
+  }
+
   if (format === "carrousel") {
     return buildCarouselBlocks({ format, network, goal, tone, prompt });
   }
@@ -478,13 +547,13 @@ export default function SocialAiModal({ open, onClose, onInject }: Props) {
   if (!open) return null;
 
   const generate = () => {
-    setGenerated(buildLocalGeneration({ format, network, goal, tone, prompt }));
+    setGenerated(buildLocalGeneration({ format, network, goal, tone, prompt, category: activeCategory }));
   };
 
   const inject = () => {
     const blocks = generated.length
       ? generated
-      : buildLocalGeneration({ format, network, goal, tone, prompt });
+      : buildLocalGeneration({ format, network, goal, tone, prompt, category: activeCategory });
     onInject(blocks);
   };
 
