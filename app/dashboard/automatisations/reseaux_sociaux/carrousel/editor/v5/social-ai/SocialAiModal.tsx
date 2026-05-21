@@ -68,6 +68,14 @@ const TONES: SocialTone[] = [
   "Storytelling",
 ];
 
+const QUICK_ADVICE_CATEGORIES: { label: string; category: SocialPromptCategory; helper: string }[] = [
+  { label: "Conseils", category: "Conseils", helper: "Conseils experts à donner à ton audience" },
+  { label: "Algorithmes", category: "Algorithmes", helper: "Astuces publication, rétention, commentaires" },
+  { label: "Viralité", category: "Viralité", helper: "Angles partageables sans contenu cringe" },
+  { label: "90 jours", category: "Conseils 90 jours", helper: "Base du futur plan LIVE IA 90 jours" },
+];
+
+
 function cleanText(value: string) {
   return String(value || "")
     .replace(/\*\*/g, "")
@@ -654,6 +662,36 @@ export default function SocialAiModal({ open, onClose, onInject }: Props) {
           </aside>
 
           <main className="p-4">
+            <div className="mb-4 rounded-2xl border border-yellow-500/20 bg-yellow-500/[0.04] p-3">
+              <div className="mb-2 text-xs font-bold uppercase tracking-[0.16em] text-yellow-300">
+                Conseils audience & croissance
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                {QUICK_ADVICE_CATEGORIES.map((item) => (
+                  <button
+                    key={item.category}
+                    type="button"
+                    onClick={() => {
+                      setActiveCategory(item.category);
+                      setPrompt(
+                        SOCIAL_PROMPT_LIBRARY.find((template) => template.category === item.category)?.prompt || ""
+                      );
+                    }}
+                    className={`rounded-2xl border px-3 py-3 text-left transition ${
+                      activeCategory === item.category
+                        ? "border-yellow-400 bg-yellow-400 text-black"
+                        : "border-yellow-500/25 bg-black/30 text-yellow-50 hover:border-yellow-400/60 hover:bg-yellow-500/10"
+                    }`}
+                  >
+                    <div className="text-sm font-bold">{item.label}</div>
+                    <div className={`mt-1 text-[11px] leading-4 ${activeCategory === item.category ? "text-black/70" : "text-yellow-50/55"}`}>
+                      {item.helper}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="mb-4 flex flex-wrap gap-2">
               {SOCIAL_PROMPT_CATEGORIES.map((category) => (
                 <button
