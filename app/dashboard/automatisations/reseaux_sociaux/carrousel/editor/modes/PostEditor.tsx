@@ -32,7 +32,7 @@ const LS_BRIEF_DISMISSED = "lgd_editor_brief_dismissed";
  *  ========================= */
 
 type Network = "Instagram" | "TikTok" | "LinkedIn" | "Facebook";
-type Objective = "Attirer" | "Éduquer" | "Convertir" | "Story";
+type Objective = "Attirer" | "Éduquer" | "Convertir" | "Story" | "Engagement";
 type Angle =
   | "MRR débutant"
   | "Produit digital"
@@ -586,6 +586,235 @@ const SOCIAL_PROMPT_LIBRARY: SocialPromptTemplate[] = [
     "tone": "humain, premium, relationnel, empathique",
     "maxChars": 1200
   }
+  ,{
+    "id": "advice-authority-simple",
+    "category": "Conseils expert audience",
+    "title": "Conseil d'autorité",
+    "description": "Donner un conseil simple que l'audience veut sauvegarder.",
+    "idea": "Crée un post conseil d'expert pour l'audience de l'utilisateur. Le contenu doit donner une seule idée forte, simple, crédible et directement applicable aujourd'hui. Objectif : faire paraître l'utilisateur utile, clair et intéressant à suivre, sans jargon ni posture de guru.",
+    "network": "Instagram",
+    "objective": "Éduquer",
+    "angle": "Tutoriel",
+    "tone": "expert accessible, premium, concret, humain, actionnable",
+    "maxChars": 1100
+  },
+  {
+    "id": "advice-stop-doing",
+    "category": "Conseils expert audience",
+    "title": "Arrête de faire ça",
+    "description": "Conseil utile sous forme de prise de conscience.",
+    "idea": "Crée un post qui commence par ce que l'audience doit arrêter de faire, puis explique quoi faire à la place. Le conseil doit être précis, utile, non culpabilisant et donner envie de commenter ou sauvegarder.",
+    "network": "Instagram",
+    "objective": "Éduquer",
+    "angle": "Erreur fréquente",
+    "tone": "direct, premium, bienveillant, anti-blabla",
+    "maxChars": 1000
+  },
+  {
+    "id": "advice-if-i-started-again",
+    "category": "Conseils expert audience",
+    "title": "Si je recommençais",
+    "description": "Conseil crédible qui installe l'expérience.",
+    "idea": "Crée un post 'si je devais recommencer aujourd'hui' adapté au sujet de l'utilisateur. Donne 3 conseils précis que son audience peut appliquer sans se sentir perdue. Pas de promesse magique.",
+    "network": "LinkedIn",
+    "objective": "Éduquer",
+    "angle": "Preuve",
+    "tone": "expert, posé, premium, utile, sincère",
+    "maxChars": 1300
+  },
+  {
+    "id": "advice-mini-audit",
+    "category": "Conseils expert audience",
+    "title": "Mini audit",
+    "description": "Permet à l'audience de s'auto-diagnostiquer.",
+    "idea": "Crée un post mini-audit avec 5 signes qui montrent que l'audience doit corriger son approche. Chaque signe doit être concret, reconnaissable et orienté passage à l'action.",
+    "network": "Instagram",
+    "objective": "Engagement",
+    "angle": "Tutoriel",
+    "tone": "clair, premium, diagnostic, concret",
+    "maxChars": 1200
+  },
+  {
+    "id": "advice-one-rule",
+    "category": "Conseils expert audience",
+    "title": "Une règle à retenir",
+    "description": "Un principe simple qui renforce l'autorité.",
+    "idea": "Crée un post autour d'une règle unique que l'audience devrait retenir pour obtenir un meilleur résultat. Le contenu doit être court, mémorable, utile et crédible.",
+    "network": "Facebook",
+    "objective": "Éduquer",
+    "angle": "Mindset / discipline",
+    "tone": "humain, simple, premium, mémorable",
+    "maxChars": 950
+  },
+  {
+    "id": "advice-content-routine",
+    "category": "Conseils expert audience",
+    "title": "Routine contenu",
+    "description": "Aider à publier sans page blanche.",
+    "idea": "Crée un post qui donne une routine simple pour créer du contenu sans repartir de zéro. L'audience doit sentir qu'elle peut l'appliquer dès aujourd'hui.",
+    "network": "Instagram",
+    "objective": "Éduquer",
+    "angle": "Tutoriel",
+    "tone": "pratique, rassurant, premium, actionnable",
+    "maxChars": 1100
+  },
+  {
+    "id": "algo-first-seconds",
+    "category": "Algorithmes & publication",
+    "title": "Premières secondes",
+    "description": "Expliquer pourquoi le début décide souvent de la suite.",
+    "idea": "Crée un post conseil qui explique simplement pourquoi les premières secondes ou premières lignes comptent autant. Donne une méthode concrète pour améliorer l'accroche sans faire putaclic.",
+    "network": "TikTok",
+    "objective": "Éduquer",
+    "angle": "Tutoriel",
+    "tone": "pédagogique, direct, moderne, premium",
+    "maxChars": 1000
+  },
+  {
+    "id": "algo-watch-time",
+    "category": "Algorithmes & publication",
+    "title": "Watch time",
+    "description": "Rendre la rétention compréhensible.",
+    "idea": "Crée un post qui explique le watch time de façon simple et utile. Montre comment structurer un contenu pour donner envie de rester jusqu'au bout.",
+    "network": "TikTok",
+    "objective": "Éduquer",
+    "angle": "Tutoriel",
+    "tone": "expert accessible, clair, concret",
+    "maxChars": 1100
+  },
+  {
+    "id": "algo-comments-qualified",
+    "category": "Algorithmes & publication",
+    "title": "Commentaires qualifiés",
+    "description": "Déclencher des réponses utiles sans mendier.",
+    "idea": "Crée un post conseil sur la façon de déclencher des commentaires qualifiés. Explique pourquoi une bonne question vaut mieux qu'un CTA générique du type 'tu en penses quoi ?'.",
+    "network": "Instagram",
+    "objective": "Engagement",
+    "angle": "Tutoriel",
+    "tone": "premium, stratégique, simple, actionnable",
+    "maxChars": 1100
+  },
+  {
+    "id": "algo-posting-time-test",
+    "category": "Algorithmes & publication",
+    "title": "Heures de publication",
+    "description": "Conseil prudent pour tester ses créneaux.",
+    "idea": "Crée un post qui explique comment tester ses meilleurs horaires de publication sans suivre aveuglément des règles génériques. Donne une méthode simple sur 14 jours.",
+    "network": "Instagram",
+    "objective": "Éduquer",
+    "angle": "Tutoriel",
+    "tone": "prudent, expert, clair, premium",
+    "maxChars": 1200
+  },
+  {
+    "id": "algo-saveable-content",
+    "category": "Algorithmes & publication",
+    "title": "Contenu sauvegardable",
+    "description": "Créer de la valeur que l'audience garde.",
+    "idea": "Crée un post qui montre comment produire un contenu que les gens ont envie de sauvegarder : checklist, erreur à éviter, méthode simple, rappel utile. Donne un exemple concret.",
+    "network": "Instagram",
+    "objective": "Éduquer",
+    "angle": "Tutoriel",
+    "tone": "utile, concret, premium, social media manager",
+    "maxChars": 1150
+  },
+  {
+    "id": "algo-recycle-one-idea",
+    "category": "Algorithmes & publication",
+    "title": "Recycler une idée",
+    "description": "Transformer une idée en plusieurs formats.",
+    "idea": "Crée un post conseil sur comment recycler une idée forte en post, reel, carrousel et story sans lasser l'audience. Donne une structure simple.",
+    "network": "LinkedIn",
+    "objective": "Éduquer",
+    "angle": "Tutoriel",
+    "tone": "stratégique, premium, pratique, clair",
+    "maxChars": 1300
+  },
+  {
+    "id": "viral-relatable-truth",
+    "category": "Astuces virales",
+    "title": "Vérité relatable",
+    "description": "Créer le sentiment 'moi aussi'.",
+    "idea": "Crée un post viral doux basé sur une situation que beaucoup de personnes vivent mais formulent rarement. Le contenu doit provoquer identification, partage ou commentaire sans être agressif.",
+    "network": "Instagram",
+    "objective": "Engagement",
+    "angle": "Storytelling",
+    "tone": "humain, premium, émotionnel, précis",
+    "maxChars": 1000
+  },
+  {
+    "id": "viral-unpopular-opinion",
+    "category": "Astuces virales",
+    "title": "Opinion impopulaire douce",
+    "description": "Prise de position forte mais propre.",
+    "idea": "Crée un post avec une opinion impopulaire mais mature dans le sujet de l'utilisateur. Le but est de faire réfléchir, pas de provoquer gratuitement.",
+    "network": "LinkedIn",
+    "objective": "Engagement",
+    "angle": "Objection",
+    "tone": "assumé, calme, premium, lucide",
+    "maxChars": 1200
+  },
+  {
+    "id": "viral-myth-break",
+    "category": "Astuces virales",
+    "title": "Mythe cassé",
+    "description": "Démonter une croyance populaire.",
+    "idea": "Crée un post qui casse un mythe courant de la niche de l'utilisateur et propose une vision plus utile, plus simple et plus actionnable.",
+    "network": "Instagram",
+    "objective": "Éduquer",
+    "angle": "Erreur fréquente",
+    "tone": "expert, accessible, premium, clair",
+    "maxChars": 1100
+  },
+  {
+    "id": "viral-shareable-line",
+    "category": "Astuces virales",
+    "title": "Phrase partageable",
+    "description": "Une punchline mémorable sans cliché.",
+    "idea": "Crée 12 phrases fortes et partageables sur le sujet de l'utilisateur. Chaque phrase doit être courte, mémorable, utile, sans cliché motivationnel.",
+    "network": "Instagram",
+    "objective": "Attirer",
+    "angle": "Mindset / discipline",
+    "tone": "punchy, premium, mémorable, humain",
+    "maxChars": 900
+  },
+  {
+    "id": "viral-contrast",
+    "category": "Astuces virales",
+    "title": "Contraste fort",
+    "description": "Opposer deux comportements pour créer un déclic.",
+    "idea": "Crée un post basé sur un contraste net entre ce que fait la majorité et ce qui produit vraiment des résultats. Le ton doit être utile et crédible.",
+    "network": "Facebook",
+    "objective": "Engagement",
+    "angle": "Erreur fréquente",
+    "tone": "clair, humain, premium, déclic",
+    "maxChars": 1050
+  },
+  {
+    "id": "advice-90-plan-overview",
+    "category": "Conseils 90 jours",
+    "title": "Plan conseils 90 jours",
+    "description": "Prépare un calendrier de conseils pour 90 jours.",
+    "idea": "Crée un plan éditorial de conseils sur 90 jours pour l'audience de l'utilisateur. Pour chaque semaine : thème, intention, type de conseil, angle principal et objectif. Ne génère pas 90 posts complets : prépare une feuille de route claire et exploitable.",
+    "network": "Instagram",
+    "objective": "Éduquer",
+    "angle": "Tutoriel",
+    "tone": "stratégique, premium, clair, orienté action",
+    "maxChars": 1800
+  },
+  {
+    "id": "advice-90-first-week",
+    "category": "Conseils 90 jours",
+    "title": "Semaine 1 détaillée",
+    "description": "7 conseils prêts à générer en live IA.",
+    "idea": "Crée la première semaine d'un calendrier de conseils experts : 7 jours, 7 angles différents, 7 objectifs, 7 formats recommandés. Chaque jour doit donner envie de générer le post complet en live IA ensuite.",
+    "network": "Instagram",
+    "objective": "Éduquer",
+    "angle": "Tutoriel",
+    "tone": "stratégique, concret, premium, social media manager",
+    "maxChars": 1800
+  }
+
 ];
 
 function apiBase() {
@@ -1145,6 +1374,10 @@ export default function PostEditor({
       { key: "Carrousel premium", label: "Carrousel" },
       { key: "Personas marketing", label: "Personas" },
       { key: "Stratégie contenu", label: "Stratégie" },
+      { key: "Conseils expert audience", label: "Conseils" },
+      { key: "Algorithmes & publication", label: "Algorithmes" },
+      { key: "Astuces virales", label: "Viralité" },
+      { key: "Conseils 90 jours", label: "90 jours" },
     ].filter((category) => SOCIAL_PROMPT_LIBRARY.some((item) => item.category === category.key)),
     []
   );
