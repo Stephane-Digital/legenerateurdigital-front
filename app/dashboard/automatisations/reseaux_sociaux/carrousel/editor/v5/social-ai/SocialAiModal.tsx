@@ -452,19 +452,21 @@ function buildAuthorityAdviceBlocks({
   const context = buildMegaPrompt({ format, network, goal, tone, prompt });
   const cta = ctaForGoal(goal);
 
+  const categoryKey = String(category);
+
   const angle =
-    category === "Algorithmes"
+    categoryKey === "Algorithmes"
       ? "Algorithme"
-      : category === "Viralité"
+      : categoryKey === "Viralité"
         ? "Viralité douce"
-        : category === "Conseils"
+        : categoryKey === "Conseils"
           ? "Conseil d'expert"
           : "Autorité";
 
   const hook =
-    category === "Algorithmes"
+    categoryKey === "Algorithmes"
       ? "Ton contenu ne floppe pas toujours parce qu'il est mauvais. Souvent, il commence trop lentement."
-      : category === "Viralité"
+      : categoryKey === "Viralité"
         ? "Le contenu viral ne crie pas plus fort. Il touche une tension que beaucoup vivent en silence."
         : "Un bon conseil ne donne pas juste une astuce. Il aide ton audience à comprendre pourquoi elle bloque.";
 
@@ -480,9 +482,9 @@ function buildAuthorityAdviceBlocks({
     "Pas un cours complet.",
     "Une idée claire que la personne peut retenir, sauvegarder ou appliquer aujourd'hui.",
     "",
-    category === "Algorithmes"
+    categoryKey === "Algorithmes"
       ? "Sur les réseaux, les premières secondes servent à créer une raison de rester. Si le lecteur ne comprend pas vite pourquoi ça le concerne, il part."
-      : category === "Viralité"
+      : categoryKey === "Viralité"
         ? "Un contenu partageable donne souvent cette sensation : “je pensais être le seul à vivre ça”. C'est cette reconnaissance qui crée la réaction."
         : "L'autorité ne vient pas du vocabulaire compliqué. Elle vient de la précision avec laquelle tu nommes le problème.",
     "",
@@ -503,6 +505,7 @@ function buildLocalGeneration({
   goal,
   tone,
   prompt,
+  category,
 }: {
   format: ContentFormat;
   network: SocialNetwork;
