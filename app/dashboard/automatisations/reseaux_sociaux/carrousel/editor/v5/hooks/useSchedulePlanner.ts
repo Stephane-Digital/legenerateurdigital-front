@@ -50,6 +50,36 @@ function getTokenFromStorage(): string | null {
   }
 }
 
+
+const LS_PLANNER_LOCAL_POSTS = "lgd_planner_local_posts_v1";
+
+function safeReadPlannerLocalPosts(): any[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(LS_PLANNER_LOCAL_POSTS);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function safeWritePlannerLocalPost(post: any) {
+  if (typeof window === "undefined" || !post) return;
+  try {
+    const current = safeReadPlannerLocalPosts();
+    const id = String(post?.id ?? post?.local_id ?? "");
+    const withoutSame = id
+      ? current.filter((item) => String(item?.id ?? item?.local_id ?? "") !== id)
+      : current;
+    const next = [post, ...withoutSame].slice(0, 300);
+    window.localStorage.setItem(LS_PLANNER_LOCAL_POSTS, JSON.stringify(next));
+    window.dispatchEvent(new CustomEvent("lgd-planner-updated", { detail: post }));
+  } catch {
+    // no-op
+  }
+}
+
 function pickNetwork(payload: SchedulePayload): string {
   return String(payload.network || payload.reseau || "instagram").toLowerCase().trim();
 }
@@ -152,6 +182,41 @@ if (!payload.contenu && typeof window !== "undefined") {
       }
 
       const data = await res.json().catch(() => null);
+
+      // ✅ Local mirror: keeps Planner visible immediately even if the
+      // production list endpoint temporarily filters/omits the new item.
+      const localId =
+        data?.id ??
+        data?.post?.id ??
+        data?.item?.id ??
+        `local-planner-${Date.now()}`;
+      const localPost = {
+        ...(typeof data === "object" && data ? data : {}),
+        id: localId,
+        local_id: localId,
+        reseau: data?.reseau ?? data?.network ?? network,
+        network: data?.network ?? data?.reseau ?? network,
+        date_programmee: data?.date_programmee ?? data?.scheduled_at ?? scheduled_at,
+        scheduled_at: data?.scheduled_at ?? data?.date_programmee ?? scheduled_at,
+        titre:
+          data?.titre ??
+          data?.title ??
+          payload.titre ??
+          payload.contenu?.title ??
+          (isCarrousel ? "Carrousel LGD" : "Post LGD"),
+        title:
+          data?.title ??
+          data?.titre ??
+          payload.titre ??
+          payload.contenu?.title ??
+          (isCarrousel ? "Carrousel LGD" : "Post LGD"),
+        format: data?.format ?? payload.format ?? (isCarrousel ? "carrousel" : "post"),
+        statut: data?.statut ?? data?.status ?? payload.statut ?? "scheduled",
+        status: data?.status ?? data?.statut ?? payload.statut ?? "scheduled",
+        contenu: data?.contenu ?? data?.content ?? payload.contenu ?? null,
+      };
+      safeWritePlannerLocalPost(localPost);
+
       return data;
     } finally {
       setLoading(false);
