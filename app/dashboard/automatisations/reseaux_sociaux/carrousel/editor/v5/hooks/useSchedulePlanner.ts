@@ -19,11 +19,15 @@ type SchedulePayload = {
 
   // ✅ metadata (optionnels)
   titre?: string;
+  title?: string;
   format?: "post" | "carrousel" | string;
   archive?: boolean;
 
   // ✅ contenu (draft JSON)
   contenu?: any;
+  content?: any;
+  payload?: any;
+  draft?: any;
 
   // ✅ carrousel (tolérance)
   carrousel_id?: number | string;
@@ -50,8 +54,20 @@ function getTokenFromStorage(): string | null {
   }
 }
 
-
 const LS_PLANNER_LOCAL_POSTS = "lgd_planner_local_posts_v1";
+const LS_EDITOR_MODE = "lgd_editor_mode";
+const LS_EDITOR_MODE_V5_COMPAT = "lgd_editor_mode_v5";
+const LS_POST = "lgd_editor_post_draft_v5";
+const LS_CARROUSEL = "lgd_editor_carrousel_draft_v5";
+
+function safeJsonParse(raw: string | null) {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
 
 function safeReadPlannerLocalPosts(): any[] {
   if (typeof window === "undefined") return [];
@@ -88,18 +104,163 @@ function pickScheduledAt(payload: SchedulePayload): string {
   return String(payload.scheduled_at || payload.date_programmee || "").trim();
 }
 
-function looksLikeCarrousel(payload: SchedulePayload): boolean {
+function pickTitle(payload: SchedulePayload, isCarrousel: boolean): string {
+  return String(
+    payload.titre ??
+      payload.title ??
+      payload.contenu?.titre ??
+      payload.contenu?.title ??
+      payload.contenu?.ui?.title ??
+      (isCarrousel ? "Carrousel LGD" : "Post LGD")
+  ).trim();
+}
+
+function getPayloadContent(payload: SchedulePayload) {
+  return (
+    payload.contenu ??
+    payload.content ??
+    payload.payload ??
+    payload.draft ??
+    null
+  );
+}
+
+function readCurrentEditorDraftFromLocalStorage(): any {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const mode =
+      window.localStorage.getItem(LS_EDITOR_MODE) ||
+      window.localStorage.getItem(LS_EDITOR_MODE_V5_COMPAT) ||
+      "post";
+
+    if (mode === "carrousel") {
+      return safeJsonParse(window.localStorage.getItem(LS_CARROUSEL));
+    }
+
+    return safeJsonParse(window.localStorage.getItem(LS_POST));
+  } catch {
+    return null;
+  }
+}
+
+function ensureFullContent(payload: SchedulePayload): any {
+  const direct = getPayloadContent(payload);
+  if (direct) return direct;
+  return readCurrentEditorDraftFromLocalStorage();
+}
+
+function looksLikeCarrousel(payload: SchedulePayload, content?: any): boolean {
   if ((payload.format || "").toLowerCase() === "carrousel") return true;
   if (payload.carrousel_id != null) return true;
   if (Array.isArray(payload.slides) && payload.slides.length > 0) return true;
 
-  const c = payload.contenu;
+  const c = content ?? getPayloadContent(payload);
   if (c && typeof c === "object") {
     if (String(c.type || "").toLowerCase() === "carrousel") return true;
+    if (String(c.format || "").toLowerCase() === "carrousel") return true;
     if (c.carrousel_id != null) return true;
     if (Array.isArray(c.slides) && c.slides.length > 0) return true;
   }
+
   return false;
+}
+
+function extractCarrouselSlides(payload: SchedulePayload, content: any) {
+  const slides =
+    payload.slides ??
+    content?.slides ??
+    content?.carrousel?.slides ??
+    content?.draft?.slides ??
+    [];
+
+  return Array.isArray(slides) ? slides : [];
+}
+
+function buildLocalPost(args: {
+  data: any;
+  payload: SchedulePayload;
+  content: any;
+  network: string;
+  scheduledAt: string;
+  isCarrousel: boolean;
+}) {
+  const { data, payload, content, network, scheduledAt, isCarrousel } = args;
+  const dataObj = typeof data === "object" && data ? data : {};
+  const apiPost =
+    dataObj?.post && typeof dataObj.post === "object"
+      ? dataObj.post
+      : dataObj?.item && typeof dataObj.item === "object"
+      ? dataObj.item
+      : dataObj;
+
+  const localId =
+    apiPost?.id ??
+    dataObj?.id ??
+    `local-planner-${Date.now()}`;
+
+  const title =
+    apiPost?.titre ??
+    apiPost?.title ??
+    dataObj?.titre ??
+    dataObj?.title ??
+    pickTitle(payload, isCarrousel);
+
+  return {
+    ...dataObj,
+    ...apiPost,
+    id: localId,
+    local_id: localId,
+    reseau: apiPost?.reseau ?? apiPost?.network ?? dataObj?.reseau ?? dataObj?.network ?? network,
+    network: apiPost?.network ?? apiPost?.reseau ?? dataObj?.network ?? dataObj?.reseau ?? network,
+    date_programmee:
+      apiPost?.date_programmee ??
+      apiPost?.scheduled_at ??
+      dataObj?.date_programmee ??
+      dataObj?.scheduled_at ??
+      scheduledAt,
+    scheduled_at:
+      apiPost?.scheduled_at ??
+      apiPost?.date_programmee ??
+      dataObj?.scheduled_at ??
+      dataObj?.date_programmee ??
+      scheduledAt,
+    titre: title,
+    title,
+    format:
+      apiPost?.format ??
+      dataObj?.format ??
+      payload.format ??
+      (isCarrousel ? "carrousel" : "post"),
+    statut:
+      apiPost?.statut ??
+      apiPost?.status ??
+      dataObj?.statut ??
+      dataObj?.status ??
+      payload.statut ??
+      "scheduled",
+    status:
+      apiPost?.status ??
+      apiPost?.statut ??
+      dataObj?.status ??
+      dataObj?.statut ??
+      payload.statut ??
+      "scheduled",
+    contenu:
+      apiPost?.contenu ??
+      apiPost?.content ??
+      dataObj?.contenu ??
+      dataObj?.content ??
+      content ??
+      null,
+    content:
+      apiPost?.content ??
+      apiPost?.contenu ??
+      dataObj?.content ??
+      dataObj?.contenu ??
+      content ??
+      null,
+  };
 }
 
 export function useSchedulePlanner() {
@@ -117,51 +278,56 @@ export function useSchedulePlanner() {
     if (token) headers.Authorization = `Bearer ${token}`;
 
     const network = pickNetwork(payload);
-    const scheduled_at = pickScheduledAt(payload);
+    const scheduledAt = pickScheduledAt(payload);
+    const content = ensureFullContent(payload);
+    const isCarrousel = looksLikeCarrousel(payload, content);
+    const title = pickTitle({ ...payload, contenu: content }, isCarrousel);
+    const slides = extractCarrouselSlides(payload, content);
 
     try {
-      
-// 🔥 LGD FIX: ensure full Canva payload is always sent
-if (!payload.contenu && typeof window !== "undefined") {
-  try {
-    const mode = localStorage.getItem("lgd_editor_mode_v5");
-    if (mode === "post") {
-      payload.contenu = JSON.parse(localStorage.getItem("lgd_editor_post_draft_v5") || "null");
-    } else if (mode === "carrousel") {
-      payload.contenu = JSON.parse(localStorage.getItem("lgd_editor_carrousel_draft_v5") || "null");
-    }
-  } catch {}
-}
-
-      const isCarrousel = looksLikeCarrousel(payload);
-
       const endpoint = isCarrousel ? "/planner/schedule-carrousel" : "/planner/schedule-post";
 
+      // ✅ CRITIQUE LGD
+      // On envoie les deux conventions :
+      // - legacy backend/planner : reseau + date_programmee + contenu
+      // - compat récente : network + scheduled_at + content
+      // Cela évite que l’élément soit bien créé mais invisible dans le Planner.
       const body = isCarrousel
         ? {
+            reseau: network,
             network,
-            scheduled_at,
+            date_programmee: scheduledAt,
+            scheduled_at: scheduledAt,
             supprimer_apres: !!payload.supprimer_apres,
 
-            // tolérances carrousel
             carrousel_id:
               payload.carrousel_id ??
-              payload.contenu?.carrousel_id ??
-              payload.contenu?.id ??
+              content?.carrousel_id ??
+              content?.id ??
               null,
-            slides: payload.slides ?? payload.contenu?.slides ?? [],
-            contenu: payload.contenu ?? null,
-            titre: payload.titre ?? null,
+            slides,
+            contenu: content ?? null,
+            content: content ?? null,
+            titre: title,
+            title,
+            format: "carrousel",
+            statut: payload.statut ?? "scheduled",
+            status: payload.statut ?? "scheduled",
           }
         : {
+            reseau: network,
             network,
-            scheduled_at,
+            date_programmee: scheduledAt,
+            scheduled_at: scheduledAt,
             supprimer_apres: !!payload.supprimer_apres,
 
-            // post
-            titre: payload.titre ?? null,
+            titre: title,
+            title,
             format: payload.format ?? "post",
-            contenu: payload.contenu ?? null,
+            contenu: content ?? null,
+            content: content ?? null,
+            statut: payload.statut ?? "scheduled",
+            status: payload.statut ?? "scheduled",
           };
 
       const res = await fetch(`${getApiBase()}${endpoint}`, {
@@ -185,37 +351,16 @@ if (!payload.contenu && typeof window !== "undefined") {
 
       // ✅ Local mirror: keeps Planner visible immediately even if the
       // production list endpoint temporarily filters/omits the new item.
-      const localId =
-        data?.id ??
-        data?.post?.id ??
-        data?.item?.id ??
-        `local-planner-${Date.now()}`;
-      const localPost = {
-        ...(typeof data === "object" && data ? data : {}),
-        id: localId,
-        local_id: localId,
-        reseau: data?.reseau ?? data?.network ?? network,
-        network: data?.network ?? data?.reseau ?? network,
-        date_programmee: data?.date_programmee ?? data?.scheduled_at ?? scheduled_at,
-        scheduled_at: data?.scheduled_at ?? data?.date_programmee ?? scheduled_at,
-        titre:
-          data?.titre ??
-          data?.title ??
-          payload.titre ??
-          payload.contenu?.title ??
-          (isCarrousel ? "Carrousel LGD" : "Post LGD"),
-        title:
-          data?.title ??
-          data?.titre ??
-          payload.titre ??
-          payload.contenu?.title ??
-          (isCarrousel ? "Carrousel LGD" : "Post LGD"),
-        format: data?.format ?? payload.format ?? (isCarrousel ? "carrousel" : "post"),
-        statut: data?.statut ?? data?.status ?? payload.statut ?? "scheduled",
-        status: data?.status ?? data?.statut ?? payload.statut ?? "scheduled",
-        contenu: data?.contenu ?? data?.content ?? payload.contenu ?? null,
-      };
-      safeWritePlannerLocalPost(localPost);
+      safeWritePlannerLocalPost(
+        buildLocalPost({
+          data,
+          payload: { ...payload, titre: title, contenu: content },
+          content,
+          network,
+          scheduledAt,
+          isCarrousel,
+        })
+      );
 
       return data;
     } finally {
