@@ -1036,6 +1036,40 @@ function stableSig(value: any) {
   }
 }
 
+function isDefaultEditorLayer(layer: any) {
+  const id = String(layer?.id || "");
+  const text = String(layer?.text || "").trim();
+  return (
+    id === "background-post" ||
+    id === "background" ||
+    (id === "text-main" && text === "VOTRE TEXTE ICI")
+  );
+}
+
+function hasMeaningfulLayers(layers: any) {
+  if (!Array.isArray(layers)) return false;
+  return layers.some((layer: any) => {
+    if (!layer || isDefaultEditorLayer(layer)) return false;
+    if (layer?.type === "image" && typeof layer?.src === "string" && layer.src.length > 20) return true;
+    if (layer?.type === "text" && String(layer?.text || "").trim() && String(layer?.text || "").trim() !== "VOTRE TEXTE ICI") return true;
+    return false;
+  });
+}
+
+function hasMeaningfulSlides(slides: any) {
+  if (!Array.isArray(slides)) return false;
+  return slides.some((slide: any) => hasMeaningfulLayers(slide?.layers));
+}
+
+function shouldProtectExistingCarrouselDraft(nextSlides: any) {
+  if (typeof window === "undefined") return false;
+  const existing = safeJsonParse(window.localStorage.getItem(LS_CARROUSEL));
+  if (!hasMeaningfulSlides(existing?.slides)) return false;
+  if (hasMeaningfulSlides(nextSlides)) return false;
+  return true;
+}
+
+
 function stripNonSerializableUI(input: any): any {
   if (input == null) return input;
   const t = typeof input;
@@ -1394,6 +1428,8 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (shouldProtectExistingCarrouselDraft(slides)) return;
+
     try {
       const existing = safeJsonParse(window.localStorage.getItem(LS_CARROUSEL)) || {};
       window.localStorage.setItem(
@@ -1421,6 +1457,11 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
     lastLayersSigRef.current = nextSig;
 
     setSlides((prev) => {
+      const currentSlide = prev.find((s) => s.id === slideId);
+      if (hasMeaningfulLayers(currentSlide?.layers) && !hasMeaningfulLayers(layers)) {
+        return prev;
+      }
+
       let changed = false;
       const next = prev.map((s) => {
         if (s.id !== slideId) return s;
@@ -2631,4 +2672,3 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
     </div>
   );
 }
-
