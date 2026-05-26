@@ -2201,6 +2201,16 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
                     </button>
 
                     <button
+                      type="button"
+                      onClick={() => setScheduleOpen(true)}
+                      disabled={scheduleLoading}
+                      className="rounded-xl px-3 py-2 text-sm font-semibold border border-yellow-500/35 bg-black/35 text-yellow-200 hover:bg-yellow-500/10 disabled:opacity-60"
+                      title="Envoyer ce carrousel dans le Planner LGD"
+                    >
+                      🗓️ Envoyer au Planner
+                    </button>
+
+                    <button
                       onClick={() => runCopilot("hooks")}
                       disabled={aiLoading || copilotDisabled}
                       className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
