@@ -2387,6 +2387,15 @@ export default function PostEditor({
                 </button>
 
                 <button
+                  type="button"
+                  onClick={() => setScheduleOpen(true)}
+                  disabled={scheduleLoading}
+                  className="rounded-xl px-3 py-2 text-sm font-semibold border border-yellow-500/30 bg-black/40 text-yellow-100 hover:bg-yellow-500/10 disabled:opacity-60"
+                >
+                  📅 Envoyer au Planner
+                </button>
+
+                <button
                   onClick={() => runCopilot("hooks")}
                   disabled={aiLoading || copilotDisabled}
                   className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
