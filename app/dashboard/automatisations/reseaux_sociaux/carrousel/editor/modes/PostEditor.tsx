@@ -1061,6 +1061,35 @@ function stableSig(value: any) {
   }
 }
 
+function isDefaultEditorLayer(layer: any) {
+  const id = String(layer?.id || "");
+  const text = String(layer?.text || "").trim();
+  return (
+    id === "background-post" ||
+    id === "background" ||
+    (id === "text-main" && text === "VOTRE TEXTE ICI")
+  );
+}
+
+function hasMeaningfulPostDraftLayers(layers: any) {
+  if (!Array.isArray(layers)) return false;
+  return layers.some((layer: any) => {
+    if (!layer || isDefaultEditorLayer(layer)) return false;
+    if (layer?.type === "image" && typeof layer?.src === "string" && layer.src.length > 20) return true;
+    if (layer?.type === "text" && String(layer?.text || "").trim() && String(layer?.text || "").trim() !== "VOTRE TEXTE ICI") return true;
+    return false;
+  });
+}
+
+function shouldProtectExistingPostDraft(nextLayers: any, nextUi: any) {
+  if (typeof window === "undefined") return false;
+  const existing = safeJsonParse(window.localStorage.getItem(LS_POST));
+  if (!hasMeaningfulPostDraftLayers(existing?.layers)) return false;
+  if (hasMeaningfulPostDraftLayers(nextLayers)) return false;
+  return true;
+}
+
+
 
 function readInitialPostDraft() {
   if (typeof window === "undefined") return null;
@@ -1541,7 +1570,8 @@ export default function PostEditor({
     const ui = uiRef.current ?? draftUI;
 
     // ✅ Anti-wipe : un montage / changement de mode ne doit jamais écraser
-    // un vrai draft existant par un draft vide temporaire.
+    // un vrai draft existant par un template vide/temporaire.
+    if (shouldProtectExistingPostDraft(layers, ui)) return;
     if ((!Array.isArray(layers) || layers.length === 0) && !ui) {
       const existing = safeJsonParse(window.localStorage.getItem(LS_POST));
       if (Array.isArray(existing?.layers) && existing.layers.length > 0) return;
@@ -1609,6 +1639,10 @@ export default function PostEditor({
 
   const handleLayersChange = useCallback(
     (layers: LayerData[]) => {
+      // ✅ Ignore template/default emissions coming from EditorLayout mount.
+      // They must not replace a real imported visual already persisted.
+      if (shouldProtectExistingPostDraft(layers, uiRef.current ?? draftUI)) return;
+
       const sig = stableSig(layers ?? []);
       if (sig === lastLayersSigRef.current) return;
 
@@ -2369,23 +2403,8 @@ export default function PostEditor({
   }, [textLayers, idea, brief]);
 
   const handleScheduleConfirm = useCallback(
-    async ({
-      reseau,
-      date_programmee,
-      titre,
-    }: {
-      reseau: string;
-      date_programmee: string;
-      titre?: string;
-    }) => {
+    async ({ reseau, date_programmee, titre }: { reseau: string; date_programmee: string; titre?: string }) => {
       const safeLayers = Array.isArray(draftLayers) ? draftLayers : [];
-      const plannerUI = buildPlannerExportUI(
-        uiRef.current ?? draftUI,
-        safeLayers,
-      );
-      const plannerFormat =
-        plannerUI?.plannerFormat ||
-        inferPlannerCanvasMeta(plannerUI, safeLayers);
       let previewImage = "";
 
       if (safeLayers.length) {
@@ -2393,7 +2412,7 @@ export default function PostEditor({
           previewImage = await renderEditorCreationToDataUrl({
             mode: "post",
             draft: {
-              ui: plannerUI,
+              ui: draftUI,
               layers: safeLayers,
             },
           });
@@ -2411,20 +2430,7 @@ export default function PostEditor({
           title: titre || plannerTitle,
           type: "post",
           layers: safeLayers,
-          ui: plannerUI,
-          canvas: { width: plannerFormat.width, height: plannerFormat.height },
-          formatMeta: {
-            width: plannerFormat.width,
-            height: plannerFormat.height,
-            canvasWidth: plannerFormat.width,
-            canvasHeight: plannerFormat.height,
-            label: plannerFormat.label,
-          },
-          planner_format: {
-            width: plannerFormat.width,
-            height: plannerFormat.height,
-            label: plannerFormat.label,
-          },
+          ui: draftUI,
           brief: brief || "",
           preview_image: previewImage || undefined,
           planner_preview_image: previewImage || undefined,
@@ -2433,7 +2439,7 @@ export default function PostEditor({
       setScheduleOpen(false);
       if (typeof window !== "undefined") window.alert("✅ Ajouté au Planner !");
     },
-    [schedule, plannerTitle, draftLayers, draftUI, brief],
+    [schedule, plannerTitle, draftLayers, draftUI, brief]
   );
 
   return (
@@ -2962,4 +2968,3 @@ export default function PostEditor({
     </div>
   );
 }
-
