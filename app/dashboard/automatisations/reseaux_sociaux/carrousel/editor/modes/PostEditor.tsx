@@ -1061,6 +1061,35 @@ function stableSig(value: any) {
   }
 }
 
+function isDefaultEditorLayer(layer: any) {
+  const id = String(layer?.id || "");
+  const text = String(layer?.text || "").trim();
+  return (
+    id === "background-post" ||
+    id === "background" ||
+    (id === "text-main" && text === "VOTRE TEXTE ICI")
+  );
+}
+
+function hasMeaningfulPostDraftLayers(layers: any) {
+  if (!Array.isArray(layers)) return false;
+  return layers.some((layer: any) => {
+    if (!layer || isDefaultEditorLayer(layer)) return false;
+    if (layer?.type === "image" && typeof layer?.src === "string" && layer.src.length > 20) return true;
+    if (layer?.type === "text" && String(layer?.text || "").trim() && String(layer?.text || "").trim() !== "VOTRE TEXTE ICI") return true;
+    return false;
+  });
+}
+
+function shouldProtectExistingPostDraft(nextLayers: any, nextUi: any) {
+  if (typeof window === "undefined") return false;
+  const existing = safeJsonParse(window.localStorage.getItem(LS_POST));
+  if (!hasMeaningfulPostDraftLayers(existing?.layers)) return false;
+  if (hasMeaningfulPostDraftLayers(nextLayers)) return false;
+  return true;
+}
+
+
 
 function readInitialPostDraft() {
   if (typeof window === "undefined") return null;
@@ -1541,7 +1570,8 @@ export default function PostEditor({
     const ui = uiRef.current ?? draftUI;
 
     // ✅ Anti-wipe : un montage / changement de mode ne doit jamais écraser
-    // un vrai draft existant par un draft vide temporaire.
+    // un vrai draft existant par un template vide/temporaire.
+    if (shouldProtectExistingPostDraft(layers, ui)) return;
     if ((!Array.isArray(layers) || layers.length === 0) && !ui) {
       const existing = safeJsonParse(window.localStorage.getItem(LS_POST));
       if (Array.isArray(existing?.layers) && existing.layers.length > 0) return;
@@ -1609,6 +1639,10 @@ export default function PostEditor({
 
   const handleLayersChange = useCallback(
     (layers: LayerData[]) => {
+      // ✅ Ignore template/default emissions coming from EditorLayout mount.
+      // They must not replace a real imported visual already persisted.
+      if (shouldProtectExistingPostDraft(layers, uiRef.current ?? draftUI)) return;
+
       const sig = stableSig(layers ?? []);
       if (sig === lastLayersSigRef.current) return;
 
