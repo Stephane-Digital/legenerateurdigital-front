@@ -1061,6 +1061,90 @@ function stableSig(value: any) {
   }
 }
 
+
+function readInitialPostDraft() {
+  if (typeof window === "undefined") return null;
+  return safeJsonParse(window.localStorage.getItem(LS_POST));
+}
+
+async function blobUrlToDataUrlForDraft(blobUrl: string): Promise<string | null> {
+  if (typeof window === "undefined") return null;
+  try {
+    const res = await fetch(blobUrl);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || "") || null);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
+function collectBlobUrlsForDraft(node: any, out: Set<string>) {
+  if (!node) return;
+
+  if (typeof node === "string") {
+    if (node.startsWith("blob:")) out.add(node);
+    return;
+  }
+
+  if (Array.isArray(node)) {
+    for (const item of node) collectBlobUrlsForDraft(item, out);
+    return;
+  }
+
+  if (typeof node === "object") {
+    // DOM / runtime nodes must never be persisted.
+    if ((node as any)?.nodeType || (node as any)?.tagName || (node as any)?.nodeName) return;
+    for (const key of Object.keys(node)) collectBlobUrlsForDraft(node[key], out);
+  }
+}
+
+function replaceBlobUrlsForDraft(node: any, map: Map<string, string>): any {
+  if (!node) return node;
+
+  if (typeof node === "string") {
+    if (node.startsWith("blob:")) return map.get(node) || node;
+    return node;
+  }
+
+  if (Array.isArray(node)) return node.map((item) => replaceBlobUrlsForDraft(item, map));
+
+  if (typeof node === "object") {
+    if ((node as any)?.nodeType || (node as any)?.tagName || (node as any)?.nodeName) return undefined;
+
+    const out: any = {};
+    for (const key of Object.keys(node)) {
+      const next = replaceBlobUrlsForDraft(node[key], map);
+      if (next !== undefined) out[key] = next;
+    }
+    return out;
+  }
+
+  return node;
+}
+
+async function preparePostDraftForLocalStorage(draft: any) {
+  const safeDraft = draft || { layers: [], ui: undefined };
+  const blobs = new Set<string>();
+  collectBlobUrlsForDraft(safeDraft, blobs);
+
+  if (!blobs.size) return safeDraft;
+
+  const replacements = new Map<string, string>();
+  for (const blobUrl of Array.from(blobs)) {
+    const dataUrl = await blobUrlToDataUrlForDraft(blobUrl);
+    if (dataUrl && dataUrl.startsWith("data:")) replacements.set(blobUrl, dataUrl);
+  }
+
+  if (!replacements.size) return safeDraft;
+  return replaceBlobUrlsForDraft(safeDraft, replacements);
+}
+
 /**
  * ✅ MICRO PATCH anti-loop
  * On nettoie l'UI qui remonte de l'éditeur (runtime/konva/dom refs)
@@ -1379,14 +1463,17 @@ export default function PostEditor({
   onSnapshot,
   brief,
 }: Props) {
-  const [draftLayers, setDraftLayers] = useState<LayerData[] | undefined>(
-    undefined,
-  );
-  const [draftUI, setDraftUI] = useState<any>(undefined);
+  const initialPostDraftRef = useRef<any>(undefined);
+  if (initialPostDraftRef.current === undefined) {
+    initialPostDraftRef.current = readInitialPostDraft();
+  }
 
-  // ✅ Hydratation locale terminée avant de monter EditorLayout.
-  // Évite que l’éditeur démarre à vide et écrase le draft importé au refresh.
-  const [draftRestored, setDraftRestored] = useState(false);
+  const [draftLayers, setDraftLayers] = useState<LayerData[] | undefined>(() =>
+    Array.isArray(initialPostDraftRef.current?.layers)
+      ? initialPostDraftRef.current.layers
+      : undefined,
+  );
+  const [draftUI, setDraftUI] = useState<any>(() => initialPostDraftRef.current?.ui ?? undefined);
 
   // ✅ Toggle Copilot (persist)
   const [copilotOpen, setCopilotOpen] = useState<boolean>(true);
@@ -1413,13 +1500,16 @@ export default function PostEditor({
   }, [copilotOpen]);
 
   // refs to avoid loops & stale values
-  const layersRef = useRef<LayerData[] | undefined>(undefined);
-  const uiRef = useRef<any>(undefined);
+  const layersRef = useRef<LayerData[] | undefined>(
+    Array.isArray(initialPostDraftRef.current?.layers)
+      ? initialPostDraftRef.current.layers
+      : undefined,
+  );
+  const uiRef = useRef<any>(initialPostDraftRef.current?.ui ?? undefined);
   const dirtyRef = useRef(false);
 
-  const lastUiSigRef = useRef<string>("");
-  const lastLayersSigRef = useRef<string>("");
-  const restoredAtRef = useRef<number>(0);
+  const lastUiSigRef = useRef<string>(stableSig(initialPostDraftRef.current?.ui ?? {}));
+  const lastLayersSigRef = useRef<string>(stableSig(initialPostDraftRef.current?.layers ?? []));
 
   const markDirty = useCallback(() => {
     if (dirtyRef.current) return;
@@ -1429,53 +1519,68 @@ export default function PostEditor({
 
   // ✅ restore draft local (si existe)
   useEffect(() => {
-    try {
-      const parsed = safeJsonParse(localStorage.getItem(LS_POST));
+    const parsed = safeJsonParse(localStorage.getItem(LS_POST));
+    if (!parsed) return;
 
-      if (parsed?.layers && Array.isArray(parsed.layers)) {
-        setDraftLayers(parsed.layers);
-        layersRef.current = parsed.layers;
-        lastLayersSigRef.current = stableSig(parsed.layers);
-      }
-
-      if (parsed?.ui) {
-        setDraftUI(parsed.ui);
-        uiRef.current = parsed.ui;
-        lastUiSigRef.current = stableSig(parsed.ui);
-      }
-    } catch {
-      // no-op
-    } finally {
-      restoredAtRef.current = Date.now();
-      setDraftRestored(true);
+    if (parsed?.layers && Array.isArray(parsed.layers)) {
+      setDraftLayers(parsed.layers);
+      layersRef.current = parsed.layers;
+      lastLayersSigRef.current = JSON.stringify(parsed.layers);
+    }
+    if (parsed?.ui) {
+      setDraftUI(parsed.ui);
+      uiRef.current = parsed.ui;
+      lastUiSigRef.current = JSON.stringify(parsed.ui);
     }
   }, []);
 
-  // ✅ persist local (debounced)
-  // Ne jamais écrire dans localStorage avant la restauration complète du draft.
-  // Sinon un mount rapide de l’éditeur peut remplacer image + texte par un état vide.
+  const persistPostDraftNow = useCallback(async () => {
+    if (typeof window === "undefined") return;
+
+    const layers = layersRef.current ?? draftLayers ?? [];
+    const ui = uiRef.current ?? draftUI;
+
+    // ✅ Anti-wipe : un montage / changement de mode ne doit jamais écraser
+    // un vrai draft existant par un draft vide temporaire.
+    if ((!Array.isArray(layers) || layers.length === 0) && !ui) {
+      const existing = safeJsonParse(window.localStorage.getItem(LS_POST));
+      if (Array.isArray(existing?.layers) && existing.layers.length > 0) return;
+    }
+
+    try {
+      const rawDraft = { ui, layers };
+      // Sauvegarde immédiate : utile quand on bascule Post ↔ Carrousel.
+      window.localStorage.setItem(LS_POST, JSON.stringify(rawDraft));
+
+      // Sauvegarde renforcée : convertit les blob: en data: pour survivre au refresh.
+      const prepared = await preparePostDraftForLocalStorage(rawDraft);
+      window.localStorage.setItem(LS_POST, JSON.stringify(prepared));
+    } catch {
+      // no-op
+    }
+  }, [draftUI, draftLayers]);
+
+  // ✅ persist local (debounced + flush au démontage)
   useEffect(() => {
-    if (!draftRestored) return;
+    const t = window.setTimeout(() => {
+      void persistPostDraftNow();
+    }, 250);
 
-    const t = setTimeout(() => {
-      try {
-        const layersToSave = layersRef.current ?? draftLayers ?? [];
-        const uiToSave = uiRef.current ?? draftUI;
+    return () => {
+      window.clearTimeout(t);
+      void persistPostDraftNow();
+    };
+  }, [persistPostDraftNow]);
 
-        localStorage.setItem(
-          LS_POST,
-          JSON.stringify({
-            ui: uiToSave,
-            layers: layersToSave,
-          }),
-        );
-      } catch {
-        // no-op
-      }
-    }, 300);
-
-    return () => clearTimeout(t);
-  }, [draftRestored, draftUI, draftLayers]);
+  // ✅ protège refresh / navigation : on flush le draft courant avant unload.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onBeforeUnload = () => {
+      void persistPostDraftNow();
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [persistPostDraftNow]);
 
   const initialLayersKey = useMemo(() => "post", []);
 
@@ -1504,40 +1609,21 @@ export default function PostEditor({
 
   const handleLayersChange = useCallback(
     (layers: LayerData[]) => {
-      const nextLayers = Array.isArray(layers) ? layers : [];
-      const currentLayers = Array.isArray(layersRef.current)
-        ? layersRef.current
-        : [];
-
-      // ✅ Anti-wipe : au refresh ou au changement Carrousel → Post,
-      // certains mounts peuvent envoyer brièvement [] avant le vrai draft.
-      // On refuse cet état vide pendant la fenêtre d’hydratation.
-      if (
-        draftRestored &&
-        currentLayers.length > 0 &&
-        nextLayers.length === 0 &&
-        Date.now() - restoredAtRef.current < 1800
-      ) {
-        return;
-      }
-
-      const sig = stableSig(nextLayers);
+      const sig = stableSig(layers ?? []);
       if (sig === lastLayersSigRef.current) return;
 
       lastLayersSigRef.current = sig;
-      layersRef.current = nextLayers;
+      layersRef.current = layers;
 
-      setDraftLayers((prev) =>
-        stableSig(prev ?? []) === sig ? prev : nextLayers,
-      );
+      setDraftLayers((prev) => (stableSig(prev ?? []) === sig ? prev : layers));
       markDirty();
 
       onSnapshot?.({
         ui: uiRef.current,
-        layers: nextLayers,
+        layers,
       });
     },
-    [draftRestored, markDirty, onSnapshot],
+    [markDirty, onSnapshot],
   );
 
   /** =========================
@@ -2423,6 +2509,14 @@ export default function PostEditor({
                 >
                   ✨ Performeur Réseaux™
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setScheduleOpen(true)}
+                  className="rounded-xl px-3 py-2 text-sm font-semibold border border-yellow-500/25 bg-black/30 text-yellow-200 hover:bg-black/45"
+                >
+                  📅 Envoyer au Planner
+                </button>
+
 
                 <button
                   onClick={() => runCopilot("hooks")}
@@ -2744,15 +2838,6 @@ export default function PostEditor({
                           Appliquer au layer
                         </button>
                         <button
-                          type="button"
-                          onClick={() => setScheduleOpen(true)}
-                          disabled={scheduleLoading || (draftLayers ?? []).length === 0}
-                          className="rounded-xl px-3 py-2 text-sm font-semibold text-yellow-100 border border-yellow-500/25 bg-black/40 hover:bg-black/55 disabled:opacity-60"
-                          title="Envoyer cette création au Planner LGD"
-                        >
-                          📅 Envoyer au Planner
-                        </button>
-                        <button
                           onClick={() => {
                             setAiOutput("");
                             setAiHooks([]);
@@ -2854,21 +2939,15 @@ export default function PostEditor({
           {/* ================= EDITOR ================= */}
 
           <div className="w-full min-h-[820px] flex justify-center">
-            {draftRestored ? (
-              <EditorLayout
-                initialLayersKey={initialLayersKey}
-                initialLayers={draftLayers}
-                initialUI={draftUI}
-                onUIChange={handleUIChange}
-                onChange={handleLayersChange}
-                mobileToolsOpen={mobileToolsOpen}
-                onCloseMobileTools={onCloseMobileTools}
-              />
-            ) : (
-              <div className="flex min-h-[520px] w-full items-center justify-center rounded-3xl border border-yellow-500/10 bg-black/25 text-sm text-yellow-100/70">
-                Restauration du post…
-              </div>
-            )}
+            <EditorLayout
+              initialLayersKey={initialLayersKey}
+              initialLayers={draftLayers}
+              initialUI={draftUI}
+              onUIChange={handleUIChange}
+              onChange={handleLayersChange}
+              mobileToolsOpen={mobileToolsOpen}
+              onCloseMobileTools={onCloseMobileTools}
+            />
           </div>
 
           <SchedulePlannerModal
