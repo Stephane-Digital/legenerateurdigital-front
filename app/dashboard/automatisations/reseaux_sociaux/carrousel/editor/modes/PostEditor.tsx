@@ -1053,6 +1053,22 @@ function safeJsonParse(raw: string | null) {
   }
 }
 
+function loadStoredPostDraft() {
+  if (typeof window === "undefined") return null;
+  try {
+    return safeJsonParse(window.localStorage.getItem(LS_POST));
+  } catch {
+    return null;
+  }
+}
+
+function isPlainSerializableObject(value: any) {
+  if (!value || typeof value !== "object") return false;
+  if (Array.isArray(value)) return true;
+  const proto = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
+}
+
 function stableSig(value: any) {
   try {
     return JSON.stringify(value ?? null);
@@ -1077,6 +1093,10 @@ function stripNonSerializableUI(input: any): any {
   if (anyObj?.nodeType === 1 || anyObj?.tagName || anyObj?.nodeName)
     return undefined;
 
+  // File/Blob/Image/Canvas/Konva instances are not safely serializable.
+  // Plain objects that contain data URLs are kept.
+  if (!isPlainSerializableObject(input)) return undefined;
+
   if (Array.isArray(input)) {
     return input
       .map((x) => stripNonSerializableUI(x))
@@ -1087,8 +1107,9 @@ function stripNonSerializableUI(input: any): any {
   for (const [k, v] of Object.entries(anyObj)) {
     if (v === undefined) continue;
 
-    // drop common runtime keys
-    if (k === "runtime" || k === "_runtime" || k === "__runtime") continue;
+    // drop common non-serializable runtime keys, but keep serializable image caches/data URLs.
+    // IMPORTANT LGD: imported images can be stored inside runtime-like plain objects.
+    // Dropping every runtime key deletes the visual after refresh/archive.
     if (k === "konva" || k === "_konva" || k === "__konva") continue;
     if (k === "stage" || k === "layer" || k === "node" || k === "ref") continue;
     if (k === "imageElement" || k === "imgEl" || k === "htmlImage") continue;
@@ -1379,10 +1400,20 @@ export default function PostEditor({
   onSnapshot,
   brief,
 }: Props) {
+  const initialDraftRef = useRef<any>(undefined);
+  if (initialDraftRef.current === undefined) {
+    initialDraftRef.current = loadStoredPostDraft() || null;
+  }
+
   const [draftLayers, setDraftLayers] = useState<LayerData[] | undefined>(
-    undefined,
+    () => {
+      const layers = initialDraftRef.current?.layers;
+      return Array.isArray(layers) ? layers : undefined;
+    },
   );
-  const [draftUI, setDraftUI] = useState<any>(undefined);
+  const [draftUI, setDraftUI] = useState<any>(
+    () => initialDraftRef.current?.ui,
+  );
 
   // ✅ Toggle Copilot (persist)
   const [copilotOpen, setCopilotOpen] = useState<boolean>(true);
@@ -1415,6 +1446,7 @@ export default function PostEditor({
 
   const lastUiSigRef = useRef<string>("");
   const lastLayersSigRef = useRef<string>("");
+  const hydratedRef = useRef(false);
 
   const markDirty = useCallback(() => {
     if (dirtyRef.current) return;
@@ -1422,32 +1454,62 @@ export default function PostEditor({
     onDirtyChange?.(true);
   }, [onDirtyChange]);
 
-  // ✅ restore draft local (si existe)
+  // ✅ hydrate draft local immédiatement, avant que l'éditeur ne pousse un état vide
   useEffect(() => {
-    const parsed = safeJsonParse(localStorage.getItem(LS_POST));
-    if (!parsed) return;
+    const parsed = initialDraftRef.current;
 
     if (parsed?.layers && Array.isArray(parsed.layers)) {
-      setDraftLayers(parsed.layers);
       layersRef.current = parsed.layers;
       lastLayersSigRef.current = JSON.stringify(parsed.layers);
+    } else {
+      layersRef.current = draftLayers;
+      lastLayersSigRef.current = stableSig(draftLayers ?? []);
     }
+
     if (parsed?.ui) {
-      setDraftUI(parsed.ui);
       uiRef.current = parsed.ui;
       lastUiSigRef.current = JSON.stringify(parsed.ui);
+    } else {
+      uiRef.current = draftUI;
+      lastUiSigRef.current = stableSig(draftUI ?? {});
     }
+
+    hydratedRef.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ✅ persist local (debounced)
+  // ✅ persist local (debounced) — ne jamais écraser le draft restauré avec un état vide au montage
   useEffect(() => {
+    if (!hydratedRef.current) return;
+
     const t = setTimeout(() => {
       try {
+        const layersToStore = layersRef.current ?? draftLayers ?? [];
+        const uiToStore = uiRef.current ?? draftUI;
+
+        const previous = loadStoredPostDraft();
+        const previousHadImage = Array.isArray(previous?.layers)
+          ? previous.layers.some(
+              (layer: any) =>
+                String(layer?.type || "").toLowerCase() === "image",
+            )
+          : false;
+        const nextHasImage = Array.isArray(layersToStore)
+          ? layersToStore.some(
+              (layer: any) =>
+                String(layer?.type || "").toLowerCase() === "image",
+            )
+          : false;
+
+        // Sécurité anti-casse : au démarrage, si l'éditeur remonte brièvement un état sans image,
+        // on n'écrase pas le draft qui contenait déjà une image importée.
+        if (previousHadImage && !nextHasImage && !dirtyRef.current) return;
+
         localStorage.setItem(
           LS_POST,
           JSON.stringify({
-            ui: uiRef.current ?? draftUI,
-            layers: layersRef.current ?? draftLayers ?? [],
+            ui: uiToStore,
+            layers: layersToStore,
           }),
         );
       } catch {
@@ -2387,15 +2449,6 @@ export default function PostEditor({
                 </button>
 
                 <button
-                  type="button"
-                  onClick={() => setScheduleOpen(true)}
-                  disabled={scheduleLoading}
-                  className="rounded-xl px-3 py-2 text-sm font-semibold border border-yellow-500/30 bg-black/40 text-yellow-100 hover:bg-yellow-500/10 disabled:opacity-60"
-                >
-                  📅 Envoyer au Planner
-                </button>
-
-                <button
                   onClick={() => runCopilot("hooks")}
                   disabled={aiLoading || copilotDisabled}
                   className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
@@ -2429,6 +2482,14 @@ export default function PostEditor({
                   className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
                 >
                   Variantes A/B
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setScheduleOpen(true)}
+                  disabled={scheduleLoading}
+                  className="rounded-xl px-3 py-2 text-sm font-semibold border border-yellow-500/35 bg-black/35 text-yellow-200 hover:bg-yellow-500/10 disabled:opacity-60"
+                >
+                  📅 Envoyer au Planner
                 </button>
               </div>
             </div>
