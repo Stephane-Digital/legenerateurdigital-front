@@ -1053,22 +1053,6 @@ function safeJsonParse(raw: string | null) {
   }
 }
 
-function loadStoredPostDraft() {
-  if (typeof window === "undefined") return null;
-  try {
-    return safeJsonParse(window.localStorage.getItem(LS_POST));
-  } catch {
-    return null;
-  }
-}
-
-function isPlainSerializableObject(value: any) {
-  if (!value || typeof value !== "object") return false;
-  if (Array.isArray(value)) return true;
-  const proto = Object.getPrototypeOf(value);
-  return proto === Object.prototype || proto === null;
-}
-
 function stableSig(value: any) {
   try {
     return JSON.stringify(value ?? null);
@@ -1093,10 +1077,6 @@ function stripNonSerializableUI(input: any): any {
   if (anyObj?.nodeType === 1 || anyObj?.tagName || anyObj?.nodeName)
     return undefined;
 
-  // File/Blob/Image/Canvas/Konva instances are not safely serializable.
-  // Plain objects that contain data URLs are kept.
-  if (!isPlainSerializableObject(input)) return undefined;
-
   if (Array.isArray(input)) {
     return input
       .map((x) => stripNonSerializableUI(x))
@@ -1107,9 +1087,8 @@ function stripNonSerializableUI(input: any): any {
   for (const [k, v] of Object.entries(anyObj)) {
     if (v === undefined) continue;
 
-    // drop common non-serializable runtime keys, but keep serializable image caches/data URLs.
-    // IMPORTANT LGD: imported images can be stored inside runtime-like plain objects.
-    // Dropping every runtime key deletes the visual after refresh/archive.
+    // drop common runtime keys
+    if (k === "runtime" || k === "_runtime" || k === "__runtime") continue;
     if (k === "konva" || k === "_konva" || k === "__konva") continue;
     if (k === "stage" || k === "layer" || k === "node" || k === "ref") continue;
     if (k === "imageElement" || k === "imgEl" || k === "htmlImage") continue;
@@ -1400,20 +1379,15 @@ export default function PostEditor({
   onSnapshot,
   brief,
 }: Props) {
-  const initialDraftRef = useRef<any>(undefined);
-  if (initialDraftRef.current === undefined) {
-    initialDraftRef.current = loadStoredPostDraft() || null;
-  }
-
   const [draftLayers, setDraftLayers] = useState<LayerData[] | undefined>(
-    () => {
-      const layers = initialDraftRef.current?.layers;
-      return Array.isArray(layers) ? layers : undefined;
-    },
+    undefined,
   );
-  const [draftUI, setDraftUI] = useState<any>(
-    () => initialDraftRef.current?.ui,
-  );
+  const [draftUI, setDraftUI] = useState<any>(undefined);
+
+  // ✅ Sécurité persistance : on attend la restauration locale avant de monter l’éditeur.
+  // Sans ce garde-fou, EditorLayout peut remonter un état vide au premier rendu
+  // et écraser le draft local (image + texte) au refresh ou au changement Post/Carrousel.
+  const [draftHydrated, setDraftHydrated] = useState(false);
 
   // ✅ Toggle Copilot (persist)
   const [copilotOpen, setCopilotOpen] = useState<boolean>(true);
@@ -1446,7 +1420,6 @@ export default function PostEditor({
 
   const lastUiSigRef = useRef<string>("");
   const lastLayersSigRef = useRef<string>("");
-  const hydratedRef = useRef(false);
 
   const markDirty = useCallback(() => {
     if (dirtyRef.current) return;
@@ -1454,62 +1427,52 @@ export default function PostEditor({
     onDirtyChange?.(true);
   }, [onDirtyChange]);
 
-  // ✅ hydrate draft local immédiatement, avant que l'éditeur ne pousse un état vide
+  // ✅ restore draft local (si existe)
   useEffect(() => {
-    const parsed = initialDraftRef.current;
+    try {
+      const parsed =
+        typeof window !== "undefined"
+          ? safeJsonParse(window.localStorage.getItem(LS_POST))
+          : null;
 
-    if (parsed?.layers && Array.isArray(parsed.layers)) {
-      layersRef.current = parsed.layers;
-      lastLayersSigRef.current = JSON.stringify(parsed.layers);
-    } else {
-      layersRef.current = draftLayers;
-      lastLayersSigRef.current = stableSig(draftLayers ?? []);
+      const restoredLayers =
+        parsed?.layers && Array.isArray(parsed.layers) ? parsed.layers : [];
+      const restoredUI = parsed?.ui ?? undefined;
+
+      setDraftLayers(restoredLayers);
+      layersRef.current = restoredLayers;
+      lastLayersSigRef.current = stableSig(restoredLayers);
+
+      if (restoredUI) {
+        setDraftUI(restoredUI);
+        uiRef.current = restoredUI;
+        lastUiSigRef.current = stableSig(restoredUI);
+      }
+    } catch {
+      setDraftLayers([]);
+      layersRef.current = [];
+      lastLayersSigRef.current = stableSig([]);
+    } finally {
+      setDraftHydrated(true);
     }
-
-    if (parsed?.ui) {
-      uiRef.current = parsed.ui;
-      lastUiSigRef.current = JSON.stringify(parsed.ui);
-    } else {
-      uiRef.current = draftUI;
-      lastUiSigRef.current = stableSig(draftUI ?? {});
-    }
-
-    hydratedRef.current = true;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ✅ persist local (debounced) — ne jamais écraser le draft restauré avec un état vide au montage
+  // ✅ persist local (debounced)
   useEffect(() => {
-    if (!hydratedRef.current) return;
+    if (!draftHydrated) return;
 
     const t = setTimeout(() => {
       try {
-        const layersToStore = layersRef.current ?? draftLayers ?? [];
-        const uiToStore = uiRef.current ?? draftUI;
+        const layersToSave = layersRef.current ?? draftLayers ?? [];
+        const uiToSave = uiRef.current ?? draftUI;
 
-        const previous = loadStoredPostDraft();
-        const previousHadImage = Array.isArray(previous?.layers)
-          ? previous.layers.some(
-              (layer: any) =>
-                String(layer?.type || "").toLowerCase() === "image",
-            )
-          : false;
-        const nextHasImage = Array.isArray(layersToStore)
-          ? layersToStore.some(
-              (layer: any) =>
-                String(layer?.type || "").toLowerCase() === "image",
-            )
-          : false;
-
-        // Sécurité anti-casse : au démarrage, si l'éditeur remonte brièvement un état sans image,
-        // on n'écrase pas le draft qui contenait déjà une image importée.
-        if (previousHadImage && !nextHasImage && !dirtyRef.current) return;
-
-        localStorage.setItem(
+        // Ne jamais écraser un draft existant par un état non hydraté/accidentellement vide
+        // au montage ou lors du retour depuis le mode Carrousel.
+        window.localStorage.setItem(
           LS_POST,
           JSON.stringify({
-            ui: uiToStore,
-            layers: layersToStore,
+            ui: uiToSave,
+            layers: layersToSave,
           }),
         );
       } catch {
@@ -1518,12 +1481,13 @@ export default function PostEditor({
     }, 250);
 
     return () => clearTimeout(t);
-  }, [draftUI, draftLayers]);
+  }, [draftHydrated, draftUI, draftLayers]);
 
   const initialLayersKey = useMemo(() => "post", []);
 
   const handleUIChange = useCallback(
     (ui: any) => {
+      if (!draftHydrated) return;
       const cleaned = stripNonSerializableUI(ui ?? {});
       const sig = stableSig(cleaned ?? {});
 
@@ -1542,11 +1506,12 @@ export default function PostEditor({
         layers: layersRef.current ?? [],
       });
     },
-    [markDirty, onSnapshot],
+    [draftHydrated, markDirty, onSnapshot],
   );
 
   const handleLayersChange = useCallback(
     (layers: LayerData[]) => {
+      if (!draftHydrated) return;
       const sig = stableSig(layers ?? []);
       if (sig === lastLayersSigRef.current) return;
 
@@ -1561,7 +1526,7 @@ export default function PostEditor({
         layers,
       });
     },
-    [markDirty, onSnapshot],
+    [draftHydrated, markDirty, onSnapshot],
   );
 
   /** =========================
@@ -2449,6 +2414,15 @@ export default function PostEditor({
                 </button>
 
                 <button
+                  type="button"
+                  onClick={() => setScheduleOpen(true)}
+                  disabled={!draftHydrated || scheduleLoading}
+                  className="rounded-xl px-3 py-2 text-sm font-semibold border border-yellow-500/35 bg-black/35 text-yellow-100 hover:bg-yellow-500/10 disabled:opacity-60"
+                >
+                  📅 Envoyer au Planner
+                </button>
+
+                <button
                   onClick={() => runCopilot("hooks")}
                   disabled={aiLoading || copilotDisabled}
                   className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
@@ -2482,14 +2456,6 @@ export default function PostEditor({
                   className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
                 >
                   Variantes A/B
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setScheduleOpen(true)}
-                  disabled={scheduleLoading}
-                  className="rounded-xl px-3 py-2 text-sm font-semibold border border-yellow-500/35 bg-black/35 text-yellow-200 hover:bg-yellow-500/10 disabled:opacity-60"
-                >
-                  📅 Envoyer au Planner
                 </button>
               </div>
             </div>
@@ -2877,15 +2843,21 @@ export default function PostEditor({
           {/* ================= EDITOR ================= */}
 
           <div className="w-full min-h-[820px] flex justify-center">
-            <EditorLayout
-              initialLayersKey={initialLayersKey}
-              initialLayers={draftLayers}
-              initialUI={draftUI}
-              onUIChange={handleUIChange}
-              onChange={handleLayersChange}
-              mobileToolsOpen={mobileToolsOpen}
-              onCloseMobileTools={onCloseMobileTools}
-            />
+            {draftHydrated ? (
+              <EditorLayout
+                initialLayersKey={initialLayersKey}
+                initialLayers={draftLayers}
+                initialUI={draftUI}
+                onUIChange={handleUIChange}
+                onChange={handleLayersChange}
+                mobileToolsOpen={mobileToolsOpen}
+                onCloseMobileTools={onCloseMobileTools}
+              />
+            ) : (
+              <div className="flex min-h-[520px] w-full items-center justify-center rounded-3xl border border-yellow-500/15 bg-black/30 text-sm font-semibold text-yellow-100/70">
+                Chargement de ton post…
+              </div>
+            )}
           </div>
 
           <SchedulePlannerModal
