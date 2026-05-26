@@ -552,16 +552,65 @@ function flattenPossibleMediaSources(post: any, parsed: any) {
   ]).filter(looksLikeImageUrl);
 }
 
+function findExactPreviewImageDeep(value: any): string {
+  const wantedKeys = new Set([
+    "planner_preview_image",
+    "plannerPreviewImage",
+    "preview_image",
+    "previewImage",
+    "rendered_image",
+    "renderedImage",
+    "exact_preview_image",
+    "exactPreviewImage",
+  ]);
+
+  const seen = new Set<any>();
+  const walk = (node: any): string => {
+    if (!node || typeof node !== "object" || seen.has(node)) return "";
+    seen.add(node);
+
+    for (const [key, raw] of Object.entries(node)) {
+      if (!wantedKeys.has(key)) continue;
+      const value = firstNonEmptyString(raw);
+      if (value && looksLikeImageUrl(value)) return value;
+    }
+
+    for (const raw of Object.values(node)) {
+      if (!raw || typeof raw !== "object") continue;
+      const found = walk(raw);
+      if (found) return found;
+    }
+
+    return "";
+  };
+
+  return walk(value);
+}
+
 function extractExactPreviewImage(post: any, parsed: any) {
   return firstNonEmptyString(
     post?.planner_preview_image,
+    post?.plannerPreviewImage,
     post?.preview_image,
+    post?.previewImage,
     post?.rendered_image,
     post?.renderedImage,
     parsed?.planner_preview_image,
+    parsed?.plannerPreviewImage,
     parsed?.preview_image,
+    parsed?.previewImage,
     parsed?.rendered_image,
     parsed?.renderedImage,
+    parsed?.contenu?.planner_preview_image,
+    parsed?.contenu?.preview_image,
+    parsed?.content?.planner_preview_image,
+    parsed?.content?.preview_image,
+    parsed?.payload?.planner_preview_image,
+    parsed?.payload?.preview_image,
+    parsed?.draft?.planner_preview_image,
+    parsed?.draft?.preview_image,
+    findExactPreviewImageDeep(parsed),
+    findExactPreviewImageDeep(post),
   );
 }
 
@@ -979,6 +1028,59 @@ async function exportMediaUrlImage(params: {
   const exportBlob = await exportResponse.blob();
   const filename = `${sanitizeFilenamePart(title)}.${format === "jpeg" ? "jpg" : "png"}`;
   downloadBlob(exportBlob, filename);
+}
+
+function ExactReceivedImage({
+  src,
+  alt,
+}: {
+  src: string;
+  alt: string;
+}) {
+  const [meta, setMeta] = useState<{ width: number; height: number } | null>(null);
+
+  useEffect(() => {
+    if (!src) {
+      setMeta(null);
+      return;
+    }
+
+    let cancelled = false;
+    const img = new window.Image();
+    img.onload = () => {
+      if (cancelled) return;
+      setMeta({
+        width: img.naturalWidth || img.width || 0,
+        height: img.naturalHeight || img.height || 0,
+      });
+    };
+    img.onerror = () => {
+      if (!cancelled) setMeta(null);
+    };
+    img.src = src;
+
+    return () => {
+      cancelled = true;
+    };
+  }, [src]);
+
+  return (
+    <div className="rounded-xl border border-white/10 bg-black/40 p-2">
+      {meta?.width && meta?.height ? (
+        <div className="mb-2 text-[11px] text-white/45">
+          Format reçu : {meta.width} × {meta.height}
+        </div>
+      ) : null}
+      <div className="flex w-full justify-center overflow-visible rounded-lg bg-black/40">
+        <img
+          src={src}
+          alt={alt}
+          className="block h-auto w-auto max-w-full rounded-lg"
+          style={{ maxHeight: "70vh", objectFit: "contain" }}
+        />
+      </div>
+    </div>
+  );
 }
 
 function PreviewCanvasView({ canvas }: { canvas: PreviewCanvas }) {
@@ -1690,11 +1792,7 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
                       <ImageIcon className="h-4 w-4 text-yellow-400" />
                       Aperçu exact enregistré depuis l’éditeur.
                     </div>
-                    <img
-                      src={exactPreviewImage}
-                      alt="aperçu exact"
-                      className="mx-auto h-auto max-h-[560px] w-auto max-w-full rounded-xl border border-white/10 bg-black/40"
-                    />
+                    <ExactReceivedImage src={exactPreviewImage} alt="aperçu exact" />
                   </div>
                 ) : editorPreviewLoading ? (
                   <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/5 px-4 py-4 text-sm text-yellow-200">
@@ -1704,13 +1802,9 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
                   <div className="rounded-2xl border border-yellow-500/20 bg-black/30 p-3">
                     <div className="mb-3 flex items-center gap-2 text-sm text-yellow-200">
                       <ImageIcon className="h-4 w-4 text-yellow-400" />
-                      Aperçu fidèle reconstruit depuis le moteur de rendu de l’éditeur.
+                      Aperçu reçu / reconstruit en conservant le ratio exact du visuel.
                     </div>
-                    <img
-                      src={editorPreviewUrl}
-                      alt="aperçu fidèle"
-                      className="mx-auto h-auto max-h-[560px] w-auto max-w-full rounded-xl border border-white/10 bg-black/40"
-                    />
+                    <ExactReceivedImage src={editorPreviewUrl} alt="aperçu fidèle" />
                   </div>
                 ) : previewCanvas ? (
                   <PreviewCanvasView canvas={previewCanvas} />
@@ -1720,11 +1814,7 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
                       <ImageIcon className="h-4 w-4 text-yellow-400" />
                       Média détecté pour cette publication.
                     </div>
-                    <img
-                      src={mediaUrl}
-                      alt="preview"
-                      className="mx-auto h-auto max-h-[420px] w-auto max-w-full rounded-xl border border-white/10 bg-black/40"
-                    />
+                    <ExactReceivedImage src={mediaUrl} alt="preview" />
                   </div>
                 ) : (
                   <p>
