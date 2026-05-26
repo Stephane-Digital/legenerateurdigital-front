@@ -2436,33 +2436,40 @@ export default function PostEditor({
         }
       }
 
+      const plannerContent = {
+        title: titre || plannerTitle,
+        type: "post",
+        // ✅ IMPORTANT — Planner display fix:
+        // Keep the payload light for /planner/posts.
+        // The exact visual is carried by preview_image/planner_preview_image.
+        // Full editor layers remain persisted locally and in Library archives,
+        // but are not pushed into the Planner list payload anymore.
+        layers: [],
+        ui: plannerUI,
+        canvas: { width: plannerFormat.width, height: plannerFormat.height },
+        formatMeta: {
+          width: plannerFormat.width,
+          height: plannerFormat.height,
+          canvasWidth: plannerFormat.width,
+          canvasHeight: plannerFormat.height,
+          label: plannerFormat.label,
+        },
+        planner_format: {
+          width: plannerFormat.width,
+          height: plannerFormat.height,
+          label: plannerFormat.label,
+        },
+        brief: brief || "",
+        preview_image: previewImage || undefined,
+        planner_preview_image: previewImage || undefined,
+      };
+
       await schedule({
         reseau,
         date_programmee,
         titre: titre || plannerTitle,
         format: "post",
-        contenu: {
-          title: titre || plannerTitle,
-          type: "post",
-          layers: safeLayers,
-          ui: plannerUI,
-          canvas: { width: plannerFormat.width, height: plannerFormat.height },
-          formatMeta: {
-            width: plannerFormat.width,
-            height: plannerFormat.height,
-            canvasWidth: plannerFormat.width,
-            canvasHeight: plannerFormat.height,
-            label: plannerFormat.label,
-          },
-          planner_format: {
-            width: plannerFormat.width,
-            height: plannerFormat.height,
-            label: plannerFormat.label,
-          },
-          brief: brief || "",
-          preview_image: previewImage || undefined,
-          planner_preview_image: previewImage || undefined,
-        },
+        contenu: plannerContent,
       });
       setScheduleOpen(false);
       if (typeof window !== "undefined") window.alert("✅ Ajouté au Planner !");
