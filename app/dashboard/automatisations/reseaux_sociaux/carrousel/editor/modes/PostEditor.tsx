@@ -2436,40 +2436,46 @@ export default function PostEditor({
         }
       }
 
-      const plannerContent = {
-        title: titre || plannerTitle,
-        type: "post",
-        // ✅ IMPORTANT — Planner display fix:
-        // Keep the payload light for /planner/posts.
-        // The exact visual is carried by preview_image/planner_preview_image.
-        // Full editor layers remain persisted locally and in Library archives,
-        // but are not pushed into the Planner list payload anymore.
-        layers: [],
-        ui: plannerUI,
-        canvas: { width: plannerFormat.width, height: plannerFormat.height },
-        formatMeta: {
-          width: plannerFormat.width,
-          height: plannerFormat.height,
-          canvasWidth: plannerFormat.width,
-          canvasHeight: plannerFormat.height,
-          label: plannerFormat.label,
-        },
-        planner_format: {
-          width: plannerFormat.width,
-          height: plannerFormat.height,
-          label: plannerFormat.label,
-        },
-        brief: brief || "",
-        preview_image: previewImage || undefined,
-        planner_preview_image: previewImage || undefined,
-      };
+      // ✅ LGD PLANNER REPAIR — le Planner attend le draft éditeur complet en racine.
+      // Ne pas renvoyer uniquement un objet reconstruit minimal : sinon les vues Planner
+      // peuvent recevoir un contenu illisible / vide malgré une planification OK.
+      const storedDraft =
+        typeof window !== "undefined" ? safeJsonParse(window.localStorage.getItem(LS_POST)) : null;
+      const fullDraft =
+        storedDraft && Array.isArray(storedDraft?.layers)
+          ? storedDraft
+          : { ui: plannerUI, layers: safeLayers };
 
       await schedule({
         reseau,
         date_programmee,
         titre: titre || plannerTitle,
         format: "post",
-        contenu: plannerContent,
+        contenu: {
+          ...fullDraft,
+          title: titre || plannerTitle,
+          titre: titre || plannerTitle,
+          type: "post",
+          format: "post",
+          layers: Array.isArray(fullDraft?.layers) ? fullDraft.layers : safeLayers,
+          ui: fullDraft?.ui ?? plannerUI,
+          canvas: { width: plannerFormat.width, height: plannerFormat.height },
+          formatMeta: {
+            width: plannerFormat.width,
+            height: plannerFormat.height,
+            canvasWidth: plannerFormat.width,
+            canvasHeight: plannerFormat.height,
+            label: plannerFormat.label,
+          },
+          planner_format: {
+            width: plannerFormat.width,
+            height: plannerFormat.height,
+            label: plannerFormat.label,
+          },
+          brief: brief || "",
+          preview_image: previewImage || fullDraft?.preview_image || undefined,
+          planner_preview_image: previewImage || fullDraft?.planner_preview_image || undefined,
+        },
       });
       setScheduleOpen(false);
       if (typeof window !== "undefined") window.alert("✅ Ajouté au Planner !");
