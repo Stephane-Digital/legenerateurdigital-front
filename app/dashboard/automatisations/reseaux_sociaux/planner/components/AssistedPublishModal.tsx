@@ -1693,7 +1693,7 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
                     <img
                       src={exactPreviewImage}
                       alt="aperçu exact"
-                      className="max-h-[560px] w-full rounded-xl border border-white/10 object-contain bg-black/40"
+                      className="mx-auto h-auto max-h-[560px] w-auto max-w-full rounded-xl border border-white/10 bg-black/40"
                     />
                   </div>
                 ) : editorPreviewLoading ? (
@@ -1709,7 +1709,7 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
                     <img
                       src={editorPreviewUrl}
                       alt="aperçu fidèle"
-                      className="max-h-[560px] w-full rounded-xl border border-white/10 object-contain bg-black/40"
+                      className="mx-auto h-auto max-h-[560px] w-auto max-w-full rounded-xl border border-white/10 bg-black/40"
                     />
                   </div>
                 ) : previewCanvas ? (
@@ -1723,7 +1723,7 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
                     <img
                       src={mediaUrl}
                       alt="preview"
-                      className="max-h-[420px] w-full rounded-xl border border-white/10 object-contain bg-black/40"
+                      className="mx-auto h-auto max-h-[420px] w-auto max-w-full rounded-xl border border-white/10 bg-black/40"
                     />
                   </div>
                 ) : (
