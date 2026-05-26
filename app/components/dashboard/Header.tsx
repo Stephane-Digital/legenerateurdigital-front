@@ -12,6 +12,7 @@ const PLANS_URL = process.env.NEXT_PUBLIC_SYSTEMEIO_PLANS_URL ?? "https://legene
 const DASHBOARD_PATH = "/dashboard";
 const AFFILIATION_PATH = "/dashboard/affiliation";
 const EDITOR_PATH = "/dashboard/automatisations/reseaux_sociaux/editor-intelligent";
+const PLANNER_PATH = "/dashboard/planner";
 const COACH_PATH = "/dashboard/coach-ia";
 const LEADS_PATH = "/dashboard/lead-engine";
 const EMAIL_CAMPAIGNS_PATH = "/dashboard/email-campaigns";
@@ -27,6 +28,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", path: DASHBOARD_PATH },
   { label: "Affiliation", path: AFFILIATION_PATH },
   { label: "Éditeur", path: EDITOR_PATH },
+  { label: "Planner IA", path: PLANNER_PATH },
   { label: "Leads IA", path: LEADS_PATH },
   { label: "Coach", path: COACH_PATH },
   { label: "Emailing IA", path: EMAIL_CAMPAIGNS_PATH },
