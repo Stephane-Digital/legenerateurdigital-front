@@ -2108,27 +2108,32 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
         console.error("LGD planner snapshot error (carrousel):", error);
       }
 
-      const plannerContent = {
-        title: titre || plannerTitle,
-        type: "carrousel",
-        // ✅ IMPORTANT — Planner display fix:
-        // Keep the list payload light. Exact visual preview is carried by
-        // preview_image/planner_preview_image. Full slides stay in editor/local
-        // persistence and Library archive flows.
-        slides: [],
-        ui: draftUI,
-        brief: brief || "",
-        preview_image: previewImage || undefined,
-        planner_preview_image: previewImage || undefined,
-      };
+      // ✅ LGD PLANNER REPAIR — envoyer le draft carrousel complet en racine.
+      const storedDraft =
+        typeof window !== "undefined" ? safeJsonParse(window.localStorage.getItem(LS_CARROUSEL)) : null;
+      const fullDraft =
+        storedDraft && Array.isArray(storedDraft?.slides)
+          ? storedDraft
+          : { ui: draftUI, slides: safeSlides };
 
       await schedule({
         reseau,
         date_programmee,
         titre: titre || plannerTitle,
         format: "carrousel",
-        slides: [],
-        contenu: plannerContent,
+        slides: Array.isArray(fullDraft?.slides) ? fullDraft.slides : safeSlides,
+        contenu: {
+          ...fullDraft,
+          title: titre || plannerTitle,
+          titre: titre || plannerTitle,
+          type: "carrousel",
+          format: "carrousel",
+          slides: Array.isArray(fullDraft?.slides) ? fullDraft.slides : safeSlides,
+          ui: fullDraft?.ui ?? draftUI,
+          brief: brief || "",
+          preview_image: previewImage || fullDraft?.preview_image || undefined,
+          planner_preview_image: previewImage || fullDraft?.planner_preview_image || undefined,
+        },
       });
       setScheduleOpen(false);
       if (typeof window !== "undefined") window.alert("✅ Ajouté au Planner !");
