@@ -2108,21 +2108,27 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
         console.error("LGD planner snapshot error (carrousel):", error);
       }
 
+      const plannerContent = {
+        title: titre || plannerTitle,
+        type: "carrousel",
+        // ✅ IMPORTANT — Planner display fix:
+        // Keep the list payload light. Exact visual preview is carried by
+        // preview_image/planner_preview_image. Full slides stay in editor/local
+        // persistence and Library archive flows.
+        slides: [],
+        ui: draftUI,
+        brief: brief || "",
+        preview_image: previewImage || undefined,
+        planner_preview_image: previewImage || undefined,
+      };
+
       await schedule({
         reseau,
         date_programmee,
         titre: titre || plannerTitle,
         format: "carrousel",
-        slides: safeSlides,
-        contenu: {
-          title: titre || plannerTitle,
-          type: "carrousel",
-          slides: safeSlides,
-          ui: draftUI,
-          brief: brief || "",
-          preview_image: previewImage || undefined,
-          planner_preview_image: previewImage || undefined,
-        },
+        slides: [],
+        contenu: plannerContent,
       });
       setScheduleOpen(false);
       if (typeof window !== "undefined") window.alert("✅ Ajouté au Planner !");
