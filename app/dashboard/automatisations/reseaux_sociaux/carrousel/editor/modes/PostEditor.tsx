@@ -1384,10 +1384,9 @@ export default function PostEditor({
   );
   const [draftUI, setDraftUI] = useState<any>(undefined);
 
-  // ✅ Sécurité persistance : on attend la restauration locale avant de monter l’éditeur.
-  // Sans ce garde-fou, EditorLayout peut remonter un état vide au premier rendu
-  // et écraser le draft local (image + texte) au refresh ou au changement Post/Carrousel.
-  const [draftHydrated, setDraftHydrated] = useState(false);
+  // ✅ Hydratation locale terminée avant de monter EditorLayout.
+  // Évite que l’éditeur démarre à vide et écrase le draft importé au refresh.
+  const [draftRestored, setDraftRestored] = useState(false);
 
   // ✅ Toggle Copilot (persist)
   const [copilotOpen, setCopilotOpen] = useState<boolean>(true);
@@ -1420,6 +1419,7 @@ export default function PostEditor({
 
   const lastUiSigRef = useRef<string>("");
   const lastLayersSigRef = useRef<string>("");
+  const restoredAtRef = useRef<number>(0);
 
   const markDirty = useCallback(() => {
     if (dirtyRef.current) return;
@@ -1430,45 +1430,39 @@ export default function PostEditor({
   // ✅ restore draft local (si existe)
   useEffect(() => {
     try {
-      const parsed =
-        typeof window !== "undefined"
-          ? safeJsonParse(window.localStorage.getItem(LS_POST))
-          : null;
+      const parsed = safeJsonParse(localStorage.getItem(LS_POST));
 
-      const restoredLayers =
-        parsed?.layers && Array.isArray(parsed.layers) ? parsed.layers : [];
-      const restoredUI = parsed?.ui ?? undefined;
+      if (parsed?.layers && Array.isArray(parsed.layers)) {
+        setDraftLayers(parsed.layers);
+        layersRef.current = parsed.layers;
+        lastLayersSigRef.current = stableSig(parsed.layers);
+      }
 
-      setDraftLayers(restoredLayers);
-      layersRef.current = restoredLayers;
-      lastLayersSigRef.current = stableSig(restoredLayers);
-
-      if (restoredUI) {
-        setDraftUI(restoredUI);
-        uiRef.current = restoredUI;
-        lastUiSigRef.current = stableSig(restoredUI);
+      if (parsed?.ui) {
+        setDraftUI(parsed.ui);
+        uiRef.current = parsed.ui;
+        lastUiSigRef.current = stableSig(parsed.ui);
       }
     } catch {
-      setDraftLayers([]);
-      layersRef.current = [];
-      lastLayersSigRef.current = stableSig([]);
+      // no-op
     } finally {
-      setDraftHydrated(true);
+      restoredAtRef.current = Date.now();
+      setDraftRestored(true);
     }
   }, []);
 
   // ✅ persist local (debounced)
+  // Ne jamais écrire dans localStorage avant la restauration complète du draft.
+  // Sinon un mount rapide de l’éditeur peut remplacer image + texte par un état vide.
   useEffect(() => {
-    if (!draftHydrated) return;
+    if (!draftRestored) return;
 
     const t = setTimeout(() => {
       try {
         const layersToSave = layersRef.current ?? draftLayers ?? [];
         const uiToSave = uiRef.current ?? draftUI;
 
-        // Ne jamais écraser un draft existant par un état non hydraté/accidentellement vide
-        // au montage ou lors du retour depuis le mode Carrousel.
-        window.localStorage.setItem(
+        localStorage.setItem(
           LS_POST,
           JSON.stringify({
             ui: uiToSave,
@@ -1478,16 +1472,15 @@ export default function PostEditor({
       } catch {
         // no-op
       }
-    }, 250);
+    }, 300);
 
     return () => clearTimeout(t);
-  }, [draftHydrated, draftUI, draftLayers]);
+  }, [draftRestored, draftUI, draftLayers]);
 
   const initialLayersKey = useMemo(() => "post", []);
 
   const handleUIChange = useCallback(
     (ui: any) => {
-      if (!draftHydrated) return;
       const cleaned = stripNonSerializableUI(ui ?? {});
       const sig = stableSig(cleaned ?? {});
 
@@ -1506,27 +1499,45 @@ export default function PostEditor({
         layers: layersRef.current ?? [],
       });
     },
-    [draftHydrated, markDirty, onSnapshot],
+    [markDirty, onSnapshot],
   );
 
   const handleLayersChange = useCallback(
     (layers: LayerData[]) => {
-      if (!draftHydrated) return;
-      const sig = stableSig(layers ?? []);
+      const nextLayers = Array.isArray(layers) ? layers : [];
+      const currentLayers = Array.isArray(layersRef.current)
+        ? layersRef.current
+        : [];
+
+      // ✅ Anti-wipe : au refresh ou au changement Carrousel → Post,
+      // certains mounts peuvent envoyer brièvement [] avant le vrai draft.
+      // On refuse cet état vide pendant la fenêtre d’hydratation.
+      if (
+        draftRestored &&
+        currentLayers.length > 0 &&
+        nextLayers.length === 0 &&
+        Date.now() - restoredAtRef.current < 1800
+      ) {
+        return;
+      }
+
+      const sig = stableSig(nextLayers);
       if (sig === lastLayersSigRef.current) return;
 
       lastLayersSigRef.current = sig;
-      layersRef.current = layers;
+      layersRef.current = nextLayers;
 
-      setDraftLayers((prev) => (stableSig(prev ?? []) === sig ? prev : layers));
+      setDraftLayers((prev) =>
+        stableSig(prev ?? []) === sig ? prev : nextLayers,
+      );
       markDirty();
 
       onSnapshot?.({
         ui: uiRef.current,
-        layers,
+        layers: nextLayers,
       });
     },
-    [draftHydrated, markDirty, onSnapshot],
+    [draftRestored, markDirty, onSnapshot],
   );
 
   /** =========================
@@ -2414,15 +2425,6 @@ export default function PostEditor({
                 </button>
 
                 <button
-                  type="button"
-                  onClick={() => setScheduleOpen(true)}
-                  disabled={!draftHydrated || scheduleLoading}
-                  className="rounded-xl px-3 py-2 text-sm font-semibold border border-yellow-500/35 bg-black/35 text-yellow-100 hover:bg-yellow-500/10 disabled:opacity-60"
-                >
-                  📅 Envoyer au Planner
-                </button>
-
-                <button
                   onClick={() => runCopilot("hooks")}
                   disabled={aiLoading || copilotDisabled}
                   className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
@@ -2742,6 +2744,15 @@ export default function PostEditor({
                           Appliquer au layer
                         </button>
                         <button
+                          type="button"
+                          onClick={() => setScheduleOpen(true)}
+                          disabled={scheduleLoading || (draftLayers ?? []).length === 0}
+                          className="rounded-xl px-3 py-2 text-sm font-semibold text-yellow-100 border border-yellow-500/25 bg-black/40 hover:bg-black/55 disabled:opacity-60"
+                          title="Envoyer cette création au Planner LGD"
+                        >
+                          📅 Envoyer au Planner
+                        </button>
+                        <button
                           onClick={() => {
                             setAiOutput("");
                             setAiHooks([]);
@@ -2843,7 +2854,7 @@ export default function PostEditor({
           {/* ================= EDITOR ================= */}
 
           <div className="w-full min-h-[820px] flex justify-center">
-            {draftHydrated ? (
+            {draftRestored ? (
               <EditorLayout
                 initialLayersKey={initialLayersKey}
                 initialLayers={draftLayers}
@@ -2854,8 +2865,8 @@ export default function PostEditor({
                 onCloseMobileTools={onCloseMobileTools}
               />
             ) : (
-              <div className="flex min-h-[520px] w-full items-center justify-center rounded-3xl border border-yellow-500/15 bg-black/30 text-sm font-semibold text-yellow-100/70">
-                Chargement de ton post…
+              <div className="flex min-h-[520px] w-full items-center justify-center rounded-3xl border border-yellow-500/10 bg-black/25 text-sm text-yellow-100/70">
+                Restauration du post…
               </div>
             )}
           </div>
