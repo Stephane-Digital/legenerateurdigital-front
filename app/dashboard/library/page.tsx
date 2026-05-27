@@ -261,55 +261,85 @@ function extractSlideLayers(slide: any): any[] {
   );
 }
 
+function unwrapSavedPayload(wrapper?: SavedWrapper | null) {
+  const roots: any[] = [];
+  const seen = new Set<any>();
+  const visit = (node: any) => {
+    if (!node || typeof node !== "object") return;
+    if (seen.has(node)) return;
+    seen.add(node);
+    roots.push(node);
+    visit(node.payload);
+    visit(node.data);
+    visit(node.draft);
+    visit(node.content);
+    visit(node.contenu);
+    visit(node.editor);
+    visit(node.canvas);
+  };
+  visit(wrapper);
+  return roots;
+}
+
 function extractArchivePostDraft(wrapper?: SavedWrapper | null) {
-  const payload = wrapper?.payload || {};
-  const layers = restoreArchivedLineBreaksInLayers(
-    normalizeLayers(
-      payload?.layers ||
-        payload?.data?.layers ||
-        payload?.canvas?.layers ||
-        payload?.draft?.layers ||
-        payload?.draft?.canvas?.layers ||
-        payload?.content?.layers ||
-        []
-    )
-  );
+  const roots = unwrapSavedPayload(wrapper);
 
-  const ui =
-    payload?.ui ||
-    payload?.data?.ui ||
-    payload?.canvas?.ui ||
-    payload?.draft?.ui ||
-    payload?.content?.ui ||
-    {};
+  for (const payload of roots) {
+    const layers = restoreArchivedLineBreaksInLayers(
+      normalizeLayers(
+        payload?.layers ||
+          payload?.data?.layers ||
+          payload?.canvas?.layers ||
+          payload?.draft?.layers ||
+          payload?.draft?.canvas?.layers ||
+          payload?.content?.layers ||
+          []
+      )
+    );
 
-  return { layers, ui };
+    const ui =
+      payload?.ui ||
+      payload?.data?.ui ||
+      payload?.canvas?.ui ||
+      payload?.draft?.ui ||
+      payload?.content?.ui ||
+      {};
+
+    if (layers.length) return { layers, ui };
+  }
+
+  return { layers: [], ui: {} };
 }
 
 function extractArchiveCarrouselDraft(wrapper?: SavedWrapper | null) {
-  const payload = wrapper?.payload || {};
-  const rawSlides = firstArray(
-    payload?.slides,
-    payload?.data?.slides,
-    payload?.canvas?.slides,
-    payload?.draft?.slides,
-    payload?.content?.slides
-  );
+  const roots = unwrapSavedPayload(wrapper);
 
-  const slides = rawSlides.map((slide: any, index: number) => ({
-    id: String(slide?.id || `slide-${index + 1}`),
-    layers: restoreArchivedLineBreaksInLayers(extractSlideLayers(slide)),
-  }));
+  for (const payload of roots) {
+    const rawSlides = firstArray(
+      payload?.slides,
+      payload?.data?.slides,
+      payload?.canvas?.slides,
+      payload?.draft?.slides,
+      payload?.content?.slides
+    );
 
-  const ui =
-    payload?.ui ||
-    payload?.data?.ui ||
-    payload?.canvas?.ui ||
-    payload?.draft?.ui ||
-    payload?.content?.ui ||
-    {};
+    const slides = rawSlides.map((slide: any, index: number) => ({
+      id: String(slide?.id || `slide-${index + 1}`),
+      layers: restoreArchivedLineBreaksInLayers(extractSlideLayers(slide)),
+    }));
 
-  return { slides, ui };
+    const ui =
+      payload?.ui ||
+      payload?.data?.ui ||
+      payload?.canvas?.ui ||
+      payload?.draft?.ui ||
+      payload?.content?.ui ||
+      {};
+
+    if (slides.some((s: any) => Array.isArray(s.layers) && s.layers.length)) return { slides, ui };
+  }
+
+  return { slides: [], ui: {} };
 }
 
 function sanitizeFilePart(value: string) {
