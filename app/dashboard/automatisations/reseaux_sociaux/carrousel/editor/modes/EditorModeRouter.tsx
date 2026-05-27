@@ -37,6 +37,122 @@ function safeJsonParse(raw: string | null) {
   }
 }
 
+
+const LGD_IDB_NAME = "lgd_editor_persistence_v1";
+const LGD_IDB_STORE = "drafts";
+
+function openEditorDraftDB(): Promise<IDBDatabase | null> {
+  if (typeof window === "undefined" || !("indexedDB" in window)) return Promise.resolve(null);
+
+  return new Promise((resolve) => {
+    const request = window.indexedDB.open(LGD_IDB_NAME, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(LGD_IDB_STORE)) {
+        db.createObjectStore(LGD_IDB_STORE);
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => resolve(null);
+  });
+}
+
+async function idbSetEditorDraft(key: string, value: any) {
+  const db = await openEditorDraftDB();
+  if (!db) return false;
+
+  return await new Promise<boolean>((resolve) => {
+    try {
+      const tx = db.transaction(LGD_IDB_STORE, "readwrite");
+      tx.objectStore(LGD_IDB_STORE).put(value, key);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => resolve(false);
+      tx.onabort = () => resolve(false);
+    } catch {
+      resolve(false);
+    }
+  }).finally(() => {
+    try {
+      db.close();
+    } catch {
+      // ignore
+    }
+  });
+}
+
+function cleanupEditorLocalStorageForQuota(keepKey: string) {
+  if (typeof window === "undefined") return;
+
+  const keep = new Set([
+    keepKey,
+    "access_token",
+    "token",
+    "jwt",
+    "lgd_token",
+    "lgd_editor_mode",
+    "lgd_editor_mode_v5",
+  ]);
+
+  const removable: string[] = [];
+  for (let i = 0; i < window.localStorage.length; i += 1) {
+    const key = window.localStorage.key(i) || "";
+    if (!key || keep.has(key)) continue;
+    if (
+      key.startsWith("lgd_planner_local_") ||
+      key.includes("runtime") ||
+      key.includes("preview") ||
+      key.includes("thumbnail") ||
+      key.includes("archive_raw_cache") ||
+      key.includes("image_cache") ||
+      key.includes("draft_v5")
+    ) {
+      removable.push(key);
+    }
+  }
+
+  for (const key of removable) {
+    try {
+      window.localStorage.removeItem(key);
+    } catch {
+      // ignore
+    }
+  }
+}
+
+async function safePersistEditorDraft(key: string, draft: any) {
+  if (typeof window === "undefined") return;
+
+  const raw = JSON.stringify(draft ?? {});
+
+  try {
+    window.localStorage.setItem(key, raw);
+    await idbSetEditorDraft(key, draft);
+    return;
+  } catch {
+    // quota cleanup, then retry once
+  }
+
+  cleanupEditorLocalStorageForQuota(key);
+
+  try {
+    window.localStorage.setItem(key, raw);
+    await idbSetEditorDraft(key, draft);
+    return;
+  } catch {
+    // Heavy images are stored in IndexedDB; localStorage keeps only a tiny marker.
+  }
+
+  const storedInIdb = await idbSetEditorDraft(key, draft);
+  if (storedInIdb) {
+    try {
+      window.localStorage.setItem(key, JSON.stringify({ __lgd_idb_draft__: true, key }));
+    } catch {
+      // ignore
+    }
+  }
+}
+
+
 function normalizeText(t: string) {
   return (t || "").replace(/\s+/g, " ").trim();
 }
@@ -383,14 +499,6 @@ export default function EditorModeRouter() {
   const [loadingArchiveSelection, setLoadingArchiveSelection] = useState(false);
   const [archiveSelectionError, setArchiveSelectionError] = useState("");
 
-  // ✅ LGD SAFE SNAPSHOT BRIDGE
-  // Garde le draft réellement affiché dans l'éditeur en mémoire React.
-  // Évite que l'archive lise un localStorage ancien/vide juste après import
-  // ou juste après un changement Post ⇄ Carrousel.
-  const postSnapshotRef = useRef<any | null>(null);
-  const carrouselSnapshotRef = useRef<any | null>(null);
-
-
   useEffect(() => {
     const saved = typeof window !== "undefined" ? window.localStorage.getItem("lgd_editor_mode") : null;
     if (saved === "post" || saved === "carrousel") setMode(saved);
@@ -425,12 +533,12 @@ export default function EditorModeRouter() {
         if (archiveKind === "post") {
           const draft = extractArchivePostDraft(payloadRaw);
           window.localStorage.setItem(LS_EDITOR_MODE, "post");
-          window.localStorage.setItem(LS_POST, JSON.stringify(draft));
+          await safePersistEditorDraft(LS_POST, draft);
           setMode("post");
         } else {
           const draft = extractArchiveCarrouselDraft(payloadRaw);
           window.localStorage.setItem(LS_EDITOR_MODE, "carrousel");
-          window.localStorage.setItem(LS_CARROUSEL, JSON.stringify(draft));
+          await safePersistEditorDraft(LS_CARROUSEL, draft);
           if (draft?.slides?.[0]?.id) {
             window.localStorage.setItem("lgd_editor_carrousel_active_slide_v5", String(draft.slides[0].id));
           }
@@ -598,10 +706,6 @@ export default function EditorModeRouter() {
 
   const getDraft = () => {
     if (typeof window === "undefined") return null;
-
-    const liveSnapshot = mode === "post" ? postSnapshotRef.current : carrouselSnapshotRef.current;
-    if (liveSnapshot) return liveSnapshot;
-
     const key = mode === "post" ? LS_POST : LS_CARROUSEL;
     return safeJsonParse(window.localStorage.getItem(key));
   };
@@ -903,21 +1007,7 @@ export default function EditorModeRouter() {
       </div>
 
       <div className="mx-auto mt-1 w-full max-w-[1800px] px-6 pb-16">
-        {mode === "post" ? (
-          <PostEditor
-            brief={brief}
-            onSnapshot={(snapshot) => {
-              postSnapshotRef.current = snapshot;
-              try {
-                window.localStorage.setItem(LS_POST, JSON.stringify(snapshot));
-              } catch {
-                // ignore
-              }
-            }}
-          />
-        ) : (
-          <CarrouselEditor brief={brief} />
-        )}
+        {mode === "post" ? <PostEditor brief={brief} /> : <CarrouselEditor brief={brief} />}
       </div>
     </div>
   );
