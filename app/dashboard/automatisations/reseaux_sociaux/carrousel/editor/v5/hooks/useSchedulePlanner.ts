@@ -72,39 +72,6 @@ function looksLikeCarrousel(payload: SchedulePayload): boolean {
   return false;
 }
 
-function safeReadDraft(key: string) {
-  if (typeof window === "undefined") return null;
-  try {
-    return JSON.parse(localStorage.getItem(key) || "null");
-  } catch {
-    return null;
-  }
-}
-
-function ensureFullEditorPayload(payload: SchedulePayload) {
-  if (payload.contenu || typeof window === "undefined") return payload;
-
-  try {
-    const mode =
-      localStorage.getItem("lgd_editor_mode") ||
-      localStorage.getItem("lgd_editor_mode_v5") ||
-      "post";
-
-    if (mode === "carrousel") {
-      const draft = safeReadDraft("lgd_editor_carrousel_draft_v5");
-      if (draft) payload.contenu = draft;
-      return payload;
-    }
-
-    const draft = safeReadDraft("lgd_editor_post_draft_v5");
-    if (draft) payload.contenu = draft;
-  } catch {
-    // no-op
-  }
-
-  return payload;
-}
-
 export function useSchedulePlanner() {
   const [loading, setLoading] = useState(false);
 
@@ -119,12 +86,24 @@ export function useSchedulePlanner() {
     // ✅ si token dispo : Authorization Bearer (en plus des cookies httpOnly)
     if (token) headers.Authorization = `Bearer ${token}`;
 
-    const safePayload = ensureFullEditorPayload({ ...payload });
-    const network = pickNetwork(safePayload);
-    const scheduled_at = pickScheduledAt(safePayload);
+    const network = pickNetwork(payload);
+    const scheduled_at = pickScheduledAt(payload);
 
     try {
-      const isCarrousel = looksLikeCarrousel(safePayload);
+      
+// 🔥 LGD FIX: ensure full Canva payload is always sent
+if (!payload.contenu && typeof window !== "undefined") {
+  try {
+    const mode = localStorage.getItem("lgd_editor_mode_v5");
+    if (mode === "post") {
+      payload.contenu = JSON.parse(localStorage.getItem("lgd_editor_post_draft_v5") || "null");
+    } else if (mode === "carrousel") {
+      payload.contenu = JSON.parse(localStorage.getItem("lgd_editor_carrousel_draft_v5") || "null");
+    }
+  } catch {}
+}
+
+      const isCarrousel = looksLikeCarrousel(payload);
 
       const endpoint = isCarrousel ? "/planner/schedule-carrousel" : "/planner/schedule-post";
 
@@ -132,27 +111,27 @@ export function useSchedulePlanner() {
         ? {
             network,
             scheduled_at,
-            supprimer_apres: !!safePayload.supprimer_apres,
+            supprimer_apres: !!payload.supprimer_apres,
 
             // tolérances carrousel
             carrousel_id:
-              safePayload.carrousel_id ??
-              safePayload.contenu?.carrousel_id ??
-              safePayload.contenu?.id ??
+              payload.carrousel_id ??
+              payload.contenu?.carrousel_id ??
+              payload.contenu?.id ??
               null,
-            slides: safePayload.slides ?? safePayload.contenu?.slides ?? [],
-            contenu: safePayload.contenu ?? null,
-            titre: safePayload.titre ?? null,
+            slides: payload.slides ?? payload.contenu?.slides ?? [],
+            contenu: payload.contenu ?? null,
+            titre: payload.titre ?? null,
           }
         : {
             network,
             scheduled_at,
-            supprimer_apres: !!safePayload.supprimer_apres,
+            supprimer_apres: !!payload.supprimer_apres,
 
             // post
-            titre: safePayload.titre ?? null,
-            format: safePayload.format ?? "post",
-            contenu: safePayload.contenu ?? null,
+            titre: payload.titre ?? null,
+            format: payload.format ?? "post",
+            contenu: payload.contenu ?? null,
           };
 
       const res = await fetch(`${getApiBase()}${endpoint}`, {
