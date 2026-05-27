@@ -2405,15 +2405,37 @@ export default function PostEditor({
   const handleScheduleConfirm = useCallback(
     async ({ reseau, date_programmee, titre }: { reseau: string; date_programmee: string; titre?: string }) => {
       const safeLayers = Array.isArray(draftLayers) ? draftLayers : [];
+
+      const preparedDraft = await preparePostDraftForLocalStorage({
+        ui: draftUI,
+        layers: safeLayers,
+      });
+
+      const preparedLayers = Array.isArray(preparedDraft?.layers)
+        ? preparedDraft.layers
+        : safeLayers;
+      const preparedUI = preparedDraft?.ui ?? draftUI;
+
+      try {
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem(LS_POST, JSON.stringify({
+            ui: preparedUI,
+            layers: preparedLayers,
+          }));
+        }
+      } catch {
+        // ignore
+      }
+
       let previewImage = "";
 
-      if (safeLayers.length) {
+      if (preparedLayers.length) {
         try {
           previewImage = await renderEditorCreationToDataUrl({
             mode: "post",
             draft: {
-              ui: draftUI,
-              layers: safeLayers,
+              ui: preparedUI,
+              layers: preparedLayers,
             },
           });
         } catch (error) {
@@ -2429,8 +2451,9 @@ export default function PostEditor({
         contenu: {
           title: titre || plannerTitle,
           type: "post",
-          layers: safeLayers,
-          ui: draftUI,
+          layers: preparedLayers,
+          ui: preparedUI,
+          draft: { ui: preparedUI, layers: preparedLayers },
           brief: brief || "",
           preview_image: previewImage || undefined,
           planner_preview_image: previewImage || undefined,
