@@ -46,19 +46,7 @@ type SavedWrapper = {
 
 const LS_POST = "lgd_editor_post_draft_v5";
 const LS_CARROUSEL = "lgd_editor_carrousel_draft_v5";
-const LS_EDITOR_MODE = "lgd_editor_mode";
-const LS_LIBRARY_ARCHIVE_RAW_CACHE = "lgd_library_archive_raw_cache_v1";
-
-function readLibraryArchiveRawCache(): Record<string, SavedWrapper> {
-  if (typeof window === "undefined") return {};
-  try {
-    const raw = window.localStorage.getItem(LS_LIBRARY_ARCHIVE_RAW_CACHE);
-    const parsed = raw ? JSON.parse(raw) : {};
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
-  } catch {
-    return {};
-  }
-}
+const LS_EDITOR_MODE = "lgd_editor_mode_v5";
 
 function apiBase() {
   return (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
@@ -589,37 +577,20 @@ export default function LibraryPage() {
       const concurrency = 6;
       let idx = 0;
 
-      const localRawCache = readLibraryArchiveRawCache();
-
       const worker = async () => {
         while (idx < need.length) {
           const current = need[idx++];
-          const cached = localRawCache[String(current.id)] || null;
-
           try {
-            const urls = [
-              current.raw_url ? normalizeUrl(current.raw_url) : "",
-              `${apiUrl}/library/raw/${current.id}`,
-              `${apiUrl}/library/${current.id}/raw`,
-              `${apiUrl}/library/items/${current.id}/raw`,
-            ].filter(Boolean);
-
-            let loaded: SavedWrapper | null = null;
-            for (const url of Array.from(new Set(urls))) {
-              try {
-                const r = await fetch(url, { credentials: "include", headers: { ...getAuthHeaders() } });
-                if (!r.ok) continue;
-                const txt = await r.text();
-                loaded = JSON.parse(txt) as SavedWrapper;
-                break;
-              } catch {
-                // try next raw endpoint
-              }
+            const r = await fetch(normalizeUrl(current.raw_url!), { credentials: "include", headers: { ...getAuthHeaders() } });
+            if (!r.ok) {
+              next[current.id] = null;
+              continue;
             }
-
-            next[current.id] = loaded || cached || null;
+            const txt = await r.text();
+            const json = JSON.parse(txt) as SavedWrapper;
+            next[current.id] = json;
           } catch {
-            next[current.id] = cached || null;
+            next[current.id] = null;
           }
         }
       };
