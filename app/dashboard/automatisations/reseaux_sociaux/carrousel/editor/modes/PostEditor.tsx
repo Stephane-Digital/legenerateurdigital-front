@@ -1650,6 +1650,24 @@ export default function PostEditor({
       layersRef.current = layers;
 
       setDraftLayers((prev) => (stableSig(prev ?? []) === sig ? prev : layers));
+
+      // ✅ LGD FINAL FIX — persistance immédiate du visuel importé.
+      // Le debounce seul pouvait arriver trop tard lors d'un refresh, d'un archivage
+      // ou d'un aller-retour Post ⇄ Carrousel.
+      try {
+        const rawDraft = { ui: uiRef.current ?? draftUI, layers };
+        window.localStorage.setItem(LS_POST, JSON.stringify(rawDraft));
+        void preparePostDraftForLocalStorage(rawDraft).then((prepared) => {
+          try {
+            window.localStorage.setItem(LS_POST, JSON.stringify(prepared));
+          } catch {
+            // no-op
+          }
+        });
+      } catch {
+        // no-op
+      }
+
       markDirty();
 
       onSnapshot?.({
@@ -2405,37 +2423,15 @@ export default function PostEditor({
   const handleScheduleConfirm = useCallback(
     async ({ reseau, date_programmee, titre }: { reseau: string; date_programmee: string; titre?: string }) => {
       const safeLayers = Array.isArray(draftLayers) ? draftLayers : [];
-
-      const preparedDraft = await preparePostDraftForLocalStorage({
-        ui: draftUI,
-        layers: safeLayers,
-      });
-
-      const preparedLayers = Array.isArray(preparedDraft?.layers)
-        ? preparedDraft.layers
-        : safeLayers;
-      const preparedUI = preparedDraft?.ui ?? draftUI;
-
-      try {
-        if (typeof window !== "undefined") {
-          window.localStorage.setItem(LS_POST, JSON.stringify({
-            ui: preparedUI,
-            layers: preparedLayers,
-          }));
-        }
-      } catch {
-        // ignore
-      }
-
       let previewImage = "";
 
-      if (preparedLayers.length) {
+      if (safeLayers.length) {
         try {
           previewImage = await renderEditorCreationToDataUrl({
             mode: "post",
             draft: {
-              ui: preparedUI,
-              layers: preparedLayers,
+              ui: draftUI,
+              layers: safeLayers,
             },
           });
         } catch (error) {
@@ -2451,9 +2447,8 @@ export default function PostEditor({
         contenu: {
           title: titre || plannerTitle,
           type: "post",
-          layers: preparedLayers,
-          ui: preparedUI,
-          draft: { ui: preparedUI, layers: preparedLayers },
+          layers: safeLayers,
+          ui: draftUI,
           brief: brief || "",
           preview_image: previewImage || undefined,
           planner_preview_image: previewImage || undefined,
