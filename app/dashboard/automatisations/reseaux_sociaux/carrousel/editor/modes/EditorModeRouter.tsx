@@ -383,6 +383,14 @@ export default function EditorModeRouter() {
   const [loadingArchiveSelection, setLoadingArchiveSelection] = useState(false);
   const [archiveSelectionError, setArchiveSelectionError] = useState("");
 
+  // ✅ LGD SAFE SNAPSHOT BRIDGE
+  // Garde le draft réellement affiché dans l'éditeur en mémoire React.
+  // Évite que l'archive lise un localStorage ancien/vide juste après import
+  // ou juste après un changement Post ⇄ Carrousel.
+  const postSnapshotRef = useRef<any | null>(null);
+  const carrouselSnapshotRef = useRef<any | null>(null);
+
+
   useEffect(() => {
     const saved = typeof window !== "undefined" ? window.localStorage.getItem("lgd_editor_mode") : null;
     if (saved === "post" || saved === "carrousel") setMode(saved);
@@ -590,6 +598,10 @@ export default function EditorModeRouter() {
 
   const getDraft = () => {
     if (typeof window === "undefined") return null;
+
+    const liveSnapshot = mode === "post" ? postSnapshotRef.current : carrouselSnapshotRef.current;
+    if (liveSnapshot) return liveSnapshot;
+
     const key = mode === "post" ? LS_POST : LS_CARROUSEL;
     return safeJsonParse(window.localStorage.getItem(key));
   };
@@ -891,7 +903,21 @@ export default function EditorModeRouter() {
       </div>
 
       <div className="mx-auto mt-1 w-full max-w-[1800px] px-6 pb-16">
-        {mode === "post" ? <PostEditor brief={brief} /> : <CarrouselEditor brief={brief} />}
+        {mode === "post" ? (
+          <PostEditor
+            brief={brief}
+            onSnapshot={(snapshot) => {
+              postSnapshotRef.current = snapshot;
+              try {
+                window.localStorage.setItem(LS_POST, JSON.stringify(snapshot));
+              } catch {
+                // ignore
+              }
+            }}
+          />
+        ) : (
+          <CarrouselEditor brief={brief} />
+        )}
       </div>
     </div>
   );
