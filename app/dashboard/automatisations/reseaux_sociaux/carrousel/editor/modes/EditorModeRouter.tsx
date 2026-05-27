@@ -27,34 +27,6 @@ const LS_CARROUSEL = "lgd_editor_carrousel_draft_v5";
 // Dashboard progression bridge
 const LS_DASHBOARD_DAILY_PROGRESS = "lgd_dashboard_daily_progress";
 const LS_CMO_AUTO_PAYLOAD = "lgd_cmo_module_auto_payload";
-const LS_LIBRARY_ARCHIVE_RAW_CACHE = "lgd_library_archive_raw_cache_v1";
-
-function readLibraryArchiveRawCache(): Record<string, any> {
-  if (typeof window === "undefined") return {};
-  try {
-    const raw = window.localStorage.getItem(LS_LIBRARY_ARCHIVE_RAW_CACHE);
-    const parsed = raw ? JSON.parse(raw) : {};
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
-function writeLibraryArchiveRawCache(id: number | string | null | undefined, wrapper: any) {
-  if (typeof window === "undefined" || id == null || !wrapper) return;
-  try {
-    const current = readLibraryArchiveRawCache();
-    const next = { ...current, [String(id)]: wrapper };
-    const keys = Object.keys(next);
-    if (keys.length > 80) {
-      for (const key of keys.slice(0, keys.length - 80)) delete next[key];
-    }
-    window.localStorage.setItem(LS_LIBRARY_ARCHIVE_RAW_CACHE, JSON.stringify(next));
-    window.dispatchEvent(new CustomEvent("lgd-library-archive-cache-updated", { detail: { id, wrapper } }));
-  } catch {
-    // localStorage quota / private mode: ignore
-  }
-}
 
 function safeJsonParse(raw: string | null) {
   if (!raw) return null;
@@ -687,12 +659,6 @@ export default function EditorModeRouter() {
     try {
       const preparedDraft = await prepareDraftForLibrary(draft);
 
-      const archivedWrapper = {
-        kind,
-        savedAt: new Date().toISOString(),
-        payload: preparedDraft,
-      };
-
       const res = await fetch(`${base}/library/save-draft`, {
         method: "POST",
         headers: {
@@ -703,7 +669,7 @@ export default function EditorModeRouter() {
         body: JSON.stringify({
           kind,
           title,
-          data: archivedWrapper,
+          data: { payload: preparedDraft },
         }),
       });
 
@@ -717,10 +683,6 @@ export default function EditorModeRouter() {
         }
         throw new Error(detail || `Erreur archive (HTTP ${res.status})`);
       }
-
-      const savedItem = await res.json().catch(() => null);
-      const savedId = savedItem?.id ?? savedItem?.item?.id ?? savedItem?.data?.id ?? null;
-      writeLibraryArchiveRawCache(savedId, archivedWrapper);
 
       setArchiveMsg("✅ Archivé dans la Bibliothèque.");
     } catch (e: any) {
