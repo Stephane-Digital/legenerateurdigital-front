@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
+type RouteContext = {
+  params: Promise<{ path?: string[] }> | { path?: string[] };
+};
+
 function backendBase() {
   return (
     process.env.NEXT_PUBLIC_API_URL ||
@@ -9,55 +15,79 @@ function backendBase() {
   ).replace(/\/$/, "");
 }
 
-function buildTargetUrl(req: NextRequest, parts: string[]) {
-  const path = parts.join("/");
-  const url = new URL(req.url);
-  const qs = url.search || "";
-  return `${backendBase()}/${path}${qs}`;
+function copyHeaders(req: NextRequest) {
+  const headers = new Headers();
+  const auth = req.headers.get("authorization");
+  const cookie = req.headers.get("cookie");
+  const contentType = req.headers.get("content-type");
+
+  if (auth) headers.set("authorization", auth);
+  if (cookie) headers.set("cookie", cookie);
+  if (contentType) headers.set("content-type", contentType);
+  headers.set("accept", req.headers.get("accept") || "application/json");
+
+  return headers;
 }
 
-async function proxy(req: NextRequest, ctx: { params: Promise<{ path?: string[] }> }) {
-  const params = await ctx.params;
-  const target = buildTargetUrl(req, params.path || []);
-
-  const headers = new Headers(req.headers);
-  headers.delete("host");
-  headers.delete("content-length");
+async function proxy(req: NextRequest, context: RouteContext) {
+  const params = await context.params;
+  const path = (params?.path || []).join("/");
+  const search = req.nextUrl.search || "";
+  const target = `${backendBase()}/${path}${search}`;
 
   const init: RequestInit = {
     method: req.method,
-    headers,
+    headers: copyHeaders(req),
+    cache: "no-store",
     redirect: "manual",
   };
 
   if (req.method !== "GET" && req.method !== "HEAD") {
-    init.body = await req.arrayBuffer();
+    init.body = await req.text();
   }
 
   const res = await fetch(target, init);
-  const outHeaders = new Headers(res.headers);
-  outHeaders.delete("content-encoding");
-  outHeaders.delete("content-length");
+  const body = await res.arrayBuffer();
+  const headers = new Headers(res.headers);
 
-  return new NextResponse(res.body, {
+  headers.set("access-control-allow-origin", req.headers.get("origin") || "*");
+  headers.set("access-control-allow-credentials", "true");
+
+  return new NextResponse(body, {
     status: res.status,
     statusText: res.statusText,
-    headers: outHeaders,
+    headers,
   });
 }
 
-export async function GET(req: NextRequest, ctx: { params: Promise<{ path?: string[] }> }) {
-  return proxy(req, ctx);
+export async function GET(req: NextRequest, context: RouteContext) {
+  return proxy(req, context);
 }
-export async function POST(req: NextRequest, ctx: { params: Promise<{ path?: string[] }> }) {
-  return proxy(req, ctx);
+
+export async function POST(req: NextRequest, context: RouteContext) {
+  return proxy(req, context);
 }
-export async function PUT(req: NextRequest, ctx: { params: Promise<{ path?: string[] }> }) {
-  return proxy(req, ctx);
+
+export async function PUT(req: NextRequest, context: RouteContext) {
+  return proxy(req, context);
 }
-export async function PATCH(req: NextRequest, ctx: { params: Promise<{ path?: string[] }> }) {
-  return proxy(req, ctx);
+
+export async function PATCH(req: NextRequest, context: RouteContext) {
+  return proxy(req, context);
 }
-export async function DELETE(req: NextRequest, ctx: { params: Promise<{ path?: string[] }> }) {
-  return proxy(req, ctx);
+
+export async function DELETE(req: NextRequest, context: RouteContext) {
+  return proxy(req, context);
+}
+
+export async function OPTIONS(req: NextRequest) {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      "access-control-allow-origin": req.headers.get("origin") || "*",
+      "access-control-allow-credentials": "true",
+      "access-control-allow-methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+      "access-control-allow-headers": "content-type,authorization",
+    },
+  });
 }
