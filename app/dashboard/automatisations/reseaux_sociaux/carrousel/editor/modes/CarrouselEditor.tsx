@@ -1469,6 +1469,21 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
         changed = true;
         return { ...s, layers: layers ?? [] };
       });
+      if (changed && typeof window !== "undefined") {
+        try {
+          const existing = safeJsonParse(window.localStorage.getItem(LS_CARROUSEL)) || {};
+          window.localStorage.setItem(
+            LS_CARROUSEL,
+            JSON.stringify({
+              ...existing,
+              ui: uiRef.current ?? existing?.ui,
+              slides: next,
+            })
+          );
+        } catch {
+          // no-op
+        }
+      }
       return changed ? next : prev;
     });
   }, []);
