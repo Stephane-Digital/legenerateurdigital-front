@@ -276,7 +276,7 @@ export default function EditorLayout({
   const [overlayType, setOverlayType] = useState<OverlayType>(initialUI?.overlayType ?? "color");
   const [overlayColor1, setOverlayColor1] = useState(initialUI?.overlayColor1 ?? "#000000");
   const [overlayColor2, setOverlayColor2] = useState(initialUI?.overlayColor2 ?? "#000000");
-  const [overlayOpacity, setOverlayOpacity] = useState(initialUI?.overlayOpacity ?? 0);
+  const [overlayOpacity, setOverlayOpacity] = useState(initialUI?.overlayOpacity ?? 0.35);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const bgImageInputRef = useRef<HTMLInputElement | null>(null);
@@ -435,18 +435,9 @@ export default function EditorLayout({
       }
 
       // default (only when parent hasn't provided layers yet)
-      // ✅ LGD PERSISTENCE GUARD
-      // Important: when PostEditor / CarrouselEditor mounts, their localStorage
-      // restore happens in a parent effect. During that very small window,
-      // initialLayers can be undefined. The old behavior created the default
-      // template and emitted it back to the parent, overwriting the saved draft
-      // (image/text lost on refresh or when switching Post ⇄ Carrousel).
-      // We still show the default editor, but we mark this initial template as
-      // already emitted/received so it is NEVER pushed to the parent unless the
-      // user actually changes something.
       hydratingRef.current = true;
       if (!cancelled) {
-        const defaultLayers = [
+        setLayers([
           {
             id: BACKGROUND_LAYER_ID,
             type: "background",
@@ -472,14 +463,7 @@ export default function EditorLayout({
               lineHeight: 1.1,
             } as any,
           } as any,
-        ] as LayerData[];
-
-        const defaultSig = layersSignatureForSync(defaultLayers);
-        lastReceivedSigRef.current = defaultSig;
-        lastEmittedSigRef.current = defaultSig;
-        lastInitKeyRef.current = nextKey;
-
-        setLayers(defaultLayers);
+        ]);
         requestAnimationFrame(() => {
           hydratingRef.current = false;
         });
@@ -1587,7 +1571,6 @@ export default function EditorLayout({
     </div>
   );
 }
-
 
 
 
