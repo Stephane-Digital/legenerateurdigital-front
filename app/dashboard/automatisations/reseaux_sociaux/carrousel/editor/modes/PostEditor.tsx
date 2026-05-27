@@ -1053,6 +1053,154 @@ function safeJsonParse(raw: string | null) {
   }
 }
 
+
+const LGD_IDB_NAME = "lgd_editor_persistence_v1";
+const LGD_IDB_STORE = "drafts";
+
+function openEditorDraftDB(): Promise<IDBDatabase | null> {
+  if (typeof window === "undefined" || !("indexedDB" in window)) return Promise.resolve(null);
+
+  return new Promise((resolve) => {
+    const request = window.indexedDB.open(LGD_IDB_NAME, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(LGD_IDB_STORE)) {
+        db.createObjectStore(LGD_IDB_STORE);
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => resolve(null);
+  });
+}
+
+async function idbSetEditorDraft(key: string, value: any) {
+  const db = await openEditorDraftDB();
+  if (!db) return false;
+
+  return await new Promise<boolean>((resolve) => {
+    try {
+      const tx = db.transaction(LGD_IDB_STORE, "readwrite");
+      tx.objectStore(LGD_IDB_STORE).put(value, key);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => resolve(false);
+      tx.onabort = () => resolve(false);
+    } catch {
+      resolve(false);
+    }
+  }).finally(() => {
+    try {
+      db.close();
+    } catch {
+      // ignore
+    }
+  });
+}
+
+async function idbGetEditorDraft(key: string): Promise<any | null> {
+  const db = await openEditorDraftDB();
+  if (!db) return null;
+
+  return await new Promise<any | null>((resolve) => {
+    try {
+      const tx = db.transaction(LGD_IDB_STORE, "readonly");
+      const req = tx.objectStore(LGD_IDB_STORE).get(key);
+      req.onsuccess = () => resolve(req.result ?? null);
+      req.onerror = () => resolve(null);
+      tx.onerror = () => resolve(null);
+      tx.onabort = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  }).finally(() => {
+    try {
+      db.close();
+    } catch {
+      // ignore
+    }
+  });
+}
+
+function cleanupEditorLocalStorageForQuota(keepKey: string) {
+  if (typeof window === "undefined") return;
+
+  const keep = new Set([
+    keepKey,
+    "access_token",
+    "token",
+    "jwt",
+    "lgd_token",
+    "lgd_editor_mode",
+    "lgd_editor_mode_v5",
+  ]);
+
+  const removable: string[] = [];
+  for (let i = 0; i < window.localStorage.length; i += 1) {
+    const key = window.localStorage.key(i) || "";
+    if (!key || keep.has(key)) continue;
+    if (
+      key.startsWith("lgd_planner_local_") ||
+      key.includes("runtime") ||
+      key.includes("preview") ||
+      key.includes("thumbnail") ||
+      key.includes("archive_raw_cache") ||
+      key.includes("image_cache") ||
+      key.includes("draft_v5")
+    ) {
+      removable.push(key);
+    }
+  }
+
+  for (const key of removable) {
+    try {
+      window.localStorage.removeItem(key);
+    } catch {
+      // ignore
+    }
+  }
+}
+
+async function safePersistEditorDraft(key: string, draft: any) {
+  if (typeof window === "undefined") return;
+
+  const raw = JSON.stringify(draft ?? {});
+
+  try {
+    window.localStorage.setItem(key, raw);
+    await idbSetEditorDraft(key, draft);
+    return;
+  } catch {
+    // quota cleanup, then retry once
+  }
+
+  cleanupEditorLocalStorageForQuota(key);
+
+  try {
+    window.localStorage.setItem(key, raw);
+    await idbSetEditorDraft(key, draft);
+    return;
+  } catch {
+    // Heavy images are stored in IndexedDB; localStorage keeps only a tiny marker.
+  }
+
+  const storedInIdb = await idbSetEditorDraft(key, draft);
+  if (storedInIdb) {
+    try {
+      window.localStorage.setItem(key, JSON.stringify({ __lgd_idb_draft__: true, key }));
+    } catch {
+      // ignore
+    }
+  }
+}
+
+async function readEditorDraftWithFallback(key: string) {
+  if (typeof window === "undefined") return null;
+  const local = safeJsonParse(window.localStorage.getItem(key));
+  if (local && !local.__lgd_idb_draft__) return local;
+  const fromIdb = await idbGetEditorDraft(key);
+  return fromIdb || null;
+}
+
+
 function stableSig(value: any) {
   try {
     return JSON.stringify(value ?? null);
@@ -1546,21 +1694,30 @@ export default function PostEditor({
     onDirtyChange?.(true);
   }, [onDirtyChange]);
 
-  // ✅ restore draft local (si existe)
+  // ✅ restore draft local / IndexedDB (si localStorage est trop petit pour les images)
   useEffect(() => {
-    const parsed = safeJsonParse(localStorage.getItem(LS_POST));
-    if (!parsed) return;
+    let cancelled = false;
 
-    if (parsed?.layers && Array.isArray(parsed.layers)) {
-      setDraftLayers(parsed.layers);
-      layersRef.current = parsed.layers;
-      lastLayersSigRef.current = JSON.stringify(parsed.layers);
+    async function restoreDraft() {
+      const parsed = await readEditorDraftWithFallback(LS_POST);
+      if (cancelled || !parsed) return;
+
+      if (parsed?.layers && Array.isArray(parsed.layers)) {
+        setDraftLayers(parsed.layers);
+        layersRef.current = parsed.layers;
+        lastLayersSigRef.current = JSON.stringify(parsed.layers);
+      }
+      if (parsed?.ui) {
+        setDraftUI(parsed.ui);
+        uiRef.current = parsed.ui;
+        lastUiSigRef.current = JSON.stringify(parsed.ui);
+      }
     }
-    if (parsed?.ui) {
-      setDraftUI(parsed.ui);
-      uiRef.current = parsed.ui;
-      lastUiSigRef.current = JSON.stringify(parsed.ui);
-    }
+
+    void restoreDraft();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const persistPostDraftNow = useCallback(async () => {
@@ -1577,17 +1734,9 @@ export default function PostEditor({
       if (Array.isArray(existing?.layers) && existing.layers.length > 0) return;
     }
 
-    try {
-      const rawDraft = { ui, layers };
-      // Sauvegarde immédiate : utile quand on bascule Post ↔ Carrousel.
-      window.localStorage.setItem(LS_POST, JSON.stringify(rawDraft));
-
-      // Sauvegarde renforcée : convertit les blob: en data: pour survivre au refresh.
-      const prepared = await preparePostDraftForLocalStorage(rawDraft);
-      window.localStorage.setItem(LS_POST, JSON.stringify(prepared));
-    } catch {
-      // no-op
-    }
+    const rawDraft = { ui, layers };
+    const prepared = await preparePostDraftForLocalStorage(rawDraft);
+    await safePersistEditorDraft(LS_POST, prepared);
   }, [draftUI, draftLayers]);
 
   // ✅ persist local (debounced + flush au démontage)
@@ -1650,24 +1799,6 @@ export default function PostEditor({
       layersRef.current = layers;
 
       setDraftLayers((prev) => (stableSig(prev ?? []) === sig ? prev : layers));
-
-      // ✅ LGD FINAL FIX — persistance immédiate du visuel importé.
-      // Le debounce seul pouvait arriver trop tard lors d'un refresh, d'un archivage
-      // ou d'un aller-retour Post ⇄ Carrousel.
-      try {
-        const rawDraft = { ui: uiRef.current ?? draftUI, layers };
-        window.localStorage.setItem(LS_POST, JSON.stringify(rawDraft));
-        void preparePostDraftForLocalStorage(rawDraft).then((prepared) => {
-          try {
-            window.localStorage.setItem(LS_POST, JSON.stringify(prepared));
-          } catch {
-            // no-op
-          }
-        });
-      } catch {
-        // no-op
-      }
-
       markDirty();
 
       onSnapshot?.({
