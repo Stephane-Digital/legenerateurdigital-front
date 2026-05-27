@@ -19,17 +19,24 @@ const API_PROXY_PREFIX = "/api/proxy";
 
 async function proxyJson(path: string, init?: RequestInit) {
   const normalized = path.startsWith("/") ? path : `/${path}`;
-  const res = await fetch(`${API_PROXY_PREFIX}${normalized}`, {
-    credentials: "include",
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers || {}),
-    },
-  });
 
-  if (!res.ok) throw new Error(`${normalized} failed (${res.status})`);
-  return await res.json().catch(() => ({}));
+  try {
+    const res = await fetch(`${API_PROXY_PREFIX}${normalized}`, {
+      credentials: "include",
+      ...init,
+      headers: {
+        "Content-Type": "application/json",
+        ...(init?.headers || {}),
+      },
+    });
+
+    if (res.ok) return await res.json().catch(() => ({}));
+  } catch {
+    // fallback direct API below
+  }
+
+  const res = await api.get(normalized);
+  return res?.data ?? {};
 }
 
 type ManualStatus = "published" | "scheduled";
@@ -279,68 +286,69 @@ function inferCanvasSize(layers: PreviewLayer[], parsed: any, post: any) {
   );
 }
 
+function unwrapEditorPayloads(root: any): any[] {
+  const out: any[] = [];
+  const seen = new Set<any>();
+
+  const visit = (node: any) => {
+    if (!node || typeof node !== "object") return;
+    if (seen.has(node)) return;
+    seen.add(node);
+    out.push(node);
+
+    visit(node.payload);
+    visit(node.data);
+    visit(node.draft);
+    visit(node.content);
+    visit(node.contenu);
+    visit(node.editor);
+    visit(node.canvas);
+    visit(node.raw);
+  };
+
+  visit(root);
+  return out;
+}
+
 function extractPreviewCanvas(post: any, parsed: any): PreviewCanvas | null {
-  const directLayerSources = [
-    { source: "parsed.layers", layers: extractLayers(parsed?.layers) },
-    { source: "parsed.elements", layers: extractLayers(parsed?.elements) },
-    { source: "parsed.objects", layers: extractLayers(parsed?.objects) },
-    {
-      source: "parsed.contenu.layers",
-      layers: extractLayers(parsed?.contenu?.layers),
-    },
-    {
-      source: "parsed.content.layers",
-      layers: extractLayers(parsed?.content?.layers),
-    },
-  ];
+  const roots = unwrapEditorPayloads(parsed);
 
-  for (const item of directLayerSources) {
-    if (!item.layers.length) continue;
-    const layers = item.layers
-      .map(normalizeLayer)
-      .filter(Boolean) as PreviewLayer[];
-    if (!layers.length) continue;
-    const size = inferCanvasSize(layers, parsed, post);
-    return {
-      width: size.width,
-      height: size.height,
-      layers,
-      source: item.source,
-    };
-  }
+  for (const root of roots) {
+    const directLayerSources = [
+      { source: "layers", layers: extractLayers(root?.layers) },
+      { source: "elements", layers: extractLayers(root?.elements) },
+      { source: "objects", layers: extractLayers(root?.objects) },
+      { source: "json_layers", layers: extractLayers(root?.json_layers) },
+    ];
 
-  const slides = extractSlides(parsed?.slides);
-  if (slides.length) {
-    for (let i = 0; i < slides.length; i += 1) {
-      const slide = slides[i];
-      const sourceLayers = [
-        {
-          source: `parsed.slides[${i}].layers`,
-          layers: extractLayers(slide?.layers),
-        },
-        {
-          source: `parsed.slides[${i}].elements`,
-          layers: extractLayers(slide?.elements),
-        },
-        {
-          source: `parsed.slides[${i}].objects`,
-          layers: extractLayers(slide?.objects),
-        },
-      ];
+    for (const item of directLayerSources) {
+      if (!item.layers.length) continue;
+      const layers = item.layers.map(normalizeLayer).filter(Boolean) as PreviewLayer[];
+      if (!layers.length) continue;
+      const size = inferCanvasSize(layers, root, post);
+      return { width: size.width, height: size.height, layers, source: item.source };
+    }
 
-      for (const item of sourceLayers) {
-        if (!item.layers.length) continue;
-        const layers = item.layers
-          .map(normalizeLayer)
-          .filter(Boolean) as PreviewLayer[];
-        if (!layers.length) continue;
-        const size = inferCanvasSize(layers, slide ?? parsed, post);
-        return {
-          width: size.width,
-          height: size.height,
-          layers,
-          source: item.source,
-        };
+    const slides = extractSlides(root?.slides);
+    if (slides.length) {
+      for (let i = 0; i < slides.length; i += 1) {
+        const slide = slides[i];
+        const slideRoots = unwrapEditorPayloads(slide);
+        for (const slideRoot of slideRoots) {
+          const sourceLayers = [
+            { source: `slides[${i}].layers`, layers: extractLayers(slideRoot?.layers) },
+            { source: `slides[${i}].elements`, layers: extractLayers(slideRoot?.elements) },
+            { source: `slides[${i}].objects`, layers: extractLayers(slideRoot?.objects) },
+          ];
+
+          for (const item of sourceLayers) {
+            if (!item.layers.length) continue;
+            const layers = item.layers.map(normalizeLayer).filter(Boolean) as PreviewLayer[];
+            if (!layers.length) continue;
+            const size = inferCanvasSize(layers, slideRoot ?? root, post);
+            return { width: size.width, height: size.height, layers, source: item.source };
+          }
+        }
       }
     }
   }
@@ -348,63 +356,36 @@ function extractPreviewCanvas(post: any, parsed: any): PreviewCanvas | null {
   return null;
 }
 
-function inferEditorRenderSpec(
-  post: any,
-  parsed: any,
-): EditorRenderSpec | null {
-  const payload =
-    parsed?.payload && typeof parsed.payload === "object"
-      ? parsed.payload
-      : parsed?.draft && typeof parsed.draft === "object"
-        ? parsed.draft
-        : parsed;
+function inferEditorRenderSpec(post: any, parsed: any): EditorRenderSpec | null {
+  const roots = unwrapEditorPayloads(parsed);
 
-  if (!payload || typeof payload !== "object") return null;
+  for (const payload of roots) {
+    const slides = extractSlides(payload?.slides);
+    if (slides.length) {
+      const normalizedSlides = slides
+        .map((slide: any, index: number) => ({
+          id: String(slide?.id || `slide-${index + 1}`),
+          ui: slide?.ui || payload?.ui,
+          layers: extractLayers(slide?.layers),
+        }))
+        .filter((slide: any) => Array.isArray(slide.layers) && slide.layers.length > 0);
 
-  const explicitType = String(
-    payload?.type ||
-      payload?.format ||
-      payload?.kind ||
-      post?.format ||
-      post?.type ||
-      "",
-  )
-    .trim()
-    .toLowerCase();
+      if (normalizedSlides.length) {
+        return {
+          mode: "carrousel",
+          draft: { ui: payload?.ui, slides: normalizedSlides },
+          slideIndex: 0,
+        };
+      }
+    }
 
-  const slides = extractSlides(payload?.slides);
-  if (slides.length) {
-    const normalizedSlides = slides
-      .map((slide: any, index: number) => ({
-        id: String(slide?.id || `slide-${index + 1}`),
-        ui: slide?.ui || payload?.ui,
-        layers: extractLayers(slide?.layers),
-      }))
-      .filter(
-        (slide: any) => Array.isArray(slide.layers) && slide.layers.length > 0,
-      );
-
-    if (normalizedSlides.length) {
+    const layers = extractLayers(payload?.layers);
+    if (layers.length > 0) {
       return {
-        mode: "carrousel",
-        draft: {
-          ui: payload?.ui,
-          slides: normalizedSlides,
-        },
-        slideIndex: 0,
+        mode: "post",
+        draft: { ui: payload?.ui, layers },
       };
     }
-  }
-
-  const layers = extractLayers(payload?.layers);
-  if (layers.length || explicitType === "post") {
-    return {
-      mode: "post",
-      draft: {
-        ui: payload?.ui,
-        layers,
-      },
-    };
   }
 
   return null;
@@ -1463,6 +1444,7 @@ export default function AssistedPublishModal({
       } catch (error) {
         if (!cancelled) {
           console.error("LGD planner faithful preview error:", error);
+          setEditorPreviewLoading(false);
         }
       }
     };
