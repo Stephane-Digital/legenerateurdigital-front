@@ -628,6 +628,60 @@ function findExactPreviewImageDeep(value: any): string {
   return walk(value);
 }
 
+
+const PLANNER_PREVIEW_CACHE_KEY = "lgd_planner_preview_cache_v1";
+
+function readPlannerPreviewCacheItem(post: any, parsed: any): string {
+  if (typeof window === "undefined") return "";
+
+  try {
+    const raw = window.localStorage.getItem(PLANNER_PREVIEW_CACHE_KEY);
+    if (!raw) return "";
+
+    const cache = JSON.parse(raw);
+    if (!cache || typeof cache !== "object") return "";
+
+    const title = firstNonEmptyString(
+      post?.titre,
+      post?.title,
+      parsed?.titre,
+      parsed?.title,
+      parsed?.content?.title,
+      parsed?.contenu?.title,
+    );
+    const network = firstNonEmptyString(post?.network, post?.reseau, parsed?.network, parsed?.reseau);
+    const scheduledAt = firstNonEmptyString(
+      post?.scheduled_at,
+      post?.date_programmee,
+      post?.date,
+      parsed?.scheduled_at,
+      parsed?.date_programmee,
+    );
+
+    const keys = [
+      post?.id,
+      post?.post_id,
+      post?.planner_id,
+      parsed?.id,
+      parsed?.post_id,
+      parsed?.planner_id,
+      `${network}|${scheduledAt}|${title}`,
+    ]
+      .map((key) => String(key ?? "").trim())
+      .filter(Boolean);
+
+    for (const key of keys) {
+      const item = cache?.[key];
+      const preview = firstNonEmptyString(item?.preview_image, item?.planner_preview_image, item?.rendered_image);
+      if (preview && looksLikeImageUrl(preview)) return preview;
+    }
+  } catch {
+    // fallback silencieux : le modal garde son comportement existant.
+  }
+
+  return "";
+}
+
 function extractExactPreviewImage(post: any, parsed: any) {
   return firstNonEmptyString(
     post?.planner_preview_image,
@@ -650,6 +704,7 @@ function extractExactPreviewImage(post: any, parsed: any) {
     parsed?.payload?.preview_image,
     parsed?.draft?.planner_preview_image,
     parsed?.draft?.preview_image,
+    readPlannerPreviewCacheItem(post, parsed),
     findExactPreviewImageDeep(parsed),
     findExactPreviewImageDeep(post),
   );
