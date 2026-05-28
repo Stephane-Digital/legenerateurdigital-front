@@ -80,12 +80,11 @@ async function idbSetEditorDraft(key: string, value: any) {
   });
 }
 
-
-async function idbGetEditorDraft(key: string) {
+async function idbGetEditorDraft(key: string): Promise<any | null> {
   const db = await openEditorDraftDB();
   if (!db) return null;
 
-  return await new Promise<any>((resolve) => {
+  return await new Promise<any | null>((resolve) => {
     try {
       const tx = db.transaction(LGD_IDB_STORE, "readonly");
       const req = tx.objectStore(LGD_IDB_STORE).get(key);
@@ -566,13 +565,11 @@ export default function EditorModeRouter() {
         if (archiveKind === "post") {
           const draft = extractArchivePostDraft(payloadRaw);
           window.localStorage.setItem(LS_EDITOR_MODE, "post");
-          window.localStorage.setItem("lgd_editor_mode_v5", "post");
           await safePersistEditorDraft(LS_POST, draft);
           setMode("post");
         } else {
           const draft = extractArchiveCarrouselDraft(payloadRaw);
           window.localStorage.setItem(LS_EDITOR_MODE, "carrousel");
-          window.localStorage.setItem("lgd_editor_mode_v5", "carrousel");
           await safePersistEditorDraft(LS_CARROUSEL, draft);
           if (draft?.slides?.[0]?.id) {
             window.localStorage.setItem("lgd_editor_carrousel_active_slide_v5", String(draft.slides[0].id));
@@ -728,10 +725,7 @@ export default function EditorModeRouter() {
   }, []);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem("lgd_editor_mode", mode);
-      window.localStorage.setItem("lgd_editor_mode_v5", mode);
-    }
+    if (typeof window !== "undefined") window.localStorage.setItem("lgd_editor_mode", mode);
   }, [mode]);
 
   useEffect(() => {
