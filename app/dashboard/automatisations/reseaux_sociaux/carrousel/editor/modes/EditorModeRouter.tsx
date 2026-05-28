@@ -631,6 +631,7 @@ export default function EditorModeRouter() {
 
   const [archiving, setArchiving] = useState(false);
   const [archiveMsg, setArchiveMsg] = useState<string>("");
+  const [plannerButtonSignal, setPlannerButtonSignal] = useState(0);
 
   const [downloading, setDownloading] = useState(false);
   const [downloadMsg, setDownloadMsg] = useState<string>("");
@@ -1183,6 +1184,15 @@ export default function EditorModeRouter() {
                 {archiving ? "Archivage…" : "Archiver post/carrousel"}
               </button>
 
+              <button
+                type="button"
+                onClick={() => setPlannerButtonSignal((value) => value + 1)}
+                className="rounded-xl border border-yellow-500/25 bg-black/30 px-4 py-2 text-sm font-semibold text-yellow-200 hover:bg-black/40"
+                title="Envoyer la création actuelle dans le Planner"
+              >
+                📅 Envoyer dans Planner
+              </button>
+
               <Link
                 href="/dashboard/library"
                 className="rounded-xl border border-yellow-500/25 bg-black/30 px-4 py-2 text-sm font-semibold text-yellow-200 hover:bg-black/40"
@@ -1239,9 +1249,9 @@ export default function EditorModeRouter() {
 
       <div className="mx-auto mt-1 w-full max-w-[1800px] px-6 pb-16">
         {mode === "post" ? (
-          <PostEditor brief={brief} onSnapshot={handlePostSnapshot} />
+          <PostEditor brief={brief} onSnapshot={handlePostSnapshot} plannerOpenSignal={plannerButtonSignal} />
         ) : (
-          <CarrouselEditor brief={brief} onSnapshot={handleCarrouselSnapshot} />
+          <CarrouselEditor brief={brief} onSnapshot={handleCarrouselSnapshot} plannerOpenSignal={plannerButtonSignal} />
         )}
       </div>
     </div>
