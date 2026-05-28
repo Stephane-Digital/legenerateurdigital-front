@@ -251,6 +251,64 @@ function writePlannerEditorPayloadCache(cache: Record<string, PlannerEditorPaylo
   }
 }
 
+
+const PLANNER_MEDIA_IDB_NAME = "lgd_planner_media_cache_v1";
+const PLANNER_MEDIA_IDB_STORE = "items";
+
+type PlannerMediaCacheItem = PlannerEditorPayloadCacheItem & {
+  preview_image?: string;
+  planner_preview_image?: string;
+  rendered_image?: string;
+};
+
+function openPlannerMediaDB(): Promise<IDBDatabase | null> {
+  if (typeof window === "undefined" || !("indexedDB" in window)) return Promise.resolve(null);
+
+  return new Promise((resolve) => {
+    const request = window.indexedDB.open(PLANNER_MEDIA_IDB_NAME, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(PLANNER_MEDIA_IDB_STORE)) {
+        db.createObjectStore(PLANNER_MEDIA_IDB_STORE);
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => resolve(null);
+  });
+}
+
+async function writePlannerMediaCacheToIDB(
+  keys: Array<string | number | null | undefined>,
+  item: PlannerMediaCacheItem,
+) {
+  const cleanKeys = keys.map((key) => String(key ?? "").trim()).filter(Boolean);
+  if (!cleanKeys.length || !item?.payload) return;
+
+  const db = await openPlannerMediaDB();
+  if (!db) return;
+
+  await new Promise<void>((resolve) => {
+    try {
+      const tx = db.transaction(PLANNER_MEDIA_IDB_STORE, "readwrite");
+      const store = tx.objectStore(PLANNER_MEDIA_IDB_STORE);
+      for (const key of cleanKeys) {
+        store.put(item, key);
+      }
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+      tx.onabort = () => resolve();
+    } catch {
+      resolve();
+    }
+  }).finally(() => {
+    try {
+      db.close();
+    } catch {
+      // ignore
+    }
+  });
+}
+
 function cachePlannerEditorPayloadAfterSchedule(result: any, body: any, originalPayload: any) {
   if (typeof window === "undefined") return;
 
@@ -328,6 +386,13 @@ function cachePlannerEditorPayloadAfterSchedule(result: any, body: any, original
 
   addPlannerPreviewCacheKeys(cache as any, keys, item as any);
   writePlannerEditorPayloadCache(cache);
+
+  void writePlannerMediaCacheToIDB(keys, {
+    ...item,
+    preview_image: payload?.preview_image || payload?.planner_preview_image || payload?.rendered_image || undefined,
+    planner_preview_image: payload?.planner_preview_image || payload?.preview_image || payload?.rendered_image || undefined,
+    rendered_image: payload?.rendered_image || payload?.planner_preview_image || payload?.preview_image || undefined,
+  });
 }
 
 function compactContentForPlanner(input: any, fallbackTitle?: string, fallbackFormat?: string) {
