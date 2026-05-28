@@ -1035,6 +1035,10 @@ function stableSig(value: any) {
   }
 }
 
+function hasRenderablePostLayers(layers: any): boolean {
+  return Array.isArray(layers) && layers.length > 0;
+}
+
 /**
  * ✅ MICRO PATCH anti-loop
  * On nettoie l'UI qui remonte de l'éditeur (runtime/konva/dom refs)
@@ -1380,14 +1384,20 @@ export default function PostEditor({
   }, [applyIncomingDraft]);
 
   // ✅ persist local (debounced)
+  // IMPORTANT LGD : ne jamais écraser un post existant avec un état vide.
+  // Pendant une ouverture archive ou une bascule Post/Carrousel, le composant peut
+  // monter quelques ms avec draftLayers undefined/[] avant la réhydratation réelle.
   useEffect(() => {
     const t = setTimeout(() => {
+      const nextLayers = layersRef.current ?? draftLayers ?? [];
+      if (!hasRenderablePostLayers(nextLayers)) return;
+
       try {
         localStorage.setItem(
           LS_POST,
           JSON.stringify({
             ui: uiRef.current ?? draftUI,
-            layers: layersRef.current ?? draftLayers ?? [],
+            layers: nextLayers,
           })
         );
       } catch {
