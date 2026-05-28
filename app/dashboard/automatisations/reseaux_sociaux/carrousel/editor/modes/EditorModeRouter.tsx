@@ -80,6 +80,39 @@ async function idbSetEditorDraft(key: string, value: any) {
   });
 }
 
+
+async function idbGetEditorDraft(key: string) {
+  const db = await openEditorDraftDB();
+  if (!db) return null;
+
+  return await new Promise<any>((resolve) => {
+    try {
+      const tx = db.transaction(LGD_IDB_STORE, "readonly");
+      const req = tx.objectStore(LGD_IDB_STORE).get(key);
+      req.onsuccess = () => resolve(req.result ?? null);
+      req.onerror = () => resolve(null);
+      tx.onerror = () => resolve(null);
+      tx.onabort = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  }).finally(() => {
+    try {
+      db.close();
+    } catch {
+      // ignore
+    }
+  });
+}
+
+async function readEditorDraftWithFallback(key: string) {
+  if (typeof window === "undefined") return null;
+  const local = safeJsonParse(window.localStorage.getItem(key));
+  if (local && !local.__lgd_idb_draft__) return local;
+  const fromIdb = await idbGetEditorDraft(key);
+  return fromIdb || null;
+}
+
 function cleanupEditorLocalStorageForQuota(keepKey: string) {
   if (typeof window === "undefined") return;
 
@@ -533,11 +566,13 @@ export default function EditorModeRouter() {
         if (archiveKind === "post") {
           const draft = extractArchivePostDraft(payloadRaw);
           window.localStorage.setItem(LS_EDITOR_MODE, "post");
+          window.localStorage.setItem("lgd_editor_mode_v5", "post");
           await safePersistEditorDraft(LS_POST, draft);
           setMode("post");
         } else {
           const draft = extractArchiveCarrouselDraft(payloadRaw);
           window.localStorage.setItem(LS_EDITOR_MODE, "carrousel");
+          window.localStorage.setItem("lgd_editor_mode_v5", "carrousel");
           await safePersistEditorDraft(LS_CARROUSEL, draft);
           if (draft?.slides?.[0]?.id) {
             window.localStorage.setItem("lgd_editor_carrousel_active_slide_v5", String(draft.slides[0].id));
@@ -693,7 +728,10 @@ export default function EditorModeRouter() {
   }, []);
 
   useEffect(() => {
-    if (typeof window !== "undefined") window.localStorage.setItem("lgd_editor_mode", mode);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("lgd_editor_mode", mode);
+      window.localStorage.setItem("lgd_editor_mode_v5", mode);
+    }
   }, [mode]);
 
   useEffect(() => {
@@ -704,10 +742,10 @@ export default function EditorModeRouter() {
     return () => window.removeEventListener("resize", apply);
   }, []);
 
-  const getDraft = () => {
+  const getDraft = async () => {
     if (typeof window === "undefined") return null;
     const key = mode === "post" ? LS_POST : LS_CARROUSEL;
-    return safeJsonParse(window.localStorage.getItem(key));
+    return await readEditorDraftWithFallback(key);
   };
 
   async function archiveMobilePhoto(file: File) {
@@ -755,7 +793,7 @@ export default function EditorModeRouter() {
     if (typeof window === "undefined") return;
 
     setArchiveMsg("");
-    const draft = getDraft();
+    const draft = await getDraft();
 
     if (!draft) {
       setArchiveMsg("Aucun draft à archiver.");
@@ -813,7 +851,7 @@ export default function EditorModeRouter() {
     if (typeof window === "undefined") return;
 
     setDownloadMsg("");
-    const draft = getDraft();
+    const draft = await getDraft();
 
     if (!draft) {
       setDownloadMsg("❌ Aucun contenu à télécharger (draft vide).");
