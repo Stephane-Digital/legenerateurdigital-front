@@ -630,6 +630,8 @@ export default function EditorModeRouter() {
   const [mobileUploading, setMobileUploading] = useState(false);
   const { schedule, loading: scheduleLoading } = useSchedulePlanner();
   const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [plannerPreparing, setPlannerPreparing] = useState(false);
+  const plannerPreparedRef = useRef<{ mode: Mode; draft: any; previewImage: string } | null>(null);
   const [brief, setBrief] = useState<string>("");
   const [cmoAutoMsg, setCmoAutoMsg] = useState<string>("");
 
@@ -1073,6 +1075,27 @@ export default function EditorModeRouter() {
       return;
     }
 
+    setPlannerPreparing(true);
+    setArchiveMsg("Préparation du média Planner…");
+
+    let previewImage = "";
+    try {
+      previewImage = await renderEditorCreationToDataUrl({
+        mode,
+        draft,
+      });
+    } catch (error) {
+      console.error("LGD planner pre-render error (editor router):", error);
+    }
+
+    plannerPreparedRef.current = {
+      mode,
+      draft,
+      previewImage: previewImage || "",
+    };
+
+    setPlannerPreparing(false);
+    setArchiveMsg("");
     setScheduleOpen(true);
   }
 
@@ -1087,15 +1110,21 @@ export default function EditorModeRouter() {
       }
 
       const plannerTitle = titre || getPlannerTitleFromDraft(draft);
-      let previewImage = "";
+      const prepared = plannerPreparedRef.current;
+      let previewImage =
+        prepared?.mode === mode && prepared?.draft === draft
+          ? prepared.previewImage || ""
+          : "";
 
-      try {
-        previewImage = await renderEditorCreationToDataUrl({
-          mode,
-          draft,
-        });
-      } catch (error) {
-        console.error("LGD planner snapshot error (editor router):", error);
+      if (!previewImage) {
+        try {
+          previewImage = await renderEditorCreationToDataUrl({
+            mode,
+            draft,
+          });
+        } catch (error) {
+          console.error("LGD planner snapshot error (editor router):", error);
+        }
       }
 
       await schedule({
@@ -1263,11 +1292,11 @@ export default function EditorModeRouter() {
               <button
                 type="button"
                 onClick={openPlannerModal}
-                disabled={scheduleLoading}
+                disabled={scheduleLoading || plannerPreparing}
                 className="rounded-xl border border-yellow-500/25 bg-black/30 px-4 py-2 text-sm font-semibold text-yellow-200 hover:bg-black/40 disabled:opacity-60"
                 title="Envoyer la création actuelle dans le Planner"
               >
-                {scheduleLoading ? "Envoi Planner…" : "📅 Envoyer dans Planner"}
+                {plannerPreparing ? "Préparation média…" : scheduleLoading ? "Envoi Planner…" : "📅 Envoyer dans Planner"}
               </button>
 
               <button
