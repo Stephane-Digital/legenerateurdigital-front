@@ -1361,8 +1361,13 @@ export default function PostEditor({
 
   // ✅ restore draft local (si existe) + archive live event
   useEffect(() => {
-    const parsed = safeJsonParse(localStorage.getItem(LS_POST));
-    if (parsed) applyIncomingDraft(parsed);
+    const pending = (window as any).__LGD_EDITOR_PENDING_DRAFT__;
+    if (pending?.mode === "post" && pending?.draft) {
+      applyIncomingDraft(pending.draft);
+    } else {
+      const parsed = safeJsonParse(localStorage.getItem(LS_POST));
+      if (parsed?.layers && Array.isArray(parsed.layers)) applyIncomingDraft(parsed);
+    }
 
     const onLoadDraft = (event: Event) => {
       const detail = (event as CustomEvent)?.detail || {};
