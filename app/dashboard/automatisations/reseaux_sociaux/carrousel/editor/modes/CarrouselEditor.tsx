@@ -1028,6 +1028,25 @@ function safeJsonParse(raw: string | null) {
   }
 }
 
+
+function safeSetCarrouselLocalDraft(value: any) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(LS_CARROUSEL, JSON.stringify(value ?? {}));
+  } catch {
+    // LGD FIX — évite la casse quota localStorage sur les carrousels lourds.
+    // La bibliothèque conserve le JSON complet côté backend.
+    try {
+      window.localStorage.setItem(
+        LS_CARROUSEL,
+        JSON.stringify({ __lgd_local_draft_too_heavy__: true, updatedAt: Date.now() })
+      );
+    } catch {
+      // ignore
+    }
+  }
+}
+
 function stableSig(value: any) {
   try {
     return JSON.stringify(value ?? null);
@@ -1432,14 +1451,11 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
 
     try {
       const existing = safeJsonParse(window.localStorage.getItem(LS_CARROUSEL)) || {};
-      window.localStorage.setItem(
-        LS_CARROUSEL,
-        JSON.stringify({
+      safeSetCarrouselLocalDraft({
           ...existing,
           ui: uiRef.current ?? draftUI,
           slides,
-        })
-      );
+        });
     } catch {
       // no-op
     }
@@ -1472,14 +1488,11 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
       if (changed && typeof window !== "undefined") {
         try {
           const existing = safeJsonParse(window.localStorage.getItem(LS_CARROUSEL)) || {};
-          window.localStorage.setItem(
-            LS_CARROUSEL,
-            JSON.stringify({
+          safeSetCarrouselLocalDraft({
               ...existing,
               ui: uiRef.current ?? existing?.ui,
               slides: next,
-            })
-          );
+            });
         } catch {
           // no-op
         }
