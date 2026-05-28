@@ -258,17 +258,46 @@ function cachePlannerEditorPayloadAfterSchedule(result: any, body: any, original
   const network = String(body?.network || "").trim();
   const scheduledAt = String(body?.scheduled_at || "").trim();
 
+  const original = originalPayload && typeof originalPayload === "object" ? originalPayload : {};
+  const compact = body?.contenu && typeof body.contenu === "object" ? body.contenu : {};
+
   const payload = {
-    ...(originalPayload && typeof originalPayload === "object" ? originalPayload : {}),
-    ...(body?.contenu && typeof body.contenu === "object" ? body.contenu : {}),
+    ...compact,
+    ...original,
     title,
     titre: title,
     network,
     scheduled_at: scheduledAt,
-    type: body?.format || body?.contenu?.type || originalPayload?.type || "post",
-    preview_image: body?.preview_image || body?.contenu?.preview_image || originalPayload?.preview_image || undefined,
-    planner_preview_image: body?.planner_preview_image || body?.contenu?.planner_preview_image || originalPayload?.planner_preview_image || undefined,
-    rendered_image: body?.rendered_image || body?.contenu?.rendered_image || originalPayload?.rendered_image || undefined,
+    type: body?.format || original?.type || compact?.type || "post",
+    // Important : le cache local doit conserver le draft vivant complet.
+    // Les données compactées envoyées à l’API ne doivent jamais écraser
+    // les layers/slides complets utilisés par le modal pour reconstruire le visuel.
+    layers: Array.isArray(original?.layers)
+      ? original.layers
+      : Array.isArray(compact?.layers)
+      ? compact.layers
+      : undefined,
+    slides: Array.isArray(original?.slides)
+      ? original.slides
+      : Array.isArray(compact?.slides)
+      ? compact.slides
+      : undefined,
+    ui: original?.ui || compact?.ui || undefined,
+    preview_image:
+      body?.preview_image ||
+      compact?.preview_image ||
+      original?.preview_image ||
+      undefined,
+    planner_preview_image:
+      body?.planner_preview_image ||
+      compact?.planner_preview_image ||
+      original?.planner_preview_image ||
+      undefined,
+    rendered_image:
+      body?.rendered_image ||
+      compact?.rendered_image ||
+      original?.rendered_image ||
+      undefined,
   };
 
   const item: PlannerEditorPayloadCacheItem = {
