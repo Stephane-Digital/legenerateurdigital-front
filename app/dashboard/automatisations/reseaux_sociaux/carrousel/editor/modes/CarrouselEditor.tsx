@@ -1040,6 +1040,14 @@ function stableSig(value: any) {
   }
 }
 
+function hasRenderableCarrouselSlides(slides: any): boolean {
+  return (
+    Array.isArray(slides) &&
+    slides.length > 0 &&
+    slides.some((slide: any) => Array.isArray(slide?.layers) && slide.layers.length > 0)
+  );
+}
+
 function stripNonSerializableUI(input: any): any {
   if (input == null) return input;
   const t = typeof input;
@@ -1404,6 +1412,12 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+
+    // IMPORTANT LGD : ne jamais écraser un carrousel existant avec un état vide.
+    // Lors d'une bascule Post/Carrousel, le composant peut monter avec une slide
+    // par défaut vide avant que l'archive ou le draft réel soit réhydraté.
+    if (!hasRenderableCarrouselSlides(slides)) return;
+
     try {
       const existing = safeJsonParse(window.localStorage.getItem(LS_CARROUSEL)) || {};
       window.localStorage.setItem(
