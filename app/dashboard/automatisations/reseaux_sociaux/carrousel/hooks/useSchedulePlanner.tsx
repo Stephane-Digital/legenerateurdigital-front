@@ -202,7 +202,14 @@ function cachePlannerPreviewAfterSchedule(result: any, body: any, previewImage: 
     result?.item?.id,
   ];
   const semanticKey = `${item.network}|${item.scheduled_at}|${item.titre}`;
-  addPlannerPreviewCacheKeys(cache, [...ids, semanticKey], item);
+  const looseTitleKey = `title|${item.titre}`;
+  const looseNetworkTitleKey = `${item.network}|${item.titre}`;
+
+  addPlannerPreviewCacheKeys(
+    cache,
+    [...ids, semanticKey, looseTitleKey, looseNetworkTitleKey, "__latest__"],
+    item,
+  );
   writePlannerPreviewCache(cache);
 }
 
