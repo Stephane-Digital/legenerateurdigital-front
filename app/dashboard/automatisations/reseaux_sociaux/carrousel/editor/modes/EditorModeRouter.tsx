@@ -57,6 +57,44 @@ function openEditorDraftDB(): Promise<IDBDatabase | null> {
   });
 }
 
+async function idbGetEditorDraft(key: string) {
+  const db = await openEditorDraftDB();
+  if (!db) return null;
+
+  return await new Promise<any>((resolve) => {
+    try {
+      const tx = db.transaction(LGD_IDB_STORE, "readonly");
+      const req = tx.objectStore(LGD_IDB_STORE).get(key);
+      req.onsuccess = () => resolve(req.result ?? null);
+      req.onerror = () => resolve(null);
+      tx.onerror = () => resolve(null);
+      tx.onabort = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  }).finally(() => {
+    try {
+      db.close();
+    } catch {
+      // ignore
+    }
+  });
+}
+
+function isIdbDraftMarker(value: any) {
+  return !!value && typeof value === "object" && value.__lgd_idb_draft__ === true;
+}
+
+async function readEditorDraft(key: string) {
+  if (typeof window === "undefined") return null;
+  const parsed = safeJsonParse(window.localStorage.getItem(key));
+  if (isIdbDraftMarker(parsed)) {
+    const fromIdb = await idbGetEditorDraft(String(parsed.key || key));
+    return fromIdb || null;
+  }
+  return parsed;
+}
+
 async function idbSetEditorDraft(key: string, value: any) {
   const db = await openEditorDraftDB();
   if (!db) return false;
@@ -78,43 +116,6 @@ async function idbSetEditorDraft(key: string, value: any) {
       // ignore
     }
   });
-}
-
-
-async function idbGetEditorDraft(key: string) {
-  const db = await openEditorDraftDB();
-  if (!db) return null;
-
-  return await new Promise<any | null>((resolve) => {
-    try {
-      const tx = db.transaction(LGD_IDB_STORE, "readonly");
-      const req = tx.objectStore(LGD_IDB_STORE).get(key);
-      req.onsuccess = () => resolve(req.result ?? null);
-      req.onerror = () => resolve(null);
-      tx.onerror = () => resolve(null);
-      tx.onabort = () => resolve(null);
-    } catch {
-      resolve(null);
-    }
-  }).finally(() => {
-    try {
-      db.close();
-    } catch {
-      // ignore
-    }
-  });
-}
-
-async function readPersistedEditorDraft(key: string) {
-  if (typeof window === "undefined") return null;
-
-  const parsed = safeJsonParse(window.localStorage.getItem(key));
-  if (parsed?.__lgd_idb_draft__ || parsed?.key === key) {
-    const fromIdb = await idbGetEditorDraft(key);
-    if (fromIdb) return fromIdb;
-  }
-
-  return parsed;
 }
 
 function cleanupEditorLocalStorageForQuota(keepKey: string) {
@@ -741,11 +742,11 @@ export default function EditorModeRouter() {
     return () => window.removeEventListener("resize", apply);
   }, []);
 
-  async function getDraft() {
+  const getDraft = async () => {
     if (typeof window === "undefined") return null;
     const key = mode === "post" ? LS_POST : LS_CARROUSEL;
-    return await readPersistedEditorDraft(key);
-  }
+    return await readEditorDraft(key);
+  };
 
   async function archiveMobilePhoto(file: File) {
     if (typeof window === "undefined") return;
