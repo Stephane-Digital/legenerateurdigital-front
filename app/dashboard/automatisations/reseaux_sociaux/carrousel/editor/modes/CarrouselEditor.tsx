@@ -846,62 +846,6 @@ function isQuotaError(msg: string) {
   return m.includes("quota") || m.includes("plan") || m.includes("systeme");
 }
 
-
-const LGD_IDB_NAME = "lgd_editor_persistence_v1";
-const LGD_IDB_STORE = "drafts";
-
-function openEditorDraftDB(): Promise<IDBDatabase | null> {
-  if (typeof window === "undefined" || !("indexedDB" in window)) return Promise.resolve(null);
-
-  return new Promise((resolve) => {
-    const request = window.indexedDB.open(LGD_IDB_NAME, 1);
-    request.onupgradeneeded = () => {
-      const db = request.result;
-      if (!db.objectStoreNames.contains(LGD_IDB_STORE)) {
-        db.createObjectStore(LGD_IDB_STORE);
-      }
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => resolve(null);
-  });
-}
-
-async function idbGetEditorDraft(key: string) {
-  const db = await openEditorDraftDB();
-  if (!db) return null;
-
-  return await new Promise<any | null>((resolve) => {
-    try {
-      const tx = db.transaction(LGD_IDB_STORE, "readonly");
-      const req = tx.objectStore(LGD_IDB_STORE).get(key);
-      req.onsuccess = () => resolve(req.result ?? null);
-      req.onerror = () => resolve(null);
-      tx.onerror = () => resolve(null);
-      tx.onabort = () => resolve(null);
-    } catch {
-      resolve(null);
-    }
-  }).finally(() => {
-    try {
-      db.close();
-    } catch {
-      // ignore
-    }
-  });
-}
-
-async function readPersistedEditorDraft(key: string) {
-  if (typeof window === "undefined") return null;
-
-  const parsed = safeJsonParse(window.localStorage.getItem(key));
-  if (parsed?.__lgd_idb_draft__ || parsed?.key === key) {
-    const fromIdb = await idbGetEditorDraft(key);
-    if (fromIdb) return fromIdb;
-  }
-
-  return parsed;
-}
-
 function getAuthHeaders() {
   if (typeof window === "undefined") return {};
   const token =
@@ -1082,6 +1026,62 @@ function safeJsonParse(raw: string | null) {
   } catch {
     return null;
   }
+}
+
+const LGD_IDB_NAME = "lgd_editor_persistence_v1";
+const LGD_IDB_STORE = "drafts";
+
+function isIdbDraftMarker(value: any) {
+  return !!value && typeof value === "object" && value.__lgd_idb_draft__ === true;
+}
+
+function openEditorDraftDB(): Promise<IDBDatabase | null> {
+  if (typeof window === "undefined" || !("indexedDB" in window)) return Promise.resolve(null);
+
+  return new Promise((resolve) => {
+    const request = window.indexedDB.open(LGD_IDB_NAME, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(LGD_IDB_STORE)) {
+        db.createObjectStore(LGD_IDB_STORE);
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => resolve(null);
+  });
+}
+
+async function idbGetEditorDraft(key: string) {
+  const db = await openEditorDraftDB();
+  if (!db) return null;
+
+  return await new Promise<any>((resolve) => {
+    try {
+      const tx = db.transaction(LGD_IDB_STORE, "readonly");
+      const req = tx.objectStore(LGD_IDB_STORE).get(key);
+      req.onsuccess = () => resolve(req.result ?? null);
+      req.onerror = () => resolve(null);
+      tx.onerror = () => resolve(null);
+      tx.onabort = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  }).finally(() => {
+    try {
+      db.close();
+    } catch {
+      // ignore
+    }
+  });
+}
+
+async function readEditorDraft(key: string) {
+  if (typeof window === "undefined") return null;
+  const parsed = safeJsonParse(window.localStorage.getItem(key));
+  if (isIdbDraftMarker(parsed)) {
+    return await idbGetEditorDraft(String(parsed.key || key));
+  }
+  return parsed;
 }
 
 function stableSig(value: any) {
@@ -1402,6 +1402,8 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
   const [slides, setSlides] = useState<SlideDraft[]>(() => {
     const parsed = safeJsonParse(typeof window !== "undefined" ? window.localStorage.getItem(LS_CARROUSEL) : null);
 
+    if (isIdbDraftMarker(parsed)) return ensureSlide(null);
+
     if (parsed?.slides && Array.isArray(parsed.slides)) {
       return ensureSlide(parsed.slides);
     }
@@ -1415,55 +1417,21 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
 
   const [draftUI, setDraftUI] = useState<any>(() => {
     const parsed = safeJsonParse(typeof window !== "undefined" ? window.localStorage.getItem(LS_CARROUSEL) : null);
+    if (isIdbDraftMarker(parsed)) return undefined;
     return parsed?.ui || undefined;
   });
+
+  const [draftHydrated, setDraftHydrated] = useState(false);
 
   const uiRef = useRef<any>(draftUI);
   const lastUiSigRef = useRef<string>(stableSig(draftUI ?? {}));
   const lastLayersSigRef = useRef<string>("");
   const [editorRefreshKey, setEditorRefreshKey] = useState<number>(0);
-  const [restoreReady, setRestoreReady] = useState(false);
 
   const [activeSlideId, setActiveSlideId] = useState<string>(() => {
     const saved = typeof window !== "undefined" ? window.localStorage.getItem(LS_CARROUSEL_ACTIVE_SLIDE) : null;
     return saved || "";
   });
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function restoreDraft() {
-      const parsed = await readPersistedEditorDraft(LS_CARROUSEL);
-      if (cancelled) return;
-
-      if (parsed?.slides && Array.isArray(parsed.slides)) {
-        const nextSlides = ensureSlide(parsed.slides);
-        setSlides(nextSlides);
-        if (nextSlides[0]?.id && !activeSlideIdRef.current) {
-          setActiveSlideId(nextSlides[0].id);
-        }
-      } else if (parsed?.layers && Array.isArray(parsed.layers)) {
-        const nextSlides = ensureSlide([{ id: cryptoId("slide"), layers: parsed.layers }]);
-        setSlides(nextSlides);
-        if (nextSlides[0]?.id && !activeSlideIdRef.current) {
-          setActiveSlideId(nextSlides[0].id);
-        }
-      }
-
-      if (parsed?.ui) {
-        setDraftUI(parsed.ui);
-        uiRef.current = parsed.ui;
-        lastUiSigRef.current = stableSig(parsed.ui ?? {});
-      }
-
-      setRestoreReady(true);
-    }
-
-    restoreDraft();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const activeSlideIdRef = useRef<string>("");
   useEffect(() => {
@@ -1486,8 +1454,40 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
   }, [slides, activeSlideId]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    async function hydrateDraft() {
+      const parsed = await readEditorDraft(LS_CARROUSEL);
+      if (cancelled) return;
+
+      if (parsed?.slides && Array.isArray(parsed.slides)) {
+        const hydratedSlides = ensureSlide(parsed.slides);
+        setSlides(hydratedSlides);
+        if (hydratedSlides[0]?.id) setActiveSlideId((current) => current || hydratedSlides[0].id);
+      } else if (parsed?.layers && Array.isArray(parsed.layers)) {
+        const hydratedSlides = ensureSlide([{ id: cryptoId("slide"), layers: parsed.layers }]);
+        setSlides(hydratedSlides);
+        if (hydratedSlides[0]?.id) setActiveSlideId((current) => current || hydratedSlides[0].id);
+      }
+
+      if (parsed?.ui) {
+        setDraftUI(parsed.ui);
+        uiRef.current = parsed.ui;
+        lastUiSigRef.current = stableSig(parsed.ui ?? {});
+      }
+
+      setDraftHydrated(true);
+    }
+
+    hydrateDraft();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     if (typeof window === "undefined") return;
-    if (!restoreReady) return;
+    if (!draftHydrated) return;
     try {
       const existing = safeJsonParse(window.localStorage.getItem(LS_CARROUSEL)) || {};
       window.localStorage.setItem(
@@ -1501,7 +1501,7 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
     } catch {
       // no-op
     }
-  }, [slides, draftUI, restoreReady]);
+  }, [draftHydrated, slides, draftUI]);
 
   const activeSlide = useMemo(() => slides.find((s) => s.id === activeSlideId) || slides[0], [slides, activeSlideId]);
   const activeSlideLayersSig = useMemo(() => layersSignature(activeSlide?.layers ?? []), [activeSlide?.layers]);
