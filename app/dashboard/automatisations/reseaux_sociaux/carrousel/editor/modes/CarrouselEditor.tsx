@@ -1348,7 +1348,10 @@ function parseSocialCopilotBlocks(value: string): SocialCopilotBlock[] {
 
 export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, brief, onSnapshot }: Props) {
   const [slides, setSlides] = useState<SlideDraft[]>(() => {
-    const parsed = safeJsonParse(typeof window !== "undefined" ? window.localStorage.getItem(LS_CARROUSEL) : null);
+    const pending = typeof window !== "undefined" ? (window as any).__LGD_EDITOR_PENDING_DRAFT__ : null;
+    const parsed = pending?.mode === "carrousel" && pending?.draft
+      ? pending.draft
+      : safeJsonParse(typeof window !== "undefined" ? window.localStorage.getItem(LS_CARROUSEL) : null);
 
     if (parsed?.slides && Array.isArray(parsed.slides)) {
       return ensureSlide(parsed.slides);
@@ -1362,7 +1365,10 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
   });
 
   const [draftUI, setDraftUI] = useState<any>(() => {
-    const parsed = safeJsonParse(typeof window !== "undefined" ? window.localStorage.getItem(LS_CARROUSEL) : null);
+    const pending = typeof window !== "undefined" ? (window as any).__LGD_EDITOR_PENDING_DRAFT__ : null;
+    const parsed = pending?.mode === "carrousel" && pending?.draft
+      ? pending.draft
+      : safeJsonParse(typeof window !== "undefined" ? window.localStorage.getItem(LS_CARROUSEL) : null);
     return parsed?.ui || undefined;
   });
 
@@ -1462,6 +1468,11 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
   }, [onSnapshot]);
 
   useEffect(() => {
+    const pending = (window as any).__LGD_EDITOR_PENDING_DRAFT__;
+    if (pending?.mode === "carrousel" && pending?.draft) {
+      applyIncomingDraft(pending.draft);
+    }
+
     const onLoadDraft = (event: Event) => {
       const detail = (event as CustomEvent)?.detail || {};
       if (detail?.mode !== "carrousel") return;
