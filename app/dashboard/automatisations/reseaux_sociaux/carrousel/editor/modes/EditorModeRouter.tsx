@@ -122,30 +122,33 @@ function cleanupEditorLocalStorageForQuota(keepKey: string) {
 async function safePersistEditorDraft(key: string, draft: any) {
   if (typeof window === "undefined") return;
 
-  const raw = JSON.stringify(draft ?? {});
-
-  try {
-    window.localStorage.setItem(key, raw);
-    await idbSetEditorDraft(key, draft);
-    return;
-  } catch {
-    // quota cleanup, then retry once
-  }
-
-  cleanupEditorLocalStorageForQuota(key);
-
-  try {
-    window.localStorage.setItem(key, raw);
-    await idbSetEditorDraft(key, draft);
-    return;
-  } catch {
-    // Heavy images are stored in IndexedDB; localStorage keeps only a tiny marker.
-  }
-
-  const storedInIdb = await idbSetEditorDraft(key, draft);
+  // LGD FIX — les images/base64 peuvent dépasser la limite localStorage.
+  // La vérité complète du draft est stockée dans IndexedDB.
+  // localStorage ne garde qu'un marqueur léger pour signaler qu'un draft existe.
+  const storedInIdb = await idbSetEditorDraft(key, draft ?? {});
   if (storedInIdb) {
     try {
       window.localStorage.setItem(key, JSON.stringify({ __lgd_idb_draft__: true, key }));
+    } catch {
+      cleanupEditorLocalStorageForQuota(key);
+      try {
+        window.localStorage.setItem(key, JSON.stringify({ __lgd_idb_draft__: true, key }));
+      } catch {
+        // Si même le marqueur ne passe pas, IndexedDB reste la source de vérité.
+      }
+    }
+    return;
+  }
+
+  // Fallback très rare : navigateur sans IndexedDB.
+  // On tente localStorage après nettoyage, mais on ne laisse jamais l'exception casser l'éditeur.
+  const raw = JSON.stringify(draft ?? {});
+  cleanupEditorLocalStorageForQuota(key);
+  try {
+    window.localStorage.setItem(key, raw);
+  } catch {
+    try {
+      window.localStorage.setItem(key, JSON.stringify({ __lgd_idb_draft__: false, key, fallback_failed: true }));
     } catch {
       // ignore
     }
