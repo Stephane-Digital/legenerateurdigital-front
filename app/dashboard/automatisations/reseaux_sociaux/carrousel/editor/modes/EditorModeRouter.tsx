@@ -743,6 +743,30 @@ export default function EditorModeRouter() {
     return storedDraft || liveDraft || null;
   };
 
+  const handlePostSnapshot = (snapshot: { ui?: any; layers: any[] }) => {
+    const draft = {
+      type: "post",
+      ui: snapshot?.ui || {},
+      layers: Array.isArray(snapshot?.layers) ? snapshot.layers : [],
+    };
+
+    if (hasRenderableDraft("post", draft)) {
+      liveDraftRef.current.post = draft;
+    }
+  };
+
+  const handleCarrouselSnapshot = (snapshot: { ui?: any; slides: any[] }) => {
+    const draft = {
+      type: "carrousel",
+      ui: snapshot?.ui || {},
+      slides: Array.isArray(snapshot?.slides) ? snapshot.slides : [],
+    };
+
+    if (hasRenderableDraft("carrousel", draft)) {
+      liveDraftRef.current.carrousel = draft;
+    }
+  };
+
   async function archiveMobilePhoto(file: File) {
     if (typeof window === "undefined") return;
     const base = apiBase();
