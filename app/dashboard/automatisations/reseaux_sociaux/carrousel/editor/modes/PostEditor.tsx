@@ -1026,62 +1026,6 @@ function safeJsonParse(raw: string | null) {
   }
 }
 
-const LGD_IDB_NAME = "lgd_editor_persistence_v1";
-const LGD_IDB_STORE = "drafts";
-
-function isIdbDraftMarker(value: any) {
-  return !!value && typeof value === "object" && value.__lgd_idb_draft__ === true;
-}
-
-function openEditorDraftDB(): Promise<IDBDatabase | null> {
-  if (typeof window === "undefined" || !("indexedDB" in window)) return Promise.resolve(null);
-
-  return new Promise((resolve) => {
-    const request = window.indexedDB.open(LGD_IDB_NAME, 1);
-    request.onupgradeneeded = () => {
-      const db = request.result;
-      if (!db.objectStoreNames.contains(LGD_IDB_STORE)) {
-        db.createObjectStore(LGD_IDB_STORE);
-      }
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => resolve(null);
-  });
-}
-
-async function idbGetEditorDraft(key: string) {
-  const db = await openEditorDraftDB();
-  if (!db) return null;
-
-  return await new Promise<any>((resolve) => {
-    try {
-      const tx = db.transaction(LGD_IDB_STORE, "readonly");
-      const req = tx.objectStore(LGD_IDB_STORE).get(key);
-      req.onsuccess = () => resolve(req.result ?? null);
-      req.onerror = () => resolve(null);
-      tx.onerror = () => resolve(null);
-      tx.onabort = () => resolve(null);
-    } catch {
-      resolve(null);
-    }
-  }).finally(() => {
-    try {
-      db.close();
-    } catch {
-      // ignore
-    }
-  });
-}
-
-async function readEditorDraft(key: string) {
-  if (typeof window === "undefined") return null;
-  const parsed = safeJsonParse(window.localStorage.getItem(key));
-  if (isIdbDraftMarker(parsed)) {
-    return await idbGetEditorDraft(String(parsed.key || key));
-  }
-  return parsed;
-}
-
 function stableSig(value: any) {
   try {
     return JSON.stringify(value ?? null);
@@ -1360,7 +1304,6 @@ export default function PostEditor({
 }: Props) {
   const [draftLayers, setDraftLayers] = useState<LayerData[] | undefined>(undefined);
   const [draftUI, setDraftUI] = useState<any>(undefined);
-  const [draftHydrated, setDraftHydrated] = useState(false);
 
   // ✅ Toggle Copilot (persist)
   const [copilotOpen, setCopilotOpen] = useState<boolean>(true);
@@ -1396,38 +1339,25 @@ export default function PostEditor({
     onDirtyChange?.(true);
   }, [onDirtyChange]);
 
-  // ✅ restore draft local / IndexedDB (si existe)
+  // ✅ restore draft local (si existe)
   useEffect(() => {
-    let cancelled = false;
+    const parsed = safeJsonParse(localStorage.getItem(LS_POST));
+    if (!parsed) return;
 
-    async function hydrateDraft() {
-      const parsed = await readEditorDraft(LS_POST);
-      if (cancelled) return;
-
-      if (parsed?.layers && Array.isArray(parsed.layers)) {
-        setDraftLayers(parsed.layers);
-        layersRef.current = parsed.layers;
-        lastLayersSigRef.current = JSON.stringify(parsed.layers);
-      }
-      if (parsed?.ui) {
-        setDraftUI(parsed.ui);
-        uiRef.current = parsed.ui;
-        lastUiSigRef.current = JSON.stringify(parsed.ui);
-      }
-
-      setDraftHydrated(true);
+    if (parsed?.layers && Array.isArray(parsed.layers)) {
+      setDraftLayers(parsed.layers);
+      layersRef.current = parsed.layers;
+      lastLayersSigRef.current = JSON.stringify(parsed.layers);
     }
-
-    hydrateDraft();
-    return () => {
-      cancelled = true;
-    };
+    if (parsed?.ui) {
+      setDraftUI(parsed.ui);
+      uiRef.current = parsed.ui;
+      lastUiSigRef.current = JSON.stringify(parsed.ui);
+    }
   }, []);
 
   // ✅ persist local (debounced)
   useEffect(() => {
-    if (!draftHydrated) return;
-
     const t = setTimeout(() => {
       try {
         localStorage.setItem(
@@ -1443,7 +1373,7 @@ export default function PostEditor({
     }, 250);
 
     return () => clearTimeout(t);
-  }, [draftHydrated, draftUI, draftLayers]);
+  }, [draftUI, draftLayers]);
 
   const initialLayersKey = useMemo(() => "post", []);
 
