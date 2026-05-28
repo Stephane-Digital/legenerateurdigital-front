@@ -1028,6 +1028,58 @@ function safeJsonParse(raw: string | null) {
   }
 }
 
+
+const LGD_IDB_NAME = "lgd_editor_persistence_v1";
+const LGD_IDB_STORE = "drafts";
+
+function openEditorDraftDB(): Promise<IDBDatabase | null> {
+  if (typeof window === "undefined" || !("indexedDB" in window)) return Promise.resolve(null);
+
+  return new Promise((resolve) => {
+    const request = window.indexedDB.open(LGD_IDB_NAME, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(LGD_IDB_STORE)) {
+        db.createObjectStore(LGD_IDB_STORE);
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => resolve(null);
+  });
+}
+
+async function idbGetEditorDraft(key: string) {
+  const db = await openEditorDraftDB();
+  if (!db) return null;
+
+  return await new Promise<any>((resolve) => {
+    try {
+      const tx = db.transaction(LGD_IDB_STORE, "readonly");
+      const req = tx.objectStore(LGD_IDB_STORE).get(key);
+      req.onsuccess = () => resolve(req.result ?? null);
+      req.onerror = () => resolve(null);
+      tx.onerror = () => resolve(null);
+      tx.onabort = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  }).finally(() => {
+    try {
+      db.close();
+    } catch {
+      // ignore
+    }
+  });
+}
+
+async function readEditorDraftWithFallback(key: string) {
+  if (typeof window === "undefined") return null;
+  const local = safeJsonParse(window.localStorage.getItem(key));
+  if (local && !local.__lgd_idb_draft__) return local;
+  const fromIdb = await idbGetEditorDraft(key);
+  return fromIdb || null;
+}
+
 function stableSig(value: any) {
   try {
     return JSON.stringify(value ?? null);
@@ -1376,9 +1428,22 @@ function parseSocialCopilotBlocks(value: string): SocialCopilotBlock[] {
   return [{ role: "body", text: clean(text) }];
 }
 
+
+function readInitialCarrouselDraft() {
+  if (typeof window === "undefined") return null;
+  const parsed = safeJsonParse(window.localStorage.getItem(LS_CARROUSEL));
+  if (parsed?.__lgd_idb_draft__) return null;
+  return parsed;
+}
+
 export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, brief }: Props) {
+  const initialCarrouselDraftRef = useRef<any>(undefined);
+  if (initialCarrouselDraftRef.current === undefined) {
+    initialCarrouselDraftRef.current = readInitialCarrouselDraft();
+  }
+
   const [slides, setSlides] = useState<SlideDraft[]>(() => {
-    const parsed = safeJsonParse(typeof window !== "undefined" ? window.localStorage.getItem(LS_CARROUSEL) : null);
+    const parsed = initialCarrouselDraftRef.current;
 
     if (parsed?.slides && Array.isArray(parsed.slides)) {
       return ensureSlide(parsed.slides);
@@ -1392,7 +1457,7 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
   });
 
   const [draftUI, setDraftUI] = useState<any>(() => {
-    const parsed = safeJsonParse(typeof window !== "undefined" ? window.localStorage.getItem(LS_CARROUSEL) : null);
+    const parsed = initialCarrouselDraftRef.current;
     return parsed?.ui || undefined;
   });
 
@@ -1425,6 +1490,40 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
     const exists = slides.some((s) => s.id === activeSlideId);
     if (!exists) setActiveSlideId(slides[0].id);
   }, [slides, activeSlideId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function restoreDraft() {
+      const parsed = await readEditorDraftWithFallback(LS_CARROUSEL);
+      if (cancelled || !parsed) return;
+
+      let nextSlides: SlideDraft[] | null = null;
+      if (parsed?.slides && Array.isArray(parsed.slides)) {
+        nextSlides = ensureSlide(parsed.slides);
+      } else if (parsed?.layers && Array.isArray(parsed.layers)) {
+        nextSlides = ensureSlide([{ id: cryptoId("slide"), layers: parsed.layers }]);
+      }
+
+      if (nextSlides) {
+        setSlides(nextSlides);
+        if (nextSlides[0]?.id) setActiveSlideId(nextSlides[0].id);
+      }
+
+      if (parsed?.ui) {
+        setDraftUI(parsed.ui);
+        uiRef.current = parsed.ui;
+        lastUiSigRef.current = stableSig(parsed.ui);
+      }
+
+      setEditorRefreshKey((v) => v + 1);
+    }
+
+    void restoreDraft();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
