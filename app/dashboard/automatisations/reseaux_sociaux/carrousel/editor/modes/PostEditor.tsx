@@ -1027,6 +1027,105 @@ function safeJsonParse(raw: string | null) {
   }
 }
 
+const LGD_IDB_NAME = "lgd_editor_persistence_v1";
+const LGD_IDB_STORE = "drafts";
+
+function isIndexedDbDraftMarker(value: any) {
+  return !!value && typeof value === "object" && value.__lgd_idb_draft__ === true;
+}
+
+function openEditorDraftDB(): Promise<IDBDatabase | null> {
+  if (typeof window === "undefined" || !("indexedDB" in window)) return Promise.resolve(null);
+
+  return new Promise((resolve) => {
+    const request = window.indexedDB.open(LGD_IDB_NAME, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(LGD_IDB_STORE)) {
+        db.createObjectStore(LGD_IDB_STORE);
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => resolve(null);
+  });
+}
+
+async function idbGetEditorDraft(key: string) {
+  const db = await openEditorDraftDB();
+  if (!db) return null;
+
+  return await new Promise<any>((resolve) => {
+    try {
+      const tx = db.transaction(LGD_IDB_STORE, "readonly");
+      const req = tx.objectStore(LGD_IDB_STORE).get(key);
+      req.onsuccess = () => resolve(req.result ?? null);
+      req.onerror = () => resolve(null);
+      tx.onerror = () => resolve(null);
+      tx.onabort = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  }).finally(() => {
+    try {
+      db.close();
+    } catch {
+      // ignore
+    }
+  });
+}
+
+async function idbSetEditorDraft(key: string, value: any) {
+  const db = await openEditorDraftDB();
+  if (!db) return false;
+
+  return await new Promise<boolean>((resolve) => {
+    try {
+      const tx = db.transaction(LGD_IDB_STORE, "readwrite");
+      tx.objectStore(LGD_IDB_STORE).put(value, key);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => resolve(false);
+      tx.onabort = () => resolve(false);
+    } catch {
+      resolve(false);
+    }
+  }).finally(() => {
+    try {
+      db.close();
+    } catch {
+      // ignore
+    }
+  });
+}
+
+async function persistEditorDraftDurable(key: string, draft: any) {
+  if (typeof window === "undefined") return;
+
+  await idbSetEditorDraft(key, draft);
+
+  try {
+    window.localStorage.setItem(key, JSON.stringify(draft ?? {}));
+    return;
+  } catch {
+    // Les créations avec images peuvent dépasser localStorage : IndexedDB devient la vérité.
+  }
+
+  try {
+    window.localStorage.setItem(key, JSON.stringify({ __lgd_idb_draft__: true, key }));
+  } catch {
+    // ignore
+  }
+}
+
+async function loadEditorDraftDurable(key: string) {
+  if (typeof window === "undefined") return null;
+
+  const parsed = safeJsonParse(window.localStorage.getItem(key));
+  if (parsed && !isIndexedDbDraftMarker(parsed)) return parsed;
+
+  const idbDraft = await idbGetEditorDraft(key);
+  return idbDraft || (isIndexedDbDraftMarker(parsed) ? null : parsed);
+}
+
 function stableSig(value: any) {
   try {
     return JSON.stringify(value ?? null);
@@ -1363,14 +1462,20 @@ export default function PostEditor({
     onSnapshot?.({ ui: incomingUI, layers: incomingLayers });
   }, [onSnapshot]);
 
-  // ✅ restore draft local (si existe) + archive live event
+  // ✅ restore draft durable (localStorage + IndexedDB) + archive live event
   useEffect(() => {
+    let cancelled = false;
+
     const pending = (window as any).__LGD_EDITOR_PENDING_DRAFT__;
     if (pending?.mode === "post" && pending?.draft) {
       applyIncomingDraft(pending.draft);
     } else {
-      const parsed = safeJsonParse(localStorage.getItem(LS_POST));
-      if (parsed?.layers && Array.isArray(parsed.layers)) applyIncomingDraft(parsed);
+      loadEditorDraftDurable(LS_POST).then((storedDraft) => {
+        if (cancelled) return;
+        if (storedDraft?.layers && Array.isArray(storedDraft.layers)) {
+          applyIncomingDraft(storedDraft);
+        }
+      });
     }
 
     const onLoadDraft = (event: Event) => {
@@ -1380,7 +1485,10 @@ export default function PostEditor({
     };
 
     window.addEventListener(LGD_EDITOR_LOAD_DRAFT_EVENT, onLoadDraft as EventListener);
-    return () => window.removeEventListener(LGD_EDITOR_LOAD_DRAFT_EVENT, onLoadDraft as EventListener);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(LGD_EDITOR_LOAD_DRAFT_EVENT, onLoadDraft as EventListener);
+    };
   }, [applyIncomingDraft]);
 
   // ✅ persist local (debounced)
@@ -1393,13 +1501,11 @@ export default function PostEditor({
       if (!hasRenderablePostLayers(nextLayers)) return;
 
       try {
-        localStorage.setItem(
-          LS_POST,
-          JSON.stringify({
-            ui: uiRef.current ?? draftUI,
-            layers: nextLayers,
-          })
-        );
+        void persistEditorDraftDurable(LS_POST, {
+          type: "post",
+          ui: uiRef.current ?? draftUI,
+          layers: nextLayers,
+        });
       } catch {
         // no-op
       }
