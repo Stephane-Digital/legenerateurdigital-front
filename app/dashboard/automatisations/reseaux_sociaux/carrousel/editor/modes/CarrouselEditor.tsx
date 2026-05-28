@@ -1032,6 +1032,105 @@ function safeJsonParse(raw: string | null) {
   }
 }
 
+const LGD_IDB_NAME = "lgd_editor_persistence_v1";
+const LGD_IDB_STORE = "drafts";
+
+function isIndexedDbDraftMarker(value: any) {
+  return !!value && typeof value === "object" && value.__lgd_idb_draft__ === true;
+}
+
+function openEditorDraftDB(): Promise<IDBDatabase | null> {
+  if (typeof window === "undefined" || !("indexedDB" in window)) return Promise.resolve(null);
+
+  return new Promise((resolve) => {
+    const request = window.indexedDB.open(LGD_IDB_NAME, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(LGD_IDB_STORE)) {
+        db.createObjectStore(LGD_IDB_STORE);
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => resolve(null);
+  });
+}
+
+async function idbGetEditorDraft(key: string) {
+  const db = await openEditorDraftDB();
+  if (!db) return null;
+
+  return await new Promise<any>((resolve) => {
+    try {
+      const tx = db.transaction(LGD_IDB_STORE, "readonly");
+      const req = tx.objectStore(LGD_IDB_STORE).get(key);
+      req.onsuccess = () => resolve(req.result ?? null);
+      req.onerror = () => resolve(null);
+      tx.onerror = () => resolve(null);
+      tx.onabort = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  }).finally(() => {
+    try {
+      db.close();
+    } catch {
+      // ignore
+    }
+  });
+}
+
+async function idbSetEditorDraft(key: string, value: any) {
+  const db = await openEditorDraftDB();
+  if (!db) return false;
+
+  return await new Promise<boolean>((resolve) => {
+    try {
+      const tx = db.transaction(LGD_IDB_STORE, "readwrite");
+      tx.objectStore(LGD_IDB_STORE).put(value, key);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => resolve(false);
+      tx.onabort = () => resolve(false);
+    } catch {
+      resolve(false);
+    }
+  }).finally(() => {
+    try {
+      db.close();
+    } catch {
+      // ignore
+    }
+  });
+}
+
+async function persistEditorDraftDurable(key: string, draft: any) {
+  if (typeof window === "undefined") return;
+
+  await idbSetEditorDraft(key, draft);
+
+  try {
+    window.localStorage.setItem(key, JSON.stringify(draft ?? {}));
+    return;
+  } catch {
+    // Les créations avec images peuvent dépasser localStorage : IndexedDB devient la vérité.
+  }
+
+  try {
+    window.localStorage.setItem(key, JSON.stringify({ __lgd_idb_draft__: true, key }));
+  } catch {
+    // ignore
+  }
+}
+
+async function loadEditorDraftDurable(key: string) {
+  if (typeof window === "undefined") return null;
+
+  const parsed = safeJsonParse(window.localStorage.getItem(key));
+  if (parsed && !isIndexedDbDraftMarker(parsed)) return parsed;
+
+  const idbDraft = await idbGetEditorDraft(key);
+  return idbDraft || (isIndexedDbDraftMarker(parsed) ? null : parsed);
+}
+
 function stableSig(value: any) {
   try {
     return JSON.stringify(value ?? null);
@@ -1357,9 +1456,12 @@ function parseSocialCopilotBlocks(value: string): SocialCopilotBlock[] {
 export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, brief, onSnapshot }: Props) {
   const [slides, setSlides] = useState<SlideDraft[]>(() => {
     const pending = typeof window !== "undefined" ? (window as any).__LGD_EDITOR_PENDING_DRAFT__ : null;
+    const stored = safeJsonParse(typeof window !== "undefined" ? window.localStorage.getItem(LS_CARROUSEL) : null);
     const parsed = pending?.mode === "carrousel" && pending?.draft
       ? pending.draft
-      : safeJsonParse(typeof window !== "undefined" ? window.localStorage.getItem(LS_CARROUSEL) : null);
+      : isIndexedDbDraftMarker(stored)
+        ? null
+        : stored;
 
     if (parsed?.slides && Array.isArray(parsed.slides)) {
       return ensureSlide(parsed.slides);
@@ -1374,9 +1476,12 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
 
   const [draftUI, setDraftUI] = useState<any>(() => {
     const pending = typeof window !== "undefined" ? (window as any).__LGD_EDITOR_PENDING_DRAFT__ : null;
+    const stored = safeJsonParse(typeof window !== "undefined" ? window.localStorage.getItem(LS_CARROUSEL) : null);
     const parsed = pending?.mode === "carrousel" && pending?.draft
       ? pending.draft
-      : safeJsonParse(typeof window !== "undefined" ? window.localStorage.getItem(LS_CARROUSEL) : null);
+      : isIndexedDbDraftMarker(stored)
+        ? null
+        : stored;
     return parsed?.ui || undefined;
   });
 
@@ -1419,15 +1524,14 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
     if (!hasRenderableCarrouselSlides(slides)) return;
 
     try {
-      const existing = safeJsonParse(window.localStorage.getItem(LS_CARROUSEL)) || {};
-      window.localStorage.setItem(
-        LS_CARROUSEL,
-        JSON.stringify({
-          ...existing,
-          ui: uiRef.current ?? draftUI,
-          slides,
-        })
-      );
+      const existingRaw = safeJsonParse(window.localStorage.getItem(LS_CARROUSEL));
+      const existing = existingRaw && !isIndexedDbDraftMarker(existingRaw) ? existingRaw : {};
+      void persistEditorDraftDurable(LS_CARROUSEL, {
+        ...existing,
+        type: "carrousel",
+        ui: uiRef.current ?? draftUI,
+        slides,
+      });
     } catch {
       // no-op
     }
@@ -1482,9 +1586,18 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
   }, [onSnapshot]);
 
   useEffect(() => {
+    let cancelled = false;
+
     const pending = (window as any).__LGD_EDITOR_PENDING_DRAFT__;
     if (pending?.mode === "carrousel" && pending?.draft) {
       applyIncomingDraft(pending.draft);
+    } else {
+      loadEditorDraftDurable(LS_CARROUSEL).then((storedDraft) => {
+        if (cancelled) return;
+        if (storedDraft?.slides && Array.isArray(storedDraft.slides)) {
+          applyIncomingDraft(storedDraft);
+        }
+      });
     }
 
     const onLoadDraft = (event: Event) => {
@@ -1494,7 +1607,10 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
     };
 
     window.addEventListener(LGD_EDITOR_LOAD_DRAFT_EVENT, onLoadDraft as EventListener);
-    return () => window.removeEventListener(LGD_EDITOR_LOAD_DRAFT_EVENT, onLoadDraft as EventListener);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(LGD_EDITOR_LOAD_DRAFT_EVENT, onLoadDraft as EventListener);
+    };
   }, [applyIncomingDraft]);
 
   useEffect(() => {
