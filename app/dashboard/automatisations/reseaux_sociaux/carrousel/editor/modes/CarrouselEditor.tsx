@@ -13,9 +13,6 @@ interface Props {
 
   // ✅ Coach brief (Alex V2) — optional
   brief?: string;
-
-  // ✅ snapshot live pour archivage fiable depuis le header
-  onSnapshot?: (snapshot: { ui?: any; slides: SlideDraft[] }) => void;
 }
 
 const LS_CARROUSEL = "lgd_editor_carrousel_draft_v5";
@@ -1345,7 +1342,7 @@ function parseSocialCopilotBlocks(value: string): SocialCopilotBlock[] {
   return [{ role: "body", text: clean(text) }];
 }
 
-export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, brief, onSnapshot }: Props) {
+export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, brief }: Props) {
   const [slides, setSlides] = useState<SlideDraft[]>(() => {
     const parsed = safeJsonParse(typeof window !== "undefined" ? window.localStorage.getItem(LS_CARROUSEL) : null);
 
@@ -1396,13 +1393,6 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
   }, [slides, activeSlideId]);
 
   useEffect(() => {
-    const snapshot = {
-      ui: uiRef.current ?? draftUI,
-      slides,
-    };
-
-    onSnapshot?.(snapshot);
-
     if (typeof window === "undefined") return;
     try {
       const existing = safeJsonParse(window.localStorage.getItem(LS_CARROUSEL)) || {};
@@ -1410,13 +1400,14 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
         LS_CARROUSEL,
         JSON.stringify({
           ...existing,
-          ...snapshot,
+          ui: uiRef.current ?? draftUI,
+          slides,
         })
       );
     } catch {
       // no-op
     }
-  }, [slides, draftUI, onSnapshot]);
+  }, [slides, draftUI]);
 
   const activeSlide = useMemo(() => slides.find((s) => s.id === activeSlideId) || slides[0], [slides, activeSlideId]);
   const activeSlideLayersSig = useMemo(() => layersSignature(activeSlide?.layers ?? []), [activeSlide?.layers]);
