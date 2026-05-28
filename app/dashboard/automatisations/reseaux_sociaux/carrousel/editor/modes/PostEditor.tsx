@@ -14,29 +14,21 @@ interface Props {
   // ✅ Coach brief (Alex V2) — optional
   brief?: string;
 
-  // ✅ snapshot live pour archivage fiable depuis le header
-  onSnapshot?: (snapshot: { ui?: any; slides: SlideDraft[] }) => void;
+  // ✅ sauvegarde locale / dirty
+  onDirtyChange?: (dirty: boolean) => void;
+  onSnapshot?: (snapshot: { ui?: any; layers: LayerData[] }) => void;
 }
 
-const LS_CARROUSEL = "lgd_editor_carrousel_draft_v5";
-const LS_CARROUSEL_ACTIVE_SLIDE = "lgd_editor_carrousel_active_slide_v5";
-
-// Copilot toggle (persisted)
-const LS_CARROUSEL_COPILOT_OPEN = "lgd_editor_carrousel_copilot_open_v5";
+const LS_POST = "lgd_editor_post_draft_v5";
+const LS_COPILOT_OPEN = "lgd_editor_copilot_open";
 
 // Brief banner dismissed (per user)
 const LS_BRIEF_DISMISSED = "lgd_editor_brief_dismissed";
-
-type SlideDraft = {
-  id: string;
-  layers: LayerData[];
-};
 
 /** =========================
  *  IA Copilot (SAFE / texte-only)
  *  - utilise /ai/text/rewrite existant
  *  - ne touche PAS au moteur canvas
- *  - CARROUSEL : slide active uniquement
  *  ========================= */
 
 type Network = "Instagram" | "TikTok" | "LinkedIn" | "Facebook";
@@ -593,7 +585,8 @@ const SOCIAL_PROMPT_LIBRARY: SocialPromptTemplate[] = [
     "angle": "Storytelling",
     "tone": "humain, premium, relationnel, empathique",
     "maxChars": 1200
-  }  ,{
+  }
+  ,{
     "id": "advice-authority-simple",
     "category": "Conseils expert audience",
     "title": "Conseil d'autorité",
@@ -824,8 +817,6 @@ const SOCIAL_PROMPT_LIBRARY: SocialPromptTemplate[] = [
 
 ];
 
-type CopilotTask = "hooks" | "slideText" | "steps" | "caption" | "cta" | "hashtags" | "rewrite";
-
 function apiBase() {
   return (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
 }
@@ -862,6 +853,7 @@ function getAuthHeaders() {
 function estimateTokens(text: string) {
   const t = (text || "").trim();
   if (!t) return 1;
+  // estimation très simple (≈ 1 token ~ 4 caractères)
   return Math.max(1, Math.ceil(t.length / 4));
 }
 
@@ -1018,7 +1010,10 @@ async function aiRewriteText(args: { text: string; tone?: string; max_length?: n
   const out = data?.result ?? data?.text ?? data?.output ?? "";
   if (!out || typeof out !== "string") throw new Error("Réponse IA invalide");
 
+  // IMPORTANT : on consomme AVANT de livrer.
+  // Si quota dépassé (400), on stoppe et l'UI affiche l'erreur (pas de livraison gratuite).
   await consumeCoachQuota(estimateTokens(args.text) + estimateTokens(out));
+
   return out;
 }
 
@@ -1031,6 +1026,62 @@ function safeJsonParse(raw: string | null) {
   }
 }
 
+const LGD_IDB_NAME = "lgd_editor_persistence_v1";
+const LGD_IDB_STORE = "drafts";
+
+function isIdbDraftMarker(value: any) {
+  return !!value && typeof value === "object" && value.__lgd_idb_draft__ === true;
+}
+
+function openEditorDraftDB(): Promise<IDBDatabase | null> {
+  if (typeof window === "undefined" || !("indexedDB" in window)) return Promise.resolve(null);
+
+  return new Promise((resolve) => {
+    const request = window.indexedDB.open(LGD_IDB_NAME, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(LGD_IDB_STORE)) {
+        db.createObjectStore(LGD_IDB_STORE);
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => resolve(null);
+  });
+}
+
+async function idbGetEditorDraft(key: string) {
+  const db = await openEditorDraftDB();
+  if (!db) return null;
+
+  return await new Promise<any>((resolve) => {
+    try {
+      const tx = db.transaction(LGD_IDB_STORE, "readonly");
+      const req = tx.objectStore(LGD_IDB_STORE).get(key);
+      req.onsuccess = () => resolve(req.result ?? null);
+      req.onerror = () => resolve(null);
+      tx.onerror = () => resolve(null);
+      tx.onabort = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  }).finally(() => {
+    try {
+      db.close();
+    } catch {
+      // ignore
+    }
+  });
+}
+
+async function readEditorDraft(key: string) {
+  if (typeof window === "undefined") return null;
+  const parsed = safeJsonParse(window.localStorage.getItem(key));
+  if (isIdbDraftMarker(parsed)) {
+    return await idbGetEditorDraft(String(parsed.key || key));
+  }
+  return parsed;
+}
+
 function stableSig(value: any) {
   try {
     return JSON.stringify(value ?? null);
@@ -1039,12 +1090,18 @@ function stableSig(value: any) {
   }
 }
 
+/**
+ * ✅ MICRO PATCH anti-loop
+ * On nettoie l'UI qui remonte de l'éditeur (runtime/konva/dom refs)
+ * pour éviter un "ui" différent à chaque render => setState loop.
+ */
 function stripNonSerializableUI(input: any): any {
   if (input == null) return input;
   const t = typeof input;
   if (t === "function") return undefined;
   if (t !== "object") return input;
 
+  // DOM nodes
   const anyObj: any = input as any;
   if (anyObj?.nodeType === 1 || anyObj?.tagName || anyObj?.nodeName) return undefined;
 
@@ -1057,6 +1114,8 @@ function stripNonSerializableUI(input: any): any {
   const out: any = {};
   for (const [k, v] of Object.entries(anyObj)) {
     if (v === undefined) continue;
+
+    // drop common runtime keys
     if (k === "runtime" || k === "_runtime" || k === "__runtime") continue;
     if (k === "konva" || k === "_konva" || k === "__konva") continue;
     if (k === "stage" || k === "layer" || k === "node" || k === "ref") continue;
@@ -1068,73 +1127,17 @@ function stripNonSerializableUI(input: any): any {
   return out;
 }
 
-function stableSerialize(value: any): string {
-  const seen = new WeakSet();
-
-  const normalize = (input: any): any => {
-    if (input == null || typeof input !== "object") return input;
-    if (seen.has(input)) return undefined;
-    seen.add(input);
-
-    if (Array.isArray(input)) return input.map(normalize);
-
-    const out: Record<string, any> = {};
-    for (const key of Object.keys(input).sort()) {
-      const normalized = normalize(input[key]);
-      if (normalized !== undefined) out[key] = normalized;
-    }
-    return out;
-  };
-
-  try {
-    return JSON.stringify(normalize(value));
-  } catch {
-    return String(value);
-  }
-}
-
-function layersSignature(layers: LayerData[] | null | undefined) {
-  return stableSerialize(
-    (layers || []).map((l: any) => ({
-      id: l?.id,
-      type: l?.type,
-      src: typeof l?.src === "string" ? l.src : undefined,
-      text: typeof l?.text === "string" ? l.text : undefined,
-      x: l?.x,
-      y: l?.y,
-      width: l?.width,
-      height: l?.height,
-      zIndex: l?.zIndex,
-      visible: l?.visible,
-      style: l?.style,
-    }))
-  );
-}
-
-function clip(s: string, n = 46) {
+function clip(s: string, n = 42) {
   const t = (s || "").replace(/\s+/g, " ").trim();
   if (t.length <= n) return t;
   return t.slice(0, n - 1) + "…";
 }
 
-function cryptoId(prefix = "id") {
-  const r = Math.random().toString(16).slice(2);
-  return `${prefix}-${Date.now()}-${r}`;
-}
-
-function ensureSlide(slides: SlideDraft[] | null | undefined): SlideDraft[] {
-  if (slides && Array.isArray(slides) && slides.length > 0) return slides;
-  return [{ id: cryptoId("slide"), layers: [] }];
-}
-
-function extractTextFromLayers(layers: LayerData[]) {
-  return (layers || [])
-    .filter((l: any) => l?.type === "text")
-    .map((l: any) => String(l?.text ?? "").trim())
-    .filter(Boolean)
-    .join("\n");
-}
-
+/** =========================
+ *  Coach → Copilot (non-destructif)
+ *  - inférences locales, zéro backend
+ *  - n'écrase jamais si l'utilisateur a déjà modifié
+ *  ========================= */
 function normalizeBriefSig(b: string) {
   return (b || "").replace(/\s+/g, " ").trim();
 }
@@ -1142,6 +1145,7 @@ function normalizeBriefSig(b: string) {
 function inferObjectiveFromBrief(brief: string): Objective {
   const b = (brief || "").toLowerCase();
 
+  // Convertir (vente / DM / inscription / offre)
   if (
     /\b(vendre|vente|acheter|commande|panier|promo|promotion|offre|prix|tarif|inscription|inscris|réserve|rdv|appel|dm|message)\b/.test(b) ||
     /\b(convert|conversion|closing|close)\b/.test(b)
@@ -1149,10 +1153,12 @@ function inferObjectiveFromBrief(brief: string): Objective {
     return "Convertir";
   }
 
+  // Éduquer (tuto / étapes / guide)
   if (/\b(tuto|tutoriel|comment|étapes|etapes|guide|méthode|checklist|process|processus)\b/.test(b)) {
     return "Éduquer";
   }
 
+  // Story (histoire / parcours / avant-après)
   if (/\b(story|histoire|parcours|avant\s*\/\s*après|avant-après|avant apres|mon expérience|mon experience)\b/.test(b)) {
     return "Story";
   }
@@ -1345,162 +1351,158 @@ function parseSocialCopilotBlocks(value: string): SocialCopilotBlock[] {
   return [{ role: "body", text: clean(text) }];
 }
 
-export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, brief, onSnapshot }: Props) {
-  const [slides, setSlides] = useState<SlideDraft[]>(() => {
-    const parsed = safeJsonParse(typeof window !== "undefined" ? window.localStorage.getItem(LS_CARROUSEL) : null);
+export default function PostEditor({
+  mobileToolsOpen,
+  onCloseMobileTools,
+  onDirtyChange,
+  onSnapshot,
+  brief,
+}: Props) {
+  const [draftLayers, setDraftLayers] = useState<LayerData[] | undefined>(undefined);
+  const [draftUI, setDraftUI] = useState<any>(undefined);
+  const [draftHydrated, setDraftHydrated] = useState(false);
 
-    if (parsed?.slides && Array.isArray(parsed.slides)) {
-      return ensureSlide(parsed.slides);
-    }
-
-    if (parsed?.layers && Array.isArray(parsed.layers)) {
-      return ensureSlide([{ id: cryptoId("slide"), layers: parsed.layers }]);
-    }
-
-    return ensureSlide(null);
-  });
-
-  const [draftUI, setDraftUI] = useState<any>(() => {
-    const parsed = safeJsonParse(typeof window !== "undefined" ? window.localStorage.getItem(LS_CARROUSEL) : null);
-    return parsed?.ui || undefined;
-  });
-
-  const uiRef = useRef<any>(draftUI);
-  const lastUiSigRef = useRef<string>(stableSig(draftUI ?? {}));
-  const lastLayersSigRef = useRef<string>("");
-  const [editorRefreshKey, setEditorRefreshKey] = useState<number>(0);
-
-  const [activeSlideId, setActiveSlideId] = useState<string>(() => {
-    const saved = typeof window !== "undefined" ? window.localStorage.getItem(LS_CARROUSEL_ACTIVE_SLIDE) : null;
-    return saved || "";
-  });
-
-  const activeSlideIdRef = useRef<string>("");
+  // ✅ Toggle Copilot (persist)
+  const [copilotOpen, setCopilotOpen] = useState<boolean>(true);
   useEffect(() => {
-    activeSlideIdRef.current = activeSlideId;
-  }, [activeSlideId]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (activeSlideId) window.localStorage.setItem(LS_CARROUSEL_ACTIVE_SLIDE, activeSlideId);
-  }, [activeSlideId]);
-
-  useEffect(() => {
-    if (!slides.length) return;
-    if (!activeSlideId) {
-      setActiveSlideId(slides[0].id);
-      return;
-    }
-    const exists = slides.some((s) => s.id === activeSlideId);
-    if (!exists) setActiveSlideId(slides[0].id);
-  }, [slides, activeSlideId]);
-
-  useEffect(() => {
-    const snapshot = {
-      ui: uiRef.current ?? draftUI,
-      slides,
-    };
-
-    onSnapshot?.(snapshot);
-
-    if (typeof window === "undefined") return;
     try {
-      const existing = safeJsonParse(window.localStorage.getItem(LS_CARROUSEL)) || {};
-      window.localStorage.setItem(
-        LS_CARROUSEL,
-        JSON.stringify({
-          ...existing,
-          ...snapshot,
-        })
-      );
+      const v = typeof window !== "undefined" ? window.localStorage.getItem(LS_COPILOT_OPEN) : null;
+      if (v === "0") setCopilotOpen(false);
+      if (v === "1") setCopilotOpen(true);
     } catch {
-      // no-op
+      // ignore
     }
-  }, [slides, draftUI, onSnapshot]);
-
-  const activeSlide = useMemo(() => slides.find((s) => s.id === activeSlideId) || slides[0], [slides, activeSlideId]);
-  const activeSlideLayersSig = useMemo(() => layersSignature(activeSlide?.layers ?? []), [activeSlide?.layers]);
+  }, []);
 
   useEffect(() => {
-    setEditorRefreshKey((v) => v + 1);
-  }, [activeSlideId]);
+    try {
+      if (typeof window !== "undefined") window.localStorage.setItem(LS_COPILOT_OPEN, copilotOpen ? "1" : "0");
+    } catch {
+      // ignore
+    }
+  }, [copilotOpen]);
 
-  const updateLayersForSlide = useCallback((slideId: string, layers: LayerData[]) => {
-    const nextSig = layersSignature(layers ?? []);
-    lastLayersSigRef.current = nextSig;
+  // refs to avoid loops & stale values
+  const layersRef = useRef<LayerData[] | undefined>(undefined);
+  const uiRef = useRef<any>(undefined);
+  const dirtyRef = useRef(false);
 
-    setSlides((prev) => {
-      let changed = false;
-      const next = prev.map((s) => {
-        if (s.id !== slideId) return s;
-        if (layersSignature(s.layers) === nextSig) return s;
-        changed = true;
-        return { ...s, layers: layers ?? [] };
+  const lastUiSigRef = useRef<string>("");
+  const lastLayersSigRef = useRef<string>("");
+
+  const markDirty = useCallback(() => {
+    if (dirtyRef.current) return;
+    dirtyRef.current = true;
+    onDirtyChange?.(true);
+  }, [onDirtyChange]);
+
+  // ✅ restore draft local / IndexedDB (si existe)
+  useEffect(() => {
+    let cancelled = false;
+
+    async function hydrateDraft() {
+      const parsed = await readEditorDraft(LS_POST);
+      if (cancelled) return;
+
+      if (parsed?.layers && Array.isArray(parsed.layers)) {
+        setDraftLayers(parsed.layers);
+        layersRef.current = parsed.layers;
+        lastLayersSigRef.current = JSON.stringify(parsed.layers);
+      }
+      if (parsed?.ui) {
+        setDraftUI(parsed.ui);
+        uiRef.current = parsed.ui;
+        lastUiSigRef.current = JSON.stringify(parsed.ui);
+      }
+
+      setDraftHydrated(true);
+    }
+
+    hydrateDraft();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // ✅ persist local (debounced)
+  useEffect(() => {
+    if (!draftHydrated) return;
+
+    const t = setTimeout(() => {
+      try {
+        localStorage.setItem(
+          LS_POST,
+          JSON.stringify({
+            ui: uiRef.current ?? draftUI,
+            layers: layersRef.current ?? draftLayers ?? [],
+          })
+        );
+      } catch {
+        // no-op
+      }
+    }, 250);
+
+    return () => clearTimeout(t);
+  }, [draftHydrated, draftUI, draftLayers]);
+
+  const initialLayersKey = useMemo(() => "post", []);
+
+  const handleUIChange = useCallback(
+    (ui: any) => {
+      const cleaned = stripNonSerializableUI(ui ?? {});
+      const sig = stableSig(cleaned ?? {});
+
+      if (sig === lastUiSigRef.current) return;
+
+      lastUiSigRef.current = sig;
+      uiRef.current = cleaned;
+
+      setDraftUI((prev: any) => (stableSig(prev ?? {}) === sig ? prev : cleaned));
+      markDirty();
+
+      onSnapshot?.({
+        ui: cleaned,
+        layers: layersRef.current ?? [],
       });
-      return changed ? next : prev;
-    });
-  }, []);
+    },
+    [markDirty, onSnapshot]
+  );
 
-  const updateLayers = useCallback((layers: LayerData[]) => {
-    const targetId = activeSlideIdRef.current;
-    if (!targetId) return;
-    updateLayersForSlide(targetId, layers ?? []);
-  }, [updateLayersForSlide]);
+  const handleLayersChange = useCallback(
+    (layers: LayerData[]) => {
+      const sig = stableSig(layers ?? []);
+      if (sig === lastLayersSigRef.current) return;
 
-  const handleUIChange = useCallback((ui: any) => {
-    const cleaned = stripNonSerializableUI(ui ?? {});
-    const sig = stableSig(cleaned ?? {});
-    if (sig === lastUiSigRef.current) return;
-    lastUiSigRef.current = sig;
-    uiRef.current = cleaned;
-    setDraftUI((prev: any) => (stableSig(prev ?? {}) === sig ? prev : cleaned));
-  }, []);
+      lastLayersSigRef.current = sig;
+      layersRef.current = layers;
 
-  const addSlide = useCallback(() => {
-    const id = cryptoId("slide");
-    setSlides((prev) => [...prev, { id, layers: [] }]);
-    setActiveSlideId(id);
-  }, []);
+      setDraftLayers((prev) => (stableSig(prev ?? []) === sig ? prev : layers));
+      markDirty();
 
-  const duplicateActiveSlide = useCallback(() => {
-    const id = cryptoId("slide");
-    setSlides((prev) => {
-      const idx = prev.findIndex((s) => s.id === activeSlide.id);
-      const clone: SlideDraft = {
-        id,
-        layers: JSON.parse(JSON.stringify(activeSlide.layers || [])),
-      };
-      const next = [...prev];
-      next.splice(idx + 1, 0, clone);
-      return next;
-    });
-    setActiveSlideId(id);
-  }, [activeSlide.id, activeSlide.layers]);
+      onSnapshot?.({
+        ui: uiRef.current,
+        layers,
+      });
+    },
+    [markDirty, onSnapshot]
+  );
 
-  const deleteActiveSlide = useCallback(() => {
-    setSlides((prev) => {
-      if (prev.length <= 1) return prev;
-      const idx = prev.findIndex((s) => s.id === activeSlide.id);
-      const next = prev.filter((s) => s.id !== activeSlide.id);
-      const fallback = next[Math.max(0, idx - 1)]?.id || next[0]?.id;
-      setActiveSlideId(fallback);
-      return next;
-    });
-  }, [activeSlide.id]);
-
+  /** =========================
+   *  IA Copilot UI state
+   *  ========================= */
   const textLayers = useMemo(() => {
-    return (activeSlide?.layers ?? []).filter((l: any) => l?.type === "text");
-  }, [activeSlide?.layers]);
+    return (draftLayers ?? []).filter((l: any) => l?.type === "text");
+  }, [draftLayers]);
+
 
   useEffect(() => {
-    const families = Array.from(new Set((slides || [])
-      .flatMap((slide) => (slide?.layers || []))
+    const families = Array.from(new Set((draftLayers ?? [])
       .filter((layer: any) => layer?.type === "text")
       .map((layer: any) => String(layer?.style?.fontFamily ?? layer?.fontFamily ?? "").trim())
       .filter(Boolean)));
 
     families.forEach((family) => ensureFontStylesheetLoaded(family));
-  }, [slides]);
+  }, [draftLayers]);
 
   const defaultTargetId = useMemo(() => {
     const anyText = textLayers as any[];
@@ -1510,59 +1512,15 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
 
   const [targetLayerId, setTargetLayerId] = useState<string>("");
   useEffect(() => {
-    setTargetLayerId(defaultTargetId || "");
-  }, [activeSlideId, defaultTargetId]);
-
-  const syncEditorSelection = useCallback((id: string) => {
-    if (!id) return;
-    const currentUI = uiRef.current ?? {};
-
-    const currentSelectedLayerId = String(currentUI?.selectedLayerId ?? "");
-    const currentSelectedId = String(currentUI?.selectedId ?? "");
-    const currentSelectionId = String(currentUI?.selection?.id ?? "");
-    const currentSelectedLayerIds = Array.isArray(currentUI?.selectedLayerIds)
-      ? currentUI.selectedLayerIds.map((x: any) => String(x))
-      : [];
-    const currentSelectedIds = Array.isArray(currentUI?.selectedIds)
-      ? currentUI.selectedIds.map((x: any) => String(x))
-      : [];
-
-    const alreadySelected =
-      currentSelectedLayerId === String(id) &&
-      currentSelectedId === String(id) &&
-      currentSelectionId === String(id) &&
-      currentSelectedLayerIds.length === 1 &&
-      currentSelectedLayerIds[0] === String(id) &&
-      currentSelectedIds.length === 1 &&
-      currentSelectedIds[0] === String(id);
-
-    if (alreadySelected) return;
-
-    const nextUI = {
-      ...currentUI,
-      selectedLayerId: id,
-      selectedId: id,
-      selectedLayerIds: [id],
-      selectedIds: [id],
-      selection: {
-        ...(currentUI?.selection || {}),
-        id,
-        ids: [id],
-      },
-    };
-
-    handleUIChange(nextUI);
-  }, [handleUIChange]);
-
-  useEffect(() => {
-    if (targetLayerId) syncEditorSelection(targetLayerId);
-  }, [targetLayerId, syncEditorSelection]);
+    if (!targetLayerId && defaultTargetId) setTargetLayerId(defaultTargetId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultTargetId]);
 
   const [idea, setIdea] = useState<string>("");
   const [network, setNetwork] = useState<Network>("Instagram");
   const [objective, setObjective] = useState<Objective>("Convertir");
   const [angle, setAngle] = useState<Angle>("MRR débutant");
-  const [tone, setTone] = useState<string>("coach direct, clair, concret, orienté résultats, humain, envoyé depuis un Iphone");
+    const [tone, setTone] = useState<string>("coach direct, clair, concret, orienté résultats, humain, envoyé depuis un Iphone");
   const [maxChars, setMaxChars] = useState<number>(0);
   const [promptLibraryOpen, setPromptLibraryOpen] = useState<boolean>(false);
   const [selectedSocialPromptCategory, setSelectedSocialPromptCategory] = useState<string>("Hooks psychologiques");
@@ -1603,21 +1561,23 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
     );
     return exact || byObjective || visibleSocialPromptLibrary[0] || SOCIAL_PROMPT_LIBRARY[0] || null;
   }, [network, objective, selectedSocialPromptCategory, visibleSocialPromptLibrary]);
+  const [lastCopilotTask, setLastCopilotTask] = useState<"hooks" | "caption" | "cta" | "hashtags" | "ab" | "rewrite" | null>(null);
 
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
 
   const [aiOutput, setAiOutput] = useState<string>("");
   const [aiHooks, setAiHooks] = useState<string[]>([]);
-  const [lastCopilotTask, setLastCopilotTask] = useState<CopilotTask | null>(null);
   const { schedule, loading: scheduleLoading } = useSchedulePlanner();
   const [scheduleOpen, setScheduleOpen] = useState(false);
 
+  // ✅ Coach injection guards (non-destructif)
   const userTouchedIdeaRef = useRef(false);
   const userTouchedObjectiveRef = useRef(false);
   const userTouchedAngleRef = useRef(false);
   const lastInjectedBriefSigRef = useRef<string>("");
 
+  // ✅ Brief banner (and injection) — once per session unless user edits
   const [briefDismissed, setBriefDismissed] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem(LS_BRIEF_DISMISSED) === "1";
@@ -1633,30 +1593,76 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
   }, [briefDismissed]);
 
   const targetLayer = useMemo(() => {
-    return (activeSlide?.layers ?? []).find((l: any) => String(l?.id) === String(targetLayerId)) as any;
-  }, [activeSlide?.layers, targetLayerId]);
+    return (draftLayers ?? []).find((l: any) => String(l?.id) === String(targetLayerId)) as any;
+  }, [draftLayers, targetLayerId]);
+
+  // ✅ IMPORTANT: synchroniser la sélection du layer dans l'UI de l'éditeur
+  // pour que les propriétés (dont la couleur) s'appliquent bien au layer cible.
+  const syncEditorSelection = useCallback(
+    (id: string) => {
+      if (!id) return;
+      const currentUI = uiRef.current ?? {};
+
+      const currentSelectedLayerId = String(currentUI?.selectedLayerId ?? "");
+      const currentSelectedId = String(currentUI?.selectedId ?? "");
+      const currentSelectionId = String(currentUI?.selection?.id ?? "");
+      const currentSelectedLayerIds = Array.isArray(currentUI?.selectedLayerIds)
+        ? currentUI.selectedLayerIds.map((x: any) => String(x))
+        : [];
+      const currentSelectedIds = Array.isArray(currentUI?.selectedIds)
+        ? currentUI.selectedIds.map((x: any) => String(x))
+        : [];
+
+      const alreadySelected =
+        currentSelectedLayerId === String(id) &&
+        currentSelectedId === String(id) &&
+        currentSelectionId === String(id) &&
+        currentSelectedLayerIds.length === 1 &&
+        currentSelectedLayerIds[0] === String(id) &&
+        currentSelectedIds.length === 1 &&
+        currentSelectedIds[0] === String(id);
+
+      if (alreadySelected) return;
+
+      const nextUI = {
+        ...currentUI,
+        // clés courantes possibles (selon versions)
+        selectedLayerId: id,
+        selectedId: id,
+        selectedLayerIds: [id],
+        selectedIds: [id],
+        selection: {
+          ...(currentUI?.selection || {}),
+          id,
+          ids: [id],
+        },
+      };
+      handleUIChange(nextUI);
+    },
+    [handleUIChange]
+  );
+
+  useEffect(() => {
+    if (targetLayerId) syncEditorSelection(targetLayerId);
+  }, [targetLayerId, syncEditorSelection]);
 
   const applyToLayer = useCallback(
     (text: string) => {
-      if (!text) return;
+      if (!text || !draftLayers || draftLayers.length === 0) return;
       const id = targetLayerId || defaultTargetId;
-      const slideId = activeSlideIdRef.current || activeSlideId;
-      if (!id || !slideId) return;
+      if (!id) return;
 
-      const layers = (slides.find((s) => s.id === slideId)?.layers ?? activeSlide?.layers ?? []) as LayerData[];
-      if (!layers.length) return;
-
-      const next = layers.map((l: any) => {
+      const next = draftLayers.map((l: any) => {
         if (String(l?.id) !== String(id)) return l;
         if (l?.type !== "text") return l;
         return { ...l, text, html: copilotTextToHtml(text) };
       });
 
-      updateLayersForSlide(slideId, next as any);
+      handleLayersChange(next as any);
+      // keep selection in sync after apply (so color picker, etc. stays on the right layer)
       syncEditorSelection(id);
-      setEditorRefreshKey((v) => v + 1);
     },
-    [slides, activeSlide?.layers, activeSlideId, targetLayerId, defaultTargetId, updateLayersForSlide, syncEditorSelection]
+    [draftLayers, targetLayerId, defaultTargetId, handleLayersChange, syncEditorSelection]
   );
 
   const injectCopilotOutputToCanvas = useCallback(
@@ -1664,10 +1670,6 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
       const blocks = parseSocialCopilotBlocks(value);
       if (!blocks.length) return;
 
-      const slideId = activeSlideIdRef.current || activeSlideId;
-      if (!slideId) return;
-
-      const layers = (slides.find((s) => s.id === slideId)?.layers ?? activeSlide?.layers ?? []) as LayerData[];
       const canvasW = 1080;
       const canvasH = 1080;
       const blockWidth = Math.round(canvasW * 0.78);
@@ -1676,7 +1678,8 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
       const gap = 42;
       const now = Date.now();
       let y = top;
-      const baseZ = layers.length + 10;
+      const prev = draftLayers ?? [];
+      const baseZ = prev.length + 10;
 
       const built = blocks.map((block, index) => {
         const isHook = block.role === "hook";
@@ -1716,14 +1719,13 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
         return layer;
       });
 
-      updateLayersForSlide(slideId, [
-        ...layers.map((layer: any) => ({ ...layer, selected: false })),
+      handleLayersChange([
+        ...prev.map((layer: any) => ({ ...layer, selected: false })),
         ...built,
       ] as any);
       syncEditorSelection(String((built[0] as any)?.id || ""));
-      setEditorRefreshKey((v) => v + 1);
     },
-    [slides, activeSlide?.layers, activeSlideId, updateLayersForSlide, syncEditorSelection]
+    [draftLayers, handleLayersChange, syncEditorSelection]
   );
 
 
@@ -1786,7 +1788,7 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
     return kept.join("\n");
   }
 
-  function normalizeCopilotOutput(task: CopilotTask, value: string) {
+  function normalizeCopilotOutput(task: "hooks" | "caption" | "cta" | "hashtags" | "ab" | "rewrite", value: string) {
     if (task === "hashtags") return extractHashtagsOnly(value);
     if (task === "cta") return extractCtasOnly(value);
     if (task === "caption") return String(value || "").replace(/\r/g, "").replace(/\n{3,}/g, "\n\n").trim();
@@ -1795,14 +1797,12 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
 
   function buildContext() {
     const base = [
-      "Tu es LGD Copilot : spécialiste du marketing digital, produits digitaux, formation, MRR (Master Resell Rights).",
-      "Tu écris pour fédérer sur les réseaux sociaux et convertir vers une offre MRR / formation.",
-      "Tu restes concret : bénéfices, preuve, structure claire, CTA.",
-      "Français naturel, humain, impactant, crédible.",
+      "Tu es LGD Copilot Social : copywriter senior spécialisé posts réseaux sociaux, produits digitaux, IA, MRR, affiliation et marketing digital.",
+      "Tu écris pour capter l'attention, créer de la confiance et donner envie d'agir sans jamais faire de promesse magique.",
+      "Tu évites le blabla, les phrases génériques et le ton motivationnel vide : chaque phrase doit servir le hook, la tension, la clarté ou le CTA.",
+      "Tu produis du contenu prêt à publier, naturel, premium, humain, orienté engagement et conversion douce.",
       `Réseau: ${network}. Objectif: ${objective}. Angle: ${angle}.`,
-      "Contraintes: CARROUSEL — une seule slide, texte court et lisible.",
     ].join("\n");
-
     const b = (brief || "").trim();
     if (!b) return base;
     return [base, "---", "Brief du coach (à respecter):", b].join("\n");
@@ -1822,13 +1822,13 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
     setPromptLibraryOpen(false);
   }, []);
 
-  async function runCopilot(task: CopilotTask) {
+  async function runCopilot(task: "hooks" | "caption" | "cta" | "hashtags" | "ab" | "rewrite") {
     setAiError(null);
     setAiLoading(true);
 
     try {
-      const slideText = extractTextFromLayers(activeSlide?.layers ?? []);
-      const topic = (idea || "").trim() || slideText || "marketing digital / produits digitaux / MRR";
+      const currentText = String((targetLayer as any)?.text ?? "").trim();
+      const topic = (idea || "").trim() || currentText || "marketing digital / produits digitaux / MRR";
 
       const ctx = buildContext();
       let prompt = "";
@@ -1836,33 +1836,18 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
       if (task === "hooks") {
         prompt = [
           ctx,
-          "Génère 10 hooks ultra courts et accrocheurs pour une SLIDE de carrousel.",
+          "Génère 10 hooks ULTRA accrocheurs, courts, dédiés au marketing digital et MRR.",
           "Format STRICT : une liste numérotée 1 à 10, une seule ligne par hook. Pas d'explication.",
-          `Sujet: ${topic}`,
-        ].join("\n");
-      } else if (task === "slideText") {
-        prompt = [
-          ctx,
-          "Écris le texte complet d'UNE slide (titre + 2-4 lignes max).",
-          "Style : lisible, punchy, humain, orienté valeur + MRR.",
-          "Format STRICT :\nTITRE: ...\nTEXTE: ...",
-          `Sujet: ${topic}`,
-        ].join("\n");
-      } else if (task === "steps") {
-        prompt = [
-          ctx,
-          "Écris une slide '3 étapes' (format carrousel).",
-          "Format STRICT :\nTITRE: ...\n1) ...\n2) ...\n3) ...\nCTA: ...",
           `Sujet: ${topic}`,
         ].join("\n");
       } else if (task === "caption") {
         prompt = [
           ctx,
-          "Génère UN contenu social premium prêt à injecter dans le canvas du carrousel.",
+          "Génère UN post social premium prêt à injecter dans un canvas.",
           "Structure obligatoire : HOOK, BODY, CTA.",
-          "HOOK : 1 à 3 phrases fortes qui posent l'idée centrale de la slide active.",
-          "BODY : 2 à 4 courts paragraphes qui clarifient l'idée et donnent envie de lire la suite du carrousel.",
-          "CTA : 1 phrase finale claire, orientée sauvegarde, commentaire, DM ou prochaine action.",
+          "HOOK : 1 à 3 phrases fortes, très lisibles, qui arrêtent le scroll.",
+          "BODY : 2 à 4 courts paragraphes qui clarifient l'idée, créent confiance et donnent envie d'agir.",
+          "CTA : 1 phrase finale claire, orientée commentaire, DM, sauvegarde ou action douce.",
           "Ne mets aucun hashtag. Ne donne aucune explication. Ne fais pas de liste technique.",
           "Format STRICT :",
           "HOOK: <texte>",
@@ -1873,23 +1858,33 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
       } else if (task === "cta") {
         prompt = [
           ctx,
-          "Génère 5 CTA courts adaptés à une slide de carrousel (DM mot-clé / commentaire mot-clé / lien bio).",
+          "Génère 5 CTA courts orientés conversion MRR (DM mot-clé / commentaire mot-clé / lien en bio).",
           "Format STRICT : 5 lignes maximum, 1 CTA par ligne, aucun paragraphe, aucune explication, aucun hashtag.",
           `Sujet: ${topic}`,
         ].join("\n");
       } else if (task === "hashtags") {
         prompt = [
           ctx,
-          "Génère exactement 5 hashtags performants et réellement utilisés actuellement pour accompagner ce carrousel.",
+          "Génère exactement 5 hashtags performants et réellement utilisés actuellement pour le sujet, en français + quelques EN si utile.",
           "Format STRICT : une seule ligne composée uniquement de 5 hashtags séparés par des espaces.",
           "Aucun mot hors hashtag. Aucune phrase. Aucune explication.",
           `Sujet: ${topic}`,
         ].join("\n");
-      } else {
-        const currentText = String((targetLayer as any)?.text ?? "").trim();
+      } else if (task === "ab") {
         prompt = [
           ctx,
-          "Réécris et améliore ce texte pour le rendre plus clair, plus humain, plus persuasif et orienté MRR.",
+          "Crée 2 versions (A et B) d'une caption prête à poster.",
+          "A = style très direct / conversion. B = storytelling crédible.",
+          "Format STRICT :",
+          "A: <texte>",
+          "B: <texte>",
+          `Sujet: ${topic}`,
+        ].join("\n");
+      } else {
+        // rewrite
+        prompt = [
+          ctx,
+          "Réécris et améliore ce texte pour le rendre plus clair, plus persuasif et orienté MRR.",
           "Ne renvoie QUE le texte final.",
           `TEXTE:\n${currentText || topic}`,
         ].join("\n");
@@ -1897,7 +1892,7 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
 
       const out = task === "caption"
         ? await generateSocialAiLive({
-            format: "carrousel",
+            format: "post",
             network,
             goal: objective,
             objective,
@@ -1913,6 +1908,7 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
             max_length: maxChars > 0 ? maxChars : undefined,
           });
 
+      // Parse hooks if needed
       if (task === "hooks") {
         const lines = out
           .split(/\r?\n/)
@@ -1934,31 +1930,21 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
     }
   }
 
-  const [copilotOpen, setCopilotOpen] = useState<boolean>(() => {
-    if (typeof window === "undefined") return true;
-    const v = window.localStorage.getItem(LS_CARROUSEL_COPILOT_OPEN);
-    if (v === "0") return false;
-    if (v === "1") return true;
-    return true;
-  });
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(LS_CARROUSEL_COPILOT_OPEN, copilotOpen ? "1" : "0");
-  }, [copilotOpen]);
-
   const copilotDisabled = !apiBase();
 
+  // ✅ Coach brief → Copilot injection (subject + objective + angle + auto-first-caption)
   useEffect(() => {
     const b = (brief || "").trim();
     if (!b) return;
 
     const sig = normalizeBriefSig(b);
 
+    // 1) Pré-remplir le sujet / idée (non-destructif)
     if (!userTouchedIdeaRef.current) {
       setIdea((prev) => (prev && prev.trim().length > 0 ? prev : b));
     }
 
+    // 2) Objectif & Angle auto (non-destructif)
     if (!userTouchedObjectiveRef.current) {
       const inferredObj = inferObjectiveFromBrief(b);
       setObjective((prev) => (userTouchedObjectiveRef.current ? prev : inferredObj));
@@ -1969,11 +1955,14 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
       setAngle((prev) => (userTouchedAngleRef.current ? prev : inferredAngle));
     }
 
+    // 3) Auto-génération (caption) une seule fois par brief (si API dispo)
     if (copilotDisabled) return;
     if (aiLoading) return;
 
+    // anti-loop: une seule fois par brief
     if (lastInjectedBriefSigRef.current === sig) return;
 
+    // si l'utilisateur a déjà un output, ne force pas (évite de surprendre)
     if (aiOutput && aiOutput.trim().length > 0) {
       lastInjectedBriefSigRef.current = sig;
       return;
@@ -1981,111 +1970,51 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
 
     lastInjectedBriefSigRef.current = sig;
 
+    // run async, sans modifier la logique IA existante
+    // (le brief est déjà injecté dans le contexte via buildContext())
     setTimeout(() => {
-      runCopilot("slideText").catch(() => {});
-    }, 0);
-  }, [brief]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const [auditLoading, setAuditLoading] = useState(false);
-  const [auditError, setAuditError] = useState<string | null>(null);
-  const [auditResult, setAuditResult] = useState<string>("");
-
-  const lastAuditSigRef = useRef<string>("");
-
-  const computeSlideText = useCallback(() => {
-    const layers = activeSlide?.layers ?? [];
-    const parts = layers
-      .filter((l: any) => l?.type === "text")
-      .map((l: any) => String(l?.text ?? "").trim())
-      .filter(Boolean);
-    return parts.join("\n");
-  }, [activeSlide?.layers]);
-
-  const buildAuditPrompt = useCallback(() => {
-    const slideText = computeSlideText();
-    const ctx = [
-      "Tu es LGD Audit IA : expert marketing digital, copywriting, psychologie de l'attention, conversion MRR (Master Resell Rights).",
-      "Tu analyses une SEULE slide de carrousel (Instagram) : lisibilité, clarté, engagement, persuasion, cohérence MRR.",
-      "Tu ne modifies pas le texte : lecture seule. Tu donnes un diagnostic + correctifs actionnables.",
-      "Format STRICT:",
-      "SCORE: <0-100>",
-      "FORCES: - ... (3 max)",
-      "FAIBLESSES: - ... (3 max)",
-      "CORRECTIFS: - ... (5 max, concrets)",
-      "VERSION PROPOSÉE (optionnelle): <une version améliorée très courte, si pertinent>",
-      "---",
-      `Slide (texte):\n${slideText || "(aucun texte détecté)"}`,
-    ].join("\n");
-    return ctx;
-  }, [computeSlideText]);
-
-  const runAudit = useCallback(async () => {
-    setAuditError(null);
-    setAuditLoading(true);
-
-    try {
-      const prompt = buildAuditPrompt();
-      const sig = JSON.stringify({ prompt });
-      if (sig === lastAuditSigRef.current && auditResult) {
-        setAuditLoading(false);
-        return;
-      }
-      lastAuditSigRef.current = sig;
-
-      const out = await aiRewriteText({
-        text: prompt,
-        tone: "audit expert, franc, actionnable",
-        max_length: 0,
+      runCopilot("caption").catch(() => {
+        // runCopilot gère déjà l'erreur
       });
-
-      setAuditResult(out);
-    } catch (e: any) {
-      setAuditError(e?.message || "Erreur Audit IA");
-    } finally {
-      setAuditLoading(false);
-    }
-  }, [buildAuditPrompt, auditResult]);
-
-  const clearAudit = useCallback(() => {
-    setAuditResult("");
-    setAuditError(null);
-    lastAuditSigRef.current = "";
-  }, []);
+    }, 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [brief]);
 
   const plannerTitle = useMemo(() => {
-    const slideTexts = slides
-      .flatMap((slide) => (slide.layers || []).map((layer: any) => String(layer?.text || "").trim()).filter(Boolean));
-    return clip(slideTexts[0] || idea || brief || "Carrousel intelligent LGD", 72);
-  }, [slides, idea, brief]);
+    const firstText = textLayers
+      .map((layer: any) => String(layer?.text || "").trim())
+      .find(Boolean);
+    return clip(firstText || idea || brief || "Post intelligent LGD", 72);
+  }, [textLayers, idea, brief]);
 
   const handleScheduleConfirm = useCallback(
     async ({ reseau, date_programmee, titre }: { reseau: string; date_programmee: string; titre?: string }) => {
-      const safeSlides = slides.map((slide) => ({ id: slide.id, layers: slide.layers }));
+      const safeLayers = Array.isArray(draftLayers) ? draftLayers : [];
       let previewImage = "";
 
-      try {
-        previewImage = await renderEditorCreationToDataUrl({
-          mode: "carrousel",
-          draft: {
-            ui: draftUI,
-            slides: safeSlides,
-          },
-          slideIndex: 0,
-        });
-      } catch (error) {
-        console.error("LGD planner snapshot error (carrousel):", error);
+      if (safeLayers.length) {
+        try {
+          previewImage = await renderEditorCreationToDataUrl({
+            mode: "post",
+            draft: {
+              ui: draftUI,
+              layers: safeLayers,
+            },
+          });
+        } catch (error) {
+          console.error("LGD planner snapshot error (post):", error);
+        }
       }
 
       await schedule({
         reseau,
         date_programmee,
         titre: titre || plannerTitle,
-        format: "carrousel",
-        slides: safeSlides,
+        format: "post",
         contenu: {
           title: titre || plannerTitle,
-          type: "carrousel",
-          slides: safeSlides,
+          type: "post",
+          layers: safeLayers,
           ui: draftUI,
           brief: brief || "",
           preview_image: previewImage || undefined,
@@ -2095,12 +2024,13 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
       setScheduleOpen(false);
       if (typeof window !== "undefined") window.alert("✅ Ajouté au Planner !");
     },
-    [schedule, plannerTitle, slides, draftUI, brief]
+    [schedule, plannerTitle, draftLayers, draftUI, brief]
   );
 
   return (
-    <div className="w-full flex justify-center">
-      <div className="mx-auto mt-20 w-full max-w-[1800px] px-6 pb-16">
+    <div className="w-full flex justify-center pt-[110px] pb-20">
+      {/* ================= CANVAS XL WRAPPER ================= */}
+      <div className="w-full max-w-[1600px] px-6">
         <div
           className="rounded-3xl p-8"
           style={{
@@ -2108,159 +2038,102 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
             border: "1px solid rgba(255,184,0,0.25)",
           }}
         >
-          <div className="w-full">
-            {!briefDismissed && (brief || "").trim() ? (
-              <div className="mb-6 rounded-3xl border border-yellow-500/20 bg-yellow-500/10 px-5 py-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-yellow-200 font-semibold">Brief reçu du Coach Alex V2</div>
-                    <div className="mt-1 text-sm text-yellow-100/80 whitespace-pre-wrap">{(brief || "").trim()}</div>
-                    <div className="mt-2 text-[11px] text-white/55">
-                      ✅ Injecté automatiquement dans le Copilot (Sujet + Objectif + Angle + 1ère génération).
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setBriefDismissed(true)}
-                    className="shrink-0 rounded-xl border border-yellow-500/25 bg-black/30 px-3 py-2 text-xs font-semibold text-yellow-200 hover:bg-black/45"
-                  >
-                    Ignorer
-                  </button>
-                </div>
-              </div>
-            ) : null}
-
-            <div className="mb-5 rounded-2xl border border-yellow-500/15 bg-black/30 p-4">
-              <div className="flex items-center justify-between gap-3">
+          {/* ================= COACH BRIEF (injected) ================= */}
+          {!briefDismissed && (brief || "").trim() ? (
+            <div className="mb-6 rounded-3xl border border-yellow-500/20 bg-yellow-500/10 px-5 py-4">
+              <div className="flex items-start justify-between gap-3">
                 <div>
-                  <div className="text-yellow-200 font-semibold">Audit IA — Slide active</div>
-                  <div className="text-white/50 text-sm">
-                    Lecture seule (ne modifie rien) • Score + forces/faiblesses + correctifs actionnables (MRR).
+                  <div className="text-yellow-200 font-semibold">Brief reçu du Coach Alex V2</div>
+                  <div className="mt-1 text-sm text-yellow-100/80 whitespace-pre-wrap">{(brief || "").trim()}</div>
+                  <div className="mt-2 text-[11px] text-white/55">
+                    ✅ Injecté automatiquement dans le Copilot (Sujet + Objectif + Angle + 1ère génération).
                   </div>
                 </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={runAudit}
-                    disabled={auditLoading || copilotDisabled}
-                    className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
-                  >
-                    {auditLoading ? "Analyse…" : "🔎 Lancer l’audit"}
-                  </button>
-                  <button
-                    onClick={clearAudit}
-                    className="rounded-xl px-3 py-2 text-sm text-yellow-100 border border-yellow-500/20 bg-black/40 hover:bg-black/60"
-                  >
-                    Effacer
-                  </button>
-                </div>
-              </div>
-
-              {copilotDisabled ? (
-                <div className="mt-3 rounded-2xl border border-red-500/20 bg-red-500/10 p-3 text-red-200 text-sm">
-                  NEXT_PUBLIC_API_URL manquant côté frontend.
-                </div>
-              ) : null}
-
-              {auditError ? (
-                <div className="mt-3 rounded-2xl border border-red-500/20 bg-red-500/10 p-3 text-red-200 text-sm">
-                  {auditError}
-                </div>
-              ) : null}
-
-              {auditResult ? (
-                <textarea
-                  value={auditResult}
-                  readOnly
-                  rows={6}
-                  className="mt-3 w-full rounded-2xl bg-black/40 border border-yellow-500/15 px-4 py-3 text-yellow-100 outline-none"
-                />
-              ) : (
-                <div className="mt-3 text-[12px] text-white/45">
-                  Texte détecté sur la slide active : {computeSlideText() ? "oui" : "non"}.
-                </div>
-              )}
-            </div>
-
-            <div className="mb-6 rounded-3xl border border-yellow-500/15 bg-black/30">
-              <div className="flex items-center justify-between gap-3 px-5 py-4">
-                <div>
-                  <div className="text-yellow-200 font-semibold">Copilot IA — Carrousel (Marketing digital • MRR)</div>
-                  <div className="text-white/55 text-sm">Slide active uniquement • texte-only • hooks/légende/hashtags/CTA (safe)</div>
-                </div>
-
                 <button
-                  onClick={() => setCopilotOpen((v) => !v)}
-                  className="rounded-xl border border-yellow-500/25 bg-black/40 px-4 py-2 text-sm font-semibold text-yellow-200 hover:bg-black/55"
+                  type="button"
+                  onClick={() => setBriefDismissed(true)}
+                  className="shrink-0 rounded-xl border border-yellow-500/25 bg-black/30 px-3 py-2 text-xs font-semibold text-yellow-200 hover:bg-black/45"
                 >
-                  {copilotOpen ? "Masquer" : "Afficher"}
+                  Ignorer
                 </button>
               </div>
+            </div>
+          ) : null}
 
-              {copilotOpen ? (
-                <div className="px-5 pb-5">
-                  <div className="flex flex-wrap gap-2">
+          {/* ================= IA COPILOT (POST 1:1) ================= */}
+          <div
+            className="mb-6 rounded-3xl p-5"
+            style={{
+              background: "rgba(0,0,0,0.35)",
+              border: "1px solid rgba(255,184,0,0.18)",
+            }}
+          >
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+              <div>
+                <div className="text-yellow-200 font-semibold text-lg">Copilot IA — Post 1:1 (Marketing digital • MRR)</div>
+                <div className="text-white/60 text-sm">
+                  Génère hooks, légende courte, CTA, hashtags et variantes orientés produits digitaux & Master Resell Rights. (texte-only, safe)
+                </div>
+              </div>
 
-                    <button
-                      type="button"
-                      onClick={() => setPromptLibraryOpen((v) => !v)}
-                      className="rounded-xl px-3 py-2 text-sm font-semibold border border-yellow-500/25 bg-yellow-500/10 text-yellow-200 hover:bg-yellow-500/15"
-                    >
-                      ✨ Performeur Réseaux™
-                    </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => setCopilotOpen((v) => !v)}
+                  className="rounded-xl px-3 py-2 text-sm font-semibold border border-yellow-500/25 bg-black/30 text-yellow-200 hover:bg-black/45"
+                >
+                  {copilotOpen ? "▾ Masquer l’IA" : "▸ Afficher l’IA"}
+                </button>
 
-                    <button
-                      onClick={() => runCopilot("hooks")}
-                      disabled={aiLoading || copilotDisabled}
-                      className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
-                    >
-                      Hooks x10
-                    </button>
-                    <button
-                      onClick={() => runCopilot("slideText")}
-                      disabled={aiLoading || copilotDisabled}
-                      className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
-                    >
-                      Texte slide
-                    </button>
-                    <button
-                      onClick={() => runCopilot("steps")}
-                      disabled={aiLoading || copilotDisabled}
-                      className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
-                    >
-                      3 étapes
-                    </button>
-                    <button
-                      onClick={() => runCopilot("caption")}
-                      disabled={aiLoading || copilotDisabled}
-                      className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
-                    >
-                      Légende IA
-                    </button>
-                    <button
-                      onClick={() => runCopilot("cta")}
-                      disabled={aiLoading || copilotDisabled}
-                      className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
-                    >
-                      CTA
-                    </button>
-                    <button
-                      onClick={() => runCopilot("hashtags")}
-                      disabled={aiLoading || copilotDisabled}
-                      className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
-                    >
-                      Hashtags
-                    </button>
-                    <button
-                      onClick={() => runCopilot("rewrite")}
-                      disabled={aiLoading || copilotDisabled || !targetLayerId}
-                      className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
-                    >
-                      Réécrire
-                    </button>
-                  </div>
 
-                  <div className="mt-4 grid grid-cols-1 lg:grid-cols-12 gap-4">
+                <button
+                  type="button"
+                  onClick={() => setPromptLibraryOpen((v) => !v)}
+                  className="rounded-xl px-3 py-2 text-sm font-semibold border border-yellow-500/25 bg-yellow-500/10 text-yellow-200 hover:bg-yellow-500/15"
+                >
+                  ✨ Performeur Réseaux™
+                </button>
+
+
+                <button
+                  onClick={() => runCopilot("hooks")}
+                  disabled={aiLoading || copilotDisabled}
+                  className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
+                >
+                  Hooks x10
+                </button>
+                <button
+                  onClick={() => runCopilot("caption")}
+                  disabled={aiLoading || copilotDisabled}
+                  className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
+                >
+                  Légende IA
+                </button>
+                <button
+                  onClick={() => runCopilot("cta")}
+                  disabled={aiLoading || copilotDisabled}
+                  className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
+                >
+                  CTA
+                </button>
+                <button
+                  onClick={() => runCopilot("hashtags")}
+                  disabled={aiLoading || copilotDisabled}
+                  className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
+                >
+                  Hashtags
+                </button>
+                <button
+                  onClick={() => runCopilot("ab")}
+                  disabled={aiLoading || copilotDisabled}
+                  className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
+                >
+                  Variantes A/B
+                </button>
+              </div>
+            </div>
+
+            {copilotOpen && (
+              <div className="mt-4 grid grid-cols-1 lg:grid-cols-12 gap-4">
 
                 {promptLibraryOpen ? (
                   <div className="lg:col-span-12 rounded-3xl border border-yellow-500/20 bg-black/35 p-4">
@@ -2352,279 +2225,248 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
                   </div>
                 ) : null}
 
-                    <div className="lg:col-span-4">
-                      <label className="block text-yellow-300 text-xs mb-2">Sujet / idée (optionnel)</label>
-                      <input
-                        value={idea}
-                        onChange={(e) => {
-                          userTouchedIdeaRef.current = true;
-                          setIdea(e.target.value);
-                        }}
-                        placeholder="Ex : 3 erreurs MRR qui te bloquent…"
+                <div className="lg:col-span-4">
+                  <label className="block text-yellow-300 text-xs mb-2">Sujet / idée (optionnel)</label>
+                  <input
+                    value={idea}
+                    onChange={(e) => {
+                      userTouchedIdeaRef.current = true;
+                      setIdea(e.target.value);
+                    }}
+                    placeholder="Ex : vendre une formation MRR sans audience…"
+                    className="w-full rounded-2xl bg-black/40 border border-yellow-500/20 px-4 py-3 text-yellow-100 outline-none"
+                  />
+
+                  <div className="mt-3 grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-yellow-300 text-xs mb-2">Réseau</label>
+                      <select
+                        value={network}
+                        onChange={(e) => setNetwork(e.target.value as Network)}
                         className="w-full rounded-2xl bg-black/40 border border-yellow-500/20 px-4 py-3 text-yellow-100 outline-none"
-                      />
-
-                      <div className="mt-3 grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-yellow-300 text-xs mb-2">Réseau</label>
-                          <select
-                            value={network}
-                            onChange={(e) => setNetwork(e.target.value as Network)}
-                            className="w-full rounded-2xl bg-black/40 border border-yellow-500/20 px-4 py-3 text-yellow-100 outline-none"
-                          >
-                            <option>Instagram</option>
-                            <option>TikTok</option>
-                            <option>LinkedIn</option>
-                            <option>Facebook</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-yellow-300 text-xs mb-2">Objectif</label>
-                          <select
-                            value={objective}
-                            onChange={(e) => {
-                              userTouchedObjectiveRef.current = true;
-                              setObjective(e.target.value as Objective);
-                            }}
-                            className="w-full rounded-2xl bg-black/40 border border-yellow-500/20 px-4 py-3 text-yellow-100 outline-none"
-                          >
-                            <option>Attirer</option>
-                            <option>Éduquer</option>
-                            <option>Convertir</option>
-                            <option>Story</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="mt-3">
-                        <label className="block text-yellow-300 text-xs mb-2">Angle</label>
-                        <select
-                          value={angle}
-                          onChange={(e) => {
-                            userTouchedAngleRef.current = true;
-                            setAngle(e.target.value as Angle);
-                          }}
-                          className="w-full rounded-2xl bg-black/40 border border-yellow-500/20 px-4 py-3 text-yellow-100 outline-none"
-                        >
-                          <option>MRR débutant</option>
-                          <option>Produit digital</option>
-                          <option>Objection</option>
-                          <option>Storytelling</option>
-                          <option>Preuve</option>
-                          <option>Tutoriel</option>
-                          <option>Erreur fréquente</option>
-                          <option>Mindset / discipline</option>
-                        </select>
-                      </div>
-
-                      <div className="mt-3">
-                        <label className="block text-yellow-300 text-xs mb-2">Ton / Style (LGD)</label>
-                        <input
-                          value={tone}
-                          onChange={(e) => setTone(e.target.value)}
-                          className="w-full rounded-2xl bg-black/40 border border-yellow-500/20 px-4 py-3 text-yellow-100 outline-none"
-                        />
-                      </div>
-
-                      <div className="mt-3">
-                        <label className="block text-yellow-300 text-xs mb-2">Appliquer sur le layer texte (slide active)</label>
-                        <select
-                          value={targetLayerId}
-                          onChange={(e) => setTargetLayerId(e.target.value)}
-                          className="w-full rounded-2xl bg-black/40 border border-yellow-500/20 px-4 py-3 text-yellow-100 outline-none"
-                        >
-                          {textLayers.length === 0 ? <option value="">Aucun layer texte</option> : null}
-                          {textLayers.map((l: any) => (
-                            <option key={String(l.id)} value={String(l.id)}>
-                              {String(l.id)} — “{clip(String(l.text || ""))}”
-                            </option>
-                          ))}
-                        </select>
-
-                        <div className="mt-2 flex flex-wrap items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => syncEditorSelection(targetLayerId || defaultTargetId)}
-                            disabled={!targetLayerId && !defaultTargetId}
-                            className="rounded-xl px-3 py-2 text-xs text-yellow-100 border border-yellow-500/20 bg-black/40 hover:bg-black/60 disabled:opacity-60"
-                          >
-                            Sélectionner ce layer dans l’éditeur
-                          </button>
-                          <div className="text-[11px] text-white/45">La cible texte reste synchronisée avec la slide active.</div>
-                        </div>
-                      </div>
+                      >
+                        <option>Instagram</option>
+                        <option>TikTok</option>
+                        <option>LinkedIn</option>
+                        <option>Facebook</option>
+                      </select>
                     </div>
+                    <div>
+                      <label className="block text-yellow-300 text-xs mb-2">Objectif</label>
+                      <select
+                        value={objective}
+                        onChange={(e) => {
+                          userTouchedObjectiveRef.current = true;
+                          setObjective(e.target.value as Objective);
+                        }}
+                        className="w-full rounded-2xl bg-black/40 border border-yellow-500/20 px-4 py-3 text-yellow-100 outline-none"
+                      >
+                        <option>Attirer</option>
+                        <option>Éduquer</option>
+                        <option>Convertir</option>
+                        <option>Story</option>
+                      </select>
+                    </div>
+                  </div>
 
-                    <div className="lg:col-span-8">
-                      <div className="rounded-3xl p-4 bg-black/30 border border-yellow-500/15">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="text-yellow-200 font-semibold">Résultat IA</div>
-                          <div className="flex flex-wrap items-center justify-end gap-2">
-                            <button
-                              onClick={() => runCopilot("caption")}
-                              disabled={aiLoading || copilotDisabled}
-                              className="rounded-xl px-4 py-2 text-sm font-extrabold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60 shadow-[0_0_18px_rgba(255,184,0,0.16)]"
-                              title="Génère un contenu complet avec le scénario Performeur Réseaux™, le réseau, l’objectif, l’angle et le ton sélectionnés."
-                            >
-                              ✨ Générer Performeur
-                            </button>
-                            <button
-                              onClick={() => applyToLayer(aiOutput)}
-                              disabled={aiLoading || !aiOutput || textLayers.length === 0}
-                              className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
-                            >
-                              Appliquer au layer
-                            </button>
-                            <button
-                              onClick={() => {
-                                setAiOutput("");
-                                setAiHooks([]);
-                                setAiError(null);
-                              }}
-                              className="rounded-xl px-3 py-2 text-sm text-yellow-100 border border-yellow-500/20 bg-black/40 hover:bg-black/60"
-                            >
-                              Effacer
-                            </button>
-                          </div>
-                        </div>
+                  <div className="mt-3">
+                    <label className="block text-yellow-300 text-xs mb-2">Angle</label>
+                    <select
+                      value={angle}
+                      onChange={(e) => {
+                        userTouchedAngleRef.current = true;
+                        setAngle(e.target.value as Angle);
+                      }}
+                      className="w-full rounded-2xl bg-black/40 border border-yellow-500/20 px-4 py-3 text-yellow-100 outline-none"
+                    >
+                      <option>MRR débutant</option>
+                      <option>Produit digital</option>
+                      <option>Objection</option>
+                      <option>Storytelling</option>
+                      <option>Preuve</option>
+                      <option>Tutoriel</option>
+                      <option>Erreur fréquente</option>
+                      <option>Mindset / discipline</option>
+                    </select>
+                  </div>
 
-                        {aiError ? (
-                          <div className="mt-3 rounded-2xl border border-red-500/20 bg-red-500/10 p-3 text-red-200 text-sm">
-                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                              <div>{aiError}</div>
-                              {isQuotaError(aiError) ? (
-                                <button
-                                  type="button"
-                                  onClick={openPlans}
-                                  className="shrink-0 rounded-xl border border-yellow-500/25 bg-black/35 px-3 py-2 text-xs font-semibold text-yellow-200 hover:bg-black/50"
-                                >
-                                  Voir les plans
-                                </button>
-                              ) : null}
-                            </div>
-                          </div>
-                        ) : null}
+                  <div className="mt-3">
+                    <label className="block text-yellow-300 text-xs mb-2">Ton / Style (LGD)</label>
+                    <input
+                      value={tone}
+                      onChange={(e) => setTone(e.target.value)}
+                      className="w-full rounded-2xl bg-black/40 border border-yellow-500/20 px-4 py-3 text-yellow-100 outline-none"
+                    />
+                  </div>
 
-                        {aiLoading ? (
-                          <div className="mt-3 rounded-2xl border border-yellow-500/15 bg-black/25 px-4 py-8">
-                            <div className="flex flex-col items-center justify-center gap-4">
-                              <div className="h-8 w-8 animate-spin rounded-full border-2 border-yellow-400 border-t-transparent" />
-                              <div className="text-sm text-white/70">Génération IA en cours...</div>
-                              <div className="text-xs text-white/45 text-center">
-                                LGD prépare une proposition premium à injecter dans ton carrousel.
-                              </div>
-                            </div>
-                          </div>
-                        ) : aiHooks.length > 0 ? (
-                          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
-                            {aiHooks.map((h, idx) => (
-                              <button
-                                key={`${idx}-${h}`}
-                                onClick={() => {
-                                  setAiOutput(h);
-                                  applyToLayer(h);
-                                }}
-                                className="text-left rounded-2xl border border-yellow-500/15 bg-black/40 hover:bg-black/55 px-4 py-3 text-yellow-100"
-                              >
-                                <div className="text-[11px] text-white/45 mb-1">Suggestion {idx + 1}</div>
-                                <div className="text-sm font-semibold">{h}</div>
-                              </button>
-                            ))}
-                          </div>
-                        ) : (
-                          <>
-                            <textarea
-                              value={aiOutput}
-                              onChange={(e) => setAiOutput(e.target.value)}
-                              placeholder="Les résultats IA apparaîtront ici…"
-                              rows={8}
-                              className="mt-3 w-full rounded-2xl bg-black/40 border border-yellow-500/15 px-4 py-3 text-yellow-100 outline-none"
-                            />
-                           {aiOutput ? (
-  <div className="mt-3 text-[11px] text-white/45">
-    {aiOutput.startsWith("#")
-      ? "Mode attendu : uniquement des hashtags."
-      : aiOutput.includes("\n")
-      ? "Mode attendu : uniquement des CTA, 1 par ligne."
-      : "Mode attendu : uniquement une légende courte, sans CTA ni hashtags."}
-  </div>
-) : null}
-                          </>
-                        )}
+                  <div className="mt-3">
+                    <label className="block text-yellow-300 text-xs mb-2">Appliquer sur le layer texte</label>
+                    <select
+                      value={targetLayerId}
+                      onChange={(e) => setTargetLayerId(e.target.value)}
+                      className="w-full rounded-2xl bg-black/40 border border-yellow-500/20 px-4 py-3 text-yellow-100 outline-none"
+                    >
+                      {textLayers.length === 0 ? <option value="">Aucun layer texte</option> : null}
+                      {textLayers.map((l: any) => (
+                        <option key={String(l.id)} value={String(l.id)}>
+                          {String(l.id)} — “{clip(String(l.text || ""))}”
+                        </option>
+                      ))}
+                    </select>
 
-                        {targetLayer ? (
-                          <div className="mt-3 text-[11px] text-white/45">
-                            Layer cible : <span className="text-yellow-200">{String((targetLayer as any)?.id || "")}</span>
-                          </div>
-                        ) : null}
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => syncEditorSelection(targetLayerId || defaultTargetId)}
+                        disabled={!targetLayerId && !defaultTargetId}
+                        className="rounded-xl px-3 py-2 text-xs text-yellow-100 border border-yellow-500/20 bg-black/40 hover:bg-black/60 disabled:opacity-60"
+                      >
+                        Sélectionner ce layer dans l’éditeur
+                      </button>
+                      <div className="text-[11px] text-white/45">
+                        Pour changer la <span className="text-yellow-200">couleur</span>, clique ce bouton puis utilise le panneau Propriétés.
                       </div>
                     </div>
                   </div>
                 </div>
-              ) : null}
-            </div>
 
+                <div className="lg:col-span-8">
+                  <div className="rounded-3xl p-4 bg-black/30 border border-yellow-500/15">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="text-yellow-200 font-semibold">Résultat IA</div>
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        <button
+                          onClick={() => runCopilot("caption")}
+                          disabled={aiLoading || copilotDisabled}
+                          className="rounded-xl px-4 py-2 text-sm font-extrabold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60 shadow-[0_0_18px_rgba(255,184,0,0.16)]"
+                          title="Génère un contenu complet avec le scénario Performeur Réseaux™, le réseau, l’objectif, l’angle et le ton sélectionnés."
+                        >
+                          ✨ Générer Performeur
+                        </button>
+                        <button
+                          onClick={() => injectCopilotOutputToCanvas(aiOutput)}
+                          disabled={aiLoading || !aiOutput || lastCopilotTask === "hashtags"}
+                          className="rounded-xl px-3 py-2 text-sm font-semibold text-black bg-[#ffb800] hover:brightness-110 disabled:opacity-60"
+                        >
+                          Injecter dans le canvas
+                        </button>
+                        <button
+                          onClick={() => applyToLayer(aiOutput)}
+                          disabled={aiLoading || !aiOutput || textLayers.length === 0}
+                          className="rounded-xl px-3 py-2 text-sm font-semibold text-yellow-100 border border-yellow-500/25 bg-black/40 hover:bg-black/55 disabled:opacity-60"
+                        >
+                          Appliquer au layer
+                        </button>
+                        <button
+                          onClick={() => {
+                            setAiOutput("");
+                            setAiHooks([]);
+                            setAiError(null);
+                          }}
+                          className="rounded-xl px-3 py-2 text-sm text-yellow-100 border border-yellow-500/20 bg-black/40 hover:bg-black/60"
+                        >
+                          Effacer
+                        </button>
+                      </div>
+                    </div>
 
+                    {copilotDisabled ? (
+                      <div className="mt-3 rounded-2xl border border-red-500/20 bg-red-500/10 p-3 text-red-200 text-sm">
+                        NEXT_PUBLIC_API_URL manquant côté frontend.
+                      </div>
+                    ) : null}
+
+                    {aiError ? (
+                      <div className="mt-3 rounded-2xl border border-red-500/20 bg-red-500/10 p-3 text-red-200 text-sm">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                          <div>{aiError}</div>
+                          {isQuotaError(aiError) ? (
+                            <button
+                              type="button"
+                              onClick={openPlans}
+                              className="shrink-0 rounded-xl border border-yellow-500/25 bg-black/35 px-3 py-2 text-xs font-semibold text-yellow-200 hover:bg-black/50"
+                            >
+                              Voir les plans
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {aiLoading ? (
+                      <div className="mt-3 rounded-2xl border border-yellow-500/15 bg-black/25 px-4 py-8">
+                        <div className="flex flex-col items-center justify-center gap-4">
+                          <div className="h-8 w-8 animate-spin rounded-full border-2 border-yellow-400 border-t-transparent" />
+                          <div className="text-sm text-white/70">Génération IA en cours...</div>
+                          <div className="text-xs text-white/45 text-center">
+                            LGD prépare une proposition premium à injecter dans ton post.
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {!aiLoading && aiHooks.length > 0 ? (
+                      <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {aiHooks.map((h, idx) => (
+                          <button
+                            key={`${idx}-${h}`}
+                            onClick={() => {
+                              setAiOutput(h);
+                              applyToLayer(h);
+                            }}
+                            className="text-left rounded-2xl border border-yellow-500/15 bg-black/40 hover:bg-black/55 px-4 py-3 text-yellow-100"
+                          >
+                            <div className="text-[11px] text-white/45 mb-1">Hook {idx + 1}</div>
+                            <div className="text-sm font-semibold">{h}</div>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <textarea
+                        value={aiOutput}
+                        onChange={(e) => setAiOutput(e.target.value)}
+                        placeholder="Les résultats IA apparaîtront ici…"
+                        rows={10}
+                        className="mt-3 w-full rounded-2xl bg-black/40 border border-yellow-500/15 px-4 py-3 text-yellow-100 outline-none"
+                      />
+                    )}
+
+                    <div className="mt-3 text-[11px] text-white/45">
+                      Note : l’IA est volontairement spécialisée “marketing digital / produits digitaux / MRR”. Si tu sors du scope, elle recadre.
+                    </div>
+                  </div>
+
+                  {targetLayer ? (
+                    <div className="mt-3 text-[11px] text-white/45">
+                      Layer cible actuel : <span className="text-yellow-200">{String((targetLayer as any)?.id || "")}</span>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ================= EDITOR ================= */}
+
+          <div className="w-full min-h-[820px] flex justify-center">
             <EditorLayout
-              key={`${activeSlideId}-${editorRefreshKey}`}
-              initialLayers={activeSlide?.layers ?? []}
-              initialLayersKey={`${activeSlideId}-${editorRefreshKey}`}
+              initialLayersKey={initialLayersKey}
+              initialLayers={draftLayers}
               initialUI={draftUI}
               onUIChange={handleUIChange}
-              onChange={updateLayers}
+              onChange={handleLayersChange}
               mobileToolsOpen={mobileToolsOpen}
               onCloseMobileTools={onCloseMobileTools}
             />
-
-            <SchedulePlannerModal
-              open={scheduleOpen}
-              loading={scheduleLoading}
-              defaultTitle={plannerTitle}
-              onClose={() => setScheduleOpen(false)}
-              onConfirm={handleScheduleConfirm}
-            />
-
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-              {slides.map((s, idx) => {
-                const active = s.id === activeSlideId;
-                return (
-                  <button
-                    key={s.id}
-                    onClick={() => setActiveSlideId(s.id)}
-                    className={[
-                      "px-4 py-2 rounded-xl border text-sm",
-                      active
-                        ? "bg-[#ffb800] text-black border-[#ffb800]"
-                        : "bg-black/40 text-yellow-100 border-yellow-500/20 hover:bg-black/55",
-                    ].join(" ")}
-                  >
-                    Slide {idx + 1}
-                  </button>
-                );
-              })}
-
-              <button
-                onClick={addSlide}
-                className="px-4 py-2 rounded-xl border border-yellow-500/25 bg-yellow-500/10 text-yellow-200 hover:bg-yellow-500/15"
-              >
-                + Ajouter
-              </button>
-
-              <button
-                onClick={duplicateActiveSlide}
-                className="px-4 py-2 rounded-xl border border-yellow-500/25 bg-yellow-500/10 text-yellow-200 hover:bg-yellow-500/15"
-              >
-                Dupliquer
-              </button>
-
-              <button
-                onClick={deleteActiveSlide}
-                className="px-4 py-2 rounded-xl border border-red-500/25 bg-red-500/10 text-red-200 hover:bg-red-500/15"
-              >
-                Supprimer
-              </button>
-            </div>
           </div>
+
+          <SchedulePlannerModal
+            open={scheduleOpen}
+            loading={scheduleLoading}
+            defaultTitle={plannerTitle}
+            onClose={() => setScheduleOpen(false)}
+            onConfirm={handleScheduleConfirm}
+          />
         </div>
       </div>
     </div>
