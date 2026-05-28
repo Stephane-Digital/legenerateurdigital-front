@@ -1107,10 +1107,9 @@ export default function EditorModeRouter() {
           ? prepared.draft
           : null;
 
-      // LGD FIX — Planner header
-      // Le draft envoyé au Planner doit être exactement celui préparé au clic
-      // "Envoyer dans Planner". On ne recalcule pas un draft potentiellement
-      // vide/incomplet au moment de la confirmation du modal.
+      // LGD FIX — le Planner doit utiliser le draft vivant préparé au clic header.
+      // Ne pas recalculer depuis l'état courant ici : selon le timing React,
+      // cela peut renvoyer un état compacté/vide et perdre les images/slides.
       const draft = preparedDraft || getDraft();
 
       if (!hasRenderableDraft(mode, draft)) {
@@ -1120,10 +1119,7 @@ export default function EditorModeRouter() {
       }
 
       const plannerTitle = titre || getPlannerTitleFromDraft(draft);
-      let previewImage =
-        prepared?.mode === mode && preparedDraft
-          ? prepared.previewImage || ""
-          : "";
+      let previewImage = preparedDraft ? prepared?.previewImage || "" : "";
 
       if (!previewImage) {
         try {
@@ -1156,8 +1152,11 @@ export default function EditorModeRouter() {
           brief: brief || "",
           preview_image: previewImage || undefined,
           planner_preview_image: previewImage || undefined,
+          rendered_image: previewImage || undefined,
         },
       });
+
+      plannerPreparedRef.current = null;
 
       setScheduleOpen(false);
       if (typeof window !== "undefined") window.alert("✅ Ajouté au Planner !");
