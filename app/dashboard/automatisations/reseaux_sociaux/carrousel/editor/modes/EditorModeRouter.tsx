@@ -80,7 +80,8 @@ async function idbSetEditorDraft(key: string, value: any) {
   });
 }
 
-async function idbGetEditorDraft(key: string): Promise<any | null> {
+
+async function idbGetEditorDraft(key: string) {
   const db = await openEditorDraftDB();
   if (!db) return null;
 
@@ -104,12 +105,16 @@ async function idbGetEditorDraft(key: string): Promise<any | null> {
   });
 }
 
-async function readEditorDraftWithFallback(key: string) {
+async function readPersistedEditorDraft(key: string) {
   if (typeof window === "undefined") return null;
-  const local = safeJsonParse(window.localStorage.getItem(key));
-  if (local && !local.__lgd_idb_draft__) return local;
-  const fromIdb = await idbGetEditorDraft(key);
-  return fromIdb || null;
+
+  const parsed = safeJsonParse(window.localStorage.getItem(key));
+  if (parsed?.__lgd_idb_draft__ || parsed?.key === key) {
+    const fromIdb = await idbGetEditorDraft(key);
+    if (fromIdb) return fromIdb;
+  }
+
+  return parsed;
 }
 
 function cleanupEditorLocalStorageForQuota(keepKey: string) {
@@ -736,11 +741,11 @@ export default function EditorModeRouter() {
     return () => window.removeEventListener("resize", apply);
   }, []);
 
-  const getDraft = async () => {
+  async function getDraft() {
     if (typeof window === "undefined") return null;
     const key = mode === "post" ? LS_POST : LS_CARROUSEL;
-    return await readEditorDraftWithFallback(key);
-  };
+    return await readPersistedEditorDraft(key);
+  }
 
   async function archiveMobilePhoto(file: File) {
     if (typeof window === "undefined") return;
