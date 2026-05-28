@@ -27,6 +27,7 @@ const LS_CARROUSEL = "lgd_editor_carrousel_draft_v5";
 // Dashboard progression bridge
 const LS_DASHBOARD_DAILY_PROGRESS = "lgd_dashboard_daily_progress";
 const LS_CMO_AUTO_PAYLOAD = "lgd_cmo_module_auto_payload";
+const LGD_EDITOR_LOAD_DRAFT_EVENT = "lgd:editor:load-draft";
 
 function safeJsonParse(raw: string | null) {
   if (!raw) return null;
@@ -367,6 +368,26 @@ function normalizeArchivePayload(raw: any): AnyObj {
   return payload || {};
 }
 
+function hasRenderableDraft(mode: Mode, draft: any) {
+  if (!draft || typeof draft !== "object") return false;
+  if (mode === "post") return Array.isArray(draft.layers) && draft.layers.length > 0;
+  if (!Array.isArray(draft.slides) || draft.slides.length === 0) return false;
+  return draft.slides.some((slide: any) => Array.isArray(slide?.layers) && slide.layers.length > 0);
+}
+
+function dispatchEditorDraft(mode: Mode, draft: any) {
+  if (typeof window === "undefined") return;
+  try {
+    window.dispatchEvent(
+      new CustomEvent(LGD_EDITOR_LOAD_DRAFT_EVENT, {
+        detail: { mode, draft, ts: Date.now() },
+      })
+    );
+  } catch {
+    // no-op
+  }
+}
+
 function extractArchivePostDraft(payloadLike: any) {
   const p = normalizeArchivePayload(payloadLike);
 
@@ -498,6 +519,7 @@ export default function EditorModeRouter() {
 
   const [loadingArchiveSelection, setLoadingArchiveSelection] = useState(false);
   const [archiveSelectionError, setArchiveSelectionError] = useState("");
+  const liveDraftRef = useRef<Record<Mode, any>>({ post: null, carrousel: null });
 
   useEffect(() => {
     const saved = typeof window !== "undefined" ? window.localStorage.getItem("lgd_editor_mode") : null;
@@ -533,16 +555,20 @@ export default function EditorModeRouter() {
         if (archiveKind === "post") {
           const draft = extractArchivePostDraft(payloadRaw);
           window.localStorage.setItem(LS_EDITOR_MODE, "post");
+          liveDraftRef.current.post = draft;
           await safePersistEditorDraft(LS_POST, draft);
           setMode("post");
+          window.setTimeout(() => dispatchEditorDraft("post", draft), 0);
         } else {
           const draft = extractArchiveCarrouselDraft(payloadRaw);
           window.localStorage.setItem(LS_EDITOR_MODE, "carrousel");
+          liveDraftRef.current.carrousel = draft;
           await safePersistEditorDraft(LS_CARROUSEL, draft);
           if (draft?.slides?.[0]?.id) {
             window.localStorage.setItem("lgd_editor_carrousel_active_slide_v5", String(draft.slides[0].id));
           }
           setMode("carrousel");
+          window.setTimeout(() => dispatchEditorDraft("carrousel", draft), 0);
         }
       } catch (e: any) {
         if (cancelled) return;
@@ -706,8 +732,15 @@ export default function EditorModeRouter() {
 
   const getDraft = () => {
     if (typeof window === "undefined") return null;
+
+    const liveDraft = liveDraftRef.current?.[mode];
+    if (hasRenderableDraft(mode, liveDraft)) return liveDraft;
+
     const key = mode === "post" ? LS_POST : LS_CARROUSEL;
-    return safeJsonParse(window.localStorage.getItem(key));
+    const storedDraft = safeJsonParse(window.localStorage.getItem(key));
+    if (hasRenderableDraft(mode, storedDraft)) return storedDraft;
+
+    return storedDraft || liveDraft || null;
   };
 
   async function archiveMobilePhoto(file: File) {
@@ -1007,7 +1040,11 @@ export default function EditorModeRouter() {
       </div>
 
       <div className="mx-auto mt-1 w-full max-w-[1800px] px-6 pb-16">
-        {mode === "post" ? <PostEditor brief={brief} /> : <CarrouselEditor brief={brief} />}
+        {mode === "post" ? (
+          <PostEditor brief={brief} onSnapshot={handlePostSnapshot} />
+        ) : (
+          <CarrouselEditor brief={brief} onSnapshot={handleCarrouselSnapshot} />
+        )}
       </div>
     </div>
   );
