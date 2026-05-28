@@ -1101,7 +1101,17 @@ export default function EditorModeRouter() {
 
   const handleScheduleConfirm = useCallback(
     async ({ reseau, date_programmee, titre }: { reseau: string; date_programmee: string; titre?: string }) => {
-      const draft = getDraft();
+      const prepared = plannerPreparedRef.current;
+      const preparedDraft =
+        prepared?.mode === mode && hasRenderableDraft(mode, prepared?.draft)
+          ? prepared.draft
+          : null;
+
+      // LGD FIX — Planner header
+      // Le draft envoyé au Planner doit être exactement celui préparé au clic
+      // "Envoyer dans Planner". On ne recalcule pas un draft potentiellement
+      // vide/incomplet au moment de la confirmation du modal.
+      const draft = preparedDraft || getDraft();
 
       if (!hasRenderableDraft(mode, draft)) {
         setArchiveMsg("❌ Aucun contenu à envoyer dans le Planner.");
@@ -1110,9 +1120,8 @@ export default function EditorModeRouter() {
       }
 
       const plannerTitle = titre || getPlannerTitleFromDraft(draft);
-      const prepared = plannerPreparedRef.current;
       let previewImage =
-        prepared?.mode === mode && prepared?.draft === draft
+        prepared?.mode === mode && preparedDraft
           ? prepared.previewImage || ""
           : "";
 
