@@ -13,6 +13,9 @@ interface Props {
 
   // ✅ Coach brief (Alex V2) — optional
   brief?: string;
+
+  // ✅ snapshot vivant pour archiver sans relire un localStorage incomplet
+  onSnapshot?: (snapshot: { ui?: any; slides: any[] }) => void;
 }
 
 const LS_CARROUSEL = "lgd_editor_carrousel_draft_v5";
@@ -23,6 +26,7 @@ const LS_CARROUSEL_COPILOT_OPEN = "lgd_editor_carrousel_copilot_open_v5";
 
 // Brief banner dismissed (per user)
 const LS_BRIEF_DISMISSED = "lgd_editor_brief_dismissed";
+const LGD_EDITOR_LOAD_DRAFT_EVENT = "lgd:editor:load-draft";
 
 type SlideDraft = {
   id: string;
@@ -1342,7 +1346,7 @@ function parseSocialCopilotBlocks(value: string): SocialCopilotBlock[] {
   return [{ role: "body", text: clean(text) }];
 }
 
-export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, brief }: Props) {
+export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, brief, onSnapshot }: Props) {
   const [slides, setSlides] = useState<SlideDraft[]>(() => {
     const parsed = safeJsonParse(typeof window !== "undefined" ? window.localStorage.getItem(LS_CARROUSEL) : null);
 
@@ -1437,6 +1441,40 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
     if (!targetId) return;
     updateLayersForSlide(targetId, layers ?? []);
   }, [updateLayersForSlide]);
+
+  const applyIncomingDraft = useCallback((draft: any) => {
+    if (!draft || typeof draft !== "object") return;
+
+    const incomingSlides = ensureSlide(Array.isArray(draft?.slides) ? draft.slides : null);
+    const incomingUI = draft?.ui || undefined;
+
+    setSlides(incomingSlides);
+    if (incomingUI) {
+      setDraftUI(incomingUI);
+      uiRef.current = incomingUI;
+      lastUiSigRef.current = stableSig(incomingUI ?? {});
+    }
+
+    const firstId = incomingSlides?.[0]?.id ? String(incomingSlides[0].id) : "";
+    if (firstId) setActiveSlideId(firstId);
+    setEditorRefreshKey((v) => v + 1);
+    onSnapshot?.({ ui: incomingUI, slides: incomingSlides });
+  }, [onSnapshot]);
+
+  useEffect(() => {
+    const onLoadDraft = (event: Event) => {
+      const detail = (event as CustomEvent)?.detail || {};
+      if (detail?.mode !== "carrousel") return;
+      applyIncomingDraft(detail?.draft);
+    };
+
+    window.addEventListener(LGD_EDITOR_LOAD_DRAFT_EVENT, onLoadDraft as EventListener);
+    return () => window.removeEventListener(LGD_EDITOR_LOAD_DRAFT_EVENT, onLoadDraft as EventListener);
+  }, [applyIncomingDraft]);
+
+  useEffect(() => {
+    onSnapshot?.({ ui: uiRef.current ?? draftUI, slides });
+  }, [slides, draftUI, onSnapshot]);
 
   const handleUIChange = useCallback((ui: any) => {
     const cleaned = stripNonSerializableUI(ui ?? {});
