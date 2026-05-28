@@ -1028,7 +1028,6 @@ function safeJsonParse(raw: string | null) {
   }
 }
 
-
 const LGD_IDB_NAME = "lgd_editor_persistence_v1";
 const LGD_IDB_STORE = "drafts";
 
@@ -1048,11 +1047,11 @@ function openEditorDraftDB(): Promise<IDBDatabase | null> {
   });
 }
 
-async function idbGetEditorDraft(key: string) {
+async function idbGetEditorDraft(key: string): Promise<any | null> {
   const db = await openEditorDraftDB();
   if (!db) return null;
 
-  return await new Promise<any>((resolve) => {
+  return await new Promise<any | null>((resolve) => {
     try {
       const tx = db.transaction(LGD_IDB_STORE, "readonly");
       const req = tx.objectStore(LGD_IDB_STORE).get(key);
@@ -1428,22 +1427,17 @@ function parseSocialCopilotBlocks(value: string): SocialCopilotBlock[] {
   return [{ role: "body", text: clean(text) }];
 }
 
-
-function readInitialCarrouselDraft() {
-  if (typeof window === "undefined") return null;
-  const parsed = safeJsonParse(window.localStorage.getItem(LS_CARROUSEL));
-  if (parsed?.__lgd_idb_draft__) return null;
-  return parsed;
-}
-
 export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, brief }: Props) {
-  const initialCarrouselDraftRef = useRef<any>(undefined);
-  if (initialCarrouselDraftRef.current === undefined) {
-    initialCarrouselDraftRef.current = readInitialCarrouselDraft();
-  }
+  const initialCarrouselDraft = () => {
+    const parsed = safeJsonParse(typeof window !== "undefined" ? window.localStorage.getItem(LS_CARROUSEL) : null);
+    if (parsed?.__lgd_idb_draft__) return null;
+    return parsed;
+  };
+
+  const [draftHydrated, setDraftHydrated] = useState(false);
 
   const [slides, setSlides] = useState<SlideDraft[]>(() => {
-    const parsed = initialCarrouselDraftRef.current;
+    const parsed = initialCarrouselDraft();
 
     if (parsed?.slides && Array.isArray(parsed.slides)) {
       return ensureSlide(parsed.slides);
@@ -1457,9 +1451,36 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
   });
 
   const [draftUI, setDraftUI] = useState<any>(() => {
-    const parsed = initialCarrouselDraftRef.current;
+    const parsed = initialCarrouselDraft();
     return parsed?.ui || undefined;
   });
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function hydrateStoredDraft() {
+      const parsed = await readEditorDraftWithFallback(LS_CARROUSEL);
+      if (cancelled) return;
+
+      if (parsed?.slides && Array.isArray(parsed.slides)) {
+        setSlides(ensureSlide(parsed.slides));
+      } else if (parsed?.layers && Array.isArray(parsed.layers)) {
+        setSlides(ensureSlide([{ id: cryptoId("slide"), layers: parsed.layers }]));
+      }
+
+      if (parsed?.ui) {
+        setDraftUI(parsed.ui);
+      }
+
+      setDraftHydrated(true);
+    }
+
+    hydrateStoredDraft();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const uiRef = useRef<any>(draftUI);
   const lastUiSigRef = useRef<string>(stableSig(draftUI ?? {}));
@@ -1492,40 +1513,7 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
   }, [slides, activeSlideId]);
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function restoreDraft() {
-      const parsed = await readEditorDraftWithFallback(LS_CARROUSEL);
-      if (cancelled || !parsed) return;
-
-      let nextSlides: SlideDraft[] | null = null;
-      if (parsed?.slides && Array.isArray(parsed.slides)) {
-        nextSlides = ensureSlide(parsed.slides);
-      } else if (parsed?.layers && Array.isArray(parsed.layers)) {
-        nextSlides = ensureSlide([{ id: cryptoId("slide"), layers: parsed.layers }]);
-      }
-
-      if (nextSlides) {
-        setSlides(nextSlides);
-        if (nextSlides[0]?.id) setActiveSlideId(nextSlides[0].id);
-      }
-
-      if (parsed?.ui) {
-        setDraftUI(parsed.ui);
-        uiRef.current = parsed.ui;
-        lastUiSigRef.current = stableSig(parsed.ui);
-      }
-
-      setEditorRefreshKey((v) => v + 1);
-    }
-
-    void restoreDraft();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
+    if (!draftHydrated) return;
     if (typeof window === "undefined") return;
     if (shouldProtectExistingCarrouselDraft(slides)) return;
 
@@ -1542,7 +1530,7 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
     } catch {
       // no-op
     }
-  }, [slides, draftUI]);
+  }, [slides, draftUI, draftHydrated]);
 
   const activeSlide = useMemo(() => slides.find((s) => s.id === activeSlideId) || slides[0], [slides, activeSlideId]);
   const activeSlideLayersSig = useMemo(() => layersSignature(activeSlide?.layers ?? []), [activeSlide?.layers]);
