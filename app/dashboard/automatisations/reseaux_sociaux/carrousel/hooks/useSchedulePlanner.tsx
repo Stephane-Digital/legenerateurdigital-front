@@ -213,6 +213,94 @@ function cachePlannerPreviewAfterSchedule(result: any, body: any, previewImage: 
   writePlannerPreviewCache(cache);
 }
 
+
+
+const PLANNER_EDITOR_PAYLOAD_CACHE_KEY = "lgd_planner_editor_payload_cache_v1";
+
+type PlannerEditorPayloadCacheItem = {
+  payload: any;
+  title?: string;
+  titre?: string;
+  network?: string;
+  scheduled_at?: string;
+  created_at: number;
+};
+
+function readPlannerEditorPayloadCache(): Record<string, PlannerEditorPayloadCacheItem> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(PLANNER_EDITOR_PAYLOAD_CACHE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function writePlannerEditorPayloadCache(cache: Record<string, PlannerEditorPayloadCacheItem>) {
+  if (typeof window === "undefined") return;
+  try {
+    const entries = Object.entries(cache)
+      .filter(([, item]) => !!item?.payload)
+      .sort((a, b) => Number(b[1]?.created_at || 0) - Number(a[1]?.created_at || 0))
+      .slice(0, 6);
+    window.localStorage.setItem(PLANNER_EDITOR_PAYLOAD_CACHE_KEY, JSON.stringify(Object.fromEntries(entries)));
+  } catch {
+    // Ne jamais bloquer l’envoi Planner si le navigateur refuse le cache local.
+  }
+}
+
+function cachePlannerEditorPayloadAfterSchedule(result: any, body: any, originalPayload: any) {
+  if (typeof window === "undefined") return;
+
+  const title = String(body?.titre || body?.title || body?.contenu?.title || originalPayload?.title || originalPayload?.titre || "").trim();
+  const network = String(body?.network || "").trim();
+  const scheduledAt = String(body?.scheduled_at || "").trim();
+
+  const payload = {
+    ...(originalPayload && typeof originalPayload === "object" ? originalPayload : {}),
+    ...(body?.contenu && typeof body.contenu === "object" ? body.contenu : {}),
+    title,
+    titre: title,
+    network,
+    scheduled_at: scheduledAt,
+    type: body?.format || body?.contenu?.type || originalPayload?.type || "post",
+    preview_image: body?.preview_image || body?.contenu?.preview_image || originalPayload?.preview_image || undefined,
+    planner_preview_image: body?.planner_preview_image || body?.contenu?.planner_preview_image || originalPayload?.planner_preview_image || undefined,
+    rendered_image: body?.rendered_image || body?.contenu?.rendered_image || originalPayload?.rendered_image || undefined,
+  };
+
+  const item: PlannerEditorPayloadCacheItem = {
+    payload,
+    title,
+    titre: title,
+    network,
+    scheduled_at: scheduledAt,
+    created_at: Date.now(),
+  };
+
+  const cache = readPlannerEditorPayloadCache();
+  const ids = [
+    result?.id,
+    result?.post_id,
+    result?.planner_id,
+    result?.data?.id,
+    result?.post?.id,
+    result?.item?.id,
+  ];
+  const keys = [
+    ...ids,
+    `${network}|${scheduledAt}|${title}`,
+    `title|${title}`,
+    `${network}|${title}`,
+    "__latest__",
+  ];
+
+  addPlannerPreviewCacheKeys(cache as any, keys, item as any);
+  writePlannerEditorPayloadCache(cache);
+}
+
 function compactContentForPlanner(input: any, fallbackTitle?: string, fallbackFormat?: string) {
   const source = input && typeof input === "object" ? input : {};
   const rawLayers =
@@ -386,6 +474,7 @@ export function useSchedulePlanner() {
         body?.rendered_image ||
         "";
       cachePlannerPreviewAfterSchedule(result, body, previewImage);
+      cachePlannerEditorPayloadAfterSchedule(result, body, payload.contenu);
       return result;
     } finally {
       setLoading(false);
