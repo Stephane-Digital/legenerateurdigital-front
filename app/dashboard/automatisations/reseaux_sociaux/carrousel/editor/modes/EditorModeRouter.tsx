@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import CarrouselEditor from "./CarrouselEditor";
 import PostEditor from "./PostEditor";
 
-import { downloadEditorCreation } from "../utils/downloadEditorCreation";
+import { downloadEditorCreation, renderEditorCreationToDataUrl } from "../utils/downloadEditorCreation";
+import SchedulePlannerModal from "../ui/SchedulePlannerModal";
+import useSchedulePlanner from "../v5/hooks/useSchedulePlanner";
 
 type Mode = "post" | "carrousel";
 
@@ -626,12 +628,13 @@ export default function EditorModeRouter() {
   const [isPhone, setIsPhone] = useState(false);
   const [mobileArchiveMsg, setMobileArchiveMsg] = useState("");
   const [mobileUploading, setMobileUploading] = useState(false);
+  const { schedule, loading: scheduleLoading } = useSchedulePlanner();
+  const [scheduleOpen, setScheduleOpen] = useState(false);
   const [brief, setBrief] = useState<string>("");
   const [cmoAutoMsg, setCmoAutoMsg] = useState<string>("");
 
   const [archiving, setArchiving] = useState(false);
   const [archiveMsg, setArchiveMsg] = useState<string>("");
-  const [plannerButtonSignal, setPlannerButtonSignal] = useState(0);
 
   const [downloading, setDownloading] = useState(false);
   const [downloadMsg, setDownloadMsg] = useState<string>("");
@@ -1041,6 +1044,89 @@ export default function EditorModeRouter() {
     }
   }
 
+  function getPlannerTitleFromDraft(draft: any) {
+    const fallback = mode === "post" ? "Post intelligent LGD" : "Carrousel intelligent LGD";
+
+    if (!draft || typeof draft !== "object") return fallback;
+
+    const layers =
+      mode === "post"
+        ? Array.isArray(draft?.layers)
+          ? draft.layers
+          : []
+        : Array.isArray(draft?.slides?.[0]?.layers)
+          ? draft.slides[0].layers
+          : [];
+
+    const firstText = layers
+      .map((layer: any) => String(layer?.text || layer?.content || layer?.value || "").trim())
+      .find(Boolean);
+
+    return (firstText || fallback).slice(0, 72);
+  }
+
+  async function openPlannerModal() {
+    const draft = getDraft();
+    if (!hasRenderableDraft(mode, draft)) {
+      setArchiveMsg("❌ Aucun contenu à envoyer dans le Planner.");
+      window.setTimeout(() => setArchiveMsg(""), 3000);
+      return;
+    }
+
+    setScheduleOpen(true);
+  }
+
+  const handleScheduleConfirm = useCallback(
+    async ({ reseau, date_programmee, titre }: { reseau: string; date_programmee: string; titre?: string }) => {
+      const draft = getDraft();
+
+      if (!hasRenderableDraft(mode, draft)) {
+        setArchiveMsg("❌ Aucun contenu à envoyer dans le Planner.");
+        window.setTimeout(() => setArchiveMsg(""), 3000);
+        return;
+      }
+
+      const plannerTitle = titre || getPlannerTitleFromDraft(draft);
+      let previewImage = "";
+
+      try {
+        previewImage = await renderEditorCreationToDataUrl({
+          mode,
+          draft,
+        });
+      } catch (error) {
+        console.error("LGD planner snapshot error (editor router):", error);
+      }
+
+      await schedule({
+        reseau,
+        date_programmee,
+        titre: plannerTitle,
+        format: mode,
+        contenu: {
+          title: plannerTitle,
+          type: mode,
+          ...(mode === "post"
+            ? {
+                layers: Array.isArray(draft?.layers) ? draft.layers : [],
+                ui: draft?.ui || {},
+              }
+            : {
+                slides: Array.isArray(draft?.slides) ? draft.slides : [],
+                ui: draft?.ui || {},
+              }),
+          brief: brief || "",
+          preview_image: previewImage || undefined,
+          planner_preview_image: previewImage || undefined,
+        },
+      });
+
+      setScheduleOpen(false);
+      if (typeof window !== "undefined") window.alert("✅ Ajouté au Planner !");
+    },
+    [schedule, mode, brief]
+  );
+
   async function downloadToPc() {
     if (typeof window === "undefined") return;
 
@@ -1176,21 +1262,22 @@ export default function EditorModeRouter() {
             <div className="flex flex-wrap items-center justify-end gap-2">
               <button
                 type="button"
+                onClick={openPlannerModal}
+                disabled={scheduleLoading}
+                className="rounded-xl border border-yellow-500/25 bg-black/30 px-4 py-2 text-sm font-semibold text-yellow-200 hover:bg-black/40 disabled:opacity-60"
+                title="Envoyer la création actuelle dans le Planner"
+              >
+                {scheduleLoading ? "Envoi Planner…" : "📅 Envoyer dans Planner"}
+              </button>
+
+              <button
+                type="button"
                 onClick={archiveToLibrary}
                 disabled={archiving}
                 className="rounded-xl border border-yellow-500/25 bg-black/30 px-4 py-2 text-sm font-semibold text-yellow-200 hover:bg-black/40 disabled:opacity-60"
                 title="Enregistre le draft actuel dans la Bibliothèque (server)"
               >
                 {archiving ? "Archivage…" : "Archiver post/carrousel"}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setPlannerButtonSignal((value) => value + 1)}
-                className="rounded-xl border border-yellow-500/25 bg-black/30 px-4 py-2 text-sm font-semibold text-yellow-200 hover:bg-black/40"
-                title="Envoyer la création actuelle dans le Planner"
-              >
-                📅 Envoyer dans Planner
               </button>
 
               <Link
@@ -1249,13 +1336,20 @@ export default function EditorModeRouter() {
 
       <div className="mx-auto mt-1 w-full max-w-[1800px] px-6 pb-16">
         {mode === "post" ? (
-          <PostEditor brief={brief} onSnapshot={handlePostSnapshot} plannerOpenSignal={plannerButtonSignal} />
+          <PostEditor brief={brief} onSnapshot={handlePostSnapshot} />
         ) : (
-          <CarrouselEditor brief={brief} onSnapshot={handleCarrouselSnapshot} plannerOpenSignal={plannerButtonSignal} />
+          <CarrouselEditor brief={brief} onSnapshot={handleCarrouselSnapshot} />
         )}
       </div>
+
+      <SchedulePlannerModal
+        open={scheduleOpen}
+        loading={scheduleLoading}
+        defaultTitle={getPlannerTitleFromDraft(getDraft())}
+        onClose={() => setScheduleOpen(false)}
+        onConfirm={handleScheduleConfirm}
+      />
     </div>
   );
 }
-
 
