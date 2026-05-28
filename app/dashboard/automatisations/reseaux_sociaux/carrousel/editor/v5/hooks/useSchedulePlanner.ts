@@ -172,15 +172,6 @@ function compactContentForPlanner(input: any, fallbackTitle?: string, fallbackFo
       2000
     ) || "";
 
-  const previewImage =
-    source.planner_preview_image ||
-    source.plannerPreviewImage ||
-    source.preview_image ||
-    source.previewImage ||
-    source.rendered_image ||
-    source.renderedImage ||
-    "";
-
   return {
     type: type.includes("carrousel") || type.includes("carousel") ? "carrousel" : "post",
     title,
@@ -188,16 +179,11 @@ function compactContentForPlanner(input: any, fallbackTitle?: string, fallbackFo
     caption,
     text: caption,
     format: fallbackFormat || source.format || type,
-    // Résumé léger pour le Planner.
+    // Résumé léger pour le Planner. Pas de base64, pas de snapshot complet.
     layers,
     slides,
-    has_visual: !!previewImage || layers.length > 0 || slides.length > 0,
+    has_visual: layers.length > 0 || slides.length > 0,
     source: "editor",
-    // LGD FIX — aperçu fidèle du modal Planner.
-    // On conserve seulement l'image de rendu finale, pas tout le draft brut.
-    preview_image: previewImage || undefined,
-    planner_preview_image: previewImage || undefined,
-    rendered_image: previewImage || undefined,
   };
 }
 
