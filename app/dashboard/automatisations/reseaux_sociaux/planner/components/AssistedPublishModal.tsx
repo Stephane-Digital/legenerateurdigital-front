@@ -685,6 +685,64 @@ function readPlannerPreviewCacheItem(post: any, parsed: any): string {
   return "";
 }
 
+
+
+const PLANNER_EDITOR_PAYLOAD_CACHE_KEY = "lgd_planner_editor_payload_cache_v1";
+
+function readPlannerEditorPayloadCacheItem(post: any, parsed: any): any | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = window.localStorage.getItem(PLANNER_EDITOR_PAYLOAD_CACHE_KEY);
+    if (!raw) return null;
+
+    const cache = JSON.parse(raw);
+    if (!cache || typeof cache !== "object") return null;
+
+    const title = firstNonEmptyString(
+      post?.titre,
+      post?.title,
+      parsed?.titre,
+      parsed?.title,
+      parsed?.content?.title,
+      parsed?.contenu?.title,
+    );
+    const network = firstNonEmptyString(post?.network, post?.reseau, parsed?.network, parsed?.reseau);
+    const scheduledAt = firstNonEmptyString(
+      post?.scheduled_at,
+      post?.date_programmee,
+      post?.date,
+      parsed?.scheduled_at,
+      parsed?.date_programmee,
+    );
+
+    const keys = [
+      post?.id,
+      post?.post_id,
+      post?.planner_id,
+      parsed?.id,
+      parsed?.post_id,
+      parsed?.planner_id,
+      `${network}|${scheduledAt}|${title}`,
+      `title|${title}`,
+      `${network}|${title}`,
+      "__latest__",
+    ]
+      .map((key) => String(key ?? "").trim())
+      .filter(Boolean);
+
+    for (const key of keys) {
+      const item = cache?.[key];
+      const payload = item?.payload;
+      if (payload && typeof payload === "object") return payload;
+    }
+  } catch {
+    // fallback silencieux : le modal garde son comportement existant.
+  }
+
+  return null;
+}
+
 function extractExactPreviewImage(post: any, parsed: any) {
   return firstNonEmptyString(
     post?.planner_preview_image,
@@ -1374,10 +1432,26 @@ export default function AssistedPublishModal({
   const [editorPreviewUrl, setEditorPreviewUrl] = useState("");
   const [editorPreviewLoading, setEditorPreviewLoading] = useState(false);
 
-  const parsed = useMemo(
+  const parsedRaw = useMemo(
     () => safeParseJSON(post?.contenu ?? post?.content ?? null),
     [post],
   );
+  const cachedPlannerPayload = useMemo(
+    () => readPlannerEditorPayloadCacheItem(post, parsedRaw),
+    [post, parsedRaw],
+  );
+  const parsed = useMemo(() => {
+    if (!cachedPlannerPayload) return parsedRaw;
+    if (!parsedRaw || typeof parsedRaw !== "object") return cachedPlannerPayload;
+    return {
+      ...parsedRaw,
+      ...cachedPlannerPayload,
+      contenu: {
+        ...((parsedRaw as any)?.contenu || {}),
+        ...(cachedPlannerPayload?.contenu || {}),
+      },
+    };
+  }, [parsedRaw, cachedPlannerPayload]);
   const title = useMemo(() => extractTitle(post, parsed), [post, parsed]);
   const caption = useMemo(() => extractCaption(post, parsed), [post, parsed]);
   const exactPreviewImage = useMemo(
