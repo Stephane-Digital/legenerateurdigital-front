@@ -24,6 +24,7 @@ const LS_COPILOT_OPEN = "lgd_editor_copilot_open";
 
 // Brief banner dismissed (per user)
 const LS_BRIEF_DISMISSED = "lgd_editor_brief_dismissed";
+const LGD_EDITOR_LOAD_DRAFT_EVENT = "lgd:editor:load-draft";
 
 /** =========================
  *  IA Copilot (SAFE / texte-only)
@@ -1339,22 +1340,39 @@ export default function PostEditor({
     onDirtyChange?.(true);
   }, [onDirtyChange]);
 
-  // ✅ restore draft local (si existe)
+  const applyIncomingDraft = useCallback((draft: any) => {
+    if (!draft || typeof draft !== "object") return;
+
+    const incomingLayers = Array.isArray(draft?.layers) ? draft.layers : [];
+    const incomingUI = draft?.ui || undefined;
+
+    setDraftLayers(incomingLayers);
+    layersRef.current = incomingLayers;
+    lastLayersSigRef.current = stableSig(incomingLayers);
+
+    if (incomingUI) {
+      setDraftUI(incomingUI);
+      uiRef.current = incomingUI;
+      lastUiSigRef.current = stableSig(incomingUI);
+    }
+
+    onSnapshot?.({ ui: incomingUI, layers: incomingLayers });
+  }, [onSnapshot]);
+
+  // ✅ restore draft local (si existe) + archive live event
   useEffect(() => {
     const parsed = safeJsonParse(localStorage.getItem(LS_POST));
-    if (!parsed) return;
+    if (parsed) applyIncomingDraft(parsed);
 
-    if (parsed?.layers && Array.isArray(parsed.layers)) {
-      setDraftLayers(parsed.layers);
-      layersRef.current = parsed.layers;
-      lastLayersSigRef.current = JSON.stringify(parsed.layers);
-    }
-    if (parsed?.ui) {
-      setDraftUI(parsed.ui);
-      uiRef.current = parsed.ui;
-      lastUiSigRef.current = JSON.stringify(parsed.ui);
-    }
-  }, []);
+    const onLoadDraft = (event: Event) => {
+      const detail = (event as CustomEvent)?.detail || {};
+      if (detail?.mode !== "post") return;
+      applyIncomingDraft(detail?.draft);
+    };
+
+    window.addEventListener(LGD_EDITOR_LOAD_DRAFT_EVENT, onLoadDraft as EventListener);
+    return () => window.removeEventListener(LGD_EDITOR_LOAD_DRAFT_EVENT, onLoadDraft as EventListener);
+  }, [applyIncomingDraft]);
 
   // ✅ persist local (debounced)
   useEffect(() => {
