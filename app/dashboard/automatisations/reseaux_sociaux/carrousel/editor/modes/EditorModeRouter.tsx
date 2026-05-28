@@ -37,160 +37,6 @@ function safeJsonParse(raw: string | null) {
   }
 }
 
-
-const LGD_IDB_NAME = "lgd_editor_persistence_v1";
-const LGD_IDB_STORE = "drafts";
-
-function openEditorDraftDB(): Promise<IDBDatabase | null> {
-  if (typeof window === "undefined" || !("indexedDB" in window)) return Promise.resolve(null);
-
-  return new Promise((resolve) => {
-    const request = window.indexedDB.open(LGD_IDB_NAME, 1);
-    request.onupgradeneeded = () => {
-      const db = request.result;
-      if (!db.objectStoreNames.contains(LGD_IDB_STORE)) {
-        db.createObjectStore(LGD_IDB_STORE);
-      }
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => resolve(null);
-  });
-}
-
-async function idbSetEditorDraft(key: string, value: any) {
-  const db = await openEditorDraftDB();
-  if (!db) return false;
-
-  return await new Promise<boolean>((resolve) => {
-    try {
-      const tx = db.transaction(LGD_IDB_STORE, "readwrite");
-      tx.objectStore(LGD_IDB_STORE).put(value, key);
-      tx.oncomplete = () => resolve(true);
-      tx.onerror = () => resolve(false);
-      tx.onabort = () => resolve(false);
-    } catch {
-      resolve(false);
-    }
-  }).finally(() => {
-    try {
-      db.close();
-    } catch {
-      // ignore
-    }
-  });
-}
-
-async function idbGetEditorDraft(key: string) {
-  const db = await openEditorDraftDB();
-  if (!db) return null;
-
-  return await new Promise<any | null>((resolve) => {
-    try {
-      const tx = db.transaction(LGD_IDB_STORE, "readonly");
-      const request = tx.objectStore(LGD_IDB_STORE).get(key);
-      request.onsuccess = () => resolve(request.result ?? null);
-      request.onerror = () => resolve(null);
-      tx.onerror = () => resolve(null);
-      tx.onabort = () => resolve(null);
-    } catch {
-      resolve(null);
-    }
-  }).finally(() => {
-    try {
-      db.close();
-    } catch {
-      // ignore
-    }
-  });
-}
-
-function hasUsableEditorDraft(mode: Mode, draft: any) {
-  if (!draft || typeof draft !== "object") return false;
-  if ((draft as any).__lgd_idb_draft__) return false;
-
-  if (mode === "post") {
-    return Array.isArray((draft as any).layers) && (draft as any).layers.length > 0;
-  }
-
-  return (
-    Array.isArray((draft as any).slides) &&
-    (draft as any).slides.some((slide: any) => Array.isArray(slide?.layers) && slide.layers.length > 0)
-  );
-}
-
-function cleanupEditorLocalStorageForQuota(keepKey: string) {
-  if (typeof window === "undefined") return;
-
-  const keep = new Set([
-    keepKey,
-    "access_token",
-    "token",
-    "jwt",
-    "lgd_token",
-    "lgd_editor_mode",
-    "lgd_editor_mode_v5",
-  ]);
-
-  const removable: string[] = [];
-  for (let i = 0; i < window.localStorage.length; i += 1) {
-    const key = window.localStorage.key(i) || "";
-    if (!key || keep.has(key)) continue;
-    if (
-      key.startsWith("lgd_planner_local_") ||
-      key.includes("runtime") ||
-      key.includes("preview") ||
-      key.includes("thumbnail") ||
-      key.includes("archive_raw_cache") ||
-      key.includes("image_cache") ||
-      key.includes("draft_v5")
-    ) {
-      removable.push(key);
-    }
-  }
-
-  for (const key of removable) {
-    try {
-      window.localStorage.removeItem(key);
-    } catch {
-      // ignore
-    }
-  }
-}
-
-async function safePersistEditorDraft(key: string, draft: any) {
-  if (typeof window === "undefined") return;
-
-  const raw = JSON.stringify(draft ?? {});
-
-  try {
-    window.localStorage.setItem(key, raw);
-    await idbSetEditorDraft(key, draft);
-    return;
-  } catch {
-    // quota cleanup, then retry once
-  }
-
-  cleanupEditorLocalStorageForQuota(key);
-
-  try {
-    window.localStorage.setItem(key, raw);
-    await idbSetEditorDraft(key, draft);
-    return;
-  } catch {
-    // Heavy images are stored in IndexedDB; localStorage keeps only a tiny marker.
-  }
-
-  const storedInIdb = await idbSetEditorDraft(key, draft);
-  if (storedInIdb) {
-    try {
-      window.localStorage.setItem(key, JSON.stringify({ __lgd_idb_draft__: true, key }));
-    } catch {
-      // ignore
-    }
-  }
-}
-
-
 function normalizeText(t: string) {
   return (t || "").replace(/\s+/g, " ").trim();
 }
@@ -537,9 +383,6 @@ export default function EditorModeRouter() {
   const [loadingArchiveSelection, setLoadingArchiveSelection] = useState(false);
   const [archiveSelectionError, setArchiveSelectionError] = useState("");
 
-  const latestPostSnapshotRef = useRef<any | null>(null);
-  const latestCarrouselSnapshotRef = useRef<any | null>(null);
-
   useEffect(() => {
     const saved = typeof window !== "undefined" ? window.localStorage.getItem("lgd_editor_mode") : null;
     if (saved === "post" || saved === "carrousel") setMode(saved);
@@ -573,21 +416,13 @@ export default function EditorModeRouter() {
 
         if (archiveKind === "post") {
           const draft = extractArchivePostDraft(payloadRaw);
-          if (!hasUsableEditorDraft("post", draft)) {
-            throw new Error("Archive post vide ou illisible : aucune couche exploitable trouvée.");
-          }
-          latestPostSnapshotRef.current = draft;
           window.localStorage.setItem(LS_EDITOR_MODE, "post");
-          await safePersistEditorDraft(LS_POST, draft);
+          window.localStorage.setItem(LS_POST, JSON.stringify(draft));
           setMode("post");
         } else {
           const draft = extractArchiveCarrouselDraft(payloadRaw);
-          if (!hasUsableEditorDraft("carrousel", draft)) {
-            throw new Error("Archive carrousel vide ou illisible : aucune slide exploitable trouvée.");
-          }
-          latestCarrouselSnapshotRef.current = draft;
           window.localStorage.setItem(LS_EDITOR_MODE, "carrousel");
-          await safePersistEditorDraft(LS_CARROUSEL, draft);
+          window.localStorage.setItem(LS_CARROUSEL, JSON.stringify(draft));
           if (draft?.slides?.[0]?.id) {
             window.localStorage.setItem("lgd_editor_carrousel_active_slide_v5", String(draft.slides[0].id));
           }
@@ -753,26 +588,10 @@ export default function EditorModeRouter() {
     return () => window.removeEventListener("resize", apply);
   }, []);
 
-  const getDraft = async () => {
+  const getDraft = () => {
     if (typeof window === "undefined") return null;
-
-    const snapshot = mode === "post" ? latestPostSnapshotRef.current : latestCarrouselSnapshotRef.current;
-    if (hasUsableEditorDraft(mode, snapshot)) return snapshot;
-
     const key = mode === "post" ? LS_POST : LS_CARROUSEL;
-    const parsed = safeJsonParse(window.localStorage.getItem(key));
-
-    if (hasUsableEditorDraft(mode, parsed)) return parsed;
-
-    if (parsed?.__lgd_idb_draft__) {
-      const fromIdb = await idbGetEditorDraft(parsed.key || key);
-      if (hasUsableEditorDraft(mode, fromIdb)) return fromIdb;
-    }
-
-    const fromIdb = await idbGetEditorDraft(key);
-    if (hasUsableEditorDraft(mode, fromIdb)) return fromIdb;
-
-    return null;
+    return safeJsonParse(window.localStorage.getItem(key));
   };
 
   async function archiveMobilePhoto(file: File) {
@@ -820,7 +639,7 @@ export default function EditorModeRouter() {
     if (typeof window === "undefined") return;
 
     setArchiveMsg("");
-    const draft = await getDraft();
+    const draft = getDraft();
 
     if (!draft) {
       setArchiveMsg("Aucun draft à archiver.");
@@ -878,7 +697,7 @@ export default function EditorModeRouter() {
     if (typeof window === "undefined") return;
 
     setDownloadMsg("");
-    const draft = await getDraft();
+    const draft = getDraft();
 
     if (!draft) {
       setDownloadMsg("❌ Aucun contenu à télécharger (draft vide).");
@@ -1072,23 +891,8 @@ export default function EditorModeRouter() {
       </div>
 
       <div className="mx-auto mt-1 w-full max-w-[1800px] px-6 pb-16">
-        {mode === "post" ? (
-          <PostEditor
-            brief={brief}
-            onSnapshot={(snapshot) => {
-              latestPostSnapshotRef.current = snapshot;
-            }}
-          />
-        ) : (
-          <CarrouselEditor
-            brief={brief}
-            onSnapshot={(snapshot) => {
-              latestCarrouselSnapshotRef.current = snapshot;
-            }}
-          />
-        )}
+        {mode === "post" ? <PostEditor brief={brief} /> : <CarrouselEditor brief={brief} />}
       </div>
     </div>
   );
 }
-
