@@ -666,6 +666,9 @@ function readPlannerPreviewCacheItem(post: any, parsed: any): string {
       parsed?.post_id,
       parsed?.planner_id,
       `${network}|${scheduledAt}|${title}`,
+      `title|${title}`,
+      `${network}|${title}`,
+      "__latest__",
     ]
       .map((key) => String(key ?? "").trim())
       .filter(Boolean);
