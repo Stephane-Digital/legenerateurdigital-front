@@ -820,17 +820,53 @@ export default function EditorModeRouter() {
     return () => window.removeEventListener("resize", apply);
   }, []);
 
-  const getDraft = () => {
+  const getDraftForMode = (targetMode: Mode) => {
     if (typeof window === "undefined") return null;
 
-    const liveDraft = liveDraftRef.current?.[mode];
-    if (hasRenderableDraft(mode, liveDraft)) return liveDraft;
+    const liveDraft = liveDraftRef.current?.[targetMode];
+    if (hasRenderableDraft(targetMode, liveDraft)) return liveDraft;
 
-    const key = mode === "post" ? LS_POST : LS_CARROUSEL;
+    const key = targetMode === "post" ? LS_POST : LS_CARROUSEL;
     const storedDraft = safeJsonParse(window.localStorage.getItem(key));
-    if (hasRenderableDraft(mode, storedDraft)) return storedDraft;
+    if (hasRenderableDraft(targetMode, storedDraft)) return storedDraft;
 
     return storedDraft || liveDraft || null;
+  };
+
+  const getDraft = () => getDraftForMode(mode);
+
+  const switchEditorMode = (nextMode: Mode) => {
+    if (typeof window === "undefined") {
+      setMode(nextMode);
+      return;
+    }
+
+    if (nextMode === mode) return;
+
+    const currentDraft = getDraftForMode(mode);
+    if (hasRenderableDraft(mode, currentDraft)) {
+      liveDraftRef.current[mode] = currentDraft;
+      const currentKey = mode === "post" ? LS_POST : LS_CARROUSEL;
+      void safePersistEditorDraft(currentKey, currentDraft);
+    }
+
+    const nextDraft = getDraftForMode(nextMode);
+    if (hasRenderableDraft(nextMode, nextDraft)) {
+      liveDraftRef.current[nextMode] = nextDraft;
+      const nextKey = nextMode === "post" ? LS_POST : LS_CARROUSEL;
+      try {
+        window.localStorage.setItem(nextKey, JSON.stringify(nextDraft));
+      } catch {
+        void safePersistEditorDraft(nextKey, nextDraft);
+      }
+      (window as any).__LGD_EDITOR_PENDING_DRAFT__ = {
+        mode: nextMode,
+        draft: nextDraft,
+        ts: Date.now(),
+      };
+    }
+
+    setMode(nextMode);
   };
 
   const handlePostSnapshot = (snapshot: { ui?: any; layers: any[] }) => {
@@ -1134,7 +1170,7 @@ export default function EditorModeRouter() {
 
         <div className="mt-6 flex items-center justify-center gap-3">
           <button
-            onClick={() => setMode("post")}
+            onClick={() => switchEditorMode("post")}
             className={`rounded-xl px-5 py-2 text-sm font-semibold ${
               mode === "post" ? "bg-[#ffb800] text-black" : "border border-yellow-500/25 bg-black/30 text-yellow-200"
             }`}
@@ -1143,7 +1179,7 @@ export default function EditorModeRouter() {
           </button>
 
           <button
-            onClick={() => setMode("carrousel")}
+            onClick={() => switchEditorMode("carrousel")}
             className={`rounded-xl px-5 py-2 text-sm font-semibold ${
               mode === "carrousel" ? "bg-[#ffb800] text-black" : "border border-yellow-500/25 bg-black/30 text-yellow-200"
             }`}
