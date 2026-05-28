@@ -81,6 +81,34 @@ async function idbSetEditorDraft(key: string, value: any) {
   });
 }
 
+async function idbGetEditorDraft(key: string) {
+  const db = await openEditorDraftDB();
+  if (!db) return null;
+
+  return await new Promise<any>((resolve) => {
+    try {
+      const tx = db.transaction(LGD_IDB_STORE, "readonly");
+      const req = tx.objectStore(LGD_IDB_STORE).get(key);
+      req.onsuccess = () => resolve(req.result ?? null);
+      req.onerror = () => resolve(null);
+      tx.onerror = () => resolve(null);
+      tx.onabort = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  }).finally(() => {
+    try {
+      db.close();
+    } catch {
+      // ignore
+    }
+  });
+}
+
+function isIndexedDbDraftMarker(value: any) {
+  return !!value && typeof value === "object" && value.__lgd_idb_draft__ === true;
+}
+
 function cleanupEditorLocalStorageForQuota(keepKey: string) {
   if (typeof window === "undefined") return;
 
@@ -814,6 +842,25 @@ export default function EditorModeRouter() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    let cancelled = false;
+
+    const key = mode === "post" ? LS_POST : LS_CARROUSEL;
+    const storedRaw = safeJsonParse(window.localStorage.getItem(key));
+    if (!isIndexedDbDraftMarker(storedRaw)) return;
+
+    idbGetEditorDraft(key).then((draft) => {
+      if (cancelled || !hasRenderableDraft(mode, draft)) return;
+      liveDraftRef.current[mode] = draft;
+      dispatchEditorDraft(mode, draft);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mode]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
     const apply = () => setIsPhone(window.innerWidth < 640);
     apply();
     window.addEventListener("resize", apply);
@@ -827,7 +874,8 @@ export default function EditorModeRouter() {
     if (hasRenderableDraft(targetMode, liveDraft)) return liveDraft;
 
     const key = targetMode === "post" ? LS_POST : LS_CARROUSEL;
-    const storedDraft = safeJsonParse(window.localStorage.getItem(key));
+    const storedRaw = safeJsonParse(window.localStorage.getItem(key));
+    const storedDraft = isIndexedDbDraftMarker(storedRaw) ? null : storedRaw;
     if (hasRenderableDraft(targetMode, storedDraft)) return storedDraft;
 
     return storedDraft || liveDraft || null;
