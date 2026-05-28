@@ -1162,36 +1162,38 @@ function cleanupEditorLocalStorageForQuota(keepKey: string) {
 async function safePersistEditorDraft(key: string, draft: any) {
   if (typeof window === "undefined") return;
 
-  const raw = JSON.stringify(draft ?? {});
-
-  try {
-    window.localStorage.setItem(key, raw);
-    await idbSetEditorDraft(key, draft);
-    return;
-  } catch {
-    // quota cleanup, then retry once
-  }
-
-  cleanupEditorLocalStorageForQuota(key);
-
-  try {
-    window.localStorage.setItem(key, raw);
-    await idbSetEditorDraft(key, draft);
-    return;
-  } catch {
-    // Heavy images are stored in IndexedDB; localStorage keeps only a tiny marker.
-  }
-
-  const storedInIdb = await idbSetEditorDraft(key, draft);
+  // LGD FIX — les images/base64 peuvent dépasser la limite localStorage.
+  // La vérité complète du draft est stockée dans IndexedDB.
+  // localStorage ne garde qu'un marqueur léger pour signaler qu'un draft existe.
+  const storedInIdb = await idbSetEditorDraft(key, draft ?? {});
   if (storedInIdb) {
     try {
       window.localStorage.setItem(key, JSON.stringify({ __lgd_idb_draft__: true, key }));
+    } catch {
+      cleanupEditorLocalStorageForQuota(key);
+      try {
+        window.localStorage.setItem(key, JSON.stringify({ __lgd_idb_draft__: true, key }));
+      } catch {
+        // Si même le marqueur ne passe pas, IndexedDB reste la source de vérité.
+      }
+    }
+    return;
+  }
+
+  // Fallback très rare : navigateur sans IndexedDB.
+  // On tente localStorage après nettoyage, mais on ne laisse jamais l'exception casser l'éditeur.
+  const raw = JSON.stringify(draft ?? {});
+  cleanupEditorLocalStorageForQuota(key);
+  try {
+    window.localStorage.setItem(key, raw);
+  } catch {
+    try {
+      window.localStorage.setItem(key, JSON.stringify({ __lgd_idb_draft__: false, key, fallback_failed: true }));
     } catch {
       // ignore
     }
   }
 }
-
 async function readEditorDraftWithFallback(key: string) {
   if (typeof window === "undefined") return null;
   const local = safeJsonParse(window.localStorage.getItem(key));
@@ -1232,6 +1234,12 @@ function hasMeaningfulPostDraftLayers(layers: any) {
 function shouldProtectExistingPostDraft(nextLayers: any, nextUi: any) {
   if (typeof window === "undefined") return false;
   const existing = safeJsonParse(window.localStorage.getItem(LS_POST));
+
+  // LGD FIX — lorsqu'un draft lourd est en IndexedDB, localStorage contient seulement
+  // un marqueur. Tant que le draft IDB n'est pas encore réhydraté, on empêche un
+  // montage vide de l'écraser.
+  if (existing?.__lgd_idb_draft__ && !hasMeaningfulPostDraftLayers(nextLayers)) return true;
+
   if (!hasMeaningfulPostDraftLayers(existing?.layers)) return false;
   if (hasMeaningfulPostDraftLayers(nextLayers)) return false;
   return true;
@@ -1731,6 +1739,7 @@ export default function PostEditor({
     if (shouldProtectExistingPostDraft(layers, ui)) return;
     if ((!Array.isArray(layers) || layers.length === 0) && !ui) {
       const existing = safeJsonParse(window.localStorage.getItem(LS_POST));
+      if (existing?.__lgd_idb_draft__) return;
       if (Array.isArray(existing?.layers) && existing.layers.length > 0) return;
     }
 
