@@ -132,9 +132,24 @@ function pickBestDate(item?: any, wrapper?: any) {
 }
 
 function detectEditorKind(item: LibraryItem, wrapper?: SavedWrapper | null) {
-  const k = String(wrapper?.kind || item.kind || item.filename || "").toLowerCase();
-  if (k.includes("lgd_post")) return "post" as const;
-  if (k.includes("lgd_carrousel") || k.includes("carrousel")) return "carrousel" as const;
+  const k = String(wrapper?.kind || item.kind || item.filename || "").toLowerCase().trim();
+
+  if (k === "post" || k === "lgd_post" || k === "lgd_post_v5" || k.includes("lgd_post")) {
+    return "post" as const;
+  }
+
+  if (
+    k === "carrousel" ||
+    k === "carousel" ||
+    k === "lgd_carrousel" ||
+    k === "lgd_carrousel_v5" ||
+    k.includes("lgd_carrousel") ||
+    k.includes("carrousel") ||
+    k.includes("carousel")
+  ) {
+    return "carrousel" as const;
+  }
+
   return "file" as const;
 }
 
