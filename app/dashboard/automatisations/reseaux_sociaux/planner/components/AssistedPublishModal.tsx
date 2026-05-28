@@ -689,6 +689,107 @@ function readPlannerPreviewCacheItem(post: any, parsed: any): string {
 
 const PLANNER_EDITOR_PAYLOAD_CACHE_KEY = "lgd_planner_editor_payload_cache_v1";
 
+
+const PLANNER_MEDIA_IDB_NAME = "lgd_planner_media_cache_v1";
+const PLANNER_MEDIA_IDB_STORE = "items";
+
+function buildPlannerCacheKeys(post: any, parsed: any) {
+  const title = firstNonEmptyString(
+    post?.titre,
+    post?.title,
+    parsed?.titre,
+    parsed?.title,
+    parsed?.content?.title,
+    parsed?.contenu?.title,
+  );
+  const network = firstNonEmptyString(post?.network, post?.reseau, parsed?.network, parsed?.reseau);
+  const scheduledAt = firstNonEmptyString(
+    post?.scheduled_at,
+    post?.date_programmee,
+    post?.date,
+    parsed?.scheduled_at,
+    parsed?.date_programmee,
+  );
+
+  return [
+    post?.id,
+    post?.post_id,
+    post?.planner_id,
+    parsed?.id,
+    parsed?.post_id,
+    parsed?.planner_id,
+    `${network}|${scheduledAt}|${title}`,
+    `title|${title}`,
+    `${network}|${title}`,
+    "__latest__",
+  ]
+    .map((key) => String(key ?? "").trim())
+    .filter(Boolean);
+}
+
+function openPlannerMediaDB(): Promise<IDBDatabase | null> {
+  if (typeof window === "undefined" || !("indexedDB" in window)) return Promise.resolve(null);
+
+  return new Promise((resolve) => {
+    const request = window.indexedDB.open(PLANNER_MEDIA_IDB_NAME, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(PLANNER_MEDIA_IDB_STORE)) {
+        db.createObjectStore(PLANNER_MEDIA_IDB_STORE);
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => resolve(null);
+  });
+}
+
+async function readPlannerMediaCacheItem(post: any, parsed: any): Promise<any | null> {
+  const keys = buildPlannerCacheKeys(post, parsed);
+  if (!keys.length) return null;
+
+  const db = await openPlannerMediaDB();
+  if (!db) return null;
+
+  return await new Promise<any | null>((resolve) => {
+    try {
+      const tx = db.transaction(PLANNER_MEDIA_IDB_STORE, "readonly");
+      const store = tx.objectStore(PLANNER_MEDIA_IDB_STORE);
+      let index = 0;
+
+      const readNext = () => {
+        if (index >= keys.length) {
+          resolve(null);
+          return;
+        }
+
+        const req = store.get(keys[index]);
+        index += 1;
+        req.onsuccess = () => {
+          const value = req.result;
+          if (value && typeof value === "object") {
+            resolve(value);
+            return;
+          }
+          readNext();
+        };
+        req.onerror = () => readNext();
+      };
+
+      readNext();
+      tx.onerror = () => resolve(null);
+      tx.onabort = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  }).finally(() => {
+    try {
+      db.close();
+    } catch {
+      // ignore
+    }
+  });
+}
+
 function readPlannerEditorPayloadCacheItem(post: any, parsed: any): any | null {
   if (typeof window === "undefined") return null;
 
@@ -1431,27 +1532,88 @@ export default function AssistedPublishModal({
   const [objective, setObjective] = useState("conversion");
   const [editorPreviewUrl, setEditorPreviewUrl] = useState("");
   const [editorPreviewLoading, setEditorPreviewLoading] = useState(false);
+  const [plannerMediaCache, setPlannerMediaCache] = useState<any | null>(null);
 
   const parsedRaw = useMemo(
     () => safeParseJSON(post?.contenu ?? post?.content ?? null),
     [post],
   );
+
+  useEffect(() => {
+    if (!open || !post) {
+      setPlannerMediaCache(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    readPlannerMediaCacheItem(post, parsedRaw).then((item) => {
+      if (!cancelled) {
+        setPlannerMediaCache(item);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, post, parsedRaw]);
   const cachedPlannerPayload = useMemo(
-    () => readPlannerEditorPayloadCacheItem(post, parsedRaw),
-    [post, parsedRaw],
+    () => readPlannerEditorPayloadCacheItem(post, parsedRaw) || plannerMediaCache?.payload || null,
+    [post, parsedRaw, plannerMediaCache],
   );
   const parsed = useMemo(() => {
-    if (!cachedPlannerPayload) return parsedRaw;
-    if (!parsedRaw || typeof parsedRaw !== "object") return cachedPlannerPayload;
+    const cachedPreview = firstNonEmptyString(
+      plannerMediaCache?.preview_image,
+      plannerMediaCache?.planner_preview_image,
+      plannerMediaCache?.rendered_image,
+      plannerMediaCache?.payload?.preview_image,
+      plannerMediaCache?.payload?.planner_preview_image,
+      plannerMediaCache?.payload?.rendered_image,
+    );
+
+    if (!cachedPlannerPayload) {
+      if (!parsedRaw || typeof parsedRaw !== "object") return parsedRaw;
+      return {
+        ...parsedRaw,
+        preview_image: (parsedRaw as any)?.preview_image || cachedPreview || undefined,
+        planner_preview_image: (parsedRaw as any)?.planner_preview_image || cachedPreview || undefined,
+        rendered_image: (parsedRaw as any)?.rendered_image || cachedPreview || undefined,
+      };
+    }
+
+    if (!parsedRaw || typeof parsedRaw !== "object") {
+      return {
+        ...cachedPlannerPayload,
+        preview_image: cachedPlannerPayload?.preview_image || cachedPreview || undefined,
+        planner_preview_image: cachedPlannerPayload?.planner_preview_image || cachedPreview || undefined,
+        rendered_image: cachedPlannerPayload?.rendered_image || cachedPreview || undefined,
+      };
+    }
+
     return {
       ...parsedRaw,
       ...cachedPlannerPayload,
+      preview_image:
+        cachedPlannerPayload?.preview_image ||
+        (parsedRaw as any)?.preview_image ||
+        cachedPreview ||
+        undefined,
+      planner_preview_image:
+        cachedPlannerPayload?.planner_preview_image ||
+        (parsedRaw as any)?.planner_preview_image ||
+        cachedPreview ||
+        undefined,
+      rendered_image:
+        cachedPlannerPayload?.rendered_image ||
+        (parsedRaw as any)?.rendered_image ||
+        cachedPreview ||
+        undefined,
       contenu: {
         ...((parsedRaw as any)?.contenu || {}),
         ...(cachedPlannerPayload?.contenu || {}),
       },
     };
-  }, [parsedRaw, cachedPlannerPayload]);
+  }, [parsedRaw, cachedPlannerPayload, plannerMediaCache]);
   const title = useMemo(() => extractTitle(post, parsed), [post, parsed]);
   const caption = useMemo(() => extractCaption(post, parsed), [post, parsed]);
   const exactPreviewImage = useMemo(
