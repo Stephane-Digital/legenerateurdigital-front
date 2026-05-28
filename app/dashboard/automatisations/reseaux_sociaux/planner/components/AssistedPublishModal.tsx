@@ -323,10 +323,17 @@ function extractPreviewCanvas(post: any, parsed: any): PreviewCanvas | null {
 
     for (const item of directLayerSources) {
       if (!item.layers.length) continue;
-      const layers = item.layers.map(normalizeLayer).filter(Boolean) as PreviewLayer[];
+      const layers = item.layers
+        .map(normalizeLayer)
+        .filter(Boolean) as PreviewLayer[];
       if (!layers.length) continue;
       const size = inferCanvasSize(layers, root, post);
-      return { width: size.width, height: size.height, layers, source: item.source };
+      return {
+        width: size.width,
+        height: size.height,
+        layers,
+        source: item.source,
+      };
     }
 
     const slides = extractSlides(root?.slides);
@@ -336,17 +343,33 @@ function extractPreviewCanvas(post: any, parsed: any): PreviewCanvas | null {
         const slideRoots = unwrapEditorPayloads(slide);
         for (const slideRoot of slideRoots) {
           const sourceLayers = [
-            { source: `slides[${i}].layers`, layers: extractLayers(slideRoot?.layers) },
-            { source: `slides[${i}].elements`, layers: extractLayers(slideRoot?.elements) },
-            { source: `slides[${i}].objects`, layers: extractLayers(slideRoot?.objects) },
+            {
+              source: `slides[${i}].layers`,
+              layers: extractLayers(slideRoot?.layers),
+            },
+            {
+              source: `slides[${i}].elements`,
+              layers: extractLayers(slideRoot?.elements),
+            },
+            {
+              source: `slides[${i}].objects`,
+              layers: extractLayers(slideRoot?.objects),
+            },
           ];
 
           for (const item of sourceLayers) {
             if (!item.layers.length) continue;
-            const layers = item.layers.map(normalizeLayer).filter(Boolean) as PreviewLayer[];
+            const layers = item.layers
+              .map(normalizeLayer)
+              .filter(Boolean) as PreviewLayer[];
             if (!layers.length) continue;
             const size = inferCanvasSize(layers, slideRoot ?? root, post);
-            return { width: size.width, height: size.height, layers, source: item.source };
+            return {
+              width: size.width,
+              height: size.height,
+              layers,
+              source: item.source,
+            };
           }
         }
       }
@@ -356,7 +379,10 @@ function extractPreviewCanvas(post: any, parsed: any): PreviewCanvas | null {
   return null;
 }
 
-function inferEditorRenderSpec(post: any, parsed: any): EditorRenderSpec | null {
+function inferEditorRenderSpec(
+  post: any,
+  parsed: any,
+): EditorRenderSpec | null {
   const roots = unwrapEditorPayloads(parsed);
 
   for (const payload of roots) {
@@ -368,7 +394,10 @@ function inferEditorRenderSpec(post: any, parsed: any): EditorRenderSpec | null 
           ui: slide?.ui || payload?.ui,
           layers: extractLayers(slide?.layers),
         }))
-        .filter((slide: any) => Array.isArray(slide.layers) && slide.layers.length > 0);
+        .filter(
+          (slide: any) =>
+            Array.isArray(slide.layers) && slide.layers.length > 0,
+        );
 
       if (normalizedSlides.length) {
         return {
@@ -628,7 +657,6 @@ function findExactPreviewImageDeep(value: any): string {
   return walk(value);
 }
 
-
 const PLANNER_PREVIEW_CACHE_KEY = "lgd_planner_preview_cache_v1";
 
 function readPlannerPreviewCacheItem(post: any, parsed: any): string {
@@ -649,7 +677,12 @@ function readPlannerPreviewCacheItem(post: any, parsed: any): string {
       parsed?.content?.title,
       parsed?.contenu?.title,
     );
-    const network = firstNonEmptyString(post?.network, post?.reseau, parsed?.network, parsed?.reseau);
+    const network = firstNonEmptyString(
+      post?.network,
+      post?.reseau,
+      parsed?.network,
+      parsed?.reseau,
+    );
     const scheduledAt = firstNonEmptyString(
       post?.scheduled_at,
       post?.date_programmee,
@@ -675,7 +708,11 @@ function readPlannerPreviewCacheItem(post: any, parsed: any): string {
 
     for (const key of keys) {
       const item = cache?.[key];
-      const preview = firstNonEmptyString(item?.preview_image, item?.planner_preview_image, item?.rendered_image);
+      const preview = firstNonEmptyString(
+        item?.preview_image,
+        item?.planner_preview_image,
+        item?.rendered_image,
+      );
       if (preview && looksLikeImageUrl(preview)) return preview;
     }
   } catch {
@@ -685,10 +722,7 @@ function readPlannerPreviewCacheItem(post: any, parsed: any): string {
   return "";
 }
 
-
-
 const PLANNER_EDITOR_PAYLOAD_CACHE_KEY = "lgd_planner_editor_payload_cache_v1";
-
 
 const PLANNER_MEDIA_IDB_NAME = "lgd_planner_media_cache_v1";
 const PLANNER_MEDIA_IDB_STORE = "items";
@@ -702,7 +736,12 @@ function buildPlannerCacheKeys(post: any, parsed: any) {
     parsed?.content?.title,
     parsed?.contenu?.title,
   );
-  const network = firstNonEmptyString(post?.network, post?.reseau, parsed?.network, parsed?.reseau);
+  const network = firstNonEmptyString(
+    post?.network,
+    post?.reseau,
+    parsed?.network,
+    parsed?.reseau,
+  );
   const scheduledAt = firstNonEmptyString(
     post?.scheduled_at,
     post?.date_programmee,
@@ -728,7 +767,8 @@ function buildPlannerCacheKeys(post: any, parsed: any) {
 }
 
 function openPlannerMediaDB(): Promise<IDBDatabase | null> {
-  if (typeof window === "undefined" || !("indexedDB" in window)) return Promise.resolve(null);
+  if (typeof window === "undefined" || !("indexedDB" in window))
+    return Promise.resolve(null);
 
   return new Promise((resolve) => {
     const request = window.indexedDB.open(PLANNER_MEDIA_IDB_NAME, 1);
@@ -743,9 +783,11 @@ function openPlannerMediaDB(): Promise<IDBDatabase | null> {
   });
 }
 
-async function readPlannerMediaCacheItem(post: any, parsed: any): Promise<any | null> {
+async function readPlannerMediaCacheItem(
+  post: any,
+  parsed: any,
+): Promise<any | null> {
   const keys = buildPlannerCacheKeys(post, parsed);
-  if (!keys.length) return null;
 
   const db = await openPlannerMediaDB();
   if (!db) return null;
@@ -754,15 +796,49 @@ async function readPlannerMediaCacheItem(post: any, parsed: any): Promise<any | 
     try {
       const tx = db.transaction(PLANNER_MEDIA_IDB_STORE, "readonly");
       const store = tx.objectStore(PLANNER_MEDIA_IDB_STORE);
+      const cleanKeys = Array.from(
+        new Set([...(keys || []), "__latest__", "__pending__"]),
+      );
       let index = 0;
 
-      const readNext = () => {
-        if (index >= keys.length) {
+      const resolveNewestCursorItem = () => {
+        try {
+          const cursorReq = store.openCursor();
+          let newest: any | null = null;
+
+          cursorReq.onsuccess = () => {
+            const cursor = cursorReq.result;
+            if (!cursor) {
+              resolve(newest);
+              return;
+            }
+
+            const value = cursor.value;
+            if (value && typeof value === "object") {
+              const currentTs = Number(
+                value?.created_at || value?.payload?.created_at || 0,
+              );
+              const newestTs = Number(
+                newest?.created_at || newest?.payload?.created_at || 0,
+              );
+              if (!newest || currentTs >= newestTs) newest = value;
+            }
+            cursor.continue();
+          };
+
+          cursorReq.onerror = () => resolve(null);
+        } catch {
           resolve(null);
+        }
+      };
+
+      const readNext = () => {
+        if (index >= cleanKeys.length) {
+          resolveNewestCursorItem();
           return;
         }
 
-        const req = store.get(keys[index]);
+        const req = store.get(cleanKeys[index]);
         index += 1;
         req.onsuccess = () => {
           const value = req.result;
@@ -808,7 +884,12 @@ function readPlannerEditorPayloadCacheItem(post: any, parsed: any): any | null {
       parsed?.content?.title,
       parsed?.contenu?.title,
     );
-    const network = firstNonEmptyString(post?.network, post?.reseau, parsed?.network, parsed?.reseau);
+    const network = firstNonEmptyString(
+      post?.network,
+      post?.reseau,
+      parsed?.network,
+      parsed?.reseau,
+    );
     const scheduledAt = firstNonEmptyString(
       post?.scheduled_at,
       post?.date_programmee,
@@ -837,6 +918,18 @@ function readPlannerEditorPayloadCacheItem(post: any, parsed: any): any | null {
       const payload = item?.payload;
       if (payload && typeof payload === "object") return payload;
     }
+
+    const latest = cache?.__latest__?.payload || cache?.__pending__?.payload;
+    if (latest && typeof latest === "object") return latest;
+
+    const newest = Object.values(cache)
+      .filter((item: any) => item?.payload && typeof item.payload === "object")
+      .sort(
+        (a: any, b: any) =>
+          Number(b?.created_at || 0) - Number(a?.created_at || 0),
+      )[0] as any;
+    if (newest?.payload && typeof newest.payload === "object")
+      return newest.payload;
   } catch {
     // fallback silencieux : le modal garde son comportement existant.
   }
@@ -1558,7 +1651,10 @@ export default function AssistedPublishModal({
     };
   }, [open, post, parsedRaw]);
   const cachedPlannerPayload = useMemo(
-    () => readPlannerEditorPayloadCacheItem(post, parsedRaw) || plannerMediaCache?.payload || null,
+    () =>
+      readPlannerEditorPayloadCacheItem(post, parsedRaw) ||
+      plannerMediaCache?.payload ||
+      null,
     [post, parsedRaw, plannerMediaCache],
   );
   const parsed = useMemo(() => {
@@ -1575,18 +1671,28 @@ export default function AssistedPublishModal({
       if (!parsedRaw || typeof parsedRaw !== "object") return parsedRaw;
       return {
         ...parsedRaw,
-        preview_image: (parsedRaw as any)?.preview_image || cachedPreview || undefined,
-        planner_preview_image: (parsedRaw as any)?.planner_preview_image || cachedPreview || undefined,
-        rendered_image: (parsedRaw as any)?.rendered_image || cachedPreview || undefined,
+        preview_image:
+          (parsedRaw as any)?.preview_image || cachedPreview || undefined,
+        planner_preview_image:
+          (parsedRaw as any)?.planner_preview_image ||
+          cachedPreview ||
+          undefined,
+        rendered_image:
+          (parsedRaw as any)?.rendered_image || cachedPreview || undefined,
       };
     }
 
     if (!parsedRaw || typeof parsedRaw !== "object") {
       return {
         ...cachedPlannerPayload,
-        preview_image: cachedPlannerPayload?.preview_image || cachedPreview || undefined,
-        planner_preview_image: cachedPlannerPayload?.planner_preview_image || cachedPreview || undefined,
-        rendered_image: cachedPlannerPayload?.rendered_image || cachedPreview || undefined,
+        preview_image:
+          cachedPlannerPayload?.preview_image || cachedPreview || undefined,
+        planner_preview_image:
+          cachedPlannerPayload?.planner_preview_image ||
+          cachedPreview ||
+          undefined,
+        rendered_image:
+          cachedPlannerPayload?.rendered_image || cachedPreview || undefined,
       };
     }
 
