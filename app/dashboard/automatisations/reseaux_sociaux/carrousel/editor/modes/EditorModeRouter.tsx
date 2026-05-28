@@ -357,15 +357,90 @@ function safeJsonParseAny(v: any) {
   }
 }
 
-function normalizeArchivePayload(raw: any): AnyObj {
-  const payload = safeJsonParseAny(raw) as AnyObj;
-  const candidates = [payload?.draft, payload?.payload, payload?.content, payload].filter(Boolean);
+function normalizeLayers(input: any): any[] {
+  if (!input) return [];
+  if (Array.isArray(input)) return input;
 
-  for (const c of candidates) {
-    if (c?.canvas?.layers || c?.layers || c?.slides || c?.carrousel?.slides) return c;
+  if (typeof input === "string") {
+    const s = input.trim();
+    if (!s) return [];
+    try {
+      return normalizeLayers(JSON.parse(s));
+    } catch {
+      return [];
+    }
   }
 
-  return payload || {};
+  if (typeof input === "object") {
+    if (Array.isArray(input.layers)) return input.layers;
+    if (Array.isArray(input.json_layers)) return input.json_layers;
+    if (typeof input.layers === "string") return normalizeLayers(input.layers);
+    if (typeof input.json_layers === "string") return normalizeLayers(input.json_layers);
+  }
+
+  return [];
+}
+
+function firstArray(...values: any[]): any[] {
+  for (const value of values) {
+    if (Array.isArray(value)) return value;
+    if (typeof value === "string") {
+      const parsed = safeJsonParseAny(value);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  }
+  return [];
+}
+
+function restoreArchivedLineBreaksInLayers(layers: any[]): any[] {
+  return (Array.isArray(layers) ? layers : []).map((layer: any) => {
+    if (!layer || typeof layer !== "object") return layer;
+    if (layer.type !== "text") return layer;
+    if (typeof layer.text !== "string") return layer;
+    return {
+      ...layer,
+      text: layer.text.replace(/\\n/g, "\n"),
+    };
+  });
+}
+
+function extractSlideLayers(slide: any): any[] {
+  return normalizeLayers(
+    slide?.layers ||
+      slide?.canvas?.layers ||
+      slide?.data?.layers ||
+      slide?.content?.layers ||
+      slide?.payload?.layers ||
+      slide?.elements ||
+      []
+  );
+}
+
+function unwrapSavedPayload(root: any) {
+  const roots: any[] = [];
+  const seen = new Set<any>();
+
+  const visit = (node: any) => {
+    const parsed = safeJsonParseAny(node);
+    if (!parsed || typeof parsed !== "object") return;
+    if (seen.has(parsed)) return;
+    seen.add(parsed);
+    roots.push(parsed);
+
+    visit(parsed.payload);
+    visit(parsed.data);
+    visit(parsed.draft);
+    visit(parsed.content);
+    visit(parsed.contenu);
+    visit(parsed.editor);
+    visit(parsed.canvas);
+    visit(parsed.raw);
+    visit(parsed.item);
+    visit(parsed.result);
+  };
+
+  visit(root);
+  return roots;
 }
 
 function hasRenderableDraft(mode: Mode, draft: any) {
@@ -378,95 +453,110 @@ function hasRenderableDraft(mode: Mode, draft: any) {
 function dispatchEditorDraft(mode: Mode, draft: any) {
   if (typeof window === "undefined") return;
   try {
-    window.dispatchEvent(
-      new CustomEvent(LGD_EDITOR_LOAD_DRAFT_EVENT, {
-        detail: { mode, draft, ts: Date.now() },
-      })
-    );
+    (window as any).__LGD_EDITOR_PENDING_DRAFT__ = { mode, draft, ts: Date.now() };
   } catch {
     // no-op
   }
+
+  const fire = () => {
+    try {
+      window.dispatchEvent(
+        new CustomEvent(LGD_EDITOR_LOAD_DRAFT_EVENT, {
+          detail: { mode, draft, ts: Date.now() },
+        })
+      );
+    } catch {
+      // no-op
+    }
+  };
+
+  fire();
+  window.setTimeout(fire, 80);
+  window.setTimeout(fire, 250);
+  window.setTimeout(fire, 700);
 }
 
 function extractArchivePostDraft(payloadLike: any) {
-  const p = normalizeArchivePayload(payloadLike);
+  const roots = unwrapSavedPayload(payloadLike);
 
-  // ✅ IMPORTANT
-  // On recharge le draft archivé le plus fidèlement possible,
-  // sans le reconstruire inutilement, pour préserver :
-  // - police / fontFamily
-  // - lineHeight / spacing
-  // - width / height / scale éventuels
-  // - ui / format / ratio
-  // - tous les champs déjà validés par l’éditeur
-  if (p && typeof p === "object") {
-    const directLayers =
-      p?.layers ??
-      p?.canvas?.layers ??
-      p?.data?.layers ??
-      p?.content?.layers ??
-      p?.draft?.layers ??
-      p?.draft?.canvas?.layers ??
-      [];
+  for (const payload of roots) {
+    const layers = restoreArchivedLineBreaksInLayers(
+      normalizeLayers(
+        payload?.layers ||
+          payload?.data?.layers ||
+          payload?.canvas?.layers ||
+          payload?.draft?.layers ||
+          payload?.draft?.canvas?.layers ||
+          payload?.content?.layers ||
+          payload?.payload?.layers ||
+          []
+      )
+    );
 
-    return {
-      ...p,
-      ui:
-        p?.ui ??
-        p?.data?.ui ??
-        p?.canvas?.ui ??
-        p?.content?.ui ??
-        p?.draft?.ui ??
-        p?.draft?.canvas?.ui ??
-        undefined,
-      layers: Array.isArray(directLayers) ? directLayers : [],
-    };
+    const ui =
+      payload?.ui ||
+      payload?.data?.ui ||
+      payload?.canvas?.ui ||
+      payload?.draft?.ui ||
+      payload?.draft?.canvas?.ui ||
+      payload?.content?.ui ||
+      payload?.payload?.ui ||
+      {};
+
+    if (layers.length) {
+      return {
+        ...payload,
+        type: "post",
+        ui,
+        layers,
+      };
+    }
   }
 
-  return { layers: [], ui: undefined };
+  return { type: "post", layers: [], ui: {} };
 }
 
 function extractArchiveCarrouselDraft(payloadLike: any) {
-  const p = normalizeArchivePayload(payloadLike);
+  const roots = unwrapSavedPayload(payloadLike);
 
-  const rawSlides =
-    p?.slides ??
-    p?.carrousel?.slides ??
-    p?.draft?.slides ??
-    p?.draft?.carrousel?.slides ??
-    p?.data?.slides ??
-    p?.content?.slides ??
-    [];
+  for (const payload of roots) {
+    const rawSlides = firstArray(
+      payload?.slides,
+      payload?.data?.slides,
+      payload?.canvas?.slides,
+      payload?.draft?.slides,
+      payload?.content?.slides,
+      payload?.payload?.slides,
+      payload?.carrousel?.slides
+    );
 
-  const slides = (Array.isArray(rawSlides) ? rawSlides : []).map((slide: any, index: number) => {
-    const layers =
-      slide?.layers ??
-      slide?.canvas?.layers ??
-      slide?.data?.layers ??
-      slide?.content?.layers ??
-      slide?.payload?.layers ??
-      slide?.elements ??
-      [];
-
-    return {
+    const slides = rawSlides.map((slide: any, index: number) => ({
       ...slide,
       id: String(slide?.id || `slide-${index + 1}`),
-      layers: Array.isArray(layers) ? layers : [],
-    };
-  });
+      layers: restoreArchivedLineBreaksInLayers(extractSlideLayers(slide)),
+    }));
 
-  return {
-    ...p,
-    ui:
-      p?.ui ??
-      p?.data?.ui ??
-      p?.canvas?.ui ??
-      p?.content?.ui ??
-      p?.draft?.ui ??
-      p?.draft?.canvas?.ui ??
-      undefined,
-    slides,
-  };
+    const ui =
+      payload?.ui ||
+      payload?.data?.ui ||
+      payload?.canvas?.ui ||
+      payload?.draft?.ui ||
+      payload?.draft?.canvas?.ui ||
+      payload?.content?.ui ||
+      payload?.payload?.ui ||
+      {};
+
+    if (slides.some((s: any) => Array.isArray(s.layers) && s.layers.length)) {
+      return {
+        ...payload,
+        type: "carrousel",
+        ui,
+        slides,
+      };
+    }
+  }
+
+  return { type: "carrousel", slides: [], ui: {} };
 }
 
 async function fetchArchiveRawById(id: string) {
@@ -558,7 +648,7 @@ export default function EditorModeRouter() {
           liveDraftRef.current.post = draft;
           await safePersistEditorDraft(LS_POST, draft);
           setMode("post");
-          window.setTimeout(() => dispatchEditorDraft("post", draft), 0);
+          dispatchEditorDraft("post", draft);
         } else {
           const draft = extractArchiveCarrouselDraft(payloadRaw);
           window.localStorage.setItem(LS_EDITOR_MODE, "carrousel");
@@ -568,7 +658,7 @@ export default function EditorModeRouter() {
             window.localStorage.setItem("lgd_editor_carrousel_active_slide_v5", String(draft.slides[0].id));
           }
           setMode("carrousel");
-          window.setTimeout(() => dispatchEditorDraft("carrousel", draft), 0);
+          dispatchEditorDraft("carrousel", draft);
         }
       } catch (e: any) {
         if (cancelled) return;
