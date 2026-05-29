@@ -2877,24 +2877,12 @@ OBJECTIF TECHNIQUE : ${goal}
               IA mémoire branché sur le backend.
             </p>
           </div>
-        </div>
 
-        <div className="min-w-0">
-        <div
-          ref={rootRef}
-          className="min-w-0 rounded-none border-0 bg-transparent p-0"
-        >
-          {hydrated ? (
-            <LeadEditorLayout
-              topTools={(
-                <>
-        <div className="mb-5 rounded-[24px] border border-yellow-500/20 bg-black/20 p-4">
-          <div className="text-sm font-semibold text-yellow-300">Actions rapides</div>
-          <div className="mt-3 grid grid-cols-1 gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
               onClick={copyHtml}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-yellow-600/25 bg-yellow-500/10 px-5 py-3 font-semibold text-yellow-200"
+              className="inline-flex items-center gap-2 rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-5 py-3 font-semibold text-white/85"
             >
               <FaCopy className="text-yellow-300" />
               {copied ? "HTML copié" : "Exporter HTML SIO"}
@@ -2904,7 +2892,7 @@ OBJECTIF TECHNIQUE : ${goal}
               type="button"
               onClick={() => exportRaster("png")}
               disabled={!!exporting}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-yellow-600/25 bg-yellow-500/10 px-5 py-3 font-semibold text-yellow-200 disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-5 py-3 font-semibold text-white/85 disabled:opacity-50"
             >
               <FaImage className="text-yellow-300" />
               {exporting === "png" ? "Export PNG..." : "Exporter PNG"}
@@ -2914,7 +2902,7 @@ OBJECTIF TECHNIQUE : ${goal}
               type="button"
               onClick={() => exportRaster("jpeg")}
               disabled={!!exporting}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-yellow-600/25 bg-yellow-500/10 px-5 py-3 font-semibold text-yellow-200 disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-5 py-3 font-semibold text-white/85 disabled:opacity-50"
             >
               <FaDownload className="text-yellow-300" />
               {exporting === "jpeg" ? "Export JPEG..." : "Exporter JPEG"}
@@ -2923,7 +2911,7 @@ OBJECTIF TECHNIQUE : ${goal}
             <button
               type="button"
               onClick={resetPreset}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-yellow-600/25 bg-black/20 px-5 py-3 font-semibold text-white/85"
+              className="inline-flex items-center gap-2 rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-5 py-3 font-semibold text-white/85"
             >
               <FaRedo className="text-yellow-300" />
               Réinitialiser le preset
@@ -2941,7 +2929,7 @@ OBJECTIF TECHNIQUE : ${goal}
           </div>
         )}
 
-        <div className="mb-5 rounded-[24px] border border-yellow-500/30 bg-[#0b0b0b] p-5 shadow-[0_0_38px_rgba(255,184,0,0.08)]">
+        <div className="mb-10 rounded-[28px] border border-yellow-500/30 bg-[#0b0b0b] p-5 shadow-[0_0_38px_rgba(255,184,0,0.08)]">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <div className="text-sm font-semibold text-yellow-300">
@@ -2969,7 +2957,7 @@ OBJECTIF TECHNIQUE : ${goal}
           </div>
 
           {premiumOpen && (
-            <div className="mt-4 grid grid-cols-1 gap-4">
+            <div className="mt-4 grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
               <div className="rounded-2xl border border-yellow-600/20 bg-[#111] p-4">
                 <div className="flex flex-wrap items-center gap-3">
                   <select
@@ -3197,8 +3185,8 @@ OBJECTIF TECHNIQUE : ${goal}
           </div>
         )}
 
-        <div className="mb-5 rounded-[24px] border border-yellow-600/20 bg-[#0b0b0b] p-5">
-          <div className="grid grid-cols-1 gap-4">
+        <div className="mb-8 rounded-[28px] border border-yellow-600/20 bg-[#0b0b0b] p-5">
+          <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
             <div>
               <div className="mb-2 text-sm font-semibold text-yellow-300">
                 Archive de landing
@@ -3276,10 +3264,12 @@ OBJECTIF TECHNIQUE : ${goal}
           </div>
         </div>
 
-
-
-                </>
-              )}
+        <div
+          ref={rootRef}
+          className="rounded-[28px] border border-yellow-600/20 bg-[#0b0b0b] p-4 sm:p-5"
+        >
+          {hydrated ? (
+            <LeadEditorLayout
               key={editorKey}
               initialLayers={initialLayers}
               initialLayersKey={`lead-engine-${editorKey}`}
@@ -3295,14 +3285,10 @@ OBJECTIF TECHNIQUE : ${goal}
               onAiQuotaSync={syncQuotaFromPayload}
             />
           ) : (
-            <div className="flex min-h-[680px] items-center justify-center rounded-[20px] border border-yellow-600/15 bg-black/20 text-sm text-white/45">
+            <div className="flex min-h-[680px] items-center justify-center rounded-[20px] border border-yellow-600/15 bg-[#090909] text-sm text-white/45">
               Chargement du lead builder...
             </div>
           )}
-        </div>
-
-
-
         </div>
 
         {!!lastSavedAt && (
