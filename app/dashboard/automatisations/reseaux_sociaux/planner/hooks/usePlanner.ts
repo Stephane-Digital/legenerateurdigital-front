@@ -15,12 +15,8 @@ function getAuthHeaders() {
 }
 
 async function fetchSameOriginJson(path: string) {
-  const res = await fetch(`/api/proxy${path}`, {
-    credentials: "include",
-    headers: { ...getAuthHeaders() },
-  });
-  if (!res.ok) throw new Error(`proxy ${path} failed (${res.status})`);
-  return await res.json().catch(() => null);
+  const res = await (api as any).get(path);
+  return res?.data ?? res ?? null;
 }
 
 export default function usePlanner() {
