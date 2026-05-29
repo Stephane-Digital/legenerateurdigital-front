@@ -1163,7 +1163,7 @@ export default function EditorModeRouter() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <div className="mx-auto w-full max-w-[1680px] px-4 md:px-6 pt-20">
+      <div className="mx-auto w-full max-w-[1680px] px-4 pt-20 max-[639px]:px-0 md:px-6">
         <div className="flex items-start justify-between gap-4">
           <div className="flex flex-col gap-3">
             <Link
@@ -1250,7 +1250,7 @@ export default function EditorModeRouter() {
         </div>
       </div>
 
-      <div className="mx-auto mt-1 w-full max-w-[1800px] px-6 pb-16">
+      <div className="mx-auto mt-1 w-full max-w-[1800px] px-6 pb-16 max-[639px]:px-0 max-[639px]:pb-24">
         {mode === "post" ? (
           <PostEditor brief={brief} onSnapshot={handlePostSnapshot} />
         ) : (
