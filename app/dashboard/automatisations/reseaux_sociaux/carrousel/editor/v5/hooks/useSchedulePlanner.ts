@@ -575,58 +575,82 @@ export function useSchedulePlanner() {
         ? "/planner/schedule-carrousel"
         : "/planner/schedule-post";
 
-      const compactContent = compactContentForPlanner(
-        payload.contenu,
-        payload.titre,
-        isCarrousel ? "carrousel" : payload.format || "post",
-      );
+      const originalContent =
+        payload.contenu && typeof payload.contenu === "object"
+          ? payload.contenu
+          : {};
 
-      const compactSlides = compactSlidesForPlanner(
-        payload.slides ?? payload.contenu?.slides ?? [],
-      );
+      const previewImage =
+        originalContent?.planner_preview_image ||
+        originalContent?.preview_image ||
+        originalContent?.rendered_image ||
+        originalContent?.plannerPreviewImage ||
+        originalContent?.previewImage ||
+        originalContent?.renderedImage ||
+        "";
 
-      const body = isCarrousel
-        ? {
-            network,
-            scheduled_at,
-            supprimer_apres: !!payload.supprimer_apres,
-            carrousel_id:
-              payload.carrousel_id ??
-              payload.contenu?.carrousel_id ??
-              payload.contenu?.id ??
-              null,
-            slides: compactSlides.length
-              ? compactSlides
-              : compactContent.slides || [],
-            titre: payload.titre ?? compactContent.title,
-            format: "carrousel",
-            preview_image: compactContent.preview_image || undefined,
-            planner_preview_image:
-              compactContent.planner_preview_image || undefined,
-            rendered_image: compactContent.rendered_image || undefined,
-            contenu: {
-              ...compactContent,
-              type: "carrousel",
-              slides: compactSlides.length
-                ? compactSlides
-                : compactContent.slides || [],
-            },
-          }
-        : {
-            network,
-            scheduled_at,
-            supprimer_apres: !!payload.supprimer_apres,
-            titre: payload.titre ?? compactContent.title,
-            format: payload.format ?? "post",
-            preview_image: compactContent.preview_image || undefined,
-            planner_preview_image:
-              compactContent.planner_preview_image || undefined,
-            rendered_image: compactContent.rendered_image || undefined,
-            contenu: {
-              ...compactContent,
-              type: "post",
-            },
-          };
+      const title =
+        payload.titre ||
+        originalContent?.titre ||
+        originalContent?.title ||
+        (isCarrousel ? "Carrousel planifié" : "Post planifié");
+
+      const fullContent = {
+        ...originalContent,
+        type: isCarrousel ? "carrousel" : "post",
+        format: isCarrousel ? "carrousel" : payload.format || "post",
+        title,
+        titre: title,
+        network,
+        reseau: network,
+        scheduled_at,
+        date_programmee: scheduled_at,
+        source: originalContent?.source || "editor",
+        ui: originalContent?.ui || {},
+        ...(isCarrousel
+          ? {
+              slides: Array.isArray(originalContent?.slides)
+                ? originalContent.slides
+                : Array.isArray(payload.slides)
+                  ? payload.slides
+                  : [],
+            }
+          : {
+              layers: Array.isArray(originalContent?.layers)
+                ? originalContent.layers
+                : [],
+            }),
+        preview_image: previewImage || undefined,
+        planner_preview_image: previewImage || undefined,
+        rendered_image: previewImage || undefined,
+      };
+
+      const body = {
+        reseau: network,
+        network,
+        scheduled_at,
+        date_programmee: scheduled_at,
+        supprimer_apres: !!payload.supprimer_apres,
+        statut: payload.statut || "scheduled",
+        status: payload.statut || "scheduled",
+        titre: title,
+        title,
+        format: isCarrousel ? "carrousel" : payload.format || "post",
+        preview_image: previewImage || undefined,
+        planner_preview_image: previewImage || undefined,
+        rendered_image: previewImage || undefined,
+        ...(isCarrousel
+          ? {
+              carrousel_id:
+                payload.carrousel_id ??
+                originalContent?.carrousel_id ??
+                originalContent?.id ??
+                null,
+              slides: Array.isArray(fullContent.slides) ? fullContent.slides : [],
+            }
+          : {}),
+        contenu: fullContent,
+      };
 
       // LGD — cache média immédiat avant appel API : le modal Planner doit pouvoir
       // récupérer le visuel même si la liste Planner renvoie un payload compacté
