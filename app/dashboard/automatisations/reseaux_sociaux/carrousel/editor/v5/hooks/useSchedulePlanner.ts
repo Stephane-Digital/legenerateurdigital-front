@@ -684,14 +684,6 @@ export function useSchedulePlanner() {
       }
 
       const result = await res.json().catch(() => null);
-      const previewImage =
-        body?.contenu?.planner_preview_image ||
-        body?.contenu?.preview_image ||
-        body?.contenu?.rendered_image ||
-        body?.planner_preview_image ||
-        body?.preview_image ||
-        body?.rendered_image ||
-        "";
       cachePlannerPreviewAfterSchedule(result, body, previewImage);
       await cachePlannerEditorPayloadAfterSchedule(
         result,
