@@ -914,7 +914,6 @@ export default function EditorLayout({
         ref={fileInputRef}
         type="file"
         accept="image/*"
-        capture="environment"
         multiple
         hidden
         onChange={(e) => {
@@ -1663,7 +1662,6 @@ export default function EditorLayout({
         <div className="grid min-w-0 grid-cols-1 min-[1024px]:grid-cols-[360px_minmax(0,1fr)] min-[1500px]:grid-cols-[390px_minmax(0,1fr)] gap-4 min-[900px]:gap-6">
           {/* LEFT (desktop only) */}
           <aside className="hidden min-w-0 min-[1024px]:block rounded-2xl border border-yellow-500/15 bg-black/30 p-4 max-h-[calc(100vh-150px)] overflow-y-auto overscroll-contain">
-            <div className="mx-auto w-full max-w-[320px]">
             <button
               onClick={addText}
               className="w-full rounded-xl bg-[#ffb800] text-black font-semibold py-3"
@@ -1930,7 +1928,6 @@ export default function EditorLayout({
                 </div>
               )}
             </div>
-                      </div>
           </aside>
 
           {/* CENTER */}
