@@ -1457,7 +1457,7 @@ export default function EditorLayout({
                       : "border-yellow-500/20 text-yellow-200"
                   }`}
                 >
-                  {overlayEnabled ? "désctivé" : "désctiver"}
+                  {overlayEnabled ? "Activé" : "Activer"}
                 </button>
               </div>
 
