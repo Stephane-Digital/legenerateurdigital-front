@@ -883,13 +883,6 @@ export default function EditorLayout({
     });
   }, [bgColor]);
 
-  const onImportMobileCompanion = useCallback(
-    async (files: FileList | null) => {
-      if (!files || !files.length) return;
-      await onImportImages(files);
-    },
-    [onImportImages]
-  );
 
   /* ================= CANVA-LIKE MEASURES (selected layer distances) ================= */
   const selectedMetrics = useMemo(() => {
