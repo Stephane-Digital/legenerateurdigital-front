@@ -937,7 +937,7 @@ export default function EditorLayout({
       />
 
       {/* ================= MOBILE PREMIUM EDITOR (<640px only) ================= */}
-      <div className="min-[640px]:hidden w-full min-h-[100svh] overflow-x-hidden pb-[calc(92px+env(safe-area-inset-bottom))]">
+      <div className="min-[640px]:hidden min-h-[100svh] pb-[calc(92px+env(safe-area-inset-bottom))]">
         <div className="sticky top-0 z-[35] border-b border-yellow-500/15 bg-black/95 px-3 py-3 backdrop-blur">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
@@ -961,10 +961,10 @@ export default function EditorLayout({
           </div>
         </div>
 
-        <div className="w-full px-0 pt-0">
-          <main className="w-full rounded-none border-0 bg-transparent p-0 shadow-none">
+        <div className="px-2 pt-3">
+          <main className="w-full p-0">
             <div
-              className="relative w-full overflow-hidden rounded-none border-y border-yellow-500/20 bg-transparent"
+              className="relative w-full overflow-hidden rounded-none border-y border-yellow-500/20 bg-black"
               style={{
                 aspectRatio: `${format.w} / ${format.h}`,
                 minHeight: "260px",
@@ -986,7 +986,7 @@ export default function EditorLayout({
             </div>
           </main>
 
-          <div className="mt-3 grid grid-cols-3 gap-2 px-2">
+          <div className="mt-3 grid grid-cols-3 gap-2">
             <button
               type="button"
               onClick={addText}
@@ -1015,7 +1015,7 @@ export default function EditorLayout({
           </div>
 
           {selectedLayer && (
-            <div className="mt-3 w-full rounded-none border-y border-yellow-500/15 bg-transparent p-2">
+            <div className="mt-3 rounded-[20px] border border-yellow-500/15 bg-black/35 p-3">
               <div className="mb-2 flex items-center justify-between gap-3">
                 <div>
                   <div className="text-sm font-semibold text-yellow-300">Propriétés rapides</div>
@@ -1030,7 +1030,7 @@ export default function EditorLayout({
                 </button>
               </div>
 
-              <div className="max-h-[38svh] w-full overflow-y-auto rounded-none border-y border-yellow-500/10 bg-transparent p-0">
+              <div className="max-h-[38svh] overflow-y-auto rounded-2xl border border-yellow-500/10 bg-black/25 p-2">
                 <PropertiesDrawer
                   open
                   layer={selectedLayer}
@@ -1932,10 +1932,10 @@ export default function EditorLayout({
           </aside>
 
           {/* CENTER */}
-          <main className="min-w-0 rounded-none min-[640px]:rounded-2xl border-0 min-[640px]:border border-white/10 bg-black/25 p-0 min-[640px]:p-2 min-[900px]:p-4 min-[1024px]:p-5 relative flex items-start justify-center overflow-hidden">
+          <main className="min-w-0 p-0 relative flex items-start justify-center overflow-visible">
             <div
               ref={stageWrapRef}
-              className="w-full max-w-none rounded-none min-[640px]:rounded-2xl border-0 min-[640px]:border border-yellow-500/20 overflow-hidden relative min-[1024px]:h-[calc(100vh-170px)]"
+              className="w-full max-w-none rounded-none min-[640px]:rounded-2xl border border-yellow-500/20 overflow-hidden relative min-[1024px]:h-[calc(100vh-170px)]"
               style={{
                 aspectRatio: `${format.w} / ${format.h}`,
                 width: "100%",
@@ -1983,3 +1983,6 @@ export default function EditorLayout({
     </div>
   );
 }
+
+
+
