@@ -937,7 +937,7 @@ export default function EditorLayout({
       />
 
       {/* ================= MOBILE PREMIUM EDITOR (<640px only) ================= */}
-      <div className="min-[640px]:hidden min-h-[100svh] pb-[calc(92px+env(safe-area-inset-bottom))]">
+      <div className="min-[640px]:hidden w-full min-h-[100svh] overflow-x-hidden pb-[calc(92px+env(safe-area-inset-bottom))]">
         <div className="sticky top-0 z-[35] border-b border-yellow-500/15 bg-black/95 px-3 py-3 backdrop-blur">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
@@ -961,10 +961,10 @@ export default function EditorLayout({
           </div>
         </div>
 
-        <div className="px-0 pt-3">
-          <main className="w-full bg-transparent p-0 shadow-none">
+        <div className="w-full px-0 pt-0">
+          <main className="w-full rounded-none border-0 bg-transparent p-0 shadow-none">
             <div
-              className="relative mx-0 w-full overflow-hidden rounded-none border-y border-yellow-500/20 bg-transparent"
+              className="relative w-full overflow-hidden rounded-none border-y border-yellow-500/20 bg-transparent"
               style={{
                 aspectRatio: `${format.w} / ${format.h}`,
                 minHeight: "260px",
@@ -986,7 +986,7 @@ export default function EditorLayout({
             </div>
           </main>
 
-          <div className="mt-3 grid grid-cols-3 gap-2 px-3">
+          <div className="mt-3 grid grid-cols-3 gap-2 px-2">
             <button
               type="button"
               onClick={addText}
@@ -1015,7 +1015,7 @@ export default function EditorLayout({
           </div>
 
           {selectedLayer && (
-            <div className="mt-3 w-full border-y border-yellow-500/15 bg-transparent px-3 py-3">
+            <div className="mt-3 w-full rounded-none border-y border-yellow-500/15 bg-transparent p-2">
               <div className="mb-2 flex items-center justify-between gap-3">
                 <div>
                   <div className="text-sm font-semibold text-yellow-300">Propriétés rapides</div>
@@ -1030,7 +1030,7 @@ export default function EditorLayout({
                 </button>
               </div>
 
-              <div className="max-h-[38svh] overflow-y-auto rounded-2xl border border-yellow-500/10 bg-transparent p-2">
+              <div className="max-h-[38svh] w-full overflow-y-auto rounded-none border-y border-yellow-500/10 bg-transparent p-0">
                 <PropertiesDrawer
                   open
                   layer={selectedLayer}
@@ -1955,7 +1955,6 @@ export default function EditorLayout({
                 <div
                   className="absolute left-0 right-0 h-px bg-yellow-400/25"
                   style={{ top: `${centerY}px` }}
-                  
                 />
               </div>
 
@@ -1984,6 +1983,3 @@ export default function EditorLayout({
     </div>
   );
 }
-
-
-
