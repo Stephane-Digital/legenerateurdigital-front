@@ -272,11 +272,11 @@ export default function EditorLayout({
   const [bgImage, setBgImage] = useState<string | null>(initialUI?.bgImage ?? null);
 
   /* ================= OVERLAY STATE ================= */
-  const [overlayEnabled, setOverlayEnabled] = useState(initialUI?.overlayEnabled ?? false);
+  const [overlayEnabled, setOverlayEnabled] = useState(false);
   const [overlayType, setOverlayType] = useState<OverlayType>(initialUI?.overlayType ?? "color");
   const [overlayColor1, setOverlayColor1] = useState(initialUI?.overlayColor1 ?? "#000000");
   const [overlayColor2, setOverlayColor2] = useState(initialUI?.overlayColor2 ?? "#000000");
-  const [overlayOpacity, setOverlayOpacity] = useState(initialUI?.overlayOpacity ?? 0);
+  const [overlayOpacity, setOverlayOpacity] = useState(0);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const bgImageInputRef = useRef<HTMLInputElement | null>(null);
