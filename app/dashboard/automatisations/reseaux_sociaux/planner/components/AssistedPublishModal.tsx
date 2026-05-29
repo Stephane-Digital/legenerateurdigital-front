@@ -298,58 +298,106 @@ function extractPreviewCanvas(post: any, parsed: any): PreviewCanvas | null {
   return null;
 }
 
+function collectEditorPayloadRoots(...values: any[]) {
+  const roots: any[] = [];
+  const seen = new Set<any>();
+
+  const visit = (node: any) => {
+    const parsedNode = safeParseJSON(node) || node;
+    if (!parsedNode || typeof parsedNode !== "object") return;
+    if (seen.has(parsedNode)) return;
+
+    seen.add(parsedNode);
+    roots.push(parsedNode);
+
+    visit(parsedNode.payload);
+    visit(parsedNode.draft);
+    visit(parsedNode.content);
+    visit(parsedNode.contenu);
+    visit(parsedNode.data);
+    visit(parsedNode.canvas);
+    visit(parsedNode.editor);
+    visit(parsedNode.raw);
+    visit(parsedNode.item);
+  };
+
+  values.forEach(visit);
+  return roots;
+}
+
 function inferEditorRenderSpec(post: any, parsed: any): EditorRenderSpec | null {
-  const payload =
-    parsed?.payload && typeof parsed.payload === "object"
-      ? parsed.payload
-      : parsed?.draft && typeof parsed.draft === "object"
-        ? parsed.draft
-        : parsed;
+  const roots = collectEditorPayloadRoots(parsed, post);
 
-  if (!payload || typeof payload !== "object") return null;
+  for (const payload of roots) {
+    const explicitType = String(
+      payload?.type ||
+        payload?.format ||
+        payload?.kind ||
+        post?.format ||
+        post?.type ||
+        ""
+    )
+      .trim()
+      .toLowerCase();
 
-  const explicitType = String(
-    payload?.type ||
-      payload?.format ||
-      payload?.kind ||
-      post?.format ||
-      post?.type ||
-      ""
-  )
-    .trim()
-    .toLowerCase();
+    const slides = extractSlides(payload?.slides);
+    if (slides.length) {
+      const normalizedSlides = slides
+        .map((slide: any, index: number) => ({
+          ...slide,
+          id: String(slide?.id || `slide-${index + 1}`),
+          ui: slide?.ui || payload?.ui,
+          layers: extractLayers(
+            slide?.layers ||
+              slide?.elements ||
+              slide?.objects ||
+              slide?.canvas?.layers ||
+              slide?.content?.layers ||
+              slide?.payload?.layers
+          ),
+        }))
+        .filter((slide: any) => Array.isArray(slide.layers) && slide.layers.length > 0);
 
-  const slides = extractSlides(payload?.slides);
-  if (slides.length) {
-    const normalizedSlides = slides
-      .map((slide: any, index: number) => ({
-        id: String(slide?.id || `slide-${index + 1}`),
-        ui: slide?.ui || payload?.ui,
-        layers: extractLayers(slide?.layers),
-      }))
-      .filter((slide: any) => Array.isArray(slide.layers) && slide.layers.length > 0);
+      if (normalizedSlides.length) {
+        return {
+          mode: "carrousel",
+          draft: {
+            ui: payload?.ui || {},
+            slides: normalizedSlides,
+          },
+          slideIndex: 0,
+        };
+      }
+    }
 
-    if (normalizedSlides.length) {
+    const layers = extractLayers(
+      payload?.layers ||
+        payload?.elements ||
+        payload?.objects ||
+        payload?.canvas?.layers ||
+        payload?.content?.layers ||
+        payload?.payload?.layers
+    );
+
+    if (layers.length) {
       return {
-        mode: "carrousel",
+        mode: "post",
         draft: {
-          ui: payload?.ui,
-          slides: normalizedSlides,
+          ui: payload?.ui || {},
+          layers,
         },
-        slideIndex: 0,
       };
     }
-  }
 
-  const layers = extractLayers(payload?.layers);
-  if (layers.length || explicitType === "post") {
-    return {
-      mode: "post",
-      draft: {
-        ui: payload?.ui,
-        layers,
-      },
-    };
+    if (explicitType === "post" && Array.isArray(payload?.layers)) {
+      return {
+        mode: "post",
+        draft: {
+          ui: payload?.ui || {},
+          layers: payload.layers,
+        },
+      };
+    }
   }
 
   return null;
@@ -553,6 +601,21 @@ function flattenPossibleMediaSources(post: any, parsed: any) {
 }
 
 function extractExactPreviewImage(post: any, parsed: any) {
+  const roots = collectEditorPayloadRoots(parsed, post);
+
+  for (const root of roots) {
+    const candidate = firstNonEmptyString(
+      root?.planner_preview_image,
+      root?.preview_image,
+      root?.rendered_image,
+      root?.plannerPreviewImage,
+      root?.previewImage,
+      root?.renderedImage,
+    );
+
+    if (candidate) return candidate;
+  }
+
   return firstNonEmptyString(
     post?.planner_preview_image,
     post?.preview_image,
