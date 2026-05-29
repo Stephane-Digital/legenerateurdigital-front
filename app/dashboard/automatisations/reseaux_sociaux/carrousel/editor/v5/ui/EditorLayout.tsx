@@ -187,10 +187,16 @@ function removeOverlayFromLayer(layer: any) {
   if (!layer || typeof layer !== "object") return layer;
 
   const style = layer.style && typeof layer.style === "object" ? { ...layer.style } : {};
-  if ("overlay" in style) delete style.overlay;
+  delete style.overlay;
+  delete style.overlayEnabled;
+  delete style.overlayOpacity;
+  delete style.overlayType;
 
   const next: any = { ...layer, style };
-  if ("overlay" in next) delete next.overlay;
+  delete next.overlay;
+  delete next.overlayEnabled;
+  delete next.overlayOpacity;
+  delete next.overlayType;
 
   return next;
 }
@@ -200,11 +206,9 @@ function coerceIncomingLayers(incoming: LayerData[]): LayerData[] {
     const normalized =
       l?.id === "background" ? ({ ...l, id: BACKGROUND_LAYER_ID } as any) : l;
 
-    // Overlay OFF par défaut : aucun ancien voile sauvegardé ne doit se réappliquer seul.
     return removeOverlayFromLayer(normalized) as any;
   });
 }
-
 function stableSerialize(value: any): string {
   const seen = new WeakSet();
 
@@ -633,6 +637,26 @@ export default function EditorLayout({
     });
   }, [bgMode, bgImage, format.w, format.h]);
 
+  useEffect(() => {
+    if (overlayEnabled) return;
+
+    if (Number(overlayOpacity) !== 0) {
+      setOverlayOpacity(0);
+    }
+
+    setLayers((prev: any[]) => {
+      let changed = false;
+      const next = prev.map((layer: any) => {
+        const cleaned = removeOverlayFromLayer(layer);
+        if (JSON.stringify(cleaned) !== JSON.stringify(layer)) changed = true;
+        return cleaned;
+      });
+
+      return changed ? next : prev;
+    });
+  }, [overlayEnabled, overlayOpacity]);
+
+
   /* ================= SYNC OVERLAY (WORKS ON ANY BACKGROUND) ================= */
   useEffect(() => {
     setLayers((prev: any[]) => {
@@ -643,7 +667,7 @@ export default function EditorLayout({
         const baseStyle = { ...(l.style ?? {}) };
         const currentOverlay = baseStyle?.overlay;
 
-        if (!overlayEnabled) {
+        if (!overlayEnabled || Number(overlayOpacity) <= 0) {
           const cleanedLayer = removeOverlayFromLayer(l);
           const before = JSON.stringify({ overlay: l?.overlay, style: l?.style ?? {} });
           const after = JSON.stringify({ overlay: cleanedLayer?.overlay, style: cleanedLayer?.style ?? {} });
@@ -689,10 +713,13 @@ export default function EditorLayout({
   }, [overlayEnabled, overlayType, overlayColor1, overlayColor2, overlayOpacity]);
 
   const effectiveCanvasLayers = useMemo(() => {
-    if (overlayEnabled) return layers;
+    // Overlay OFF ou opacité 0% = aucun voile ne doit être visible dans le canvas.
+    if (!overlayEnabled || Number(overlayOpacity) <= 0) {
+      return layers.map((layer: any) => removeOverlayFromLayer(layer)) as LayerData[];
+    }
 
-    return layers.map((layer: any) => removeOverlayFromLayer(layer)) as LayerData[];
-  }, [layers, overlayEnabled]);
+    return layers;
+  }, [layers, overlayEnabled, overlayOpacity]);
 
   const selectedLayer = useMemo(
     () => (layers.find((l: any) => l.selected) as any) ?? null,
@@ -846,8 +873,8 @@ export default function EditorLayout({
             zIndex: -1000,
             visible: true,
             selected: false,
-            // keep overlay style if exists
-            style: { ...(oldBg?.style ?? {}) },
+            // Ne jamais réinjecter un ancien overlay dans l’image de fond.
+            style: removeOverlayFromLayer({ style: oldBg?.style ?? {} }).style ?? {},
           } as any,
           ...withoutBg,
         ];
@@ -1160,7 +1187,13 @@ export default function EditorLayout({
               <div className="flex items-center justify-between mb-2">
                 <span className="text-yellow-400 text-sm">Overlay</span>
                 <button
-                  onClick={() => setOverlayEnabled((v) => !v)}
+                  onClick={() => {
+                    setOverlayEnabled((v) => {
+                      const next = !v;
+                      if (next) setOverlayOpacity(0);
+                      return next;
+                    });
+                  }}
                   className={`rounded-lg px-3 py-1 text-xs border ${
                     overlayEnabled
                       ? "bg-[#ffb800] text-black"
@@ -1450,7 +1483,13 @@ export default function EditorLayout({
                 <label className="block text-yellow-400 text-sm">Overlay</label>
 
                 <button
-                  onClick={() => setOverlayEnabled((v) => !v)}
+                  onClick={() => {
+                    setOverlayEnabled((v) => {
+                      const next = !v;
+                      if (next) setOverlayOpacity(0);
+                      return next;
+                    });
+                  }}
                   className={`rounded-lg px-3 py-1 text-xs border ${
                     overlayEnabled
                       ? "bg-[#ffb800] text-black border-[#ffb800]"
