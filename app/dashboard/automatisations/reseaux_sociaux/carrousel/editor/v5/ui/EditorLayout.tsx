@@ -936,7 +936,7 @@ export default function EditorLayout({
         }}
       />
 
-      {/* ================= MOBILE PREMIUM EDITOR (<640px only) ================= */}
+      {/* ================= MOBILE PREMIUM EDITOR (<640px only) — NO BLACK WRAPPER FINAL ================= */}
       <div className="min-[640px]:hidden min-h-[100svh] pb-[calc(92px+env(safe-area-inset-bottom))]">
         <div className="sticky top-0 z-[35] border-b border-yellow-500/15 bg-black/95 px-3 py-3 backdrop-blur">
           <div className="flex items-center justify-between gap-3">
@@ -964,7 +964,7 @@ export default function EditorLayout({
         <div className="px-2 pt-3">
           <main className="w-full p-0">
             <div
-              className="relative mx-auto w-full overflow-hidden rounded-none border-y border-yellow-500/20 bg-black"
+              className="relative w-full overflow-hidden rounded-none border-0 bg-transparent"
               style={{
                 aspectRatio: `${format.w} / ${format.h}`,
                 minHeight: "260px",
@@ -1015,7 +1015,7 @@ export default function EditorLayout({
           </div>
 
           {selectedLayer && (
-            <div className="mt-3 w-full rounded-none border-y border-yellow-500/15 bg-transparent p-3">
+            <div className="mt-3 rounded-[20px] border border-yellow-500/15 bg-black/35 p-3">
               <div className="mb-2 flex items-center justify-between gap-3">
                 <div>
                   <div className="text-sm font-semibold text-yellow-300">Propriétés rapides</div>
@@ -1030,7 +1030,7 @@ export default function EditorLayout({
                 </button>
               </div>
 
-              <div className="max-h-[38svh] overflow-y-auto rounded-none border-y border-yellow-500/10 bg-transparent p-2">
+              <div className="max-h-[38svh] overflow-y-auto rounded-none border-0 bg-transparent p-0">
                 <PropertiesDrawer
                   open
                   layer={selectedLayer}
@@ -1601,7 +1601,7 @@ export default function EditorLayout({
             <div className="pt-4 border-t border-yellow-500/15">
               <div className="text-yellow-300 font-semibold text-sm mb-3">Layers</div>
 
-              <div className="rounded-2xl border border-yellow-500/15 bg-black/30 p-3">
+              <div className="rounded-none border-0 bg-transparent p-0">
                 <LayersPanelV5
                   layers={layers.filter((l: any) => l.id !== BACKGROUND_LAYER_ID)}
                   selectedLayerId={selectedLayer?.id ?? null}
@@ -1662,7 +1662,7 @@ export default function EditorLayout({
       <div className="hidden min-[640px]:block w-full max-w-none min-[1024px]:max-w-[1920px] mx-auto px-0 min-[640px]:px-2 min-[900px]:px-4 min-[1024px]:px-4 min-[1500px]:px-6 pb-28 min-[1024px]:pb-10">
         <div className="grid min-w-0 grid-cols-1 min-[1024px]:grid-cols-[360px_minmax(0,1fr)] min-[1500px]:grid-cols-[390px_minmax(0,1fr)] gap-4 min-[900px]:gap-6">
           {/* LEFT (desktop only) */}
-          <aside className="hidden min-w-0 min-[1024px]:block rounded-2xl border border-yellow-500/15 bg-black/30 p-4 max-h-[calc(100vh-150px)] overflow-y-auto overscroll-contain">
+          <aside className="hidden min-w-0 min-[1024px]:block rounded-none border-0 bg-transparent p-0 max-h-[calc(100vh-150px)] overflow-y-auto overscroll-contain">
             <button
               onClick={addText}
               className="w-full rounded-xl bg-[#ffb800] text-black font-semibold py-3"
@@ -1906,7 +1906,7 @@ export default function EditorLayout({
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-yellow-500/15 bg-black/30 p-3">
+              <div className="rounded-none border-0 bg-transparent p-0">
                 <LayersPanelV5
                   layers={layers.filter((l: any) => l.id !== BACKGROUND_LAYER_ID)}
                   selectedLayerId={selectedLayer?.id ?? null}
@@ -1919,7 +1919,7 @@ export default function EditorLayout({
               </div>
 
               {selectedLayer && (
-                <div className="mt-4 rounded-2xl border border-yellow-500/15 bg-black/25 p-3">
+                <div className="mt-4 rounded-none border-0 bg-transparent p-0">
                   <PropertiesDrawer
                     open
                     layer={selectedLayer}
@@ -1932,10 +1932,10 @@ export default function EditorLayout({
           </aside>
 
           {/* CENTER */}
-          <main className="min-w-0 border-0 bg-transparent p-0 relative flex items-start justify-center overflow-visible">
+          <main className="min-w-0 p-0 relative flex items-start justify-center overflow-visible bg-transparent border-0 rounded-none">
             <div
               ref={stageWrapRef}
-              className="w-full max-w-none rounded-none border-0 overflow-hidden relative min-[1024px]:h-[calc(100vh-170px)]"
+              className="w-full max-w-none rounded-none border-0 overflow-hidden relative min-[1024px]:h-[calc(100vh-170px)] bg-transparent"
               style={{
                 aspectRatio: `${format.w} / ${format.h}`,
                 width: "100%",
@@ -1983,7 +1983,6 @@ export default function EditorLayout({
     </div>
   );
 }
-
 
 
 
