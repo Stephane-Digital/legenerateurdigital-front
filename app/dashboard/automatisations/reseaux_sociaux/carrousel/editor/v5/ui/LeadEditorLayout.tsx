@@ -848,7 +848,7 @@ export default function EditorLayout({
   );
 
   const buildHooks = useCallback(() => {
-    const offer = briefOffer.trim();
+    const offer = briefOffer.trim() || "ton offre";
     const audience = briefAudience === "coachs" ? "tes futurs clients" : "des prospects qualifiés";
     const prefix =
       briefTone === "urgent"
@@ -869,7 +869,7 @@ export default function EditorLayout({
   }, [briefOffer, briefAudience, briefTone]);
 
   const buildBenefits = useCallback(() => {
-    const offer = briefOffer.trim();
+    const offer = briefOffer.trim() || "ton offre";
     return [
       { id: "benefit-1", kind: "benefit" as const, label: "Bénéfice 1", text: `• Transforme ton offre en prochaine action évidente.` },
       { id: "benefit-2", kind: "benefit" as const, label: "Bénéfice 2", text: "• Donne envie de laisser son email sans forcer la vente." },
@@ -893,7 +893,7 @@ export default function EditorLayout({
   }, [briefGoal]);
 
   const buildLanding = useCallback(() => {
-    const offer = briefOffer.trim();
+    const offer = briefOffer.trim() || "ton offre";
     const hooks = buildHooks();
     const benefits = buildBenefits();
     const ctas = buildCtas();
@@ -954,7 +954,7 @@ export default function EditorLayout({
     });
 
     const placed: LayerData[] = [];
-    let y = 58;
+    let y = 86;
     const zStart = 10;
 
     normalized.forEach((item, index) => {
@@ -1012,10 +1012,10 @@ export default function EditorLayout({
 
       const layerHeight = typeof (finalLayer as any).height === "number" ? (finalLayer as any).height : 80;
       const spacing =
-        item.kind === "hook" ? 44 :
-        item.kind === "subtitle" ? 36 :
-        item.kind === "cta" ? 52 :
-        item.kind === "benefit" ? 34 : 42;
+        item.kind === "hook" ? 26 :
+        item.kind === "subtitle" ? 22 :
+        item.kind === "cta" ? 34 :
+        item.kind === "benefit" ? 16 : 28;
 
       y += layerHeight + spacing;
     });
@@ -1057,7 +1057,7 @@ export default function EditorLayout({
   }
 
   function buildCopilotBrief(action: CopilotAction) {
-    const offer = briefOffer.trim();
+    const offer = briefOffer.trim() || "ton offre";
 
     return [
       `Offre / sujet : ${offer}`,
@@ -1068,7 +1068,6 @@ export default function EditorLayout({
       `URL CTA : ${ctaUrl || "non précisée"}`,
       `Action demandée : ${action}`,
       `Mode attendu : DONE FOR YOU. LGD rédige le contenu final prêt à utiliser, pas des conseils, pas une méthode à suivre.`,
-      `Règle qualité : exploiter toute l'offre, l'audience, l'angle, les douleurs, les objections et l'intention business. Ne jamais inventer un fallback générique si le sujet est insuffisant.`,
     ].join("\n");
   }
 
@@ -1087,7 +1086,7 @@ export default function EditorLayout({
     if (action === "variants") {
       return `${base} | DONE FOR YOU | Retourne exactement 4 variantes marketing finales en français, une par ligne, avec des angles nettement différents.`;
     }
-    return `${base} | PROMPT_BRAIN | DONE FOR YOU | Retourne UNE vraie page finale complète, rédigée et prête à injecter. Interdit: conseils, plan, structure à compléter, « voici », « clarifie », « renforce », « tu peux ». Utilise uniquement les séparateurs techniques [[LGD_BLOCK:HERO]], [[LGD_BLOCK:IDENTIFICATION]], [[LGD_BLOCK:AGITATION]], [[LGD_BLOCK:MICRO_TRANSFORMATION]], [[LGD_BLOCK:CE_QUE_TU_RECOIS]], [[LGD_BLOCK:MECANISME]], [[LGD_BLOCK:OBJECTION_KILLER]], [[LGD_BLOCK:REASSURANCE]], [[LGD_BLOCK:CTA_FINAL]]. Dans chaque section, écris seulement le texte final visible sur la page. Ne jamais écrire TITRE:, SOUS-TITRE:, CTA:, Bénéfices:. Le rendu doit être un vrai lead magnet ou une vraie page terminée, jamais un résumé ni un fallback.`;
+    return `${base} | DONE FOR YOU | Retourne UNE vraie page finale complète, rédigée et prête à injecter. Interdit: conseils, plan, structure à compléter, « voici », « clarifie », « renforce », « tu peux ». Utilise uniquement les séparateurs techniques [[LGD_BLOCK:HERO]], [[LGD_BLOCK:IDENTIFICATION]], [[LGD_BLOCK:AGITATION]], [[LGD_BLOCK:MICRO_TRANSFORMATION]], [[LGD_BLOCK:CE_QUE_TU_RECOIS]], [[LGD_BLOCK:MECANISME]], [[LGD_BLOCK:OBJECTION_KILLER]], [[LGD_BLOCK:REASSURANCE]], [[LGD_BLOCK:CTA_FINAL]]. Dans chaque section, écris seulement le texte final visible sur la page. Ne jamais écrire TITRE:, SOUS-TITRE:, CTA:, Bénéfices:.`;
   }
 
   async function saveCopilotMemory(action: CopilotAction) {
@@ -1178,84 +1177,6 @@ export default function EditorLayout({
     return `Section ${index}`;
   }
 
-
-  function splitLandingTextIntoSections(value: string): GeneratedItem[] {
-    const cleaned = cleanGeneratedTextForCanvas(value)
-      .replace(/\r/g, "")
-      .replace(/\n{3,}/g, "\n\n")
-      .trim();
-
-    if (!cleaned) return [];
-
-    const rawParagraphs = cleaned
-      .split(/\n\s*\n+/)
-      .map((block) => cleanGeneratedTextForCanvas(block))
-      .filter(Boolean)
-      .filter((block) => !/^(voici|clarifie|renforce|augmente|conseil|structure)/i.test(block));
-
-    let sections = rawParagraphs;
-
-    if (sections.length < 4) {
-      const sentences = cleaned
-        .replace(/\n+/g, " ")
-        .split(/(?<=[.!?])\s+/)
-        .map((sentence) => cleanGeneratedTextForCanvas(sentence))
-        .filter((sentence) => sentence.length > 18)
-        .filter((sentence) => !/^(voici|clarifie|renforce|augmente|conseil|structure)/i.test(sentence));
-
-      if (sentences.length >= 5) {
-        const targetCount = Math.min(8, Math.max(5, Math.ceil(sentences.length / 2)));
-        const perSection = Math.max(1, Math.ceil(sentences.length / targetCount));
-        const grouped: string[] = [];
-
-        for (let i = 0; i < sentences.length; i += perSection) {
-          grouped.push(sentences.slice(i, i + perSection).join(" ").trim());
-        }
-
-        sections = grouped.filter(Boolean);
-      }
-    }
-
-    if (sections.length < 2 && cleaned.length > 420) {
-      const chunks: string[] = [];
-      let cursor = 0;
-      const chunkSize = 360;
-
-      while (cursor < cleaned.length) {
-        const slice = cleaned.slice(cursor, cursor + chunkSize);
-        const breakAt = slice.lastIndexOf(" ");
-        const next = (breakAt > 180 ? slice.slice(0, breakAt) : slice).trim();
-        if (next) chunks.push(next);
-        cursor += next.length || chunkSize;
-      }
-
-      sections = chunks.filter(Boolean);
-    }
-
-    if (sections.length < 2) return [];
-
-    const labels = [
-      "Accroche principale",
-      "Identification",
-      "Promesse",
-      "Ce que le prospect reçoit",
-      "Mécanisme",
-      "Objections",
-      "Réassurance",
-      "CTA final",
-    ];
-
-    return sections.slice(0, 8).map((block, index) => {
-      const label = labels[index] || `Section ${index + 1}`;
-      return {
-        id: `ai-landing-smart-${index + 1}`,
-        kind: kindFromLabel(label, index + 1),
-        label,
-        text: block,
-      };
-    });
-  }
-
   function parseLandingBlocks(content: string): GeneratedItem[] {
     const text = String(content || "").trim();
     if (!text) return [];
@@ -1298,8 +1219,20 @@ export default function EditorLayout({
 
     if (items.length >= 3) return items;
 
-    const smartSections = splitLandingTextIntoSections(text);
-    if (smartSections.length >= 2) return smartSections;
+    const paragraphs = text
+      .split(/\n\s*\n+/)
+      .map((block) => cleanGeneratedTextForCanvas(block))
+      .filter(Boolean)
+      .filter((block) => !/^(voici|clarifie|renforce|augmente|conseil)/i.test(block));
+
+    if (paragraphs.length >= 3) {
+      return paragraphs.map((block, index) => ({
+        id: `ai-landing-fallback-${index + 1}`,
+        kind: index === 0 ? "hook" : index === paragraphs.length - 1 ? "cta" : "benefit",
+        label: index === 0 ? "Accroche principale" : index === paragraphs.length - 1 ? "CTA final" : `Section ${index + 1}`,
+        text: block,
+      }));
+    }
 
     const cleaned = cleanGeneratedTextForCanvas(text);
     return cleaned ? [{
@@ -1351,13 +1284,6 @@ export default function EditorLayout({
       try {
         if (aiQuotaRemaining <= 0) {
           setCopilotStatus("Quota IA atteint pour le moment.");
-          return;
-        }
-
-        if (!briefOffer.trim()) {
-          setGeneratedItems([]);
-          setCopilotRawResult("");
-          setCopilotStatus("Avant de générer, décris ton offre ou ton sujet. Exemple : Je veux promouvoir LGD auprès de parents ou débutants qui veulent créer un revenu complémentaire grâce au digital.");
           return;
         }
 
@@ -1585,8 +1511,11 @@ IMPORTANT : Génère maintenant UNE PAGE FINALE COMPLÈTE, pas des conseils, pas
         </div>
       )}
 
-      <div className="mx-auto w-full max-w-[1800px] px-6 pb-10">
-        <div className="mb-6 rounded-3xl border border-yellow-500/15 bg-black/30 p-4">
+      <div className="mx-auto w-full max-w-[1920px] px-4 pb-10">
+        <div className="grid grid-cols-1 min-[900px]:grid-cols-[430px_minmax(0,1fr)] min-[1500px]:grid-cols-[460px_minmax(0,1fr)] gap-6">
+          <aside className="hidden min-[900px]:block min-w-0 max-h-[calc(100vh-150px)] overflow-y-auto overscroll-contain pr-2">
+            <div className="space-y-5">
+              <div className="rounded-2xl border border-yellow-500/15 bg-black/20 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <div className="text-yellow-300 font-semibold text-sm">✨ Copilote IA — Lead Engine Expert</div>
@@ -1605,10 +1534,10 @@ IMPORTANT : Génère maintenant UNE PAGE FINALE COMPLÈTE, pas des conseils, pas
           </div>
 
           {copilotOpen && (
-            <div className="mt-4 grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
+            <div className="mt-4 grid grid-cols-1 gap-4">
               <div className="rounded-2xl border border-yellow-500/15 bg-black/30 p-4">
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                  <div className="xl:col-span-2">
+                <div className="grid grid-cols-1 gap-3">
+                  <div className="">
                     <label className="mb-2 block text-xs font-semibold text-yellow-300">Sujet / offre</label>
                     <input
                       type="text"
@@ -1677,7 +1606,7 @@ IMPORTANT : Génère maintenant UNE PAGE FINALE COMPLÈTE, pas des conseils, pas
                     </select>
                   </div>
 
-                  <div className="md:col-span-2 xl:col-span-3">
+                  <div className="">
                     <label className="mb-2 block text-xs font-semibold text-yellow-300">URL CTA</label>
                     <input
                       type="text"
@@ -1698,7 +1627,7 @@ IMPORTANT : Génère maintenant UNE PAGE FINALE COMPLÈTE, pas des conseils, pas
                   )}
                 </div>
 
-                <div className="mt-4 grid grid-cols-2 gap-2 xl:grid-cols-5">
+                <div className="mt-4 grid grid-cols-2 gap-2">
                   <button type="button" onClick={() => void handleGenerate("hooks")} disabled={copilotLoading || aiQuotaRemaining <= 0} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-200 disabled:opacity-50">{copilotLoading && lastAction === "hooks" ? "Génération..." : "Hook x10"}</button>
                   <button type="button" onClick={() => void handleGenerate("cta")} disabled={copilotLoading || aiQuotaRemaining <= 0} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-200 disabled:opacity-50">{copilotLoading && lastAction === "cta" ? "Génération..." : "CTA"}</button>
                   <button type="button" onClick={() => void handleGenerate("benefits")} disabled={copilotLoading || aiQuotaRemaining <= 0} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-200 disabled:opacity-50">{copilotLoading && lastAction === "benefits" ? "Génération..." : "Bénéfices"}</button>
@@ -1748,7 +1677,7 @@ IMPORTANT : Génère maintenant UNE PAGE FINALE COMPLÈTE, pas des conseils, pas
                   )}
                 </div>
 
-                <div className="mt-4 max-h-[420px] space-y-3 overflow-y-auto pr-1">
+                <div className="mt-4 max-h-[320px] space-y-3 overflow-y-auto pr-1">
                   {copilotLoading ? (
                     <div className="rounded-2xl border border-yellow-500/15 bg-black/25 px-4 py-8">
                       <div className="flex flex-col items-center justify-center gap-4">
@@ -1795,8 +1724,7 @@ IMPORTANT : Génère maintenant UNE PAGE FINALE COMPLÈTE, pas des conseils, pas
           )}
         </div>
 
-        <div className="grid grid-cols-1 min-[900px]:grid-cols-[280px_1fr_360px] gap-6">
-          <aside className="hidden min-[900px]:block rounded-2xl border border-yellow-500/15 bg-black/30 p-4">
+              <div className="rounded-2xl border border-yellow-500/15 bg-black/20 p-4">
             <button
               onClick={addText}
               className="w-full rounded-xl bg-[#ffb800] text-black font-semibold py-3"
@@ -2015,25 +1943,10 @@ IMPORTANT : Génère maintenant UNE PAGE FINALE COMPLÈTE, pas des conseils, pas
                 className="w-full rounded-xl border border-yellow-500/15 bg-black/40 px-3 py-3 text-sm text-white/85 outline-none placeholder:text-white/25"
               />
             </div>
-          </aside>
+          
+              </div>
 
-          <main className="rounded-2xl border border-white/10 bg-black/25 p-5 relative flex items-start justify-center">
-            <div
-              data-lead-engine-canvas-export="true"
-              className="w-full rounded-2xl border border-yellow-500/20 overflow-hidden relative"
-              style={{ height: `${canvasHeight}px` }}
-            >
-              <CanvasStage
-                key={`${formatKey}-${canvasHeight}`}
-                layers={layers}
-                setLayers={setLayers}
-                onSelectLayer={selectLayer}
-                format={format as any}
-              />
-            </div>
-          </main>
-
-          <aside className="hidden min-[900px]:block rounded-2xl border border-yellow-500/15 bg-black/30 p-4">
+              <div className="rounded-2xl border border-yellow-500/15 bg-black/20 p-4">
             <div className="mb-4 rounded-2xl border border-yellow-500/15 bg-black/30 p-3">
               <div className="text-yellow-300 font-semibold text-sm mb-3">
                 Hauteur du canvas
@@ -2084,7 +1997,26 @@ IMPORTANT : Génère maintenant UNE PAGE FINALE COMPLÈTE, pas des conseils, pas
                 />
               </div>
             )}
+          
+              </div>
+            </div>
           </aside>
+
+          <main className="min-w-0 bg-transparent p-0 relative flex items-start justify-center overflow-visible">
+            <div
+              data-lead-engine-canvas-export="true"
+              className="w-full max-w-none rounded-none border-0 overflow-hidden relative"
+              style={{ height: `${canvasHeight}px` }}
+            >
+              <CanvasStage
+                key={`${formatKey}-${canvasHeight}`}
+                layers={layers}
+                setLayers={setLayers}
+                onSelectLayer={selectLayer}
+                format={format as any}
+              />
+            </div>
+          </main>
         </div>
       </div>
     </div>
