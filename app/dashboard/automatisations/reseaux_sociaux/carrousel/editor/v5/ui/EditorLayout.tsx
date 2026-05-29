@@ -1601,7 +1601,7 @@ export default function EditorLayout({
             <div className="pt-4 border-t border-yellow-500/15">
               <div className="text-yellow-300 font-semibold text-sm mb-3">Layers</div>
 
-              <div className="rounded-none border-0 bg-transparent p-0">
+              <div className="rounded-2xl border border-yellow-500/15 bg-black/30 p-3">
                 <LayersPanelV5
                   layers={layers.filter((l: any) => l.id !== BACKGROUND_LAYER_ID)}
                   selectedLayerId={selectedLayer?.id ?? null}
@@ -1662,7 +1662,8 @@ export default function EditorLayout({
       <div className="hidden min-[640px]:block w-full max-w-none min-[1024px]:max-w-[1920px] mx-auto px-0 min-[640px]:px-2 min-[900px]:px-4 min-[1024px]:px-4 min-[1500px]:px-6 pb-28 min-[1024px]:pb-10">
         <div className="grid min-w-0 grid-cols-1 min-[1024px]:grid-cols-[360px_minmax(0,1fr)] min-[1500px]:grid-cols-[390px_minmax(0,1fr)] gap-4 min-[900px]:gap-6">
           {/* LEFT (desktop only) */}
-          <aside className="hidden min-w-0 min-[1024px]:block rounded-none border-0 bg-transparent p-0 max-h-[calc(100vh-150px)] overflow-y-auto overscroll-contain">
+          <aside className="hidden min-w-0 min-[1024px]:block rounded-2xl border border-yellow-500/15 bg-black/30 p-4 max-h-[calc(100vh-150px)] overflow-y-auto overscroll-contain">
+            <div className="mx-auto w-full max-w-[320px]">
             <button
               onClick={addText}
               className="w-full rounded-xl bg-[#ffb800] text-black font-semibold py-3"
@@ -1906,7 +1907,7 @@ export default function EditorLayout({
                 </div>
               </div>
 
-              <div className="rounded-none border-0 bg-transparent p-0">
+              <div className="rounded-2xl border border-yellow-500/15 bg-black/30 p-3">
                 <LayersPanelV5
                   layers={layers.filter((l: any) => l.id !== BACKGROUND_LAYER_ID)}
                   selectedLayerId={selectedLayer?.id ?? null}
@@ -1919,7 +1920,7 @@ export default function EditorLayout({
               </div>
 
               {selectedLayer && (
-                <div className="mt-4 rounded-none border-0 bg-transparent p-0">
+                <div className="mt-4 rounded-2xl border border-yellow-500/15 bg-black/25 p-3">
                   <PropertiesDrawer
                     open
                     layer={selectedLayer}
@@ -1929,6 +1930,7 @@ export default function EditorLayout({
                 </div>
               )}
             </div>
+                      </div>
           </aside>
 
           {/* CENTER */}
@@ -1983,6 +1985,3 @@ export default function EditorLayout({
     </div>
   );
 }
-
-
-
