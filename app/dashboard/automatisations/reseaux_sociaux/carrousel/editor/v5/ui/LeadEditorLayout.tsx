@@ -1514,11 +1514,18 @@ IMPORTANT : Génère maintenant UNE PAGE FINALE COMPLÈTE, pas des conseils, pas
       )}
 
       <div className="mx-auto w-full max-w-[1920px] px-4 pb-10">
-        <div className="grid grid-cols-1 min-[900px]:grid-cols-[430px_minmax(0,1fr)] min-[1500px]:grid-cols-[460px_minmax(0,1fr)] gap-6">
-          <aside className="hidden min-[900px]:block min-w-0 max-h-[calc(100vh-150px)] overflow-y-auto overscroll-contain pr-2">
-            <div className="space-y-5">
-              {topTools}
+        {topTools && (
+          <div className="hidden min-[900px]:block mb-6">
+            {topTools}
+          </div>
+        )}
 
+        <div className="grid grid-cols-1 items-start min-[900px]:grid-cols-[430px_minmax(0,1fr)] min-[1500px]:grid-cols-[460px_minmax(0,1fr)] gap-6">
+          <aside
+            className="hidden min-[900px]:block min-w-0 overflow-y-auto overscroll-contain pr-2"
+            style={{ height: `${canvasHeight}px`, maxHeight: `${canvasHeight}px` }}
+          >
+            <div className="space-y-5">
               <div className="rounded-2xl border border-yellow-500/15 bg-black/20 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
