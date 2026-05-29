@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { fileToBase64 } from "../../utils/fileToBase64";
 import { rehydrateRuntimeImages } from "../../utils/rehydrateRuntimeImages";
 import { CANVAS_FORMATS, CanvasFormatKey } from "../config/formats";
@@ -55,6 +55,7 @@ interface Props {
   aiQuotaPlan?: string;
   aiQuotaLoading?: boolean;
   onAiQuotaSync?: (quota: { plan?: string; remaining?: number; tokens_used?: number; tokens_limit?: number }) => void;
+  topTools?: ReactNode;
 }
 
 const GRADIENT_PRESETS = [
@@ -254,6 +255,7 @@ export default function EditorLayout({
   aiQuotaPlan = "essentiel",
   aiQuotaLoading = false,
   onAiQuotaSync,
+  topTools,
 }: Props) {
   const [formatKey, setFormatKey] = useState<CanvasFormatKey>(
     initialUI?.formatKey ?? "instagram_post"
@@ -1515,6 +1517,8 @@ IMPORTANT : Génère maintenant UNE PAGE FINALE COMPLÈTE, pas des conseils, pas
         <div className="grid grid-cols-1 min-[900px]:grid-cols-[430px_minmax(0,1fr)] min-[1500px]:grid-cols-[460px_minmax(0,1fr)] gap-6">
           <aside className="hidden min-[900px]:block min-w-0 max-h-[calc(100vh-150px)] overflow-y-auto overscroll-contain pr-2">
             <div className="space-y-5">
+              {topTools}
+
               <div className="rounded-2xl border border-yellow-500/15 bg-black/20 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
