@@ -2097,16 +2097,10 @@ export default function PostEditor({
   );
 
   return (
-    <div className="w-full flex justify-center pt-[110px] pb-20">
+    <div className="w-full flex justify-center pt-[110px] pb-20 max-[639px]:block max-[639px]:pt-0 max-[639px]:pb-[92px]">
       {/* ================= CANVAS XL WRAPPER ================= */}
-      <div className="w-full max-w-[1600px] px-6">
-        <div
-          className="rounded-3xl p-8"
-          style={{
-            backgroundColor: "#262626",
-            border: "1px solid rgba(255,184,0,0.25)",
-          }}
-        >
+      <div className="w-full max-w-[1600px] px-6 max-[639px]:max-w-none max-[639px]:px-0">
+        <div className="rounded-3xl border border-yellow-500/25 bg-[#262626] p-8 max-[639px]:rounded-none max-[639px]:border-0 max-[639px]:bg-transparent max-[639px]:p-0">
           {/* ================= COACH BRIEF (injected) ================= */}
           {!briefDismissed && (brief || "").trim() ? (
             <div className="mb-6 rounded-3xl border border-yellow-500/20 bg-yellow-500/10 px-5 py-4">
@@ -2130,13 +2124,7 @@ export default function PostEditor({
           ) : null}
 
           {/* ================= IA COPILOT (POST 1:1) ================= */}
-          <div
-            className="mb-6 rounded-3xl p-5"
-            style={{
-              background: "rgba(0,0,0,0.35)",
-              border: "1px solid rgba(255,184,0,0.18)",
-            }}
-          >
+          <div className="mb-6 rounded-3xl border border-yellow-500/20 bg-black/35 p-5 max-[639px]:mb-4 max-[639px]:rounded-none max-[639px]:border-x-0 max-[639px]:bg-transparent max-[639px]:px-4 max-[639px]:py-4">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
               <div>
                 <div className="text-yellow-200 font-semibold text-lg">Copilot IA — Post 1:1 (Marketing digital • MRR)</div>
@@ -2202,7 +2190,7 @@ export default function PostEditor({
             </div>
 
             {copilotOpen && (
-              <div className="mt-4 grid grid-cols-1 lg:grid-cols-12 gap-4">
+              <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-12 max-[639px]:gap-3">
 
                 {promptLibraryOpen ? (
                   <div className="lg:col-span-12 rounded-3xl border border-yellow-500/20 bg-black/35 p-4">
@@ -2294,7 +2282,7 @@ export default function PostEditor({
                   </div>
                 ) : null}
 
-                <div className="lg:col-span-4">
+                <div className="w-full lg:col-span-4">
                   <label className="block text-yellow-300 text-xs mb-2">Sujet / idée (optionnel)</label>
                   <input
                     value={idea}
@@ -2306,7 +2294,7 @@ export default function PostEditor({
                     className="w-full rounded-2xl bg-black/40 border border-yellow-500/20 px-4 py-3 text-yellow-100 outline-none"
                   />
 
-                  <div className="mt-3 grid grid-cols-2 gap-3">
+                  <div className="mt-3 grid grid-cols-2 gap-3 max-[639px]:grid-cols-1">
                     <div>
                       <label className="block text-yellow-300 text-xs mb-2">Réseau</label>
                       <select
@@ -2399,8 +2387,8 @@ export default function PostEditor({
                   </div>
                 </div>
 
-                <div className="lg:col-span-8">
-                  <div className="rounded-3xl p-4 bg-black/30 border border-yellow-500/15">
+                <div className="w-full lg:col-span-8">
+                  <div className="rounded-3xl border border-yellow-500/15 bg-black/30 p-4 max-[639px]:rounded-2xl max-[639px]:bg-transparent max-[639px]:px-0">
                     <div className="flex items-center justify-between gap-3">
                       <div className="text-yellow-200 font-semibold">Résultat IA</div>
                       <div className="flex flex-wrap items-center justify-end gap-2">
@@ -2496,7 +2484,7 @@ export default function PostEditor({
                         onChange={(e) => setAiOutput(e.target.value)}
                         placeholder="Les résultats IA apparaîtront ici…"
                         rows={10}
-                        className="mt-3 w-full rounded-2xl bg-black/40 border border-yellow-500/15 px-4 py-3 text-yellow-100 outline-none"
+                        className="mt-3 w-full rounded-2xl border border-yellow-500/15 bg-black/40 px-4 py-3 text-yellow-100 outline-none max-[639px]:min-h-[140px]"
                       />
                     )}
 
@@ -2517,7 +2505,7 @@ export default function PostEditor({
 
           {/* ================= EDITOR ================= */}
 
-          <div className="w-full min-h-[820px] flex justify-center">
+          <div className="w-full min-h-[820px] flex justify-center max-[639px]:min-h-0 max-[639px]:block">
             <EditorLayout
               initialLayersKey={initialLayersKey}
               initialLayers={draftLayers}
