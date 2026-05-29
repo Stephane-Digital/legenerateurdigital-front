@@ -294,8 +294,8 @@ export default function EditorLayout({
   const [overlayOpacity, setOverlayOpacity] = useState(0);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const photoInputRef = useRef<HTMLInputElement | null>(null);
   const bgImageInputRef = useRef<HTMLInputElement | null>(null);
-  const cameraInputRef = useRef<HTMLInputElement | null>(null);
 
   // guards to prevent loops
   const hydratingRef = useRef(false);
@@ -925,25 +925,25 @@ export default function EditorLayout({
       />
 
       <input
-        ref={bgImageInputRef}
-        type="file"
-        accept="image/*"
-        hidden
-        onChange={(e) => {
-          onImportBackgroundImage(e.currentTarget.files?.[0] ?? null);
-          // ✅ allow re-importing the same file
-          e.currentTarget.value = "";
-        }}
-      />
-
-      <input
-        ref={cameraInputRef}
+        ref={photoInputRef}
         type="file"
         accept="image/*"
         capture="environment"
         hidden
         onChange={(e) => {
           onImportImages(e.currentTarget.files);
+          // ✅ allow taking another photo immediately
+          e.currentTarget.value = "";
+        }}
+      />
+
+      <input
+        ref={bgImageInputRef}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={(e) => {
+          onImportBackgroundImage(e.currentTarget.files?.[0] ?? null);
           // ✅ allow re-importing the same file
           e.currentTarget.value = "";
         }}
@@ -964,12 +964,10 @@ export default function EditorLayout({
 
             <button
               type="button"
-              onClick={() => {
-                setMobileToolsLocalOpen(true);
-              }}
+              onClick={() => photoInputRef.current?.click()}
               className="shrink-0 rounded-full border border-yellow-500/25 bg-yellow-500/10 px-3 py-2 text-xs font-semibold text-yellow-200"
             >
-              Outils
+              Prendre une photo
             </button>
           </div>
         </div>
@@ -999,34 +997,6 @@ export default function EditorLayout({
             </div>
           </main>
 
-          <div className="mt-3 grid grid-cols-3 gap-2">
-            <button
-              type="button"
-              onClick={addText}
-              className="rounded-2xl bg-[#ffb800] px-3 py-3 text-sm font-semibold text-black shadow-lg"
-            >
-              + Texte
-            </button>
-
-            <button
-              type="button"
-              onClick={() => cameraInputRef.current?.click()}
-              className="rounded-2xl border border-yellow-500/25 bg-yellow-500/10 px-3 py-3 text-sm font-semibold text-yellow-200"
-            >
-              Prendre une photo
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setMobileToolsLocalOpen(true);
-              }}
-              className="rounded-2xl border border-yellow-500/25 bg-yellow-500/10 px-3 py-3 text-sm font-semibold text-yellow-200"
-            >
-              Layers
-            </button>
-          </div>
-
           {selectedLayer && (
             <div className="mt-3 rounded-[20px] border border-yellow-500/15 bg-black/35 p-3">
               <div className="mb-2 flex items-center justify-between gap-3">
@@ -1043,7 +1013,7 @@ export default function EditorLayout({
                 </button>
               </div>
 
-              <div className="max-h-[38svh] overflow-y-auto rounded-none border-0 bg-transparent p-0">
+              <div className="max-h-[58svh] overflow-y-auto rounded-none border-0 bg-transparent p-0">
                 <PropertiesDrawer
                   open
                   layer={selectedLayer}
@@ -1996,3 +1966,6 @@ export default function EditorLayout({
     </div>
   );
 }
+
+
+
