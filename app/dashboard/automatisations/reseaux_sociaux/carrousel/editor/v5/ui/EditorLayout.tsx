@@ -937,15 +937,15 @@ export default function EditorLayout({
       />
 
       {/* ================= MOBILE PREMIUM EDITOR (<640px only) ================= */}
-      <div className="min-[640px]:hidden relative min-h-[100svh] px-3 pb-28 pt-3">
-        <div className="mb-3 rounded-[22px] border border-yellow-500/15 bg-black/45 px-4 py-3 shadow-2xl">
+      <div className="min-[640px]:hidden min-h-[100svh] pb-[calc(92px+env(safe-area-inset-bottom))]">
+        <div className="sticky top-0 z-[35] border-b border-yellow-500/15 bg-black/95 px-3 py-3 backdrop-blur">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-yellow-300/80">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-yellow-300/80">
                 Éditeur mobile LGD
               </div>
-              <div className="mt-1 truncate text-[15px] font-bold text-yellow-100">
-                {rawFormat?.label ?? "Publication"}
+              <div className="truncate text-sm font-semibold text-yellow-100">
+                {rawFormat?.label ?? "Format de publication"}
               </div>
             </div>
 
@@ -954,157 +954,149 @@ export default function EditorLayout({
               onClick={() => {
                 setMobileToolsLocalOpen(true);
               }}
-              className="shrink-0 rounded-full border border-yellow-500/25 bg-yellow-500/10 px-3 py-2 text-[12px] font-semibold text-yellow-200"
+              className="shrink-0 rounded-full border border-yellow-500/25 bg-yellow-500/10 px-3 py-2 text-xs font-semibold text-yellow-200"
             >
-              Format
+              Outils
             </button>
           </div>
         </div>
 
-        <main className="rounded-[24px] border border-yellow-500/20 bg-black/30 p-2 shadow-2xl">
-          <div
-            className="relative w-full overflow-hidden rounded-[18px] border border-yellow-500/20 bg-black/60"
-            style={{
-              aspectRatio: `${format.w} / ${format.h}`,
-              minHeight: "280px",
-            }}
-          >
-            {selectedMetrics && (
-              <div className="pointer-events-none absolute left-3 top-3 z-20 rounded-full border border-yellow-500/20 bg-black/55 px-2 py-1 text-[10px] text-yellow-100/75 backdrop-blur">
-                L:{Math.round(selectedMetrics.left)} · T:{Math.round(selectedMetrics.top)} · R:{Math.round(selectedMetrics.right)} · B:{Math.round(selectedMetrics.bottom)}
-              </div>
-            )}
+        <div className="px-2 pt-3">
+          <main className="rounded-[22px] border border-yellow-500/15 bg-black/30 p-2 shadow-2xl">
+            <div
+              className="relative mx-auto w-full overflow-hidden rounded-[18px] border border-yellow-500/20 bg-black"
+              style={{
+                aspectRatio: `${format.w} / ${format.h}`,
+                minHeight: "260px",
+              }}
+            >
+              {selectedLayer && (
+                <div className="pointer-events-none absolute left-2 top-2 z-20 rounded-full border border-yellow-500/20 bg-black/70 px-2 py-1 text-[10px] text-yellow-100/75">
+                  Élément sélectionné
+                </div>
+              )}
 
-            <CanvasStage
-              key={`mobile-${formatKey}`}
-              layers={effectiveCanvasLayers}
-              setLayers={setLayers}
-              onSelectLayer={selectLayer}
-              format={format as any}
-            />
-          </div>
-        </main>
-
-        <div className="mt-3 grid grid-cols-3 gap-2">
-          <button
-            type="button"
-            onClick={addText}
-            className="rounded-2xl bg-[#ffb800] px-3 py-3 text-[13px] font-bold text-black shadow-lg shadow-yellow-500/10"
-          >
-            + Texte
-          </button>
-
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="rounded-2xl border border-yellow-500/25 bg-yellow-500/10 px-3 py-3 text-[13px] font-semibold text-yellow-200"
-          >
-            Image
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setMobileToolsLocalOpen(true);
-            }}
-            className="rounded-2xl border border-yellow-500/25 bg-yellow-500/10 px-3 py-3 text-[13px] font-semibold text-yellow-200"
-          >
-            Outils
-          </button>
-        </div>
-
-        {selectedLayer && (
-          <div className="mt-3 rounded-[22px] border border-yellow-500/15 bg-black/35 p-3">
-            <div className="mb-2 flex items-center justify-between gap-3">
-              <div className="text-[13px] font-semibold text-yellow-300">
-                Propriétés rapides
-              </div>
-              <button
-                type="button"
-                onClick={() => setMobileToolsLocalOpen(true)}
-                className="rounded-full border border-yellow-500/20 bg-yellow-500/10 px-3 py-1.5 text-[11px] font-semibold text-yellow-200"
-              >
-                Tout modifier
-              </button>
-            </div>
-
-            <div className="max-h-[220px] overflow-y-auto rounded-2xl border border-yellow-500/10 bg-black/25 p-2">
-              <PropertiesDrawer
-                open
-                layer={selectedLayer}
-                onClose={() => setShowProps(false)}
-                onChange={(patch) => updateLayer(selectedLayer.id, patch)}
+              <CanvasStage
+                key={`mobile-${formatKey}`}
+                layers={effectiveCanvasLayers}
+                setLayers={setLayers}
+                onSelectLayer={selectLayer}
+                format={format as any}
               />
             </div>
-          </div>
-        )}
-      </div>
+          </main>
 
-      <div className="min-[640px]:hidden fixed inset-x-0 bottom-0 z-[70] border-t border-yellow-500/15 bg-black/95 px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
-        <div className="grid grid-cols-4 gap-2">
-          <button
-            type="button"
-            onClick={addText}
-            className="rounded-2xl bg-[#ffb800] px-2 py-3 text-[12px] font-bold text-black"
-          >
-            Texte
-          </button>
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              onClick={addText}
+              className="rounded-2xl bg-[#ffb800] px-3 py-3 text-sm font-semibold text-black shadow-lg"
+            >
+              + Texte
+            </button>
 
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="rounded-2xl border border-yellow-500/25 bg-yellow-500/10 px-2 py-3 text-[12px] font-semibold text-yellow-200"
-          >
-            Image
-          </button>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="rounded-2xl border border-yellow-500/25 bg-yellow-500/10 px-3 py-3 text-sm font-semibold text-yellow-200"
+            >
+              Image
+            </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              selectLayer(null);
-              setMobileToolsLocalOpen(true);
-            }}
-            className="rounded-2xl border border-yellow-500/25 bg-yellow-500/10 px-2 py-3 text-[12px] font-semibold text-yellow-200"
-          >
-            Layers
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              if (mobileToolsSheetOpen) {
-                setMobileToolsLocalOpen(false);
-                onCloseMobileTools?.();
-              } else {
+            <button
+              type="button"
+              onClick={() => {
                 setMobileToolsLocalOpen(true);
-              }
-            }}
-            className="rounded-2xl border border-yellow-500/25 bg-yellow-500/10 px-2 py-3 text-[12px] font-semibold text-yellow-200"
-          >
-            {mobileToolsSheetOpen ? "Fermer" : "Outils"}
-          </button>
-        </div>
-      </div>
+              }}
+              className="rounded-2xl border border-yellow-500/25 bg-yellow-500/10 px-3 py-3 text-sm font-semibold text-yellow-200"
+            >
+              Layers
+            </button>
+          </div>
 
-      {mobileToolsSheetOpen && (
-        <div
-          className="min-[640px]:hidden fixed inset-0 z-[90] bg-black/55 backdrop-blur-[2px]"
-          onClick={() => {
-            setMobileToolsLocalOpen(false);
-            onCloseMobileTools?.();
-          }}
-        >
-          <div
-            className="absolute inset-x-0 bottom-0 max-h-[78svh] rounded-t-[28px] border border-yellow-500/20 bg-black/95 p-4 pb-[max(18px,env(safe-area-inset-bottom))] shadow-2xl overflow-y-auto"
-            style={{ WebkitOverflowScrolling: "touch" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="sticky top-0 z-10 -mx-4 -mt-4 mb-4 border-b border-yellow-500/15 bg-black/95 px-4 pb-3 pt-3">
-              <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-yellow-500/35" />
-              <div className="flex items-center justify-between gap-3">
+          {selectedLayer && (
+            <div className="mt-3 rounded-[20px] border border-yellow-500/15 bg-black/35 p-3">
+              <div className="mb-2 flex items-center justify-between gap-3">
                 <div>
-                  <div className="text-sm font-bold text-yellow-300">Outils de l’éditeur</div>
-                  <div className="mt-1 text-xs text-yellow-100/55">Canvas visible, actions rapides, propriétés.</div>
+                  <div className="text-sm font-semibold text-yellow-300">Propriétés rapides</div>
+                  <div className="text-xs text-yellow-100/55">Ajuste l’élément sélectionné.</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => selectLayer(null)}
+                  className="rounded-full border border-yellow-500/20 px-3 py-1 text-xs text-yellow-200/80"
+                >
+                  Fermer
+                </button>
+              </div>
+
+              <div className="max-h-[38svh] overflow-y-auto rounded-2xl border border-yellow-500/10 bg-black/25 p-2">
+                <PropertiesDrawer
+                  open
+                  layer={selectedLayer}
+                  onClose={() => setShowProps(false)}
+                  onChange={(patch) => updateLayer(selectedLayer.id, patch)}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="fixed inset-x-0 bottom-0 z-[75] border-t border-yellow-500/15 bg-black/95 px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
+          <div className="grid grid-cols-4 gap-2">
+            <button
+              type="button"
+              onClick={addText}
+              className="rounded-2xl bg-[#ffb800] px-2 py-3 text-xs font-bold text-black"
+            >
+              Texte
+            </button>
+
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="rounded-2xl border border-yellow-500/25 bg-yellow-500/10 px-2 py-3 text-xs font-semibold text-yellow-200"
+            >
+              Image
+            </button>
+
+            <button
+              type="button"
+              onClick={() => bgImageInputRef.current?.click()}
+              className="rounded-2xl border border-yellow-500/25 bg-yellow-500/10 px-2 py-3 text-xs font-semibold text-yellow-200"
+            >
+              Fond
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setMobileToolsLocalOpen(true)}
+              className="rounded-2xl border border-yellow-500/25 bg-yellow-500/10 px-2 py-3 text-xs font-semibold text-yellow-200"
+            >
+              Outils
+            </button>
+          </div>
+        </div>
+
+        {mobileToolsSheetOpen && (
+          <div
+            className="fixed inset-0 z-[90] bg-black/55 backdrop-blur-[2px]"
+            onClick={() => {
+              setMobileToolsLocalOpen(false);
+              onCloseMobileTools?.();
+            }}
+          >
+            <div
+              className="absolute inset-x-0 bottom-0 max-h-[78svh] rounded-t-[28px] border-t border-yellow-500/25 bg-black/95 p-4 shadow-2xl"
+              style={{ WebkitOverflowScrolling: "touch" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-yellow-500/30" />
+
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-base font-bold text-yellow-300">Outils de l’éditeur</div>
+                  <div className="text-xs text-yellow-100/55">Canvas visible, réglages accessibles.</div>
                 </div>
                 <button
                   type="button"
@@ -1112,242 +1104,245 @@ export default function EditorLayout({
                     setMobileToolsLocalOpen(false);
                     onCloseMobileTools?.();
                   }}
-                  className="rounded-full border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-xs font-semibold text-yellow-200"
+                  className="rounded-full border border-yellow-500/20 px-3 py-2 text-sm text-yellow-200"
                 >
-                  Fermer
+                  ✕
                 </button>
               </div>
-            </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={addText}
-                className="rounded-2xl bg-[#ffb800] px-3 py-3 text-sm font-bold text-black"
-              >
-                + Ajouter un texte
-              </button>
-
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="rounded-2xl border border-yellow-500/25 bg-yellow-500/10 px-3 py-3 text-sm font-semibold text-yellow-200"
-              >
-                Importer image
-              </button>
-
-              <button
-                type="button"
-                onClick={reapplyAutoLayout}
-                className="rounded-2xl border border-yellow-500/25 bg-yellow-500/10 px-3 py-3 text-sm font-semibold text-yellow-200"
-              >
-                Auto-layout
-              </button>
-
-              <button
-                type="button"
-                onClick={() => bgImageInputRef.current?.click()}
-                className="rounded-2xl border border-yellow-500/25 bg-yellow-500/10 px-3 py-3 text-sm font-semibold text-yellow-200"
-              >
-                Fond image
-              </button>
-            </div>
-
-            <div className="mt-5 border-t border-yellow-500/15 pt-4">
-              <label className="mb-2 block text-sm font-semibold text-yellow-300">Format</label>
-              <select
-                value={formatKey}
-                onChange={(e) => setFormatKey(e.target.value as CanvasFormatKey)}
-                className="w-full rounded-2xl border border-yellow-500/20 bg-black/40 px-3 py-3 text-sm text-yellow-100"
-              >
-                {Object.entries(CANVAS_FORMATS).map(([key, f]: any) => (
-                  <option key={key} value={key}>
-                    {f.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="mt-5 border-t border-yellow-500/15 pt-4">
-              <label className="mb-3 block text-sm font-semibold text-yellow-300">Fond du post</label>
-
-              <div className="mb-4 grid grid-cols-3 gap-2">
-                {(["color", "gradient", "image"] as BackgroundMode[]).map((mode) => (
+              <div className="max-h-[calc(78svh-86px)] space-y-4 overflow-y-auto pr-1">
+                <div className="grid grid-cols-2 gap-2">
                   <button
-                    key={mode}
                     type="button"
-                    onClick={() => setBgMode(mode)}
-                    className={`rounded-xl border px-2 py-2 text-xs font-semibold ${
-                      bgMode === mode
-                        ? "border-[#ffb800] bg-[#ffb800] text-black"
-                        : "border-yellow-500/20 bg-yellow-500/10 text-yellow-200"
-                    }`}
+                    onClick={addText}
+                    className="rounded-2xl bg-[#ffb800] px-3 py-3 text-sm font-semibold text-black"
                   >
-                    {mode === "color" ? "Couleur" : mode === "gradient" ? "Gradient" : "Image"}
+                    + Ajouter texte
                   </button>
-                ))}
-              </div>
 
-              {bgMode === "color" && (
-                <input
-                  type="color"
-                  value={bgColor}
-                  onChange={(e) => setBgColor(e.target.value)}
-                  className="h-12 w-full rounded-xl border border-yellow-500/20 bg-black/40"
-                />
-              )}
-
-              {bgMode === "gradient" && (
-                <div className="space-y-3">
-                  <div
-                    className="h-12 w-full rounded-xl border border-yellow-500/20"
-                    style={{ background: `linear-gradient(${bgAngle}deg, ${bgColor1}, ${bgColor2})` }}
-                  />
-                  <div className="flex gap-2">
-                    <input
-                      type="color"
-                      value={bgColor1}
-                      onChange={(e) => setBgColor1(e.target.value)}
-                      className="h-11 w-20 rounded-xl border border-yellow-500/20 bg-black/30"
-                    />
-                    <input
-                      type="color"
-                      value={bgColor2}
-                      onChange={(e) => setBgColor2(e.target.value)}
-                      className="h-11 w-20 rounded-xl border border-yellow-500/20 bg-black/30"
-                    />
-                  </div>
-                  <label className="block text-xs text-yellow-100/70">Angle ({bgAngle}°)</label>
-                  <input
-                    type="range"
-                    min={0}
-                    max={360}
-                    value={bgAngle}
-                    onChange={(e) => setBgAngle(Number(e.target.value))}
-                    className="w-full"
-                  />
-                </div>
-              )}
-
-              {bgMode === "image" && (
-                <div className="grid grid-cols-1 gap-2">
                   <button
                     type="button"
-                    onClick={() => bgImageInputRef.current?.click()}
+                    onClick={() => fileInputRef.current?.click()}
                     className="rounded-2xl border border-yellow-500/25 bg-yellow-500/10 px-3 py-3 text-sm font-semibold text-yellow-200"
                   >
-                    Importer / remplacer le fond
+                    Importer image
                   </button>
 
-                  {bgImage && (
-                    <button
-                      type="button"
-                      onClick={removeBackgroundImage}
-                      className="rounded-2xl border border-red-500/30 bg-red-500/10 px-3 py-3 text-sm font-semibold text-red-300"
-                    >
-                      Supprimer l’image de fond
-                    </button>
+                  <button
+                    type="button"
+                    onClick={reapplyAutoLayout}
+                    className="rounded-2xl border border-yellow-500/25 bg-yellow-500/10 px-3 py-3 text-sm font-semibold text-yellow-200"
+                  >
+                    Auto-layout
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => selectLayer(null)}
+                    className="rounded-2xl border border-yellow-500/25 bg-yellow-500/10 px-3 py-3 text-sm font-semibold text-yellow-200"
+                  >
+                    Désélectionner
+                  </button>
+                </div>
+
+                <div className="rounded-2xl border border-yellow-500/15 bg-black/35 p-3">
+                  <label className="mb-2 block text-sm font-semibold text-yellow-300">Format</label>
+                  <select
+                    value={formatKey}
+                    onChange={(e) => setFormatKey(e.target.value as CanvasFormatKey)}
+                    className="w-full rounded-xl border border-yellow-500/20 bg-black/50 px-3 py-3 text-yellow-100"
+                  >
+                    {Object.entries(CANVAS_FORMATS).map(([key, f]: any) => (
+                      <option key={key} value={key}>
+                        {f.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="rounded-2xl border border-yellow-500/15 bg-black/35 p-3">
+                  <label className="mb-3 block text-sm font-semibold text-yellow-300">Fond du post</label>
+
+                  <div className="mb-4 grid grid-cols-3 gap-2">
+                    {(["color", "gradient", "image"] as BackgroundMode[]).map((mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => setBgMode(mode)}
+                        className={`rounded-xl border px-2 py-2 text-xs font-semibold ${
+                          bgMode === mode
+                            ? "border-[#ffb800] bg-[#ffb800] text-black"
+                            : "border-yellow-500/20 bg-yellow-500/10 text-yellow-200"
+                        }`}
+                      >
+                        {mode === "color" ? "Couleur" : mode === "gradient" ? "Gradient" : "Image"}
+                      </button>
+                    ))}
+                  </div>
+
+                  {bgMode === "color" && (
+                    <input
+                      type="color"
+                      value={bgColor}
+                      onChange={(e) => setBgColor(e.target.value)}
+                      className="h-11 w-full rounded-xl border border-yellow-500/20 bg-black/40"
+                    />
+                  )}
+
+                  {bgMode === "gradient" && (
+                    <div className="space-y-3">
+                      <div
+                        className="h-11 w-full rounded-xl border border-yellow-500/20"
+                        style={{ background: `linear-gradient(${bgAngle}deg, ${bgColor1}, ${bgColor2})` }}
+                      />
+                      <div className="flex gap-2">
+                        <input
+                          type="color"
+                          value={bgColor1}
+                          onChange={(e) => setBgColor1(e.target.value)}
+                          className="h-11 flex-1 rounded-xl border border-yellow-500/20 bg-black/40"
+                        />
+                        <input
+                          type="color"
+                          value={bgColor2}
+                          onChange={(e) => setBgColor2(e.target.value)}
+                          className="h-11 flex-1 rounded-xl border border-yellow-500/20 bg-black/40"
+                        />
+                      </div>
+                      <label className="block text-xs text-yellow-100/60">Angle ({bgAngle}°)</label>
+                      <input
+                        type="range"
+                        min={0}
+                        max={360}
+                        value={bgAngle}
+                        onChange={(e) => setBgAngle(Number(e.target.value))}
+                        className="w-full"
+                      />
+                    </div>
+                  )}
+
+                  {bgMode === "image" && (
+                    <div className="space-y-2">
+                      <button
+                        type="button"
+                        onClick={() => bgImageInputRef.current?.click()}
+                        className="w-full rounded-xl border border-yellow-500/25 bg-yellow-500/10 py-3 text-sm font-semibold text-yellow-200"
+                      >
+                        Importer / remplacer le fond
+                      </button>
+
+                      {bgImage && (
+                        <button
+                          type="button"
+                          onClick={removeBackgroundImage}
+                          className="w-full rounded-xl border border-red-500/30 bg-red-500/10 py-3 text-sm font-semibold text-red-300"
+                        >
+                          Supprimer l’image de fond
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
-              )}
-            </div>
 
-            <div className="mt-5 border-t border-yellow-500/15 pt-4">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <div>
-                  <div className="text-sm font-semibold text-yellow-300">Overlay</div>
-                  <div className="mt-1 text-xs text-yellow-100/50">Désactivé = aucun filtre appliqué.</div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setOverlayEnabled((v) => !v)}
-                  className={`rounded-xl border px-3 py-2 text-xs font-bold ${
-                    overlayEnabled
-                      ? "border-[#ffb800] bg-[#ffb800] text-black"
-                      : "border-yellow-500/20 bg-yellow-500/10 text-yellow-200"
-                  }`}
-                >
-                  {overlayEnabled ? "Activé" : "Activer"}
-                </button>
-              </div>
-
-              <div className={`space-y-3 ${overlayEnabled ? "" : "opacity-50 pointer-events-none"}`}>
-                <div className="grid grid-cols-2 gap-2">
-                  {(["color", "gradient"] as OverlayType[]).map((t) => (
+                <div className="rounded-2xl border border-yellow-500/15 bg-black/35 p-3">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-semibold text-yellow-300">Overlay</div>
+                      <div className="text-xs text-yellow-100/55">Inactif par défaut, opacité à 0%.</div>
+                    </div>
                     <button
-                      key={t}
                       type="button"
-                      onClick={() => setOverlayType(t)}
+                      onClick={() => setOverlayEnabled((v) => !v)}
                       className={`rounded-xl border px-3 py-2 text-xs font-semibold ${
-                        overlayType === t
+                        overlayEnabled
                           ? "border-[#ffb800] bg-[#ffb800] text-black"
                           : "border-yellow-500/20 bg-yellow-500/10 text-yellow-200"
                       }`}
                     >
-                      {t === "color" ? "Couleur" : "Gradient"}
+                      {overlayEnabled ? "Activé" : "Activer"}
                     </button>
-                  ))}
+                  </div>
+
+                  <div className={`space-y-3 ${overlayEnabled ? "" : "pointer-events-none opacity-50"}`}>
+                    <div className="grid grid-cols-2 gap-2">
+                      {(["color", "gradient"] as OverlayType[]).map((t) => (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => setOverlayType(t)}
+                          className={`rounded-xl border px-3 py-2 text-xs font-semibold ${
+                            overlayType === t
+                              ? "border-[#ffb800] bg-[#ffb800] text-black"
+                              : "border-yellow-500/20 bg-yellow-500/10 text-yellow-200"
+                          }`}
+                        >
+                          {t === "color" ? "Couleur" : "Gradient"}
+                        </button>
+                      ))}
+                    </div>
+
+                    <input
+                      type="color"
+                      value={overlayColor1}
+                      onChange={(e) => setOverlayColor1(e.target.value)}
+                      className="h-11 w-full rounded-xl border border-yellow-500/20 bg-black/40"
+                    />
+
+                    {overlayType === "gradient" && (
+                      <input
+                        type="color"
+                        value={overlayColor2}
+                        onChange={(e) => setOverlayColor2(e.target.value)}
+                        className="h-11 w-full rounded-xl border border-yellow-500/20 bg-black/40"
+                      />
+                    )}
+
+                    <div>
+                      <label className="mb-2 block text-xs text-yellow-100/60">
+                        Opacité ({Math.round(overlayOpacity * 100)}%)
+                      </label>
+                      <input
+                        type="range"
+                        min={0}
+                        max={1}
+                        step={0.01}
+                        value={overlayOpacity}
+                        onChange={(e) => setOverlayOpacity(Number(e.target.value))}
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                <input
-                  type="color"
-                  value={overlayColor1}
-                  onChange={(e) => setOverlayColor1(e.target.value)}
-                  className="h-11 w-full rounded-xl border border-yellow-500/20 bg-black/40"
-                />
-
-                {overlayType === "gradient" && (
-                  <input
-                    type="color"
-                    value={overlayColor2}
-                    onChange={(e) => setOverlayColor2(e.target.value)}
-                    className="h-11 w-full rounded-xl border border-yellow-500/20 bg-black/40"
+                <div className="rounded-2xl border border-yellow-500/15 bg-black/35 p-3">
+                  <div className="mb-3 text-sm font-semibold text-yellow-300">Layers</div>
+                  <LayersPanelV5
+                    layers={layers.filter((l: any) => l.id !== BACKGROUND_LAYER_ID)}
+                    selectedLayerId={selectedLayer?.id ?? null}
+                    onSelectLayer={selectLayer}
+                    onToggleVisible={toggleVisible}
+                    onReorder={reorder}
+                    onDuplicate={() => {}}
+                    onDelete={deleteLayer}
                   />
+                </div>
+
+                {selectedLayer && (
+                  <div className="rounded-2xl border border-yellow-500/15 bg-black/35 p-3">
+                    <div className="mb-3 text-sm font-semibold text-yellow-300">Propriétés</div>
+                    <PropertiesDrawer
+                      open
+                      layer={selectedLayer}
+                      onClose={() => setShowProps(false)}
+                      onChange={(patch) => updateLayer(selectedLayer.id, patch)}
+                    />
+                  </div>
                 )}
-
-                <label className="block text-xs text-yellow-100/70">
-                  Opacité ({Math.round(overlayOpacity * 100)}%)
-                </label>
-                <input
-                  type="range"
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  value={overlayOpacity}
-                  onChange={(e) => setOverlayOpacity(Number(e.target.value))}
-                  className="w-full"
-                />
               </div>
-            </div>
-
-            <div className="mt-5 border-t border-yellow-500/15 pt-4">
-              <div className="mb-3 text-sm font-semibold text-yellow-300">Layers</div>
-              <div className="rounded-2xl border border-yellow-500/15 bg-black/30 p-3">
-                <LayersPanelV5
-                  layers={layers.filter((l: any) => l.id !== BACKGROUND_LAYER_ID)}
-                  selectedLayerId={selectedLayer?.id ?? null}
-                  onSelectLayer={selectLayer}
-                  onToggleVisible={toggleVisible}
-                  onReorder={reorder}
-                  onDuplicate={() => {}}
-                  onDelete={deleteLayer}
-                />
-              </div>
-
-              {selectedLayer && (
-                <div className="mt-4 rounded-2xl border border-yellow-500/15 bg-black/25 p-3">
-                  <PropertiesDrawer
-                    open
-                    layer={selectedLayer}
-                    onClose={() => setShowProps(false)}
-                    onChange={(patch) => updateLayer(selectedLayer.id, patch)}
-                  />
-                </div>
-              )}
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* ================= MOBILE/TABLET TOOLS (overlay over canvas) ================= */}
       {mobileToolsSheetOpen && (
