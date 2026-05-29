@@ -15,23 +15,6 @@ import {
 import React, { useEffect, useMemo, useState } from "react";
 import { renderEditorCreationToDataUrl } from "../../carrousel/editor/utils/downloadEditorCreation";
 
-const API_PROXY_PREFIX = "/api/proxy";
-
-async function proxyJson(path: string, init?: RequestInit) {
-  const normalized = path.startsWith("/") ? path : `/${path}`;
-  const res = await fetch(`${API_PROXY_PREFIX}${normalized}`, {
-    credentials: "include",
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers || {}),
-    },
-  });
-
-  if (!res.ok) throw new Error(`${normalized} failed (${res.status})`);
-  return await res.json().catch(() => ({}));
-}
-
 type ManualStatus = "published" | "scheduled";
 
 type Props = {
@@ -1131,13 +1114,8 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
     const loadQuota = async () => {
       try {
         setQuotaLoading(true);
-        let data: any = {};
-        try {
-          data = await proxyJson("/ai-quota/global");
-        } catch {
-          const res = await api.get("/ai-quota/global");
-          data = res?.data ?? {};
-        }
+        const res = await api.get("/ai-quota/global");
+        const data = res?.data ?? {};
         const remainingRaw =
           data?.remaining ??
           data?.remaining_tokens ??
@@ -1311,13 +1289,8 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
 
   const refreshQuota = async () => {
     try {
-      let quotaData: any = {};
-      try {
-        quotaData = await proxyJson("/ai-quota/global");
-      } catch {
-        const quotaRes = await api.get("/ai-quota/global");
-        quotaData = quotaRes?.data ?? {};
-      }
+      const quotaRes = await api.get("/ai-quota/global");
+      const quotaData = quotaRes?.data ?? {};
       const remainingRaw =
         quotaData?.remaining ??
         quotaData?.remaining_tokens ??
