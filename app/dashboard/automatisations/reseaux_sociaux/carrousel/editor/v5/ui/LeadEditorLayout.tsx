@@ -1497,7 +1497,7 @@ IMPORTANT : Génère maintenant UNE PAGE FINALE COMPLÈTE, pas des conseils, pas
           </div>
         </div>
 
-        {topTools && <div className="px-2 pt-3">{topTools}</div>}
+        {topTools && <div className="px-0 pt-3">{topTools}</div>}
 
         <div className="px-0 pt-3">
           <main className="w-full p-0">
@@ -1517,7 +1517,7 @@ IMPORTANT : Génère maintenant UNE PAGE FINALE COMPLÈTE, pas des conseils, pas
           </main>
 
           {selectedLayer && (
-            <div className="mx-2 mt-3 rounded-[20px] border border-yellow-500/15 bg-black/20 p-3">
+            <div className="mt-3 rounded-none border-y border-yellow-500/15 bg-black/20 p-3">
               <div className="mb-2 flex items-center justify-between gap-3">
                 <div>
                   <div className="text-sm font-semibold text-yellow-300">Propriétés rapides</div>
@@ -1544,7 +1544,7 @@ IMPORTANT : Génère maintenant UNE PAGE FINALE COMPLÈTE, pas des conseils, pas
           )}
         </div>
 
-        <div className="fixed inset-x-0 bottom-0 z-[75] border-t border-yellow-500/15 bg-black/95 px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
+        <div className="fixed inset-x-0 bottom-0 z-[75] border-t border-yellow-500/15 bg-black/95 px-2 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
           <div className="grid grid-cols-4 gap-2">
             <button
               type="button"
