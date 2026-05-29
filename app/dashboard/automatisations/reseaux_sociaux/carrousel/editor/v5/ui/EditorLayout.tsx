@@ -192,11 +192,32 @@ function removeOverlayFromLayer(layer: any) {
   delete style.overlayOpacity;
   delete style.overlayType;
 
+  const isBackgroundLayer =
+    layer?.id === BACKGROUND_LAYER_ID ||
+    layer?.id === "background" ||
+    layer?.type === "background";
+
+  if (isBackgroundLayer) {
+    delete style.opacity;
+    delete style.filter;
+    delete style.mixBlendMode;
+    delete style.backgroundBlendMode;
+    delete style.backdropFilter;
+  }
+
   const next: any = { ...layer, style };
   delete next.overlay;
   delete next.overlayEnabled;
   delete next.overlayOpacity;
   delete next.overlayType;
+
+  if (isBackgroundLayer) {
+    delete next.opacity;
+    delete next.filter;
+    delete next.mixBlendMode;
+    delete next.backgroundBlendMode;
+    delete next.backdropFilter;
+  }
 
   return next;
 }
@@ -657,6 +678,30 @@ export default function EditorLayout({
   }, [overlayEnabled, overlayOpacity]);
 
 
+  useEffect(() => {
+    // Overlay OFF ou 0% = aucune ombre/filtre résiduel sur le background.
+    if (overlayEnabled && Number(overlayOpacity) > 0) return;
+
+    setLayers((prev: any[]) => {
+      let changed = false;
+      const next = prev.map((layer: any) => {
+        const isBackgroundLayer =
+          layer?.id === BACKGROUND_LAYER_ID ||
+          layer?.id === "background" ||
+          layer?.type === "background";
+
+        if (!isBackgroundLayer) return layer;
+
+        const cleaned = removeOverlayFromLayer(layer);
+        if (JSON.stringify(cleaned) !== JSON.stringify(layer)) changed = true;
+        return cleaned;
+      });
+
+      return changed ? next : prev;
+    });
+  }, [overlayEnabled, overlayOpacity, layersSignatureForSync(layers)]);
+
+
   /* ================= SYNC OVERLAY (WORKS ON ANY BACKGROUND) ================= */
   useEffect(() => {
     setLayers((prev: any[]) => {
@@ -713,7 +758,6 @@ export default function EditorLayout({
   }, [overlayEnabled, overlayType, overlayColor1, overlayColor2, overlayOpacity]);
 
   const effectiveCanvasLayers = useMemo(() => {
-    // Overlay OFF ou opacité 0% = aucun voile ne doit être visible dans le canvas.
     if (!overlayEnabled || Number(overlayOpacity) <= 0) {
       return layers.map((layer: any) => removeOverlayFromLayer(layer)) as LayerData[];
     }
@@ -873,8 +917,8 @@ export default function EditorLayout({
             zIndex: -1000,
             visible: true,
             selected: false,
-            // Ne jamais réinjecter un ancien overlay dans l’image de fond.
-            style: removeOverlayFromLayer({ style: oldBg?.style ?? {} }).style ?? {},
+            // Image de fond propre : aucun overlay/filtre/opacité héritée.
+            style: {},
           } as any,
           ...withoutBg,
         ];
