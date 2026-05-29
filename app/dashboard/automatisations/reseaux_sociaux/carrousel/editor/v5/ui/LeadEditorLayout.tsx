@@ -1473,7 +1473,7 @@ IMPORTANT : Génère maintenant UNE PAGE FINALE COMPLÈTE, pas des conseils, pas
       />
 
       {mobileToolsOpen && (
-        <div className="min-[900px]:hidden absolute left-0 right-0 top-0 z-50 px-6">
+        <div className="min-[768px]:hidden absolute left-0 right-0 top-0 z-50 px-4 sm:px-6">
           <div className="w-full max-w-[420px] mx-auto mt-4 rounded-2xl border border-yellow-500/20 bg-black/75 backdrop-blur p-4 space-y-4 shadow-2xl max-h-[78vh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <div className="text-yellow-300 font-semibold text-sm">Outils de l’éditeur</div>
@@ -1513,16 +1513,16 @@ IMPORTANT : Génère maintenant UNE PAGE FINALE COMPLÈTE, pas des conseils, pas
         </div>
       )}
 
-      <div className="mx-auto w-full max-w-[1920px] px-4 pb-10">
+      <div className="mx-auto w-full max-w-[1920px] px-3 min-[768px]:px-4 pb-10">
         {topTools && (
-          <div className="hidden min-[900px]:block mb-6">
+          <div className="hidden min-[768px]:block mb-6">
             {topTools}
           </div>
         )}
 
-        <div className="grid grid-cols-1 items-start min-[900px]:grid-cols-[430px_minmax(0,1fr)] min-[1500px]:grid-cols-[460px_minmax(0,1fr)] gap-6">
+        <div className="grid grid-cols-1 items-start min-[768px]:grid-cols-[340px_minmax(0,1fr)] min-[1024px]:grid-cols-[430px_minmax(0,1fr)] min-[1500px]:grid-cols-[460px_minmax(0,1fr)] gap-4 min-[1024px]:gap-6">
           <aside
-            className="hidden min-[900px]:block min-w-0 overflow-y-auto overscroll-contain pr-2"
+            className="hidden min-[768px]:block min-w-0 overflow-y-auto overscroll-contain pr-2"
             style={{ height: `${canvasHeight}px`, maxHeight: `${canvasHeight}px` }}
           >
             <div className="space-y-5">
@@ -2033,4 +2033,3 @@ IMPORTANT : Génère maintenant UNE PAGE FINALE COMPLÈTE, pas des conseils, pas
     </div>
   );
 }
-
