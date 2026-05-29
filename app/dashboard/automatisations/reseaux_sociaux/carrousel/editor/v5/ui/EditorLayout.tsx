@@ -1955,6 +1955,7 @@ export default function EditorLayout({
                 <div
                   className="absolute left-0 right-0 h-px bg-yellow-400/25"
                   style={{ top: `${centerY}px` }}
+                  
                 />
               </div>
 
