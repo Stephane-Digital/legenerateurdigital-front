@@ -185,11 +185,19 @@ function autoFitTextLayerSize(layer: LayerData, patch: Partial<LayerData>) {
 
 function removeOverlayFromLayer(layer: any) {
   if (!layer || typeof layer !== "object") return layer;
+
   const style = layer.style && typeof layer.style === "object" ? { ...layer.style } : {};
-  if ("overlay" in style) {
-    delete style.overlay;
-  }
-  return { ...layer, style };
+  if ("overlay" in style) delete style.overlay;
+  if ("overlayEnabled" in style) delete style.overlayEnabled;
+  if ("overlayOpacity" in style) delete style.overlayOpacity;
+
+  const next: any = { ...layer, style };
+
+  if ("overlay" in next) delete next.overlay;
+  if ("overlayEnabled" in next) delete next.overlayEnabled;
+  if ("overlayOpacity" in next) delete next.overlayOpacity;
+
+  return next;
 }
 
 function coerceIncomingLayers(incoming: LayerData[]): LayerData[] {
@@ -197,13 +205,9 @@ function coerceIncomingLayers(incoming: LayerData[]): LayerData[] {
     const normalized =
       l?.id === "background" ? ({ ...l, id: BACKGROUND_LAYER_ID } as any) : l;
 
-    // LGD FIX — overlay OFF par défaut doit vraiment retirer l'ancien overlay
-    // sauvegardé dans les archives/drafts avant affichage.
-    if (normalized?.id === BACKGROUND_LAYER_ID || normalized?.type === "background") {
-      return removeOverlayFromLayer(normalized) as any;
-    }
-
-    return normalized;
+    // LGD FIX — overlay OFF par défaut : on nettoie tout overlay résiduel
+    // restauré depuis une archive/draft, avant affichage dans le canvas.
+    return removeOverlayFromLayer(normalized) as any;
   });
 }
 
@@ -416,7 +420,7 @@ export default function EditorLayout({
         if (!keyChanged && incomingSig && incomingSig === lastEmittedSigRef.current) return;
 
         const coerced = coerceIncomingLayers(initialLayers ?? []);
-        let cleaned = stripNonSerializable(coerced) as LayerData[];
+        let cleaned = (stripNonSerializable(coerced) as LayerData[]).map((layer: any) => removeOverlayFromLayer(layer));
 
         // Safety: always ensure we have a background layer.
         const hasBg = cleaned.some(
@@ -646,11 +650,12 @@ export default function EditorLayout({
         const currentOverlay = baseStyle?.overlay;
 
         if (!overlayEnabled) {
-          if (!currentOverlay) return l;
-          // @ts-ignore
-          delete baseStyle.overlay;
+          const cleanedLayer = removeOverlayFromLayer(l);
+          const before = JSON.stringify(l?.style ?? {});
+          const after = JSON.stringify(cleanedLayer?.style ?? {});
+          if (before === after && !("overlay" in (l || {})) && !("overlayEnabled" in (l || {}))) return l;
           changed = true;
-          return { ...l, style: baseStyle };
+          return cleanedLayer;
         }
 
         const value =
@@ -686,6 +691,15 @@ export default function EditorLayout({
       return changed ? next : prev;
     });
   }, [overlayEnabled, overlayType, overlayColor1, overlayColor2, overlayOpacity]);
+
+  const effectiveCanvasLayers = useMemo(() => {
+    if (overlayEnabled) return layers;
+
+    // LGD FIX — overlay désactivé = aucun voile ne doit être transmis au Canvas.
+    // On nettoie uniquement le flux d'affichage pour préserver les outils et éviter
+    // tout overlay résiduel venant d'archives/drafts.
+    return layers.map((layer: any) => removeOverlayFromLayer(layer)) as LayerData[];
+  }, [layers, overlayEnabled]);
 
   const selectedLayer = useMemo(
     () => (layers.find((l: any) => l.selected) as any) ?? null,
@@ -1169,12 +1183,13 @@ export default function EditorLayout({
                   {(["color", "gradient"] as OverlayType[]).map((t) => (
                     <button
                       key={t}
-                      onClick={() => setOverlayType(t)}
+                      onClick={() => overlayEnabled && setOverlayType(t)}
+                      disabled={!overlayEnabled}
                       className={`flex-1 rounded-lg py-2 text-sm border ${
-                        overlayType === t
+                        overlayEnabled && overlayType === t
                           ? "bg-[#ffb800] text-black"
                           : "border-yellow-500/20 text-yellow-200"
-                      }`}
+                      } disabled:opacity-40`}
                     >
                       {t === "color" ? "Couleur" : "Gradient"}
                     </button>
@@ -1185,6 +1200,7 @@ export default function EditorLayout({
                   <input
                     type="color"
                     value={overlayColor1}
+                    disabled={!overlayEnabled}
                     onChange={(e) => setOverlayColor1(e.target.value)}
                     className="w-full h-10 rounded-lg bg-black/40 border border-yellow-500/20"
                   />
@@ -1202,12 +1218,14 @@ export default function EditorLayout({
                       <input
                         type="color"
                         value={overlayColor1}
+                        disabled={!overlayEnabled}
                         onChange={(e) => setOverlayColor1(e.target.value)}
                         className="w-16 h-10 rounded-lg border border-yellow-500/20 bg-black/30"
                       />
                       <input
                         type="color"
                         value={overlayColor2}
+                        disabled={!overlayEnabled}
                         onChange={(e) => setOverlayColor2(e.target.value)}
                         className="w-16 h-10 rounded-lg border border-yellow-500/20 bg-black/30"
                       />
@@ -1225,6 +1243,7 @@ export default function EditorLayout({
                     max={1}
                     step={0.01}
                     value={overlayOpacity}
+                    disabled={!overlayEnabled}
                     onChange={(e) => setOverlayOpacity(Number(e.target.value))}
                     className="w-full"
                   />
@@ -1463,12 +1482,13 @@ export default function EditorLayout({
                   {(["color", "gradient"] as OverlayType[]).map((t) => (
                     <button
                       key={t}
-                      onClick={() => setOverlayType(t)}
+                      onClick={() => overlayEnabled && setOverlayType(t)}
+                      disabled={!overlayEnabled}
                       className={`flex-1 rounded-lg py-2 text-sm border ${
-                        overlayType === t
+                        overlayEnabled && overlayType === t
                           ? "bg-[#ffb800] text-black"
                           : "border-yellow-500/20 text-yellow-200"
-                      }`}
+                      } disabled:opacity-40`}
                     >
                       {t === "color" ? "Couleur" : "Gradient"}
                     </button>
@@ -1605,7 +1625,7 @@ export default function EditorLayout({
 
               <CanvasStage
                 key={formatKey}
-                layers={layers}
+                layers={effectiveCanvasLayers}
                 setLayers={setLayers}
                 onSelectLayer={selectLayer}
                 format={format as any}
