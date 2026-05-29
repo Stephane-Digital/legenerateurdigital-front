@@ -12,7 +12,7 @@ const PLANS_URL = process.env.NEXT_PUBLIC_SYSTEMEIO_PLANS_URL ?? "https://legene
 const DASHBOARD_PATH = "/dashboard";
 const AFFILIATION_PATH = "/dashboard/affiliation";
 const EDITOR_PATH = "/dashboard/automatisations/reseaux_sociaux/editor-intelligent";
-const PLANNER_PATH = "/dashboard/automatisations/reseaux_sociaux/planner";
+const PLANNER_PATH = "/dashboard/planner";
 const COACH_PATH = "/dashboard/coach-ia";
 const LEADS_PATH = "/dashboard/lead-engine";
 const EMAIL_CAMPAIGNS_PATH = "/dashboard/email-campaigns";
@@ -159,7 +159,7 @@ export default function Header() {
   }, []);
 
   const linkClasses = (path: string) =>
-    `group relative inline-flex items-center rounded-2xl px-4 py-2.5 text-sm font-semibold transition-all duration-300 ${
+    `group relative inline-flex items-center whitespace-nowrap rounded-2xl px-3 py-2.5 text-[13px] font-semibold transition-all duration-300 ${
       isActive(pathname, path)
         ? "bg-gradient-to-r from-[#f5bf21] to-[#ffd76a] text-black shadow-[0_0_24px_rgba(245,191,33,0.24)]"
         : "text-white/78 hover:bg-white/[0.04] hover:text-[#f5bf21]"
@@ -176,8 +176,8 @@ export default function Header() {
       ? "inline-flex items-center rounded-full border border-[#f5bf21]/45 bg-black/45 px-3.5 py-2 text-[11px] font-black uppercase tracking-[0.08em] text-[#fff0b7]"
       : "inline-flex items-center rounded-full border border-white/10 bg-black/35 px-3.5 py-2 text-[11px] font-black uppercase tracking-[0.08em] text-white/55";
 
-  const drawerBtn = "w-full inline-flex items-center justify-between rounded-2xl border border-[#f5bf21]/15 bg-black/35 px-4 py-4 text-white/90 transition-all hover:border-[#f5bf21]/35 hover:bg-white/[0.04] hover:text-[#f5bf21]";
-  const drawerBtnActive = "w-full inline-flex items-center justify-between rounded-2xl border border-[#f5bf21]/55 bg-[#f5bf21]/10 px-4 py-4 text-[#ffe49a] shadow-[0_0_24px_rgba(245,191,33,0.12)]";
+  const drawerBtn = "w-full inline-flex items-center justify-between rounded-2xl border border-[#f5bf21]/18 bg-[#11100a] px-4 py-4 text-white/92 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-all hover:border-[#f5bf21]/35 hover:bg-[#17130a] hover:text-[#f5bf21]";
+  const drawerBtnActive = "w-full inline-flex items-center justify-between rounded-2xl border border-[#f5bf21]/60 bg-[#f5bf21]/14 px-4 py-4 text-[#ffe49a] shadow-[0_0_24px_rgba(245,191,33,0.12)]";
 
   const showUpgrade = isLoggedIn && plan !== "ultime";
 
@@ -255,7 +255,7 @@ export default function Header() {
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#f5bf21]/70 to-transparent" />
       <div className="pointer-events-none absolute -top-20 left-1/2 h-28 w-[640px] -translate-x-1/2 rounded-full bg-[#f5bf21]/10 blur-3xl" />
 
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-5 px-5 py-3.5">
+      <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-4 px-4 py-3.5 sm:px-5">
         <Link href={DASHBOARD_PATH} className="group flex min-w-fit items-center gap-3 rounded-2xl px-1 py-1 transition-all duration-300 hover:scale-[1.01]">
           <div className="leading-tight">
             <div className="flex items-center gap-2">
@@ -268,7 +268,7 @@ export default function Header() {
           </div>
         </Link>
 
-        <nav className="hidden items-center gap-2 md:flex">
+        <nav className="hidden min-w-0 items-center gap-1 xl:flex">
           {NAV_ITEMS.map((item) => {
             if (isLoggedIn || isPublicNavPath(item.path)) {
               return (
@@ -291,18 +291,18 @@ export default function Header() {
             );
           })}
 
-          <a href={PLANS_URL} className="rounded-2xl px-4 py-2.5 text-sm font-semibold text-white/78 transition-all hover:bg-white/[0.04] hover:text-[#f5bf21]" onClick={openPlans}>Plans</a>
+          <a href={PLANS_URL} className="whitespace-nowrap rounded-2xl px-3 py-2.5 text-[13px] font-semibold text-white/78 transition-all hover:bg-white/[0.04] hover:text-[#f5bf21]" onClick={openPlans}>Plans</a>
 
           {isLoggedIn ? (
             <>
               {showUpgrade ? (
-                <motion.button type="button" whileHover={{ y: -1, scale: 1.02 }} whileTap={{ scale: 0.98 }} className="rounded-2xl bg-gradient-to-r from-[#f5bf21] via-[#ffd76a] to-[#ffb000] px-4 py-2.5 text-sm font-black text-black shadow-[0_0_26px_rgba(245,191,33,0.24)] transition-all" onClick={openPlans}>Upgrade</motion.button>
+                <motion.button type="button" whileHover={{ y: -1, scale: 1.02 }} whileTap={{ scale: 0.98 }} className="whitespace-nowrap rounded-2xl bg-gradient-to-r from-[#f5bf21] via-[#ffd76a] to-[#ffb000] px-3 py-2.5 text-[13px] font-black text-black shadow-[0_0_26px_rgba(245,191,33,0.24)] transition-all" onClick={openPlans}>Upgrade</motion.button>
               ) : null}
               <motion.button
                 type="button"
                 whileTap={{ scale: 0.97 }}
                 disabled={loggingOut}
-                className="inline-flex items-center gap-2 rounded-2xl border border-[#f5bf21]/25 bg-black/20 px-4 py-2.5 text-sm font-bold text-[#ffe49a] transition-all hover:border-[#f5bf21]/55 hover:bg-[#f5bf21]/10 hover:shadow-[0_0_22px_rgba(245,191,33,0.12)] disabled:cursor-wait disabled:opacity-70"
+                className="inline-flex items-center gap-2 whitespace-nowrap rounded-2xl border border-[#f5bf21]/25 bg-black/20 px-3 py-2.5 text-[13px] font-bold text-[#ffe49a] transition-all hover:border-[#f5bf21]/55 hover:bg-[#f5bf21]/10 hover:shadow-[0_0_22px_rgba(245,191,33,0.12)] disabled:cursor-wait disabled:opacity-70"
                 onClick={logout}
               >
                 <span className={loggingOut ? "inline-block h-2 w-2 animate-pulse rounded-full bg-yellow-300" : "inline-block h-2 w-2 rounded-full bg-yellow-500/70"} />
@@ -310,55 +310,109 @@ export default function Header() {
               </motion.button>
             </>
           ) : (
-            <Link href={LOGIN_PATH} className="rounded-2xl border border-[#f5bf21]/30 bg-black/25 px-4 py-2.5 text-sm font-bold text-[#ffe49a] transition-all hover:border-[#f5bf21]/60 hover:bg-[#f5bf21]/10 hover:shadow-[0_0_22px_rgba(245,191,33,0.12)]">Se connecter</Link>
+            <Link href={LOGIN_PATH} className="whitespace-nowrap rounded-2xl border border-[#f5bf21]/30 bg-black/25 px-3 py-2.5 text-[13px] font-bold text-[#ffe49a] transition-all hover:border-[#f5bf21]/60 hover:bg-[#f5bf21]/10 hover:shadow-[0_0_22px_rgba(245,191,33,0.12)]">Se connecter</Link>
           )}
         </nav>
 
-        <div className="md:hidden flex items-center gap-3">
-          <button className="rounded-2xl border border-[#f5bf21]/25 px-3 py-2 text-2xl text-[#f5bf21] transition-all hover:bg-[#f5bf21]/10" onClick={() => setMenuOpen(true)} aria-label="Ouvrir le menu">☰</button>
+        <div className="flex items-center gap-3 xl:hidden">
+          <button className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-[#f5bf21]/35 bg-black/35 text-2xl leading-none text-[#f5bf21] shadow-[0_0_22px_rgba(245,191,33,0.1)] transition-all hover:bg-[#f5bf21]/10" onClick={() => setMenuOpen(true)} aria-label="Ouvrir le menu">☰</button>
         </div>
       </div>
 
       <AnimatePresence>
         {menuOpen && (
-          <motion.div className="fixed inset-0 z-[80]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <div className="absolute inset-0 bg-black/70" onClick={() => setMenuOpen(false)} />
-            <motion.div initial={{ y: -20, opacity: 0, scale: 0.98 }} animate={{ y: 0, opacity: 1, scale: 1 }} exit={{ y: -20, opacity: 0, scale: 0.98 }} transition={{ duration: 0.18 }} className="absolute left-0 right-0 top-0 border-b border-[#f5bf21]/15 bg-[#050505]/96 shadow-[0_18px_80px_rgba(0,0,0,0.55)] backdrop-blur-2xl">
-              <div className="px-5 pt-5 pb-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div>
-                      <div className="bg-gradient-to-r from-[#f5bf21] to-[#ffe49a] bg-clip-text text-lg font-black text-transparent">Menu LGD</div>
-                      <div className="text-[10px] uppercase tracking-[0.22em] text-white/35">Business · IA · Conversion</div>
-                    </div>
+          <motion.div
+            className="fixed inset-0 z-[100] xl:hidden"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <div
+              className="absolute inset-0 bg-[#020202]/96"
+              onClick={() => setMenuOpen(false)}
+            />
+
+            <motion.div
+              initial={{ x: 28, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: 28, opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              className="absolute inset-y-0 right-0 flex w-full max-w-[460px] flex-col border-l border-[#f5bf21]/18 bg-[#050505] shadow-[0_0_90px_rgba(0,0,0,0.9)]"
+            >
+              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(245,191,33,0.12),transparent_42%)]" />
+
+              <div className="relative flex items-center justify-between border-b border-[#f5bf21]/14 px-5 pb-4 pt-[max(18px,env(safe-area-inset-top))]">
+                <div className="min-w-0">
+                  <div className="truncate bg-gradient-to-r from-[#f5bf21] to-[#ffe49a] bg-clip-text text-xl font-black tracking-[-0.03em] text-transparent">
+                    Menu LGD
                   </div>
-                  <button onClick={() => setMenuOpen(false)} className="rounded-2xl border border-[#f5bf21]/25 px-3 py-2 text-[#ffe49a] transition-all hover:bg-[#f5bf21]/10" aria-label="Fermer le menu">✕</button>
+                  <div className="mt-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/38">
+                    Business · IA · Conversion
+                  </div>
                 </div>
 
+                <button
+                  onClick={() => setMenuOpen(false)}
+                  className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#f5bf21]/30 bg-[#12100a] text-lg font-bold text-[#ffe49a] transition-all hover:bg-[#f5bf21]/10"
+                  aria-label="Fermer le menu"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="relative flex-1 overflow-y-auto px-5 py-5" style={{ WebkitOverflowScrolling: "touch" }}>
                 {showUpgrade ? (
-                  <div className="mt-4 flex items-center justify-end gap-3">
-                    <motion.button type="button" whileTap={{ scale: 0.98 }} className="rounded-2xl bg-gradient-to-r from-[#f5bf21] via-[#ffd76a] to-[#ffb000] px-4 py-2.5 text-sm font-black text-black shadow-[0_0_24px_rgba(245,191,33,0.2)]" onClick={openPlans}>Upgrade</motion.button>
-                  </div>
+                  <motion.button
+                    type="button"
+                    whileTap={{ scale: 0.98 }}
+                    className="mb-4 w-full rounded-2xl bg-gradient-to-r from-[#f5bf21] via-[#ffd76a] to-[#ffb000] px-4 py-3 text-sm font-black text-black shadow-[0_0_24px_rgba(245,191,33,0.2)]"
+                    onClick={openPlans}
+                  >
+                    Upgrade
+                  </motion.button>
                 ) : null}
 
-                <div className="mt-6 grid grid-cols-1 gap-3">
+                <div className="grid grid-cols-1 gap-3">
                   {NAV_ITEMS.map((item) => (
-                    <button key={item.path} className={isActive(pathname, item.path) ? drawerBtnActive : drawerBtn} onClick={() => go(item.path)}>
-                      <span>{item.label}</span><span className="text-white/40">→</span>
+                    <button
+                      key={item.path}
+                      className={isActive(pathname, item.path) ? drawerBtnActive : drawerBtn}
+                      onClick={() => go(item.path)}
+                    >
+                      <span className="font-semibold">{item.label}</span>
+                      <span className="text-white/40">→</span>
                     </button>
                   ))}
 
-                  <a href={PLANS_URL} className={drawerBtn} onClick={openPlans}><span>Plans</span><span className="text-white/40">→</span></a>
-
-                  {isLoggedIn ? (
-                    <button className={drawerBtn} onClick={logout} disabled={loggingOut}>
-                      <span>{loggingOut ? "Déconnexion..." : "Se déconnecter"}</span>
-                      <span className="text-white/40">→</span>
-                    </button>
-                  ) : (
-                    <button className={drawerBtn} onClick={() => go(LOGIN_PATH)}><span>Se connecter</span><span className="text-white/40">→</span></button>
-                  )}
+                  <a href={PLANS_URL} className={drawerBtn} onClick={openPlans}>
+                    <span className="font-semibold">Plans</span>
+                    <span className="text-white/40">→</span>
+                  </a>
                 </div>
+              </div>
+
+              <div className="relative border-t border-[#f5bf21]/14 bg-[#050505] px-5 pb-[max(18px,env(safe-area-inset-bottom))] pt-4">
+                {isLoggedIn ? (
+                  <button
+                    className="flex w-full items-center justify-between rounded-2xl border border-[#f5bf21]/30 bg-[#141006] px-4 py-4 text-left text-sm font-black text-[#ffe49a] shadow-[0_0_22px_rgba(245,191,33,0.08)] transition-all hover:bg-[#f5bf21]/10 disabled:cursor-wait disabled:opacity-70"
+                    onClick={logout}
+                    disabled={loggingOut}
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <span className={loggingOut ? "inline-block h-2 w-2 animate-pulse rounded-full bg-yellow-300" : "inline-block h-2 w-2 rounded-full bg-yellow-500/70"} />
+                      {loggingOut ? "Déconnexion..." : "Se déconnecter"}
+                    </span>
+                    <span className="text-white/40">→</span>
+                  </button>
+                ) : (
+                  <button
+                    className="flex w-full items-center justify-between rounded-2xl border border-[#f5bf21]/30 bg-[#141006] px-4 py-4 text-left text-sm font-black text-[#ffe49a] shadow-[0_0_22px_rgba(245,191,33,0.08)] transition-all hover:bg-[#f5bf21]/10"
+                    onClick={() => go(LOGIN_PATH)}
+                  >
+                    <span>Se connecter</span>
+                    <span className="text-white/40">→</span>
+                  </button>
+                )}
               </div>
             </motion.div>
           </motion.div>
