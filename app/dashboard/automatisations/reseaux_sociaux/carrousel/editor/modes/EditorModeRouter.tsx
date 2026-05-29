@@ -1214,78 +1214,10 @@ export default function EditorModeRouter() {
     );
   }
 
-  if (isPhone) {
-    return (
-      <div className="min-h-screen bg-black text-white">
-        <input
-          ref={mobileFileInputRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          hidden
-          onChange={async (e) => {
-            const file = e.currentTarget.files?.[0];
-            e.currentTarget.value = "";
-            if (!file) return;
-            await archiveMobilePhoto(file);
-          }}
-        />
-
-        <div className="mx-auto w-full max-w-[640px] px-4 pb-10 pt-24">
-          <div className="rounded-[28px] border border-yellow-500/15 bg-black/40 p-5 shadow-2xl">
-            <div className="mb-3 inline-flex rounded-full border border-yellow-500/20 bg-yellow-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-yellow-200">
-              📱 Mode mobile LGD
-            </div>
-
-            <h1 className="text-[24px] font-extrabold leading-[1.12] text-[#ffb800]">
-              Capture rapide pour vos archives
-            </h1>
-
-            <p className="mt-3 text-sm leading-6 text-white/75">
-              Sur mobile, LGD passe en mode compagnon. Prenez une photo ou importez un visuel,
-              puis retrouvez-le dans vos archives pour le réutiliser sur ordinateur ou tablette.
-            </p>
-
-            <div className="mt-5 grid gap-3">
-              <button
-                type="button"
-                onClick={() => mobileFileInputRef.current?.click()}
-                disabled={mobileUploading}
-                className="w-full rounded-2xl bg-[#ffb800] px-4 py-4 text-base font-semibold text-black disabled:opacity-60"
-              >
-                {mobileUploading ? "Archivage…" : "📸 Prendre une photo / importer"}
-              </button>
-
-              <Link
-                href="/dashboard/library"
-                className="w-full rounded-2xl border border-yellow-500/25 bg-yellow-500/10 px-4 py-4 text-center text-sm font-medium text-yellow-200"
-              >
-                📂 Ouvrir mes archives
-              </Link>
-            </div>
-
-            {mobileArchiveMsg ? (
-              <div className="mt-4 text-sm text-white/80">{mobileArchiveMsg}</div>
-            ) : null}
-
-            <div className="mt-5 rounded-2xl border border-yellow-500/15 bg-black/30 p-4">
-              <div className="text-sm font-semibold text-yellow-300">Comment ça marche</div>
-              <ul className="mt-3 space-y-2 text-sm leading-6 text-white/70">
-                <li>• prenez une photo ou choisissez un visuel</li>
-                <li>• LGD l’archive dans votre bibliothèque</li>
-                <li>• ouvrez ensuite l’image sur ordinateur pour l’utiliser dans l’éditeur</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen text-white">
+    <div className="min-h-screen bg-transparent text-white">
       <div className="w-full px-0 pt-20">
-        <div className="flex items-start justify-between gap-4 px-4 md:px-6">
+        <div className="flex items-start justify-between gap-4 px-0 md:px-6">
           <div className="flex flex-col gap-3">
             <Link
               href="/dashboard/coach-ia/v2"
@@ -1348,7 +1280,7 @@ export default function EditorModeRouter() {
           </div>
         ) : null}
 
-        <h1 className="mt-20 px-4 text-center text-4xl font-extrabold text-[#ffb800]">L’Éditeur Intelligent + Copilote IA– {modeLabel}</h1>
+        <h1 className="mt-20 px-0 text-center text-4xl font-extrabold text-[#ffb800]">L’Éditeur Intelligent + Copilote IA– {modeLabel}</h1>
 
         <div className="mt-6 flex items-center justify-center gap-3">
           <button
@@ -1389,4 +1321,3 @@ export default function EditorModeRouter() {
     </div>
   );
 }
-
