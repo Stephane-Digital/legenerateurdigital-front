@@ -961,10 +961,10 @@ export default function EditorLayout({
           </div>
         </div>
 
-        <div className="px-2 pt-3">
-          <main className="rounded-[22px] border border-yellow-500/15 bg-black/30 p-2 shadow-2xl">
+        <div className="px-0 pt-3">
+          <main className="w-full bg-transparent p-0 shadow-none">
             <div
-              className="relative mx-auto w-full overflow-hidden rounded-[18px] border border-yellow-500/20 bg-black"
+              className="relative mx-0 w-full overflow-hidden rounded-none border-y border-yellow-500/20 bg-transparent"
               style={{
                 aspectRatio: `${format.w} / ${format.h}`,
                 minHeight: "260px",
@@ -986,7 +986,7 @@ export default function EditorLayout({
             </div>
           </main>
 
-          <div className="mt-3 grid grid-cols-3 gap-2">
+          <div className="mt-3 grid grid-cols-3 gap-2 px-3">
             <button
               type="button"
               onClick={addText}
@@ -1015,7 +1015,7 @@ export default function EditorLayout({
           </div>
 
           {selectedLayer && (
-            <div className="mt-3 rounded-[20px] border border-yellow-500/15 bg-black/35 p-3">
+            <div className="mt-3 w-full border-y border-yellow-500/15 bg-transparent px-3 py-3">
               <div className="mb-2 flex items-center justify-between gap-3">
                 <div>
                   <div className="text-sm font-semibold text-yellow-300">Propriétés rapides</div>
@@ -1030,7 +1030,7 @@ export default function EditorLayout({
                 </button>
               </div>
 
-              <div className="max-h-[38svh] overflow-y-auto rounded-2xl border border-yellow-500/10 bg-black/25 p-2">
+              <div className="max-h-[38svh] overflow-y-auto rounded-2xl border border-yellow-500/10 bg-transparent p-2">
                 <PropertiesDrawer
                   open
                   layer={selectedLayer}
