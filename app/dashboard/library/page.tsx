@@ -826,6 +826,7 @@ export default function LibraryPage() {
         const network = meta.network || "instagram";
         const title = it.title || (kind === "carrousel" ? "Carrousel planifié" : "Post planifié");
 
+        const rawPayload = wrap?.payload && typeof wrap.payload === "object" ? wrap.payload : {};
         let contenu: any = null;
 
         if (kind === "post") {
@@ -847,10 +848,12 @@ export default function LibraryPage() {
               },
             });
           } catch (e) {
-            console.warn("Prévisualisation post Planner impossible, envoi des layers uniquement", e);
+            console.warn("Prévisualisation post Planner impossible, envoi du JSON archive brut", e);
           }
 
           contenu = {
+            ...(wrap || {}),
+            ...rawPayload,
             type: "post",
             format: "post",
             title,
@@ -859,11 +862,30 @@ export default function LibraryPage() {
             scheduled_at: scheduledAt,
             source: "library",
             library_item_id: it.id,
+
+            // Compat modal vérité : il lit directement parsed.layers ou parsed.payload.layers.
             layers: safeLayers,
-            ui: draft.ui || {},
-            preview_image: previewImage || undefined,
-            planner_preview_image: previewImage || undefined,
-            rendered_image: previewImage || undefined,
+            ui: draft.ui || rawPayload?.ui || {},
+
+            // Compat structure archive brute.
+            payload: {
+              ...rawPayload,
+              type: "post",
+              format: "post",
+              title,
+              titre: title,
+              network,
+              scheduled_at: scheduledAt,
+              layers: safeLayers,
+              ui: draft.ui || rawPayload?.ui || {},
+              preview_image: previewImage || rawPayload?.preview_image || rawPayload?.planner_preview_image || rawPayload?.rendered_image || undefined,
+              planner_preview_image: previewImage || rawPayload?.planner_preview_image || rawPayload?.preview_image || rawPayload?.rendered_image || undefined,
+              rendered_image: previewImage || rawPayload?.rendered_image || rawPayload?.planner_preview_image || rawPayload?.preview_image || undefined,
+            },
+
+            preview_image: previewImage || rawPayload?.preview_image || rawPayload?.planner_preview_image || rawPayload?.rendered_image || undefined,
+            planner_preview_image: previewImage || rawPayload?.planner_preview_image || rawPayload?.preview_image || rawPayload?.rendered_image || undefined,
+            rendered_image: previewImage || rawPayload?.rendered_image || rawPayload?.planner_preview_image || rawPayload?.preview_image || undefined,
           };
         }
 
@@ -887,10 +909,12 @@ export default function LibraryPage() {
               slideIndex: 0,
             });
           } catch (e) {
-            console.warn("Prévisualisation carrousel Planner impossible, envoi des slides uniquement", e);
+            console.warn("Prévisualisation carrousel Planner impossible, envoi du JSON archive brut", e);
           }
 
           contenu = {
+            ...(wrap || {}),
+            ...rawPayload,
             type: "carrousel",
             format: "carrousel",
             title,
@@ -899,11 +923,30 @@ export default function LibraryPage() {
             scheduled_at: scheduledAt,
             source: "library",
             library_item_id: it.id,
+
+            // Compat modal vérité : il lit directement parsed.slides ou parsed.payload.slides.
             slides: safeSlides,
-            ui: draft.ui || {},
-            preview_image: previewImage || undefined,
-            planner_preview_image: previewImage || undefined,
-            rendered_image: previewImage || undefined,
+            ui: draft.ui || rawPayload?.ui || {},
+
+            // Compat structure archive brute.
+            payload: {
+              ...rawPayload,
+              type: "carrousel",
+              format: "carrousel",
+              title,
+              titre: title,
+              network,
+              scheduled_at: scheduledAt,
+              slides: safeSlides,
+              ui: draft.ui || rawPayload?.ui || {},
+              preview_image: previewImage || rawPayload?.preview_image || rawPayload?.planner_preview_image || rawPayload?.rendered_image || undefined,
+              planner_preview_image: previewImage || rawPayload?.planner_preview_image || rawPayload?.preview_image || rawPayload?.rendered_image || undefined,
+              rendered_image: previewImage || rawPayload?.rendered_image || rawPayload?.planner_preview_image || rawPayload?.preview_image || undefined,
+            },
+
+            preview_image: previewImage || rawPayload?.preview_image || rawPayload?.planner_preview_image || rawPayload?.rendered_image || undefined,
+            planner_preview_image: previewImage || rawPayload?.planner_preview_image || rawPayload?.preview_image || rawPayload?.rendered_image || undefined,
+            rendered_image: previewImage || rawPayload?.rendered_image || rawPayload?.planner_preview_image || rawPayload?.preview_image || undefined,
           };
         }
 
