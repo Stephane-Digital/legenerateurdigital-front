@@ -1277,10 +1277,10 @@ export default function EditorLayout({
         </div>
       </div>
 
-      <div className="hidden min-[640px]:block w-full max-w-none min-[1200px]:max-w-[1800px] mx-auto px-0 min-[640px]:px-2 min-[900px]:px-4 min-[1200px]:px-6 pb-28 min-[1200px]:pb-10">
-        <div className="grid min-w-0 grid-cols-1 min-[1200px]:grid-cols-[280px_minmax(0,1fr)_360px] gap-4 min-[900px]:gap-6">
+      <div className="hidden min-[640px]:block w-full max-w-none min-[1200px]:max-w-[1920px] mx-auto px-0 min-[640px]:px-2 min-[900px]:px-4 min-[1200px]:px-4 min-[1500px]:px-6 pb-28 min-[1200px]:pb-10">
+        <div className="grid min-w-0 grid-cols-1 min-[1200px]:grid-cols-[360px_minmax(0,1fr)] min-[1500px]:grid-cols-[390px_minmax(0,1fr)] gap-4 min-[900px]:gap-6">
           {/* LEFT (desktop only) */}
-          <aside className="hidden min-w-0 min-[1200px]:block rounded-2xl border border-yellow-500/15 bg-black/30 p-4">
+          <aside className="hidden min-w-0 min-[1200px]:block rounded-2xl border border-yellow-500/15 bg-black/30 p-4 max-h-[calc(100vh-150px)] overflow-y-auto overscroll-contain">
             <button
               onClick={addText}
               className="w-full rounded-xl bg-[#ffb800] text-black font-semibold py-3"
@@ -1512,13 +1512,48 @@ export default function EditorLayout({
                 </div>
               </div>
             </div>
+
+            {/* LAYERS + PROPRIÉTÉS — déplacés dans la colonne gauche pour garder le canvas visible */}
+            <div className="mt-6 border-t border-yellow-500/15 pt-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-yellow-300 font-semibold text-sm">Layers</div>
+                  <p className="mt-1 text-xs text-yellow-100/50">
+                    Sélectionne un élément pour ouvrir ses propriétés.
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-yellow-500/15 bg-black/30 p-3">
+                <LayersPanelV5
+                  layers={layers.filter((l: any) => l.id !== BACKGROUND_LAYER_ID)}
+                  selectedLayerId={selectedLayer?.id ?? null}
+                  onSelectLayer={selectLayer}
+                  onToggleVisible={toggleVisible}
+                  onReorder={reorder}
+                  onDuplicate={() => {}}
+                  onDelete={deleteLayer}
+                />
+              </div>
+
+              {selectedLayer && (
+                <div className="mt-4 rounded-2xl border border-yellow-500/15 bg-black/25 p-3">
+                  <PropertiesDrawer
+                    open
+                    layer={selectedLayer}
+                    onClose={() => setShowProps(false)}
+                    onChange={(patch) => updateLayer(selectedLayer.id, patch)}
+                  />
+                </div>
+              )}
+            </div>
           </aside>
 
           {/* CENTER */}
-          <main className="min-w-0 rounded-none min-[640px]:rounded-2xl border-0 min-[640px]:border border-white/10 bg-black/25 p-0 min-[640px]:p-2 min-[900px]:p-4 min-[1200px]:p-5 relative flex items-start justify-center overflow-x-hidden">
+          <main className="min-w-0 rounded-none min-[640px]:rounded-2xl border-0 min-[640px]:border border-white/10 bg-black/25 p-0 min-[640px]:p-2 min-[900px]:p-4 min-[1200px]:p-5 relative flex items-start justify-center overflow-hidden">
             <div
               ref={stageWrapRef}
-              className="w-full max-w-none rounded-none min-[640px]:rounded-2xl border-0 min-[640px]:border border-yellow-500/20 overflow-hidden relative min-[1200px]:h-[72vh]"
+              className="w-full max-w-none rounded-none min-[640px]:rounded-2xl border-0 min-[640px]:border border-yellow-500/20 overflow-hidden relative min-[1200px]:h-[calc(100vh-170px)]"
               style={{
                 aspectRatio: `${format.w} / ${format.h}`,
                 width: "100%",
@@ -1561,27 +1596,6 @@ export default function EditorLayout({
             </div>
           </main>
 
-          {/* RIGHT (desktop only) */}
-          <aside className="hidden min-w-0 min-[1200px]:block rounded-2xl border border-yellow-500/15 bg-black/30 p-4">
-            <LayersPanelV5
-              layers={layers.filter((l: any) => l.id !== BACKGROUND_LAYER_ID)}
-              selectedLayerId={selectedLayer?.id ?? null}
-              onSelectLayer={selectLayer}
-              onToggleVisible={toggleVisible}
-              onReorder={reorder}
-              onDuplicate={() => {}}
-              onDelete={deleteLayer}
-            />
-
-            {selectedLayer && (
-              <PropertiesDrawer
-                open
-                layer={selectedLayer}
-                onClose={() => setShowProps(false)}
-                onChange={(patch) => updateLayer(selectedLayer.id, patch)}
-              />
-            )}
-          </aside>
         </div>
       </div>
     </div>
