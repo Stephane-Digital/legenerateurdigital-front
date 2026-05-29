@@ -2851,8 +2851,8 @@ OBJECTIF TECHNIQUE : ${goal}
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
-      <div className="mx-auto max-w-[1800px] px-6 pb-10 pt-[110px]">
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+      <div className="mx-auto max-w-[1800px] px-0 pb-10 pt-[96px] min-[768px]:px-6 min-[768px]:pt-[110px]">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4 px-3 min-[768px]:px-0">
           <div>
             <div className="mb-4 flex flex-wrap items-center gap-2">
               <Link
