@@ -303,6 +303,8 @@ export default function EditorLayout({
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const bgImageInputRef = useRef<HTMLInputElement | null>(null);
+  const [mobileToolsLocalOpen, setMobileToolsLocalOpen] = useState(false);
+  const mobileToolsSheetOpen = Boolean(mobileToolsOpen) || Boolean(mobileToolsLocalOpen);
 
   const hydratingRef = useRef(false);
   const lastReceivedSigRef = useRef<string>("");
@@ -1472,48 +1474,351 @@ IMPORTANT : Génère maintenant UNE PAGE FINALE COMPLÈTE, pas des conseils, pas
         }}
       />
 
-      {mobileToolsOpen && (
-        <div className="min-[768px]:hidden absolute left-0 right-0 top-0 z-50 px-4 sm:px-6">
-          <div className="w-full max-w-[420px] mx-auto mt-4 rounded-2xl border border-yellow-500/20 bg-black/75 backdrop-blur p-4 space-y-4 shadow-2xl max-h-[78vh] overflow-y-auto">
-            <div className="flex items-center justify-between">
-              <div className="text-yellow-300 font-semibold text-sm">Outils de l’éditeur</div>
-              <button
-                onClick={() => onCloseMobileTools?.()}
-                className="text-yellow-200/80 hover:text-yellow-200 text-sm"
-              >
-                ✖
-              </button>
+      {/* ================= MOBILE PREMIUM LEAD ENGINE (<768px only) ================= */}
+      <div className="min-[768px]:hidden min-h-[100svh] pb-[calc(92px+env(safe-area-inset-bottom))]">
+        <div className="sticky top-0 z-[35] border-b border-yellow-500/15 bg-black/95 px-3 py-3 backdrop-blur">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-yellow-300/80">
+                Lead Engine mobile
+              </div>
+              <div className="truncate text-sm font-semibold text-yellow-100">
+                Landing SIO pleine page
+              </div>
             </div>
 
             <button
-              onClick={addText}
-              className="w-full rounded-xl bg-[#ffb800] text-black font-semibold py-3"
+              type="button"
+              onClick={() => setMobileToolsLocalOpen(true)}
+              className="shrink-0 rounded-full border border-yellow-500/25 bg-yellow-500/10 px-3 py-2 text-xs font-semibold text-yellow-200"
             >
-              + Ajouter un bloc texte
+              Outils
             </button>
-
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="w-full rounded-xl border border-yellow-500/25 bg-yellow-500/10 text-yellow-200 py-3"
-            >
-              🖼️ Importer un visuel
-            </button>
-
-            <div className="rounded-2xl border border-yellow-500/15 bg-black/30 p-3">
-              <div className="text-yellow-300 font-semibold text-sm mb-2">CTA Systeme.io</div>
-              <input
-                type="text"
-                value={ctaUrl}
-                onChange={(e) => onCtaUrlChange?.(e.target.value)}
-                placeholder="https://ton-lien-systeme.io/ton-formulaire"
-                className="w-full rounded-xl border border-yellow-500/15 bg-black/40 px-3 py-3 text-sm text-white/85 outline-none placeholder:text-white/25"
-              />
-            </div>
           </div>
         </div>
-      )}
 
-      <div className="mx-auto w-full max-w-[1920px] px-3 min-[768px]:px-4 pb-10">
+        {topTools && <div className="px-2 pt-3">{topTools}</div>}
+
+        <div className="px-0 pt-3">
+          <main className="w-full p-0">
+            <div
+              data-lead-engine-canvas-export="true"
+              className="relative w-full overflow-hidden rounded-none border-0 bg-transparent"
+              style={{ height: `${canvasHeight}px`, minHeight: "520px" }}
+            >
+              <CanvasStage
+                key={`mobile-${formatKey}-${canvasHeight}`}
+                layers={layers}
+                setLayers={setLayers}
+                onSelectLayer={selectLayer}
+                format={format as any}
+              />
+            </div>
+          </main>
+
+          {selectedLayer && (
+            <div className="mx-2 mt-3 rounded-[20px] border border-yellow-500/15 bg-black/20 p-3">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm font-semibold text-yellow-300">Propriétés rapides</div>
+                  <div className="text-xs text-yellow-100/55">Ajuste le bloc sélectionné.</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => selectLayer(null)}
+                  className="rounded-full border border-yellow-500/20 px-3 py-1 text-xs text-yellow-200/80"
+                >
+                  Fermer
+                </button>
+              </div>
+
+              <div className="max-h-[55svh] overflow-y-auto rounded-none border-0 bg-transparent p-0">
+                <PropertiesDrawer
+                  open
+                  layer={selectedLayer}
+                  onClose={() => setShowProps(false)}
+                  onChange={(patch) => updateLayer(selectedLayer.id, patch)}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="fixed inset-x-0 bottom-0 z-[75] border-t border-yellow-500/15 bg-black/95 px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
+          <div className="grid grid-cols-4 gap-2">
+            <button
+              type="button"
+              onClick={addText}
+              className="rounded-2xl bg-[#ffb800] px-2 py-3 text-xs font-bold text-black"
+            >
+              Texte
+            </button>
+
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="rounded-2xl border border-yellow-500/25 bg-yellow-500/10 px-2 py-3 text-xs font-semibold text-yellow-200"
+            >
+              Image
+            </button>
+
+            <button
+              type="button"
+              onClick={() => bgImageInputRef.current?.click()}
+              className="rounded-2xl border border-yellow-500/25 bg-yellow-500/10 px-2 py-3 text-xs font-semibold text-yellow-200"
+            >
+              Fond
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setMobileToolsLocalOpen(true)}
+              className="rounded-2xl border border-yellow-500/25 bg-yellow-500/10 px-2 py-3 text-xs font-semibold text-yellow-200"
+            >
+              Outils
+            </button>
+          </div>
+        </div>
+
+        {mobileToolsSheetOpen && (
+          <div
+            className="fixed inset-0 z-[90] bg-black/55 backdrop-blur-[2px]"
+            onClick={() => {
+              setMobileToolsLocalOpen(false);
+              onCloseMobileTools?.();
+            }}
+          >
+            <div
+              className="absolute inset-x-0 bottom-0 max-h-[82svh] rounded-t-[28px] border-t border-yellow-500/25 bg-black/95 p-4 shadow-2xl"
+              style={{ WebkitOverflowScrolling: "touch" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-yellow-500/30" />
+
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-base font-bold text-yellow-300">Outils Lead Engine</div>
+                  <div className="text-xs text-yellow-100/55">Réglages, IA, calques et export.</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileToolsLocalOpen(false);
+                    onCloseMobileTools?.();
+                  }}
+                  className="rounded-full border border-yellow-500/20 px-3 py-2 text-sm text-yellow-200"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="max-h-[calc(82svh-88px)] space-y-4 overflow-y-auto pr-1">
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={addText}
+                    className="rounded-2xl bg-[#ffb800] px-3 py-3 text-sm font-semibold text-black"
+                  >
+                    + Bloc texte
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="rounded-2xl border border-yellow-500/25 bg-yellow-500/10 px-3 py-3 text-sm font-semibold text-yellow-200"
+                  >
+                    Importer visuel
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={reapplyAutoLayout}
+                    className="rounded-2xl border border-yellow-500/25 bg-yellow-500/10 px-3 py-3 text-sm font-semibold text-yellow-200"
+                  >
+                    Réorganiser
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => bumpCanvasHeight(200)}
+                    className="rounded-2xl border border-yellow-500/25 bg-yellow-500/10 px-3 py-3 text-sm font-semibold text-yellow-200"
+                  >
+                    + Hauteur
+                  </button>
+                </div>
+
+                <div className="rounded-2xl border border-yellow-500/15 bg-black/35 p-3">
+                  <div className="mb-3 text-sm font-semibold text-yellow-300">Copilote IA</div>
+                  <input
+                    type="text"
+                    value={briefOffer}
+                    onChange={(e) => setBriefOffer(e.target.value)}
+                    placeholder="Sujet / offre"
+                    className="mb-3 w-full rounded-xl border border-yellow-500/15 bg-black/40 px-3 py-3 text-sm text-white/85 outline-none placeholder:text-white/25"
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <button type="button" onClick={() => void handleGenerate("hooks")} disabled={copilotLoading || aiQuotaRemaining <= 0} className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-3 py-3 text-xs font-semibold text-yellow-200 disabled:opacity-50">Hooks</button>
+                    <button type="button" onClick={() => void handleGenerate("cta")} disabled={copilotLoading || aiQuotaRemaining <= 0} className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-3 py-3 text-xs font-semibold text-yellow-200 disabled:opacity-50">CTA</button>
+                    <button type="button" onClick={() => void handleGenerate("benefits")} disabled={copilotLoading || aiQuotaRemaining <= 0} className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-3 py-3 text-xs font-semibold text-yellow-200 disabled:opacity-50">Bénéfices</button>
+                    <button type="button" onClick={() => void handleGenerate("landing")} disabled={copilotLoading || aiQuotaRemaining <= 0} className="rounded-xl bg-[#ffb800] px-3 py-3 text-xs font-bold text-black disabled:opacity-50">Landing</button>
+                  </div>
+                  {copilotStatus && <div className="mt-3 text-xs text-white/55">{copilotStatus}</div>}
+                  {lastAction === "landing" && generatedItems.length > 0 && !copilotLoading && (
+                    <button
+                      type="button"
+                      onClick={injectFullLanding}
+                      className="mt-3 w-full rounded-xl bg-[#ffb800] px-3 py-3 text-sm font-bold text-black"
+                    >
+                      Injecter toute la landing
+                    </button>
+                  )}
+                  {generatedItems.length > 0 && (
+                    <div className="mt-3 max-h-[260px] space-y-2 overflow-y-auto">
+                      {generatedItems.map((item) => (
+                        <div key={item.id} className="rounded-xl border border-yellow-500/15 bg-black/25 p-3">
+                          <div className="mb-2 flex items-center justify-between gap-2">
+                            <div className="text-xs font-semibold text-yellow-300">{item.label}</div>
+                            <button
+                              type="button"
+                              onClick={() => injectGeneratedItem(item)}
+                              className="rounded-lg border border-yellow-500/20 bg-yellow-500/10 px-2 py-1 text-[11px] font-semibold text-yellow-200"
+                            >
+                              Injecter
+                            </button>
+                          </div>
+                          <div className="text-xs leading-5 text-white/75 whitespace-pre-wrap">
+                            {cleanGeneratedTextForCanvas(item.text)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="rounded-2xl border border-yellow-500/15 bg-black/35 p-3">
+                  <label className="mb-2 block text-sm font-semibold text-yellow-300">Fond de la landing</label>
+
+                  <div className="mb-4 grid grid-cols-3 gap-2">
+                    {(["color", "gradient", "image"] as BackgroundMode[]).map((mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => setBgMode(mode)}
+                        className={`rounded-xl border px-2 py-2 text-xs font-semibold ${
+                          bgMode === mode
+                            ? "border-[#ffb800] bg-[#ffb800] text-black"
+                            : "border-yellow-500/20 bg-yellow-500/10 text-yellow-200"
+                        }`}
+                      >
+                        {mode === "color" ? "Couleur" : mode === "gradient" ? "Gradient" : "Image"}
+                      </button>
+                    ))}
+                  </div>
+
+                  {bgMode === "color" && (
+                    <input
+                      type="color"
+                      value={bgColor}
+                      onChange={(e) => setBgColor(e.target.value)}
+                      className="h-11 w-full rounded-xl border border-yellow-500/20 bg-black/40"
+                    />
+                  )}
+
+                  {bgMode === "gradient" && (
+                    <div className="space-y-3">
+                      <div
+                        className="h-11 w-full rounded-xl border border-yellow-500/20"
+                        style={{ background: `linear-gradient(${bgAngle}deg, ${bgColor1}, ${bgColor2})` }}
+                      />
+                      <div className="flex gap-2">
+                        <input type="color" value={bgColor1} onChange={(e) => setBgColor1(e.target.value)} className="h-11 flex-1 rounded-xl border border-yellow-500/20 bg-black/40" />
+                        <input type="color" value={bgColor2} onChange={(e) => setBgColor2(e.target.value)} className="h-11 flex-1 rounded-xl border border-yellow-500/20 bg-black/40" />
+                      </div>
+                      <label className="block text-xs text-yellow-100/60">Angle ({bgAngle}°)</label>
+                      <input type="range" min={0} max={360} value={bgAngle} onChange={(e) => setBgAngle(Number(e.target.value))} className="w-full" />
+                    </div>
+                  )}
+
+                  {bgMode === "image" && (
+                    <div className="space-y-2">
+                      <button type="button" onClick={() => bgImageInputRef.current?.click()} className="w-full rounded-xl border border-yellow-500/25 bg-yellow-500/10 py-3 text-sm font-semibold text-yellow-200">Importer / remplacer le fond</button>
+                      {bgImage && (
+                        <button type="button" onClick={removeBackgroundImage} className="w-full rounded-xl border border-red-500/30 bg-red-500/10 py-3 text-sm font-semibold text-red-300">Supprimer l’image de fond</button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="rounded-2xl border border-yellow-500/15 bg-black/35 p-3">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-semibold text-yellow-300">Overlay</div>
+                      <div className="text-xs text-yellow-100/55">Lisibilité sur image de fond.</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setOverlayEnabled((v) => !v)}
+                      className={`rounded-xl border px-3 py-2 text-xs font-semibold ${
+                        overlayEnabled
+                          ? "border-[#ffb800] bg-[#ffb800] text-black"
+                          : "border-yellow-500/20 bg-yellow-500/10 text-yellow-200"
+                      }`}
+                    >
+                      {overlayEnabled ? "Activé" : "Activer"}
+                    </button>
+                  </div>
+
+                  <div className={`space-y-3 ${overlayEnabled ? "" : "pointer-events-none opacity-50"}`}>
+                    <input type="color" value={overlayColor1} onChange={(e) => setOverlayColor1(e.target.value)} className="h-11 w-full rounded-xl border border-yellow-500/20 bg-black/40" />
+                    <div>
+                      <label className="mb-2 block text-xs text-yellow-100/60">Opacité ({Math.round(overlayOpacity * 100)}%)</label>
+                      <input type="range" min={0} max={1} step={0.01} value={overlayOpacity} onChange={(e) => setOverlayOpacity(Number(e.target.value))} className="w-full" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-yellow-500/15 bg-black/35 p-3">
+                  <label className="mb-2 block text-sm font-semibold text-yellow-300">CTA Systeme.io</label>
+                  <input
+                    type="text"
+                    value={ctaUrl}
+                    onChange={(e) => onCtaUrlChange?.(e.target.value)}
+                    placeholder="https://ton-lien-systeme.io/ton-formulaire"
+                    className="w-full rounded-xl border border-yellow-500/15 bg-black/40 px-3 py-3 text-sm text-white/85 outline-none placeholder:text-white/25"
+                  />
+                </div>
+
+                <div className="rounded-2xl border border-yellow-500/15 bg-black/35 p-3">
+                  <div className="mb-3 text-sm font-semibold text-yellow-300">Layers</div>
+                  <LayersPanelV5
+                    layers={layers.filter((l: any) => l.id !== BACKGROUND_LAYER_ID)}
+                    selectedLayerId={selectedLayer?.id ?? null}
+                    onSelectLayer={selectLayer}
+                    onToggleVisible={toggleVisible}
+                    onReorder={reorder}
+                    onDuplicate={() => {}}
+                    onDelete={deleteLayer}
+                  />
+                </div>
+
+                {selectedLayer && (
+                  <div className="rounded-2xl border border-yellow-500/15 bg-black/35 p-3">
+                    <div className="mb-3 text-sm font-semibold text-yellow-300">Propriétés</div>
+                    <PropertiesDrawer
+                      open
+                      layer={selectedLayer}
+                      onClose={() => setShowProps(false)}
+                      onChange={(patch) => updateLayer(selectedLayer.id, patch)}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="hidden min-[768px]:block mx-auto w-full max-w-[1920px] px-3 min-[768px]:px-4 pb-10">
         {topTools && (
           <div className="hidden min-[768px]:block mb-6">
             {topTools}
