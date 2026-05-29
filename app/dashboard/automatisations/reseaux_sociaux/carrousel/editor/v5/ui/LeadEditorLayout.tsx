@@ -2033,3 +2033,4 @@ IMPORTANT : Génère maintenant UNE PAGE FINALE COMPLÈTE, pas des conseils, pas
     </div>
   );
 }
+
