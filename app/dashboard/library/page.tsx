@@ -573,6 +573,7 @@ export default function LibraryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [sendingPlanner, setSendingPlanner] = useState(false);
 
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Record<number, boolean>>({});
@@ -793,6 +794,170 @@ export default function LibraryPage() {
     }
   }
 
+  async function sendSelectedToPlanner() {
+    if (!selectedIds.length) {
+      alert("Sélectionne d’abord une archive.");
+      return;
+    }
+
+    if (!apiUrl) {
+      alert("API indisponible.");
+      return;
+    }
+
+    setSendingPlanner(true);
+
+    try {
+      let sent = 0;
+
+      for (const id of selectedIds) {
+        const it = items.find((x) => x.id === id);
+        if (!it) continue;
+
+        const wrap = wrappers[it.id] || null;
+        const kind = detectEditorKind(it, wrap);
+
+        if (kind !== "post" && kind !== "carrousel") {
+          continue;
+        }
+
+        const meta = extractMeta(wrap, kind);
+        const scheduledAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+        const network = meta.network || "instagram";
+        const title = it.title || (kind === "carrousel" ? "Carrousel planifié" : "Post planifié");
+
+        let contenu: any = null;
+
+        if (kind === "post") {
+          const draft = extractArchivePostDraft(wrap);
+          const safeLayers = Array.isArray(draft.layers) ? draft.layers : [];
+
+          if (!safeLayers.length) {
+            console.warn("Archive post sans layers exploitable", it);
+            continue;
+          }
+
+          let previewImage = "";
+          try {
+            previewImage = await renderEditorCreationToDataUrl({
+              mode: "post",
+              draft: {
+                ui: draft.ui || {},
+                layers: safeLayers,
+              },
+            });
+          } catch (e) {
+            console.warn("Prévisualisation post Planner impossible, envoi des layers uniquement", e);
+          }
+
+          contenu = {
+            type: "post",
+            format: "post",
+            title,
+            titre: title,
+            network,
+            scheduled_at: scheduledAt,
+            source: "library",
+            library_item_id: it.id,
+            layers: safeLayers,
+            ui: draft.ui || {},
+            preview_image: previewImage || undefined,
+            planner_preview_image: previewImage || undefined,
+            rendered_image: previewImage || undefined,
+          };
+        }
+
+        if (kind === "carrousel") {
+          const draft = extractArchiveCarrouselDraft(wrap);
+          const safeSlides = Array.isArray(draft.slides) ? draft.slides : [];
+
+          if (!safeSlides.length) {
+            console.warn("Archive carrousel sans slides exploitable", it);
+            continue;
+          }
+
+          let previewImage = "";
+          try {
+            previewImage = await renderEditorCreationToDataUrl({
+              mode: "carrousel",
+              draft: {
+                ui: draft.ui || {},
+                slides: safeSlides,
+              },
+              slideIndex: 0,
+            });
+          } catch (e) {
+            console.warn("Prévisualisation carrousel Planner impossible, envoi des slides uniquement", e);
+          }
+
+          contenu = {
+            type: "carrousel",
+            format: "carrousel",
+            title,
+            titre: title,
+            network,
+            scheduled_at: scheduledAt,
+            source: "library",
+            library_item_id: it.id,
+            slides: safeSlides,
+            ui: draft.ui || {},
+            preview_image: previewImage || undefined,
+            planner_preview_image: previewImage || undefined,
+            rendered_image: previewImage || undefined,
+          };
+        }
+
+        if (!contenu) continue;
+
+        const payload = {
+          reseau: network,
+          network,
+          statut: "scheduled",
+          status: "scheduled",
+          titre: title,
+          title,
+          format: kind,
+          date_programmee: scheduledAt,
+          scheduled_at: scheduledAt,
+          supprimer_apres: false,
+          contenu,
+        };
+
+        const res = await fetch(`${apiUrl}/social-posts`, {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+            ...getAuthHeaders(),
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) {
+          const detail = await res.text().catch(() => "");
+          throw new Error(`Erreur Planner (${res.status}) ${detail}`.trim());
+        }
+
+        sent += 1;
+        await sleep(120);
+      }
+
+      if (!sent) {
+        alert("Aucune archive Post/Carrousel exploitable à envoyer dans le Planner.");
+        return;
+      }
+
+      setSelected({});
+      alert(`${sent} archive(s) envoyée(s) dans le Planner.`);
+      router.push("/dashboard/automatisations/reseaux_sociaux/planner");
+    } catch (e: any) {
+      console.error("Envoi archive vers Planner impossible:", e);
+      alert(String(e?.message || "Erreur lors de l’envoi vers le Planner."));
+    } finally {
+      setSendingPlanner(false);
+    }
+  }
+
   async function deleteSelected() {
     if (!selectedIds.length) return;
     if (!apiUrl) return;
@@ -839,6 +1004,14 @@ export default function LibraryPage() {
               className="h-10 rounded-xl border border-yellow-500/20 bg-black/30 px-4 text-sm text-white/80 hover:bg-black/40 hover:text-white transition disabled:opacity-40"
             >
               {exporting ? "Export…" : "Exporter"}
+            </button>
+
+            <button
+              onClick={sendSelectedToPlanner}
+              disabled={!selectedIds.length || sendingPlanner}
+              className="h-10 rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 text-sm font-semibold text-yellow-300 hover:bg-yellow-500/15 transition disabled:opacity-40"
+            >
+              {sendingPlanner ? "Envoi Planner…" : "Envoyer Planner"}
             </button>
 
             <button
