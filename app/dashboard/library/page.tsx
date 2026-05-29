@@ -1135,14 +1135,6 @@ export default function LibraryPage() {
             </button>
 
             <button
-              onClick={() => window.open("https://www.instagram.com/", "_blank")}
-              disabled={!selectedIds.length}
-              className="h-10 rounded-xl border border-yellow-500/20 bg-black/30 px-4 text-sm text-white/80 hover:bg-black/40 hover:text-white transition disabled:opacity-40"
-            >
-              Instagram
-            </button>
-
-            <button
               onClick={deleteSelected}
               disabled={!selectedIds.length}
               className="h-10 rounded-xl border border-yellow-500/20 bg-black/30 px-4 text-sm text-white/80 hover:bg-black/40 hover:text-white transition disabled:opacity-40"
