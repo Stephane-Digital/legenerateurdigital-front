@@ -380,6 +380,87 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+const PLANNER_EDITOR_PAYLOAD_CACHE_KEY = "lgd_planner_editor_payload_cache_v1";
+const PLANNER_MEDIA_IDB_NAME = "lgd_planner_media_cache_v1";
+const PLANNER_MEDIA_IDB_STORE = "items";
+
+function writePlannerPayloadLocalCache(keys: string[], item: any) {
+  if (typeof window === "undefined") return;
+  try {
+    const raw = window.localStorage.getItem(PLANNER_EDITOR_PAYLOAD_CACHE_KEY);
+    const cache = raw ? JSON.parse(raw) : {};
+    const clean = cache && typeof cache === "object" ? cache : {};
+
+    for (const key of keys) {
+      if (key) clean[key] = item;
+    }
+
+    const entries = Object.entries(clean)
+      .sort((a: any, b: any) => Number(b?.[1]?.created_at || 0) - Number(a?.[1]?.created_at || 0))
+      .slice(0, 8);
+
+    window.localStorage.setItem(PLANNER_EDITOR_PAYLOAD_CACHE_KEY, JSON.stringify(Object.fromEntries(entries)));
+  } catch {
+    // ignore
+  }
+}
+
+function openPlannerMediaDB(): Promise<IDBDatabase | null> {
+  if (typeof window === "undefined" || !("indexedDB" in window)) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const request = window.indexedDB.open(PLANNER_MEDIA_IDB_NAME, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(PLANNER_MEDIA_IDB_STORE)) db.createObjectStore(PLANNER_MEDIA_IDB_STORE);
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => resolve(null);
+  });
+}
+
+async function writePlannerPayloadIDBCache(keys: string[], item: any) {
+  const db = await openPlannerMediaDB();
+  if (!db) return;
+
+  await new Promise<void>((resolve) => {
+    try {
+      const tx = db.transaction(PLANNER_MEDIA_IDB_STORE, "readwrite");
+      const store = tx.objectStore(PLANNER_MEDIA_IDB_STORE);
+      keys.filter(Boolean).forEach((key) => store.put(item, key));
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+      tx.onabort = () => resolve();
+    } catch {
+      resolve();
+    }
+  }).finally(() => {
+    try { db.close(); } catch {}
+  });
+}
+
+async function cacheLibraryPlannerPayload(result: any, body: any) {
+  const title = String(body?.titre || body?.title || body?.contenu?.title || "").trim();
+  const network = String(body?.network || body?.reseau || body?.contenu?.network || "").trim();
+  const scheduledAt = String(body?.scheduled_at || body?.date_programmee || body?.contenu?.scheduled_at || "").trim();
+  const payload = body?.contenu && typeof body.contenu === "object" ? body.contenu : {};
+  const item = { payload, title, titre: title, network, scheduled_at: scheduledAt, created_at: Date.now() };
+  const keys = [
+    String(result?.id ?? ""),
+    String(result?.post_id ?? ""),
+    String(result?.planner_id ?? ""),
+    String(result?.data?.id ?? ""),
+    String(result?.post?.id ?? ""),
+    `${network}|${scheduledAt}|${title}`,
+    `title|${title}`,
+    `${network}|${title}`,
+    "__latest__",
+  ].filter(Boolean);
+
+  writePlannerPayloadLocalCache(keys, item);
+  await writePlannerPayloadIDBCache(keys, item);
+}
+
+
 function NetworkIcon({ network }: { network: string }) {
   const common = "h-4 w-4 text-yellow-200/90";
   if (network === "instagram") {
@@ -981,6 +1062,9 @@ export default function LibraryPage() {
           throw new Error(`Erreur Planner (${res.status}) ${detail}`.trim());
         }
 
+        const result = await res.json().catch(() => null);
+        await cacheLibraryPlannerPayload(result, payload);
+
         sent += 1;
         await sleep(120);
       }
@@ -1122,4 +1206,3 @@ export default function LibraryPage() {
     </div>
   );
 }
-
