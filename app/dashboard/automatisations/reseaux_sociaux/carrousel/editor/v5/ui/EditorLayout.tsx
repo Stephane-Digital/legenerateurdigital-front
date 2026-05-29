@@ -183,10 +183,27 @@ function autoFitTextLayerSize(layer: LayerData, patch: Partial<LayerData>) {
   } as Partial<LayerData>;
 }
 
+function removeOverlayFromLayer(layer: any) {
+  if (!layer || typeof layer !== "object") return layer;
+  const style = layer.style && typeof layer.style === "object" ? { ...layer.style } : {};
+  if ("overlay" in style) {
+    delete style.overlay;
+  }
+  return { ...layer, style };
+}
+
 function coerceIncomingLayers(incoming: LayerData[]): LayerData[] {
   return incoming.map((l: any) => {
-    if (l?.id === "background") return { ...l, id: BACKGROUND_LAYER_ID } as any;
-    return l;
+    const normalized =
+      l?.id === "background" ? ({ ...l, id: BACKGROUND_LAYER_ID } as any) : l;
+
+    // LGD FIX — overlay OFF par défaut doit vraiment retirer l'ancien overlay
+    // sauvegardé dans les archives/drafts avant affichage.
+    if (normalized?.id === BACKGROUND_LAYER_ID || normalized?.type === "background") {
+      return removeOverlayFromLayer(normalized) as any;
+    }
+
+    return normalized;
   });
 }
 
@@ -822,8 +839,8 @@ export default function EditorLayout({
             zIndex: -1000,
             visible: true,
             selected: false,
-            // keep overlay style if exists
-            style: { ...(oldBg?.style ?? {}) },
+            // overlay OFF par défaut : ne jamais réinjecter un ancien style.overlay
+            style: removeOverlayFromLayer({ style: oldBg?.style ?? {} }).style ?? {},
           } as any,
           ...withoutBg,
         ];
