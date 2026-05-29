@@ -2879,8 +2879,15 @@ OBJECTIF TECHNIQUE : ${goal}
           </div>
         </div>
 
-        <div className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-[420px_minmax(0,1fr)]">
-          <aside className="min-w-0 xl:sticky xl:top-[96px] xl:max-h-[calc(100vh-116px)] xl:overflow-y-auto xl:pr-1">
+        <div className="min-w-0">
+        <div
+          ref={rootRef}
+          className="min-w-0 rounded-none border-0 bg-transparent p-0"
+        >
+          {hydrated ? (
+            <LeadEditorLayout
+              topTools={(
+                <>
         <div className="mb-5 rounded-[24px] border border-yellow-500/20 bg-black/20 p-4">
           <div className="text-sm font-semibold text-yellow-300">Actions rapides</div>
           <div className="mt-3 grid grid-cols-1 gap-3">
@@ -3270,15 +3277,9 @@ OBJECTIF TECHNIQUE : ${goal}
         </div>
 
 
-          </aside>
 
-          <section className="min-w-0">
-        <div
-          ref={rootRef}
-          className="min-w-0 rounded-none border-0 bg-transparent p-0"
-        >
-          {hydrated ? (
-            <LeadEditorLayout
+                </>
+              )}
               key={editorKey}
               initialLayers={initialLayers}
               initialLayersKey={`lead-engine-${editorKey}`}
@@ -3301,7 +3302,7 @@ OBJECTIF TECHNIQUE : ${goal}
         </div>
 
 
-          </section>
+
         </div>
 
         {!!lastSavedAt && (
