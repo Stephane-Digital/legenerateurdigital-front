@@ -3266,7 +3266,7 @@ OBJECTIF TECHNIQUE : ${goal}
 
         <div
           ref={rootRef}
-          className="rounded-[28px] border border-yellow-600/20 bg-[#0b0b0b] p-4 sm:p-5"
+          className="bg-transparent p-0 min-[768px]:rounded-[28px] min-[768px]:border min-[768px]:border-yellow-600/20 min-[768px]:bg-[#0b0b0b] min-[768px]:p-5"
         >
           {hydrated ? (
             <LeadEditorLayout
@@ -3300,4 +3300,3 @@ OBJECTIF TECHNIQUE : ${goal}
     </div>
   );
 }
-
