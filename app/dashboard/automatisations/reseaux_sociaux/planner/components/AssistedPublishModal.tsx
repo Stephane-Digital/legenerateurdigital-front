@@ -19,17 +19,16 @@ const API_PROXY_PREFIX = "/api/proxy";
 
 async function proxyJson(path: string, init?: RequestInit) {
   const normalized = path.startsWith("/") ? path : `/${path}`;
-  const res = await fetch(`${API_PROXY_PREFIX}${normalized}`, {
-    credentials: "include",
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers || {}),
-    },
-  });
+  const method = String(init?.method || "GET").toUpperCase();
+  const body = typeof init?.body === "string" ? safeParseJSON(init.body) : init?.body;
 
-  if (!res.ok) throw new Error(`${normalized} failed (${res.status})`);
-  return await res.json().catch(() => ({}));
+  if (method === "POST") {
+    const res = await api.post(normalized, body || {});
+    return res?.data ?? {};
+  }
+
+  const res = await api.get(normalized);
+  return res?.data ?? {};
 }
 
 type ManualStatus = "published" | "scheduled";
@@ -298,106 +297,58 @@ function extractPreviewCanvas(post: any, parsed: any): PreviewCanvas | null {
   return null;
 }
 
-function collectEditorPayloadRoots(...values: any[]) {
-  const roots: any[] = [];
-  const seen = new Set<any>();
-
-  const visit = (node: any) => {
-    const parsedNode = safeParseJSON(node) || node;
-    if (!parsedNode || typeof parsedNode !== "object") return;
-    if (seen.has(parsedNode)) return;
-
-    seen.add(parsedNode);
-    roots.push(parsedNode);
-
-    visit(parsedNode.payload);
-    visit(parsedNode.draft);
-    visit(parsedNode.content);
-    visit(parsedNode.contenu);
-    visit(parsedNode.data);
-    visit(parsedNode.canvas);
-    visit(parsedNode.editor);
-    visit(parsedNode.raw);
-    visit(parsedNode.item);
-  };
-
-  values.forEach(visit);
-  return roots;
-}
-
 function inferEditorRenderSpec(post: any, parsed: any): EditorRenderSpec | null {
-  const roots = collectEditorPayloadRoots(parsed, post);
+  const payload =
+    parsed?.payload && typeof parsed.payload === "object"
+      ? parsed.payload
+      : parsed?.draft && typeof parsed.draft === "object"
+        ? parsed.draft
+        : parsed;
 
-  for (const payload of roots) {
-    const explicitType = String(
-      payload?.type ||
-        payload?.format ||
-        payload?.kind ||
-        post?.format ||
-        post?.type ||
-        ""
-    )
-      .trim()
-      .toLowerCase();
+  if (!payload || typeof payload !== "object") return null;
 
-    const slides = extractSlides(payload?.slides);
-    if (slides.length) {
-      const normalizedSlides = slides
-        .map((slide: any, index: number) => ({
-          ...slide,
-          id: String(slide?.id || `slide-${index + 1}`),
-          ui: slide?.ui || payload?.ui,
-          layers: extractLayers(
-            slide?.layers ||
-              slide?.elements ||
-              slide?.objects ||
-              slide?.canvas?.layers ||
-              slide?.content?.layers ||
-              slide?.payload?.layers
-          ),
-        }))
-        .filter((slide: any) => Array.isArray(slide.layers) && slide.layers.length > 0);
+  const explicitType = String(
+    payload?.type ||
+      payload?.format ||
+      payload?.kind ||
+      post?.format ||
+      post?.type ||
+      ""
+  )
+    .trim()
+    .toLowerCase();
 
-      if (normalizedSlides.length) {
-        return {
-          mode: "carrousel",
-          draft: {
-            ui: payload?.ui || {},
-            slides: normalizedSlides,
-          },
-          slideIndex: 0,
-        };
-      }
-    }
+  const slides = extractSlides(payload?.slides);
+  if (slides.length) {
+    const normalizedSlides = slides
+      .map((slide: any, index: number) => ({
+        id: String(slide?.id || `slide-${index + 1}`),
+        ui: slide?.ui || payload?.ui,
+        layers: extractLayers(slide?.layers),
+      }))
+      .filter((slide: any) => Array.isArray(slide.layers) && slide.layers.length > 0);
 
-    const layers = extractLayers(
-      payload?.layers ||
-        payload?.elements ||
-        payload?.objects ||
-        payload?.canvas?.layers ||
-        payload?.content?.layers ||
-        payload?.payload?.layers
-    );
-
-    if (layers.length) {
+    if (normalizedSlides.length) {
       return {
-        mode: "post",
+        mode: "carrousel",
         draft: {
-          ui: payload?.ui || {},
-          layers,
+          ui: payload?.ui,
+          slides: normalizedSlides,
         },
+        slideIndex: 0,
       };
     }
+  }
 
-    if (explicitType === "post" && Array.isArray(payload?.layers)) {
-      return {
-        mode: "post",
-        draft: {
-          ui: payload?.ui || {},
-          layers: payload.layers,
-        },
-      };
-    }
+  const layers = extractLayers(payload?.layers);
+  if (layers.length || explicitType === "post") {
+    return {
+      mode: "post",
+      draft: {
+        ui: payload?.ui,
+        layers,
+      },
+    };
   }
 
   return null;
@@ -601,21 +552,6 @@ function flattenPossibleMediaSources(post: any, parsed: any) {
 }
 
 function extractExactPreviewImage(post: any, parsed: any) {
-  const roots = collectEditorPayloadRoots(parsed, post);
-
-  for (const root of roots) {
-    const candidate = firstNonEmptyString(
-      root?.planner_preview_image,
-      root?.preview_image,
-      root?.rendered_image,
-      root?.plannerPreviewImage,
-      root?.previewImage,
-      root?.renderedImage,
-    );
-
-    if (candidate) return candidate;
-  }
-
   return firstNonEmptyString(
     post?.planner_preview_image,
     post?.preview_image,
@@ -1153,6 +1089,99 @@ function PreviewCanvasView({ canvas }: { canvas: PreviewCanvas }) {
   );
 }
 
+
+const PLANNER_EDITOR_PAYLOAD_CACHE_KEY = "lgd_planner_editor_payload_cache_v1";
+const PLANNER_MEDIA_IDB_NAME = "lgd_planner_media_cache_v1";
+const PLANNER_MEDIA_IDB_STORE = "items";
+
+function buildPlannerCacheKeys(post: any, parsed: any) {
+  const title = extractTitle(post, parsed);
+  const network = String(post?.reseau ?? post?.network ?? parsed?.reseau ?? parsed?.network ?? "").trim();
+  const scheduledAt = String(
+    post?.scheduled_at ??
+      post?.date_programmee ??
+      parsed?.scheduled_at ??
+      parsed?.date_programmee ??
+      ""
+  ).trim();
+
+  return uniqueStrings([
+    String(post?.id ?? ""),
+    String(post?.post_id ?? ""),
+    String(post?.planner_id ?? ""),
+    `${network}|${scheduledAt}|${title}`,
+    `title|${title}`,
+    `${network}|${title}`,
+    "__latest__",
+  ]);
+}
+
+function readPlannerPayloadFromLocalCache(keys: string[]) {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(PLANNER_EDITOR_PAYLOAD_CACHE_KEY);
+    if (!raw) return null;
+    const cache = JSON.parse(raw);
+    if (!cache || typeof cache !== "object") return null;
+
+    for (const key of keys) {
+      const item = cache[key];
+      if (item?.payload && typeof item.payload === "object") return item.payload;
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+function openPlannerMediaDB(): Promise<IDBDatabase | null> {
+  if (typeof window === "undefined" || !("indexedDB" in window)) return Promise.resolve(null);
+
+  return new Promise((resolve) => {
+    const request = window.indexedDB.open(PLANNER_MEDIA_IDB_NAME, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(PLANNER_MEDIA_IDB_STORE)) {
+        db.createObjectStore(PLANNER_MEDIA_IDB_STORE);
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => resolve(null);
+  });
+}
+
+async function readPlannerPayloadFromIDB(keys: string[]) {
+  const db = await openPlannerMediaDB();
+  if (!db) return null;
+
+  try {
+    for (const key of keys) {
+      const item = await new Promise<any>((resolve) => {
+        try {
+          const tx = db.transaction(PLANNER_MEDIA_IDB_STORE, "readonly");
+          const req = tx.objectStore(PLANNER_MEDIA_IDB_STORE).get(key);
+          req.onsuccess = () => resolve(req.result ?? null);
+          req.onerror = () => resolve(null);
+          tx.onerror = () => resolve(null);
+          tx.onabort = () => resolve(null);
+        } catch {
+          resolve(null);
+        }
+      });
+
+      if (item?.payload && typeof item.payload === "object") return item.payload;
+    }
+  } finally {
+    try {
+      db.close();
+    } catch {
+      // ignore
+    }
+  }
+
+  return null;
+}
+
 export default function AssistedPublishModal({ open, post, onClose, onMarkStatus }: Props) {
   const [copied, setCopied] = useState<"" | "caption">("");
   const [saving, setSaving] = useState<"" | ManualStatus>("");
@@ -1167,7 +1196,22 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
   const [editorPreviewUrl, setEditorPreviewUrl] = useState("");
   const [editorPreviewLoading, setEditorPreviewLoading] = useState(false);
 
-  const parsed = useMemo(() => safeParseJSON(post?.contenu ?? post?.content ?? null), [post]);
+  const baseParsed = useMemo(() => safeParseJSON(post?.contenu ?? post?.content ?? null), [post]);
+  const [cachedPlannerPayload, setCachedPlannerPayload] = useState<any | null>(null);
+  const parsed = useMemo(() => {
+    if (cachedPlannerPayload && typeof cachedPlannerPayload === "object") {
+      return {
+        ...(baseParsed && typeof baseParsed === "object" ? baseParsed : {}),
+        ...cachedPlannerPayload,
+        payload: {
+          ...((baseParsed as any)?.payload && typeof (baseParsed as any).payload === "object" ? (baseParsed as any).payload : {}),
+          ...(cachedPlannerPayload?.payload && typeof cachedPlannerPayload.payload === "object" ? cachedPlannerPayload.payload : cachedPlannerPayload),
+        },
+      };
+    }
+    return baseParsed;
+  }, [baseParsed, cachedPlannerPayload]);
+
   const title = useMemo(() => extractTitle(post, parsed), [post, parsed]);
   const caption = useMemo(() => extractCaption(post, parsed), [post, parsed]);
   const exactPreviewImage = useMemo(() => extractExactPreviewImage(post, parsed), [post, parsed]);
@@ -1183,6 +1227,34 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
   const networkUrl = useMemo(() => buildNetworkUrl(network), [network]);
   const status = useMemo(() => getStatus(post, parsed), [post, parsed]);
   const isPublished = status.includes("published") || status.includes("envoy") || status.includes("success");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadCachedPayload() {
+      if (!open || !post) {
+        setCachedPlannerPayload(null);
+        return;
+      }
+
+      const keys = buildPlannerCacheKeys(post, baseParsed);
+      const local = readPlannerPayloadFromLocalCache(keys);
+      if (!cancelled && local) {
+        setCachedPlannerPayload(local);
+        return;
+      }
+
+      const fromIDB = await readPlannerPayloadFromIDB(keys);
+      if (!cancelled) {
+        setCachedPlannerPayload(fromIDB || null);
+      }
+    }
+
+    loadCachedPayload();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, post?.id, baseParsed]);
 
   useEffect(() => {
     setEditableCaption(caption || "");
