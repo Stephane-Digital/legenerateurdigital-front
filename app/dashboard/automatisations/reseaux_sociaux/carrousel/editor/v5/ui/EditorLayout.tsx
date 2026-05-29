@@ -883,6 +883,13 @@ export default function EditorLayout({
     });
   }, [bgColor]);
 
+  const onImportMobileCompanion = useCallback(
+    async (files: FileList | null) => {
+      if (!files || !files.length) return;
+      await onImportImages(files);
+    },
+    [onImportImages]
+  );
 
   /* ================= CANVA-LIKE MEASURES (selected layer distances) ================= */
   const selectedMetrics = useMemo(() => {
@@ -902,7 +909,7 @@ export default function EditorLayout({
 
   /* ================= RENDER ================= */
   return (
-    <div className="w-full h-full relative overflow-x-hidden text-[14px] min-[640px]:text-[15px] min-[1200px]:text-base">
+    <div className="w-full h-full relative overflow-x-hidden text-[14px] min-[640px]:text-[15px] min-[1024px]:text-base">
       <input
         ref={fileInputRef}
         type="file"
@@ -1340,7 +1347,7 @@ export default function EditorLayout({
       {/* ================= MOBILE/TABLET TOOLS (overlay over canvas) ================= */}
       {mobileToolsSheetOpen && (
         <div
-          className="hidden min-[640px]:block min-[1200px]:hidden fixed inset-0 z-[80] bg-black/60 backdrop-blur-[2px]"
+          className="hidden min-[640px]:block min-[1024px]:hidden fixed inset-0 z-[80] bg-black/60 backdrop-blur-[2px]"
           onClick={() => {
             setMobileToolsLocalOpen(false);
             onCloseMobileTools?.();
@@ -1619,7 +1626,7 @@ export default function EditorLayout({
         </div>
       )}
 
-      <div className="hidden min-[640px]:block min-[1200px]:hidden fixed inset-x-0 bottom-0 z-[70] border-t border-yellow-500/15 bg-black/95 px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
+      <div className="hidden min-[640px]:block min-[1024px]:hidden fixed inset-x-0 bottom-0 z-[70] border-t border-yellow-500/15 bg-black/95 px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
         <div className="grid grid-cols-3 gap-2">
           <button
             onClick={addText}
@@ -1652,10 +1659,10 @@ export default function EditorLayout({
         </div>
       </div>
 
-      <div className="hidden min-[640px]:block w-full max-w-none min-[1200px]:max-w-[1920px] mx-auto px-0 min-[640px]:px-2 min-[900px]:px-4 min-[1200px]:px-4 min-[1500px]:px-6 pb-28 min-[1200px]:pb-10">
-        <div className="grid min-w-0 grid-cols-1 min-[1200px]:grid-cols-[360px_minmax(0,1fr)] min-[1500px]:grid-cols-[390px_minmax(0,1fr)] gap-4 min-[900px]:gap-6">
+      <div className="hidden min-[640px]:block w-full max-w-none min-[1024px]:max-w-[1920px] mx-auto px-0 min-[640px]:px-2 min-[900px]:px-4 min-[1024px]:px-4 min-[1500px]:px-6 pb-28 min-[1024px]:pb-10">
+        <div className="grid min-w-0 grid-cols-1 min-[1024px]:grid-cols-[360px_minmax(0,1fr)] min-[1500px]:grid-cols-[390px_minmax(0,1fr)] gap-4 min-[900px]:gap-6">
           {/* LEFT (desktop only) */}
-          <aside className="hidden min-w-0 min-[1200px]:block rounded-2xl border border-yellow-500/15 bg-black/30 p-4 max-h-[calc(100vh-150px)] overflow-y-auto overscroll-contain">
+          <aside className="hidden min-w-0 min-[1024px]:block rounded-2xl border border-yellow-500/15 bg-black/30 p-4 max-h-[calc(100vh-150px)] overflow-y-auto overscroll-contain">
             <button
               onClick={addText}
               className="w-full rounded-xl bg-[#ffb800] text-black font-semibold py-3"
@@ -1925,10 +1932,10 @@ export default function EditorLayout({
           </aside>
 
           {/* CENTER */}
-          <main className="min-w-0 rounded-none min-[640px]:rounded-2xl border-0 min-[640px]:border border-white/10 bg-black/25 p-0 min-[640px]:p-2 min-[900px]:p-4 min-[1200px]:p-5 relative flex items-start justify-center overflow-hidden">
+          <main className="min-w-0 rounded-none min-[640px]:rounded-2xl border-0 min-[640px]:border border-white/10 bg-black/25 p-0 min-[640px]:p-2 min-[900px]:p-4 min-[1024px]:p-5 relative flex items-start justify-center overflow-hidden">
             <div
               ref={stageWrapRef}
-              className="w-full max-w-none rounded-none min-[640px]:rounded-2xl border-0 min-[640px]:border border-yellow-500/20 overflow-hidden relative min-[1200px]:h-[calc(100vh-170px)]"
+              className="w-full max-w-none rounded-none min-[640px]:rounded-2xl border-0 min-[640px]:border border-yellow-500/20 overflow-hidden relative min-[1024px]:h-[calc(100vh-170px)]"
               style={{
                 aspectRatio: `${format.w} / ${format.h}`,
                 width: "100%",
