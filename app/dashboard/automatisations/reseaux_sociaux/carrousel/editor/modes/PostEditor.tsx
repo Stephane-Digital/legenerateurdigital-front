@@ -2541,4 +2541,3 @@ export default function PostEditor({
     </div>
   );
 }
-
