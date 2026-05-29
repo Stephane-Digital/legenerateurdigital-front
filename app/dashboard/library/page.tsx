@@ -1135,14 +1135,6 @@ export default function LibraryPage() {
             </button>
 
             <button
-              onClick={sendSelectedToPlanner}
-              disabled={!selectedIds.length || sendingPlanner}
-              className="h-10 rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 text-sm font-semibold text-yellow-300 hover:bg-yellow-500/15 transition disabled:opacity-40"
-            >
-              {sendingPlanner ? "Envoi Planner…" : "Envoyer Planner"}
-            </button>
-
-            <button
               onClick={() => window.open("https://www.instagram.com/", "_blank")}
               disabled={!selectedIds.length}
               className="h-10 rounded-xl border border-yellow-500/20 bg-black/30 px-4 text-sm text-white/80 hover:bg-black/40 hover:text-white transition disabled:opacity-40"
