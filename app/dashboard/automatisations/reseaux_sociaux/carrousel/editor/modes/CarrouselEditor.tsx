@@ -2269,15 +2269,9 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
   );
 
   return (
-    <div className="w-full flex justify-center">
-      <div className="mx-auto mt-20 w-full max-w-[1800px] px-6 pb-16">
-        <div
-          className="rounded-3xl p-8"
-          style={{
-            backgroundColor: "#262626",
-            border: "1px solid rgba(255,184,0,0.25)",
-          }}
-        >
+    <div className="w-full flex justify-center max-[639px]:block">
+      <div className="mx-auto mt-20 w-full max-w-[1800px] px-6 pb-16 max-[639px]:mt-0 max-[639px]:max-w-none max-[639px]:px-0 max-[639px]:pb-[92px]">
+        <div className="rounded-3xl border border-yellow-500/25 bg-[#262626] p-8 max-[639px]:rounded-none max-[639px]:border-0 max-[639px]:bg-transparent max-[639px]:p-0">
           <div className="w-full">
             {!briefDismissed && (brief || "").trim() ? (
               <div className="mb-6 rounded-3xl border border-yellow-500/20 bg-yellow-500/10 px-5 py-4">
@@ -2430,7 +2424,7 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
                     </button>
                   </div>
 
-                  <div className="mt-4 grid grid-cols-1 lg:grid-cols-12 gap-4">
+                  <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-12 max-[639px]:gap-3">
 
                 {promptLibraryOpen ? (
                   <div className="lg:col-span-12 rounded-3xl border border-yellow-500/20 bg-black/35 p-4">
@@ -2534,7 +2528,7 @@ export default function CarrouselEditor({ mobileToolsOpen, onCloseMobileTools, b
                         className="w-full rounded-2xl bg-black/40 border border-yellow-500/20 px-4 py-3 text-yellow-100 outline-none"
                       />
 
-                      <div className="mt-3 grid grid-cols-2 gap-3">
+                      <div className="mt-3 grid grid-cols-2 gap-3 max-[639px]:grid-cols-1">
                         <div>
                           <label className="block text-yellow-300 text-xs mb-2">Réseau</label>
                           <select
