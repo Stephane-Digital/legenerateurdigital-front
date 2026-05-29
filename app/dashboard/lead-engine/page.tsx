@@ -2877,12 +2877,17 @@ OBJECTIF TECHNIQUE : ${goal}
               IA mémoire branché sur le backend.
             </p>
           </div>
+        </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+        <div className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-[420px_minmax(0,1fr)]">
+          <aside className="min-w-0 xl:sticky xl:top-[96px] xl:max-h-[calc(100vh-116px)] xl:overflow-y-auto xl:pr-1">
+        <div className="mb-5 rounded-[24px] border border-yellow-500/20 bg-black/20 p-4">
+          <div className="text-sm font-semibold text-yellow-300">Actions rapides</div>
+          <div className="mt-3 grid grid-cols-1 gap-3">
             <button
               type="button"
               onClick={copyHtml}
-              className="inline-flex items-center gap-2 rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-5 py-3 font-semibold text-white/85"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-yellow-600/25 bg-yellow-500/10 px-5 py-3 font-semibold text-yellow-200"
             >
               <FaCopy className="text-yellow-300" />
               {copied ? "HTML copié" : "Exporter HTML SIO"}
@@ -2892,7 +2897,7 @@ OBJECTIF TECHNIQUE : ${goal}
               type="button"
               onClick={() => exportRaster("png")}
               disabled={!!exporting}
-              className="inline-flex items-center gap-2 rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-5 py-3 font-semibold text-white/85 disabled:opacity-50"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-yellow-600/25 bg-yellow-500/10 px-5 py-3 font-semibold text-yellow-200 disabled:opacity-50"
             >
               <FaImage className="text-yellow-300" />
               {exporting === "png" ? "Export PNG..." : "Exporter PNG"}
@@ -2902,7 +2907,7 @@ OBJECTIF TECHNIQUE : ${goal}
               type="button"
               onClick={() => exportRaster("jpeg")}
               disabled={!!exporting}
-              className="inline-flex items-center gap-2 rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-5 py-3 font-semibold text-white/85 disabled:opacity-50"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-yellow-600/25 bg-yellow-500/10 px-5 py-3 font-semibold text-yellow-200 disabled:opacity-50"
             >
               <FaDownload className="text-yellow-300" />
               {exporting === "jpeg" ? "Export JPEG..." : "Exporter JPEG"}
@@ -2911,7 +2916,7 @@ OBJECTIF TECHNIQUE : ${goal}
             <button
               type="button"
               onClick={resetPreset}
-              className="inline-flex items-center gap-2 rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-5 py-3 font-semibold text-white/85"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-yellow-600/25 bg-black/20 px-5 py-3 font-semibold text-white/85"
             >
               <FaRedo className="text-yellow-300" />
               Réinitialiser le preset
@@ -2929,9 +2934,7 @@ OBJECTIF TECHNIQUE : ${goal}
           </div>
         )}
 
-        <div className="grid gap-6 min-[1024px]:grid-cols-[420px_minmax(0,1fr)] min-[1280px]:grid-cols-[460px_minmax(0,1fr)] min-[1536px]:grid-cols-[500px_minmax(0,1fr)] min-[1024px]:items-start">
-          <aside className="min-w-0 space-y-6 min-[1024px]:sticky min-[1024px]:top-[96px] min-[1024px]:max-h-[calc(100vh-116px)] min-[1024px]:overflow-y-auto min-[1024px]:pr-2">
-            <div className="rounded-[28px] border border-yellow-500/30 bg-[#0b0b0b] p-5 shadow-[0_0_38px_rgba(255,184,0,0.08)]">
+        <div className="mb-5 rounded-[24px] border border-yellow-500/30 bg-[#0b0b0b] p-5 shadow-[0_0_38px_rgba(255,184,0,0.08)]">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <div className="text-sm font-semibold text-yellow-300">
@@ -2959,7 +2962,7 @@ OBJECTIF TECHNIQUE : ${goal}
           </div>
 
           {premiumOpen && (
-            <div className="mt-4 grid gap-4">
+            <div className="mt-4 grid grid-cols-1 gap-4">
               <div className="rounded-2xl border border-yellow-600/20 bg-[#111] p-4">
                 <div className="flex flex-wrap items-center gap-3">
                   <select
@@ -3107,127 +3110,6 @@ OBJECTIF TECHNIQUE : ${goal}
           )}
         </div>
 
-
-            <div className="rounded-[28px] border border-yellow-600/20 bg-[#0b0b0b] p-5">
-          <div className="grid gap-4">
-            <div>
-              <div className="mb-2 text-sm font-semibold text-yellow-300">
-                Archive de landing
-              </div>
-              <div className="text-sm text-white/55">
-                Sauvegarde des versions prêtes à rouvrir, dupliquer ou exporter
-                plus tard.
-              </div>
-
-              <div className="mt-4 flex gap-2">
-                <input
-                  type="text"
-                  value={archiveName}
-                  onChange={(e) => setArchiveName(e.target.value)}
-                  placeholder="Nom de l’archive"
-                  className="flex-1 rounded-2xl border border-yellow-600/20 bg-[#111] px-4 py-4 text-sm text-white/85 outline-none placeholder:text-white/30"
-                />
-                <button
-                  type="button"
-                  onClick={saveArchive}
-                  className="inline-flex items-center gap-2 rounded-2xl bg-[#ffb800] px-5 py-3 font-semibold text-black"
-                >
-                  <FaSave />
-                  Archiver
-                </button>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-yellow-600/20 bg-[#111] p-4">
-              <div className="text-sm font-semibold text-yellow-300">
-                Archives récentes
-              </div>
-
-              <div className="mt-3 max-h-[180px] space-y-2 overflow-y-auto pr-1">
-                {archives.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-yellow-600/20 bg-black/20 px-4 py-4 text-sm text-white/45">
-                    Aucune archive pour le moment.
-                  </div>
-                ) : (
-                  archives.map((archive) => (
-                    <div
-                      key={archive.id}
-                      className="flex items-center justify-between gap-3 rounded-xl border border-yellow-600/15 bg-black/20 px-3 py-3"
-                    >
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-semibold text-white/85">
-                          {archive.name}
-                        </div>
-                        <div className="text-[12px] text-white/45">
-                          {new Date(archive.createdAt).toLocaleString()}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => loadArchive(archive.id)}
-                          className="rounded-lg border border-yellow-600/20 bg-yellow-500/10 px-3 py-2 text-xs font-semibold text-yellow-200"
-                        >
-                          Charger
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => deleteArchive(archive.id)}
-                          className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-300"
-                        >
-                          <FaTrash />
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-
-          </aside>
-
-          <main className="min-w-0">
-            <div
-          ref={rootRef}
-          className="rounded-none border-0 bg-transparent p-0"
-        >
-          {hydrated ? (
-            <LeadEditorLayout
-              key={editorKey}
-              initialLayers={initialLayers}
-              initialLayersKey={`lead-engine-${editorKey}`}
-              canvasHeight={canvasHeight}
-              onCanvasHeightChange={handleCanvasHeightChange}
-              ctaUrl={ctaUrl}
-              onCtaUrlChange={handleCtaUrlChange}
-              onChange={handleLayersChange}
-              aiQuotaRemaining={aiQuota.remaining}
-              aiQuotaLimit={aiQuota.tokens_limit}
-              aiQuotaPlan={aiQuota.plan}
-              aiQuotaLoading={aiQuotaLoading}
-              onAiQuotaSync={syncQuotaFromPayload}
-            />
-          ) : (
-            <div className="flex min-h-[680px] items-center justify-center rounded-[20px] border border-yellow-600/15 bg-[#090909] text-sm text-white/45">
-              Chargement du lead builder...
-            </div>
-          )}
-        </div>
-
-
-
-            {!!lastSavedAt && (
-              <div className="mt-4 text-right text-xs text-white/35">
-                Dernière synchro : {lastSavedAt}
-              </div>
-            )}
-          </main>
-        </div>
-
         {promptLibraryOpen && (
           <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/80 px-4 py-6 backdrop-blur-sm">
             <div className="max-h-[88vh] w-full max-w-6xl overflow-hidden rounded-[30px] border border-yellow-500/30 bg-[#080808] shadow-[0_0_55px_rgba(255,184,0,0.16)]">
@@ -3308,7 +3190,125 @@ OBJECTIF TECHNIQUE : ${goal}
           </div>
         )}
 
+        <div className="mb-5 rounded-[24px] border border-yellow-600/20 bg-[#0b0b0b] p-5">
+          <div className="grid grid-cols-1 gap-4">
+            <div>
+              <div className="mb-2 text-sm font-semibold text-yellow-300">
+                Archive de landing
+              </div>
+              <div className="text-sm text-white/55">
+                Sauvegarde des versions prêtes à rouvrir, dupliquer ou exporter
+                plus tard.
+              </div>
 
+              <div className="mt-4 flex gap-2">
+                <input
+                  type="text"
+                  value={archiveName}
+                  onChange={(e) => setArchiveName(e.target.value)}
+                  placeholder="Nom de l’archive"
+                  className="flex-1 rounded-2xl border border-yellow-600/20 bg-[#111] px-4 py-4 text-sm text-white/85 outline-none placeholder:text-white/30"
+                />
+                <button
+                  type="button"
+                  onClick={saveArchive}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-[#ffb800] px-5 py-3 font-semibold text-black"
+                >
+                  <FaSave />
+                  Archiver
+                </button>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-yellow-600/20 bg-[#111] p-4">
+              <div className="text-sm font-semibold text-yellow-300">
+                Archives récentes
+              </div>
+
+              <div className="mt-3 max-h-[180px] space-y-2 overflow-y-auto pr-1">
+                {archives.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-yellow-600/20 bg-black/20 px-4 py-4 text-sm text-white/45">
+                    Aucune archive pour le moment.
+                  </div>
+                ) : (
+                  archives.map((archive) => (
+                    <div
+                      key={archive.id}
+                      className="flex items-center justify-between gap-3 rounded-xl border border-yellow-600/15 bg-black/20 px-3 py-3"
+                    >
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-semibold text-white/85">
+                          {archive.name}
+                        </div>
+                        <div className="text-[12px] text-white/45">
+                          {new Date(archive.createdAt).toLocaleString()}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => loadArchive(archive.id)}
+                          className="rounded-lg border border-yellow-600/20 bg-yellow-500/10 px-3 py-2 text-xs font-semibold text-yellow-200"
+                        >
+                          Charger
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => deleteArchive(archive.id)}
+                          className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-300"
+                        >
+                          <FaTrash />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+
+          </aside>
+
+          <section className="min-w-0">
+        <div
+          ref={rootRef}
+          className="min-w-0 rounded-none border-0 bg-transparent p-0"
+        >
+          {hydrated ? (
+            <LeadEditorLayout
+              key={editorKey}
+              initialLayers={initialLayers}
+              initialLayersKey={`lead-engine-${editorKey}`}
+              canvasHeight={canvasHeight}
+              onCanvasHeightChange={handleCanvasHeightChange}
+              ctaUrl={ctaUrl}
+              onCtaUrlChange={handleCtaUrlChange}
+              onChange={handleLayersChange}
+              aiQuotaRemaining={aiQuota.remaining}
+              aiQuotaLimit={aiQuota.tokens_limit}
+              aiQuotaPlan={aiQuota.plan}
+              aiQuotaLoading={aiQuotaLoading}
+              onAiQuotaSync={syncQuotaFromPayload}
+            />
+          ) : (
+            <div className="flex min-h-[680px] items-center justify-center rounded-[20px] border border-yellow-600/15 bg-black/20 text-sm text-white/45">
+              Chargement du lead builder...
+            </div>
+          )}
+        </div>
+
+
+          </section>
+        </div>
+
+        {!!lastSavedAt && (
+          <div className="mt-4 text-right text-xs text-white/35">
+            Dernière synchro : {lastSavedAt}
+          </div>
+        )}
       </div>
     </div>
   );
