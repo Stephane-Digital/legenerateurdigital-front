@@ -295,6 +295,7 @@ export default function EditorLayout({
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const bgImageInputRef = useRef<HTMLInputElement | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement | null>(null);
 
   // guards to prevent loops
   const hydratingRef = useRef(false);
@@ -935,6 +936,19 @@ export default function EditorLayout({
         }}
       />
 
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        hidden
+        onChange={(e) => {
+          onImportImages(e.currentTarget.files);
+          // ✅ allow re-importing the same file
+          e.currentTarget.value = "";
+        }}
+      />
+
       {/* ================= MOBILE PREMIUM EDITOR (<640px only) — NO BLACK WRAPPER FINAL ================= */}
       <div className="min-[640px]:hidden min-h-[100svh] pb-[calc(92px+env(safe-area-inset-bottom))]">
         <div className="sticky top-0 z-[35] border-b border-yellow-500/15 bg-black/95 px-3 py-3 backdrop-blur">
@@ -996,10 +1010,10 @@ export default function EditorLayout({
 
             <button
               type="button"
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => cameraInputRef.current?.click()}
               className="rounded-2xl border border-yellow-500/25 bg-yellow-500/10 px-3 py-3 text-sm font-semibold text-yellow-200"
             >
-              Image
+              Prendre une photo
             </button>
 
             <button
