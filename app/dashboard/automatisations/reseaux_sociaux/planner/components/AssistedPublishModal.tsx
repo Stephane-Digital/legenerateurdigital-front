@@ -19,21 +19,16 @@ const API_PROXY_PREFIX = "/api/proxy";
 
 async function proxyJson(path: string, init?: RequestInit) {
   const normalized = path.startsWith("/") ? path : `/${path}`;
+  const method = String(init?.method || "GET").toUpperCase();
+  const body = typeof init?.body === "string" ? safeParseJSON(init.body) : init?.body;
 
-  const res = await fetch(`${API_PROXY_PREFIX}${normalized}`, {
-    credentials: "include",
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers || {}),
-    },
-  });
-
-  if (!res.ok) {
-    throw new Error(`Proxy ${normalized} failed (${res.status})`);
+  if (method === "POST") {
+    const res = await api.post(normalized, body || {});
+    return res?.data ?? {};
   }
 
-  return await res.json().catch(() => ({}));
+  const res = await api.get(normalized);
+  return res?.data ?? {};
 }
 
 type ManualStatus = "published" | "scheduled";
@@ -1278,7 +1273,8 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
         try {
           data = await proxyJson("/ai-quota/global");
         } catch {
-          data = {};
+          const res = await api.get("/ai-quota/global");
+          data = res?.data ?? {};
         }
         const remainingRaw =
           data?.remaining ??
@@ -1470,7 +1466,8 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
       try {
         quotaData = await proxyJson("/ai-quota/global");
       } catch {
-        quotaData = {};
+        const quotaRes = await api.get("/ai-quota/global");
+        quotaData = quotaRes?.data ?? {};
       }
       const remainingRaw =
         quotaData?.remaining ??
