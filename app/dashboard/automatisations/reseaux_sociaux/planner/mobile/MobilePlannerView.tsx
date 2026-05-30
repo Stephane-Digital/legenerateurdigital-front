@@ -340,12 +340,10 @@ export default function MobilePlannerView() {
   const [posts, setPosts] = useState<PlannerPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [authError, setAuthError] = useState(false);
 
   const loadPosts = useCallback(async () => {
     setLoading(true);
     setError("");
-    setAuthError(false);
 
     try {
       const res = await fetch("/api/proxy/planner/posts", {
@@ -353,11 +351,6 @@ export default function MobilePlannerView() {
         headers: { ...getAuthHeaders() },
         cache: "no-store",
       });
-
-      if (res.status === 401) {
-        setAuthError(true);
-        throw new Error("Session expirée sur mobile. Reconnecte-toi pour charger tes publications.");
-      }
 
       if (!res.ok) {
         throw new Error(`Chargement impossible (${res.status})`);
@@ -413,33 +406,15 @@ export default function MobilePlannerView() {
 
         {!loading && error ? (
           <div className="rounded-3xl border border-red-500/25 bg-red-500/10 p-5">
-            <div className="text-sm font-bold text-red-200">
-              {authError ? "Session mobile expirée" : "Planner mobile indisponible"}
-            </div>
+            <div className="text-sm font-bold text-red-200">Planner mobile indisponible</div>
             <p className="mt-2 text-sm text-red-100/75">{error}</p>
-
-            <div className="mt-4 flex flex-col gap-2">
-              {authError ? (
-                <a
-                  href="/auth/login?next=/dashboard/automatisations/reseaux_sociaux/planner"
-                  className="flex h-11 items-center justify-center rounded-2xl bg-[#f5bf21] px-5 text-sm font-black text-black"
-                >
-                  Se reconnecter
-                </a>
-              ) : null}
-
-              <button
-                type="button"
-                onClick={loadPosts}
-                className={`h-11 rounded-2xl px-5 text-sm font-black ${
-                  authError
-                    ? "border border-[#f5bf21]/25 bg-black/35 text-[#ffe49a]"
-                    : "bg-[#f5bf21] text-black"
-                }`}
-              >
-                Réessayer
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={loadPosts}
+              className="mt-4 h-11 rounded-2xl bg-[#f5bf21] px-5 text-sm font-black text-black"
+            >
+              Réessayer
+            </button>
           </div>
         ) : null}
 
