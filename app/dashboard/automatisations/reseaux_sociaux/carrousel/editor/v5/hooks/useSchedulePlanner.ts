@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { renderEditorCreationToDataUrl } from "../../utils/downloadEditorCreation";
 
 type Network = "instagram" | "facebook" | "linkedin" | string;
 
@@ -46,7 +45,9 @@ function getTokenFromStorage(): string | null {
 }
 
 function pickNetwork(payload: SchedulePayload): string {
-  return String(payload.network || payload.reseau || "instagram").toLowerCase().trim();
+  return String(payload.network || payload.reseau || "instagram")
+    .toLowerCase()
+    .trim();
 }
 
 function pickScheduledAt(payload: SchedulePayload): string {
@@ -69,7 +70,10 @@ function looksLikeCarrousel(payload: SchedulePayload): boolean {
 }
 
 function isHugeDataUrl(value: unknown) {
-  return typeof value === "string" && /^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(value);
+  return (
+    typeof value === "string" &&
+    /^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(value)
+  );
 }
 
 function trimString(value: unknown, max = 1200) {
@@ -82,20 +86,6 @@ function extractTextFromLayer(layer: any) {
   const type = String(layer.type || "").toLowerCase();
   if (type !== "text") return "";
   return trimString(layer.text ?? layer.value ?? layer.content ?? "", 800);
-}
-
-function pickLayerImageSource(layer: any) {
-  return String(
-    layer?.src ||
-      layer?.url ||
-      layer?.image_url ||
-      layer?.imageUrl ||
-      layer?.media_url ||
-      layer?.mediaUrl ||
-      layer?.preview_url ||
-      layer?.previewUrl ||
-      ""
-  ).trim();
 }
 
 function compactLayer(layer: any) {
@@ -115,16 +105,14 @@ function compactLayer(layer: any) {
   }
 
   if (type === "image") {
-    const src = pickLayerImageSource(layer);
+    const src =
+      layer.src || layer.url || layer.image_url || layer.imageUrl || "";
     return {
       id: String(layer.id || `image-${Date.now()}`),
       type: "image",
       has_image: !!src,
-      // IMPORTANT LGD : on conserve src même si c'est un data:image.
-      // Le Planner peut ainsi reconstruire le bon visuel si l'aperçu final manque.
-      src: src || undefined,
-      url: !isHugeDataUrl(src) ? src || undefined : undefined,
-      image_url: !isHugeDataUrl(src) ? src || undefined : undefined,
+      // Ne jamais envoyer de base64/canvas complet au Planner.
+      image_url: isHugeDataUrl(src) ? undefined : src || undefined,
     };
   }
 
@@ -149,7 +137,324 @@ function extractCaptionFromLayers(layers: any[]) {
   return trimString(text, 1800);
 }
 
-function compactContentForPlanner(input: any, fallbackTitle?: string, fallbackFormat?: string, freshPreviewImage = "") {
+const PLANNER_PREVIEW_CACHE_KEY = "lgd_planner_preview_cache_v1";
+
+type PlannerPreviewCacheItem = {
+  preview_image: string;
+  title?: string;
+  titre?: string;
+  network?: string;
+  scheduled_at?: string;
+  created_at: number;
+};
+
+function readPlannerPreviewCache(): Record<string, PlannerPreviewCacheItem> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(PLANNER_PREVIEW_CACHE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+function writePlannerPreviewCache(
+  cache: Record<string, PlannerPreviewCacheItem>,
+) {
+  if (typeof window === "undefined") return;
+  try {
+    const entries = Object.entries(cache)
+      .filter(([, item]) => !!item?.preview_image)
+      .sort(
+        (a, b) => Number(b[1]?.created_at || 0) - Number(a[1]?.created_at || 0),
+      )
+      .slice(0, 8);
+    window.localStorage.setItem(
+      PLANNER_PREVIEW_CACHE_KEY,
+      JSON.stringify(Object.fromEntries(entries)),
+    );
+  } catch {
+    // Le Planner doit rester fonctionnel même si le cache navigateur est plein.
+  }
+}
+
+function addPlannerPreviewCacheKeys(
+  cache: Record<string, PlannerPreviewCacheItem>,
+  keys: Array<string | number | null | undefined>,
+  item: PlannerPreviewCacheItem,
+) {
+  for (const rawKey of keys) {
+    const key = String(rawKey ?? "").trim();
+    if (!key) continue;
+    cache[key] = item;
+  }
+}
+
+function cachePlannerPreviewAfterSchedule(
+  result: any,
+  body: any,
+  previewImage: string,
+) {
+  if (!previewImage || !isHugeDataUrl(previewImage)) return;
+
+  const item: PlannerPreviewCacheItem = {
+    preview_image: previewImage,
+    title: body?.titre || body?.title || body?.contenu?.title || "",
+    titre: body?.titre || body?.title || body?.contenu?.title || "",
+    network: body?.network || "",
+    scheduled_at: body?.scheduled_at || "",
+    created_at: Date.now(),
+  };
+
+  const cache = readPlannerPreviewCache();
+  const ids = [
+    result?.id,
+    result?.post_id,
+    result?.planner_id,
+    result?.data?.id,
+    result?.post?.id,
+    result?.item?.id,
+  ];
+  const semanticKey = `${item.network}|${item.scheduled_at}|${item.titre}`;
+  const looseTitleKey = `title|${item.titre}`;
+  const looseNetworkTitleKey = `${item.network}|${item.titre}`;
+
+  addPlannerPreviewCacheKeys(
+    cache,
+    [...ids, semanticKey, looseTitleKey, looseNetworkTitleKey, "__latest__"],
+    item,
+  );
+  writePlannerPreviewCache(cache);
+}
+
+const PLANNER_EDITOR_PAYLOAD_CACHE_KEY = "lgd_planner_editor_payload_cache_v1";
+
+type PlannerEditorPayloadCacheItem = {
+  payload: any;
+  title?: string;
+  titre?: string;
+  network?: string;
+  scheduled_at?: string;
+  created_at: number;
+};
+
+function readPlannerEditorPayloadCache(): Record<
+  string,
+  PlannerEditorPayloadCacheItem
+> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(PLANNER_EDITOR_PAYLOAD_CACHE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+function writePlannerEditorPayloadCache(
+  cache: Record<string, PlannerEditorPayloadCacheItem>,
+) {
+  if (typeof window === "undefined") return;
+  try {
+    const entries = Object.entries(cache)
+      .filter(([, item]) => !!item?.payload)
+      .sort(
+        (a, b) => Number(b[1]?.created_at || 0) - Number(a[1]?.created_at || 0),
+      )
+      .slice(0, 6);
+    window.localStorage.setItem(
+      PLANNER_EDITOR_PAYLOAD_CACHE_KEY,
+      JSON.stringify(Object.fromEntries(entries)),
+    );
+  } catch {
+    // Ne jamais bloquer l’envoi Planner si le navigateur refuse le cache local.
+  }
+}
+
+const PLANNER_MEDIA_IDB_NAME = "lgd_planner_media_cache_v1";
+const PLANNER_MEDIA_IDB_STORE = "items";
+
+type PlannerMediaCacheItem = PlannerEditorPayloadCacheItem & {
+  preview_image?: string;
+  planner_preview_image?: string;
+  rendered_image?: string;
+};
+
+function openPlannerMediaDB(): Promise<IDBDatabase | null> {
+  if (typeof window === "undefined" || !("indexedDB" in window))
+    return Promise.resolve(null);
+
+  return new Promise((resolve) => {
+    const request = window.indexedDB.open(PLANNER_MEDIA_IDB_NAME, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(PLANNER_MEDIA_IDB_STORE)) {
+        db.createObjectStore(PLANNER_MEDIA_IDB_STORE);
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => resolve(null);
+  });
+}
+
+async function writePlannerMediaCacheToIDB(
+  keys: Array<string | number | null | undefined>,
+  item: PlannerMediaCacheItem,
+) {
+  const cleanKeys = keys.map((key) => String(key ?? "").trim()).filter(Boolean);
+  if (!cleanKeys.length || !item?.payload) return;
+
+  const db = await openPlannerMediaDB();
+  if (!db) return;
+
+  await new Promise<void>((resolve) => {
+    try {
+      const tx = db.transaction(PLANNER_MEDIA_IDB_STORE, "readwrite");
+      const store = tx.objectStore(PLANNER_MEDIA_IDB_STORE);
+      for (const key of cleanKeys) {
+        store.put(item, key);
+      }
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+      tx.onabort = () => resolve();
+    } catch {
+      resolve();
+    }
+  }).finally(() => {
+    try {
+      db.close();
+    } catch {
+      // ignore
+    }
+  });
+}
+
+async function cachePlannerEditorPayloadAfterSchedule(
+  result: any,
+  body: any,
+  originalPayload: any,
+) {
+  if (typeof window === "undefined") return;
+
+  const title = String(
+    body?.titre ||
+      body?.title ||
+      body?.contenu?.title ||
+      originalPayload?.title ||
+      originalPayload?.titre ||
+      "",
+  ).trim();
+  const network = String(body?.network || "").trim();
+  const scheduledAt = String(body?.scheduled_at || "").trim();
+
+  const original =
+    originalPayload && typeof originalPayload === "object"
+      ? originalPayload
+      : {};
+  const compact =
+    body?.contenu && typeof body.contenu === "object" ? body.contenu : {};
+
+  const payload = {
+    ...compact,
+    ...original,
+    title,
+    titre: title,
+    network,
+    scheduled_at: scheduledAt,
+    type: body?.format || original?.type || compact?.type || "post",
+    // Important : le cache local doit conserver le draft vivant complet.
+    // Les données compactées envoyées à l’API ne doivent jamais écraser
+    // les layers/slides complets utilisés par le modal pour reconstruire le visuel.
+    layers: Array.isArray(original?.layers)
+      ? original.layers
+      : Array.isArray(compact?.layers)
+        ? compact.layers
+        : undefined,
+    slides: Array.isArray(original?.slides)
+      ? original.slides
+      : Array.isArray(compact?.slides)
+        ? compact.slides
+        : undefined,
+    ui: original?.ui || compact?.ui || undefined,
+    preview_image:
+      body?.preview_image ||
+      compact?.preview_image ||
+      original?.preview_image ||
+      undefined,
+    planner_preview_image:
+      body?.planner_preview_image ||
+      compact?.planner_preview_image ||
+      original?.planner_preview_image ||
+      undefined,
+    rendered_image:
+      body?.rendered_image ||
+      compact?.rendered_image ||
+      original?.rendered_image ||
+      undefined,
+  };
+
+  const item: PlannerEditorPayloadCacheItem = {
+    payload,
+    title,
+    titre: title,
+    network,
+    scheduled_at: scheduledAt,
+    created_at: Date.now(),
+  };
+
+  const cache = readPlannerEditorPayloadCache();
+  const ids = [
+    result?.id,
+    result?.post_id,
+    result?.planner_id,
+    result?.data?.id,
+    result?.post?.id,
+    result?.item?.id,
+  ];
+  const keys = [
+    ...ids,
+    `${network}|${scheduledAt}|${title}`,
+    `title|${title}`,
+    `${network}|${title}`,
+    "__latest__",
+  ];
+
+  addPlannerPreviewCacheKeys(cache as any, keys, item as any);
+  writePlannerEditorPayloadCache(cache);
+
+  await writePlannerMediaCacheToIDB(keys, {
+    ...item,
+    preview_image:
+      payload?.preview_image ||
+      payload?.planner_preview_image ||
+      payload?.rendered_image ||
+      undefined,
+    planner_preview_image:
+      payload?.planner_preview_image ||
+      payload?.preview_image ||
+      payload?.rendered_image ||
+      undefined,
+    rendered_image:
+      payload?.rendered_image ||
+      payload?.planner_preview_image ||
+      payload?.preview_image ||
+      undefined,
+  });
+}
+
+function compactContentForPlanner(
+  input: any,
+  fallbackTitle?: string,
+  fallbackFormat?: string,
+) {
   const source = input && typeof input === "object" ? input : {};
   const rawLayers =
     source.layers ||
@@ -165,14 +470,12 @@ function compactContentForPlanner(input: any, fallbackTitle?: string, fallbackFo
     source.payload?.slides ||
     [];
 
-  const hasEditablePayload =
-    (Array.isArray(rawLayers) && rawLayers.length > 0) ||
-    (Array.isArray(rawSlides) && rawSlides.length > 0);
-
   const layers = compactLayers(rawLayers);
   const slides = Array.isArray(rawSlides)
     ? rawSlides.slice(0, 20).map((slide: any, index: number) => {
-        const slideLayers = compactLayers(slide?.layers || slide?.elements || []);
+        const slideLayers = compactLayers(
+          slide?.layers || slide?.elements || [],
+        );
         return {
           id: String(slide?.id || `slide-${index + 1}`),
           layers: slideLayers,
@@ -181,8 +484,19 @@ function compactContentForPlanner(input: any, fallbackTitle?: string, fallbackFo
       })
     : [];
 
-  const type = String(source.type || source.kind || fallbackFormat || (slides.length ? "carrousel" : "post")).toLowerCase();
-  const title = trimString(source.title || source.titre || fallbackTitle || (type === "carrousel" ? "Carrousel planifié" : "Post planifié"), 180);
+  const type = String(
+    source.type ||
+      source.kind ||
+      fallbackFormat ||
+      (slides.length ? "carrousel" : "post"),
+  ).toLowerCase();
+  const title = trimString(
+    source.title ||
+      source.titre ||
+      fallbackTitle ||
+      (type === "carrousel" ? "Carrousel planifié" : "Post planifié"),
+    180,
+  );
   const caption =
     trimString(
       source.caption ||
@@ -190,11 +504,12 @@ function compactContentForPlanner(input: any, fallbackTitle?: string, fallbackFo
         source.texte ||
         source.description ||
         extractCaptionFromLayers(layers) ||
-        (slides[0]?.caption || ""),
-      2000
+        slides[0]?.caption ||
+        "",
+      2000,
     ) || "";
 
-  const storedPreviewImage =
+  const previewImage =
     source.planner_preview_image ||
     source.plannerPreviewImage ||
     source.preview_image ||
@@ -203,12 +518,11 @@ function compactContentForPlanner(input: any, fallbackTitle?: string, fallbackFo
     source.renderedImage ||
     "";
 
-  // Si le contenu courant contient des layers/slides, l'ancien aperçu stocké n'est plus fiable.
-  // On privilégie donc uniquement l'aperçu fraîchement rendu au moment de l'envoi Planner.
-  const previewImage = freshPreviewImage || (hasEditablePayload ? "" : storedPreviewImage);
-
   return {
-    type: type.includes("carrousel") || type.includes("carousel") ? "carrousel" : "post",
+    type:
+      type.includes("carrousel") || type.includes("carousel")
+        ? "carrousel"
+        : "post",
     title,
     titre: title,
     caption,
@@ -239,71 +553,6 @@ function compactSlidesForPlanner(slides: any): any[] {
   });
 }
 
-function extractRawLayers(input: any): any[] {
-  const source = input && typeof input === "object" ? input : {};
-  const raw =
-    source.layers ||
-    source.canvas?.layers ||
-    source.draft?.layers ||
-    source.payload?.layers ||
-    [];
-  return Array.isArray(raw) ? raw : [];
-}
-
-function extractRawSlides(input: any): any[] {
-  const source = input && typeof input === "object" ? input : {};
-  const raw =
-    source.slides ||
-    source.canvas?.slides ||
-    source.draft?.slides ||
-    source.payload?.slides ||
-    [];
-  return Array.isArray(raw) ? raw : [];
-}
-
-async function buildFreshPlannerPreview(input: any, isCarrousel: boolean): Promise<string> {
-  if (typeof window === "undefined") return "";
-
-  const source = input && typeof input === "object" ? input : {};
-  const rawLayers = extractRawLayers(source);
-  const rawSlides = extractRawSlides(source);
-
-  try {
-    if (isCarrousel && rawSlides.length > 0) {
-      const slides = rawSlides
-        .map((slide: any, index: number) => ({
-          id: String(slide?.id || `slide-${index + 1}`),
-          ui: slide?.ui || source?.ui || source?.canvas?.ui || source?.draft?.ui,
-          layers: Array.isArray(slide?.layers)
-            ? slide.layers
-            : Array.isArray(slide?.elements)
-              ? slide.elements
-              : [],
-        }))
-        .filter((slide: any) => Array.isArray(slide.layers) && slide.layers.length > 0);
-
-      if (slides.length > 0) {
-        return await renderEditorCreationToDataUrl({
-          mode: "carrousel",
-          draft: { ui: source?.ui || source?.canvas?.ui || source?.draft?.ui, slides },
-          slideIndex: 0,
-        });
-      }
-    }
-
-    if (rawLayers.length > 0) {
-      return await renderEditorCreationToDataUrl({
-        mode: "post",
-        draft: { ui: source?.ui || source?.canvas?.ui || source?.draft?.ui, layers: rawLayers },
-      });
-    }
-  } catch (error) {
-    console.error("[LGD Planner] fresh preview render failed", error);
-  }
-
-  return "";
-}
-
 export function useSchedulePlanner() {
   const [loading, setLoading] = useState(false);
 
@@ -322,55 +571,99 @@ export function useSchedulePlanner() {
 
     try {
       const isCarrousel = looksLikeCarrousel(payload);
-      const endpoint = isCarrousel ? "/planner/schedule-carrousel" : "/planner/schedule-post";
+      const endpoint = isCarrousel
+        ? "/planner/schedule-carrousel"
+        : "/planner/schedule-post";
 
-      const freshPreviewImage = await buildFreshPlannerPreview(payload.contenu, isCarrousel);
+      const originalContent =
+        payload.contenu && typeof payload.contenu === "object"
+          ? payload.contenu
+          : {};
 
-      const compactContent = compactContentForPlanner(
+      const previewImage =
+        originalContent?.planner_preview_image ||
+        originalContent?.preview_image ||
+        originalContent?.rendered_image ||
+        originalContent?.plannerPreviewImage ||
+        originalContent?.previewImage ||
+        originalContent?.renderedImage ||
+        "";
+
+      const title =
+        payload.titre ||
+        originalContent?.titre ||
+        originalContent?.title ||
+        (isCarrousel ? "Carrousel planifié" : "Post planifié");
+
+      const fullContent = {
+        ...originalContent,
+        type: isCarrousel ? "carrousel" : "post",
+        format: isCarrousel ? "carrousel" : payload.format || "post",
+        title,
+        titre: title,
+        network,
+        reseau: network,
+        scheduled_at,
+        date_programmee: scheduled_at,
+        source: originalContent?.source || "editor",
+        ui: originalContent?.ui || {},
+        ...(isCarrousel
+          ? {
+              slides: Array.isArray(originalContent?.slides)
+                ? originalContent.slides
+                : Array.isArray(payload.slides)
+                  ? payload.slides
+                  : [],
+            }
+          : {
+              layers: Array.isArray(originalContent?.layers)
+                ? originalContent.layers
+                : [],
+            }),
+        preview_image: previewImage || undefined,
+        planner_preview_image: previewImage || undefined,
+        rendered_image: previewImage || undefined,
+      };
+
+      const body = {
+        reseau: network,
+        network,
+        scheduled_at,
+        date_programmee: scheduled_at,
+        supprimer_apres: !!payload.supprimer_apres,
+        statut: payload.statut || "scheduled",
+        status: payload.statut || "scheduled",
+        titre: title,
+        title,
+        format: isCarrousel ? "carrousel" : payload.format || "post",
+        preview_image: previewImage || undefined,
+        planner_preview_image: previewImage || undefined,
+        rendered_image: previewImage || undefined,
+        ...(isCarrousel
+          ? {
+              carrousel_id:
+                payload.carrousel_id ??
+                originalContent?.carrousel_id ??
+                originalContent?.id ??
+                null,
+              slides: Array.isArray(fullContent.slides) ? fullContent.slides : [],
+            }
+          : {}),
+        contenu: fullContent,
+      };
+
+      // LGD — cache média immédiat avant appel API : le modal Planner doit pouvoir
+      // récupérer le visuel même si la liste Planner renvoie un payload compacté
+      // ou si le fetch secondaire /planner/posts arrive avant la synchro backend.
+      await cachePlannerEditorPayloadAfterSchedule(
+        {
+          id: "__pending__",
+          post_id: "__pending__",
+          planner_id: "__pending__",
+        },
+        body,
         payload.contenu,
-        payload.titre,
-        isCarrousel ? "carrousel" : payload.format || "post",
-        freshPreviewImage
       );
-
-      const compactSlides = compactSlidesForPlanner(payload.slides ?? payload.contenu?.slides ?? []);
-
-      const body = isCarrousel
-        ? {
-            network,
-            scheduled_at,
-            supprimer_apres: !!payload.supprimer_apres,
-            carrousel_id:
-              payload.carrousel_id ??
-              payload.contenu?.carrousel_id ??
-              payload.contenu?.id ??
-              null,
-            slides: compactSlides.length ? compactSlides : compactContent.slides || [],
-            titre: payload.titre ?? compactContent.title,
-            format: "carrousel",
-            preview_image: freshPreviewImage || undefined,
-            planner_preview_image: freshPreviewImage || undefined,
-            rendered_image: freshPreviewImage || undefined,
-            contenu: {
-              ...compactContent,
-              type: "carrousel",
-              slides: compactSlides.length ? compactSlides : compactContent.slides || [],
-            },
-          }
-        : {
-            network,
-            scheduled_at,
-            supprimer_apres: !!payload.supprimer_apres,
-            titre: payload.titre ?? compactContent.title,
-            format: payload.format ?? "post",
-            preview_image: freshPreviewImage || undefined,
-            planner_preview_image: freshPreviewImage || undefined,
-            rendered_image: freshPreviewImage || undefined,
-            contenu: {
-              ...compactContent,
-              type: "post",
-            },
-          };
 
       const res = await fetch(`${getApiBase()}${endpoint}`, {
         method: "POST",
@@ -380,7 +673,9 @@ export function useSchedulePlanner() {
       });
 
       if (res.status === 401) {
-        throw new Error("Non authentifié (401) — cookies/token non envoyés ou expirés.");
+        throw new Error(
+          "Non authentifié (401) — cookies/token non envoyés ou expirés.",
+        );
       }
 
       if (!res.ok) {
@@ -388,7 +683,14 @@ export function useSchedulePlanner() {
         throw new Error(`Erreur API (${res.status}) ${text || ""}`.trim());
       }
 
-      return await res.json().catch(() => null);
+      const result = await res.json().catch(() => null);
+      cachePlannerPreviewAfterSchedule(result, body, previewImage);
+      await cachePlannerEditorPayloadAfterSchedule(
+        result,
+        body,
+        payload.contenu,
+      );
+      return result;
     } finally {
       setLoading(false);
     }
