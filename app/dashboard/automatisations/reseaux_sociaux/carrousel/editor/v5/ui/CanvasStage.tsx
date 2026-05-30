@@ -43,6 +43,16 @@ type ResizeTextState = {
 } | null;
 
 type ResizeState = ResizeImageState | ResizeTextState;
+
+type PinchState = {
+  id: string;
+  type: "image" | "text";
+  startDistance: number;
+  origW: number;
+  origH: number;
+  origFontSize?: number;
+} | null;
+
 type Guides = { x: number | null; y: number | null };
 type Hud =
   | {
@@ -76,6 +86,13 @@ function mergeStyle(a: any, b: any) {
 function cornerCursor(corner: "tl" | "tr" | "bl" | "br") {
   if (corner === "tl" || corner === "br") return "nwse-resize";
   return "nesw-resize";
+}
+
+function getTouchDistance(touches: TouchList) {
+  if (!touches || touches.length < 2) return 0;
+  const a = touches[0];
+  const b = touches[1];
+  return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
 }
 
 function textToHtml(text: string) {
@@ -148,6 +165,7 @@ export default function CanvasStage({
 
   const [drag, setDrag] = useState<DragState>(null);
   const [resize, setResize] = useState<ResizeState>(null);
+  const [pinch, setPinch] = useState<PinchState>(null);
   const [scale, setScale] = useState(1);
 
   const [guides, setGuides] = useState<Guides>({ x: null, y: null });
@@ -371,15 +389,10 @@ export default function CanvasStage({
     const ry = localY - y;
     if (rx < 0 || ry < 0 || rx > w || ry > h) return null;
 
-    const isCoarsePointer =
-      typeof window !== "undefined" &&
-      window.matchMedia?.("(pointer: coarse)")?.matches;
-    const hit = isCoarsePointer ? Math.max(RESIZE_HIT, 34 / Math.max(scale, 0.35)) : RESIZE_HIT;
-
-    const left = rx <= hit;
-    const right = rx >= w - hit;
-    const top = ry <= hit;
-    const bottom = ry >= h - hit;
+    const left = rx <= RESIZE_HIT;
+    const right = rx >= w - RESIZE_HIT;
+    const top = ry <= RESIZE_HIT;
+    const bottom = ry >= h - RESIZE_HIT;
 
     if (left && top) return "tl" as const;
     if (right && top) return "tr" as const;
@@ -469,21 +482,11 @@ export default function CanvasStage({
     [setSelected, orderedLayers]
   );
 
-
-  const getTouchClientPoint = (e: React.TouchEvent | TouchEvent) => {
-    const touch =
-      "touches" in e && e.touches.length > 0
-        ? e.touches[0]
-        : "changedTouches" in e && e.changedTouches.length > 0
-          ? e.changedTouches[0]
-          : null;
-
-    if (!touch) return null;
-    return { clientX: touch.clientX, clientY: touch.clientY };
-  };
-
-  const startLayerInteraction = (layer: LayerData, clientX: number, clientY: number) => {
+  const onMouseDownLayer = (e: React.MouseEvent, layer: LayerData) => {
     if (editingTextId && editingTextId === (layer as any).id) return;
+
+    e.preventDefault();
+    e.stopPropagation();
 
     if (
       (layer as any).id === BACKGROUND_LAYER_ID ||
@@ -494,7 +497,7 @@ export default function CanvasStage({
 
     if ((layer as any).type === "background") return;
 
-    const p = getLocalPoint(clientX, clientY);
+    const p = getLocalPoint(e.clientX, e.clientY);
 
     setSelected((layer as any).id);
     setGuides({ x: null, y: null });
@@ -534,24 +537,6 @@ export default function CanvasStage({
       origX: (layer as any).x ?? 0,
       origY: (layer as any).y ?? 0,
     });
-  };
-
-  const onMouseDownLayer = (e: React.MouseEvent, layer: LayerData) => {
-    e.preventDefault();
-    e.stopPropagation();
-    startLayerInteraction(layer, e.clientX, e.clientY);
-  };
-
-  const onTouchStartLayer = (e: React.TouchEvent, layer: LayerData) => {
-    if (editingTextId && editingTextId === (layer as any).id) return;
-
-    e.preventDefault();
-    e.stopPropagation();
-
-    const p = getTouchClientPoint(e);
-    if (!p) return;
-
-    startLayerInteraction(layer, p.clientX, p.clientY);
   };
 
   const onMouseDownResizeImage = (
@@ -617,6 +602,98 @@ export default function CanvasStage({
     });
   };
 
+  const onTouchStartLayer = (e: React.TouchEvent, layer: LayerData) => {
+    if (
+      (layer as any).id === BACKGROUND_LAYER_ID ||
+      (layer as any).id === "bg" ||
+      (layer as any).id === "background" ||
+      (layer as any).type === "background"
+    ) {
+      return;
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const layerId = (layer as any).id;
+    setSelected(layerId);
+    setGuides({ x: null, y: null });
+    setHud(null);
+
+    if (editingTextId && editingTextId === layerId) {
+      persistInlineHtml(layerId);
+      hideToolbar();
+      setEditingTextId(null);
+    }
+
+    if (e.touches.length >= 2) {
+      const startDistance = getTouchDistance(e.touches);
+      if (startDistance <= 0) return;
+
+      const fontSize =
+        typeof ((layer as any).style as any)?.fontSize === "number"
+          ? ((layer as any).style as any).fontSize
+          : 48;
+
+      setDrag(null);
+      setResize(null);
+      setPinch({
+        id: layerId,
+        type: (layer as any).type === "text" ? "text" : "image",
+        startDistance,
+        origW:
+          typeof (layer as any).width === "number"
+            ? (layer as any).width
+            : (layer as any).type === "text"
+              ? 420
+              : 300,
+        origH:
+          typeof (layer as any).height === "number"
+            ? (layer as any).height
+            : (layer as any).type === "text"
+              ? 120
+              : 300,
+        origFontSize: (layer as any).type === "text" ? fontSize : undefined,
+      });
+      return;
+    }
+
+    const touch = e.touches[0];
+    if (!touch) return;
+
+    const p = getLocalPoint(touch.clientX, touch.clientY);
+
+    if ((layer as any).type === "text") {
+      const corner = getTextCornerHit(layer, p.x, p.y);
+      if (corner) {
+        const fontSize =
+          typeof ((layer as any).style as any)?.fontSize === "number"
+            ? ((layer as any).style as any).fontSize
+            : 48;
+
+        setResize({
+          kind: "text",
+          id: layerId,
+          corner,
+          startX: p.x,
+          startY: p.y,
+          origW: typeof (layer as any).width === "number" ? (layer as any).width : 420,
+          origH: typeof (layer as any).height === "number" ? (layer as any).height : 120,
+          origFontSize: fontSize,
+        });
+        return;
+      }
+    }
+
+    setPinch(null);
+    setDrag({
+      id: layerId,
+      startX: p.x,
+      startY: p.y,
+      origX: (layer as any).x ?? 0,
+      origY: (layer as any).y ?? 0,
+    });
+  };
 
   const onTouchStartResizeImage = (
     e: React.TouchEvent,
@@ -628,14 +705,19 @@ export default function CanvasStage({
     e.preventDefault();
     e.stopPropagation();
 
-    const touch = getTouchClientPoint(e);
-    if (!touch) return;
+    if (e.touches.length >= 2) {
+      onTouchStartLayer(e, layer);
+      return;
+    }
 
+    const touch = e.touches[0];
+    if (!touch) return;
     const p = getLocalPoint(touch.clientX, touch.clientY);
 
     setSelected(layer.id);
     setGuides({ x: null, y: null });
     setHud(null);
+    setPinch(null);
 
     setResize({
       kind: "image",
@@ -660,20 +742,22 @@ export default function CanvasStage({
     e.preventDefault();
     e.stopPropagation();
 
-    const touch = getTouchClientPoint(e);
+    if (e.touches.length >= 2) {
+      onTouchStartLayer(e, layer);
+      return;
+    }
+
+    const touch = e.touches[0];
     if (!touch) return;
-
     const p = getLocalPoint(touch.clientX, touch.clientY);
-
-    setSelected(layer.id);
-    setGuides({ x: null, y: null });
-    setHud(null);
 
     const fontSize =
       typeof (layer.style as any)?.fontSize === "number" ? (layer.style as any).fontSize : 48;
 
-    const baseW = typeof layer.width === "number" ? layer.width : 420;
-    const baseH = typeof layer.height === "number" ? layer.height : 120;
+    setSelected(layer.id);
+    setGuides({ x: null, y: null });
+    setHud(null);
+    setPinch(null);
 
     setResize({
       kind: "text",
@@ -681,8 +765,8 @@ export default function CanvasStage({
       corner,
       startX: p.x,
       startY: p.y,
-      origW: baseW,
-      origH: baseH,
+      origW: typeof layer.width === "number" ? layer.width : 420,
+      origH: typeof layer.height === "number" ? layer.height : 120,
       origFontSize: fontSize,
     });
   };
@@ -771,46 +855,79 @@ export default function CanvasStage({
   const handlePointerUp = useCallback(() => {
     setDrag(null);
     setResize(null);
+    setPinch(null);
     setGuides({ x: null, y: null });
     setHud(null);
   }, []);
 
+  const handleTouchMove = useCallback(
+    (e: TouchEvent) => {
+      if (editingTextId) return;
+      if (!pinch && !drag && !resize) return;
+
+      e.preventDefault();
+
+      if (pinch && e.touches.length >= 2) {
+        const nextDistance = getTouchDistance(e.touches);
+        if (nextDistance <= 0 || pinch.startDistance <= 0) return;
+
+        const ratio = clamp(nextDistance / pinch.startDistance, 0.25, 4);
+
+        if (pinch.type === "text") {
+          updateLayer(pinch.id, {
+            width: clamp(pinch.origW * ratio, 50, format.w * 2),
+            height: clamp(pinch.origH * ratio, 30, format.h * 2),
+            style: {
+              fontSize: clamp((pinch.origFontSize ?? 48) * ratio, 8, 240),
+            },
+          } as any);
+          return;
+        }
+
+        updateLayer(pinch.id, {
+          width: clamp(pinch.origW * ratio, 20, format.w * 10),
+          height: clamp(pinch.origH * ratio, 20, format.h * 10),
+        } as any);
+        return;
+      }
+
+      const touch = e.touches[0];
+      if (!touch) return;
+      handlePointerMove(touch.clientX, touch.clientY);
+    },
+    [editingTextId, pinch, drag, resize, updateLayer, format.w, format.h, handlePointerMove]
+  );
+
+
   useEffect(() => {
-    if ((!drag && !resize) || editingTextId) return;
+    if ((!drag && !resize && !pinch) || editingTextId) return;
 
     const onWindowMove = (e: MouseEvent) => {
       handlePointerMove(e.clientX, e.clientY);
+    };
+
+    const onWindowTouchMove = (e: TouchEvent) => {
+      handleTouchMove(e);
     };
 
     const onWindowUp = () => {
       handlePointerUp();
     };
 
-    const onWindowTouchMove = (e: TouchEvent) => {
-      const p = getTouchClientPoint(e);
-      if (!p) return;
-      e.preventDefault();
-      handlePointerMove(p.clientX, p.clientY);
-    };
-
-    const onWindowTouchEnd = () => {
-      handlePointerUp();
-    };
-
     window.addEventListener("mousemove", onWindowMove);
     window.addEventListener("mouseup", onWindowUp);
     window.addEventListener("touchmove", onWindowTouchMove, { passive: false });
-    window.addEventListener("touchend", onWindowTouchEnd);
-    window.addEventListener("touchcancel", onWindowTouchEnd);
+    window.addEventListener("touchend", onWindowUp);
+    window.addEventListener("touchcancel", onWindowUp);
 
     return () => {
       window.removeEventListener("mousemove", onWindowMove);
       window.removeEventListener("mouseup", onWindowUp);
       window.removeEventListener("touchmove", onWindowTouchMove);
-      window.removeEventListener("touchend", onWindowTouchEnd);
-      window.removeEventListener("touchcancel", onWindowTouchEnd);
+      window.removeEventListener("touchend", onWindowUp);
+      window.removeEventListener("touchcancel", onWindowUp);
     };
-  }, [drag, resize, editingTextId, handlePointerMove, handlePointerUp]);
+  }, [drag, resize, pinch, editingTextId, handlePointerMove, handleTouchMove, handlePointerUp]);
 
   useEffect(() => {
     const onSelectionChange = () => {
@@ -1050,15 +1167,16 @@ export default function CanvasStage({
 
   const canvasCursor = useMemo(() => {
     if (editingTextId) return "text";
+    if (pinch) return "zoom-in";
     if (!resize && !drag) return "default";
     if (resize?.kind === "image") return cornerCursor(resize.corner);
     if (resize?.kind === "text") return cornerCursor(resize.corner);
     if (drag) return "move";
     return "default";
-  }, [resize, drag, editingTextId]);
+  }, [resize, drag, pinch, editingTextId]);
 
   return (
-    <div ref={containerRef} className="w-full h-full relative overflow-hidden select-none" style={{ touchAction: editingTextId ? "auto" : "none", WebkitUserSelect: editingTextId ? "text" : "none", userSelect: editingTextId ? "text" : "none" }}>
+    <div ref={containerRef} className="w-full h-full relative overflow-hidden" style={{ touchAction: "none" }}>
       <div
         className="absolute left-1/2 top-0"
         style={{
@@ -1067,9 +1185,7 @@ export default function CanvasStage({
           transform: `translateX(-50%) scale(${scale})`,
           transformOrigin: "top center",
           cursor: canvasCursor,
-          touchAction: editingTextId ? "auto" : "none",
-          WebkitUserSelect: editingTextId ? "text" : "none",
-          userSelect: editingTextId ? "text" : "none",
+          touchAction: "none",
         }}
         onMouseDown={() => {
           if (editingTextId) return;
@@ -1250,7 +1366,6 @@ export default function CanvasStage({
                     height: h,
                     zIndex: layer.zIndex,
                     touchAction: "none",
-                    WebkitUserSelect: "none",
                     userSelect: "none",
                   }}
                   onMouseDown={(e) => onMouseDownLayer(e, layer)}
@@ -1259,8 +1374,9 @@ export default function CanvasStage({
                   <img
                     src={layer.src}
                     draggable={false}
-                    className="w-full h-full object-cover rounded-lg"
+                    className="w-full h-full object-cover rounded-lg select-none"
                     alt=""
+                    style={{ touchAction: "none", userSelect: "none" }}
                   />
 
                   {isSelected &&
@@ -1342,8 +1458,8 @@ export default function CanvasStage({
                     outline: isEditing ? "1px dashed rgba(255,184,0,0.45)" : "none",
                     borderRadius: 8,
                     touchAction: isEditing ? "auto" : "none",
-                    WebkitUserSelect: isEditing ? "text" : "none",
                     userSelect: isEditing ? "text" : "none",
+                    WebkitUserSelect: isEditing ? "text" : "none",
                   }}
                   onMouseDown={(e) => {
                     if (isEditing) {
@@ -1352,18 +1468,12 @@ export default function CanvasStage({
                     }
                     onMouseDownLayer(e, layer);
                   }}
-                  onTouchStart={(e) => {
-                    if (isEditing) {
-                      e.stopPropagation();
-                      return;
-                    }
-                    onTouchStartLayer(e, layer);
-                  }}
                   onDoubleClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     handleDoubleClickText(layer.id);
                   }}
+                  onTouchStart={(e) => onTouchStartLayer(e, layer)}
                 >
                   <div
                     ref={(node) => {
