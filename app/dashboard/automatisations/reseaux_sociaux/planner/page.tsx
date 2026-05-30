@@ -79,8 +79,38 @@ function PlannerPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  const [mobileReady, setMobileReady] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const [currentDate, setCurrentDate] = useState<Date>(() => new Date());
   const [view, setView] = useState<ViewMode>("week");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const mq = window.matchMedia("(max-width: 639px)");
+    const sync = () => {
+      setIsMobile(mq.matches);
+      setMobileReady(true);
+    };
+
+    sync();
+
+    if (typeof mq.addEventListener === "function") {
+      mq.addEventListener("change", sync);
+      return () => mq.removeEventListener("change", sync);
+    }
+
+    mq.addListener(sync);
+    return () => mq.removeListener(sync);
+  }, []);
+
+  if (!mobileReady) {
+    return <div className="min-h-screen w-full bg-[#050505]" />;
+  }
+
+  if (isMobile) {
+    return <MobilePlannerView />;
+  }
 
   useEffect(() => {
     const qDay = safeParseDay(searchParams.get("day"));
@@ -145,9 +175,7 @@ function PlannerPageInner() {
   };
 
   return (
-    <>
-      <MobilePlannerView />
-      <div className="hidden min-h-screen w-full text-white px-4 pb-24 pt-0 sm:block md:px-8">
+    <div className="min-h-screen w-full text-white px-4 md:px-8 pb-24 pt-0">
       <div className="max-w-6xl mx-auto mt-[120px]">
         {/* ====== RETOURS ====== */}
         <div className="mb-6 flex flex-col gap-2">
@@ -251,7 +279,7 @@ function PlannerPageInner() {
           {view === "day" && <DayView currentDate={currentDate} />}
         </div>
       </div>
-      </div>
-    </>
+    </div>
   );
 }
+
