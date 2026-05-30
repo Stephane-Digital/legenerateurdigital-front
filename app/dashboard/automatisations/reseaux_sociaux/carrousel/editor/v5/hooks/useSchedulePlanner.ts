@@ -220,12 +220,10 @@ function cachePlannerPreviewAfterSchedule(
     result?.item?.id,
   ];
   const semanticKey = `${item.network}|${item.scheduled_at}|${item.titre}`;
-  const looseTitleKey = `title|${item.titre}`;
-  const looseNetworkTitleKey = `${item.network}|${item.titre}`;
 
   addPlannerPreviewCacheKeys(
     cache,
-    [...ids, semanticKey, looseTitleKey, looseNetworkTitleKey, "__latest__"],
+    [...ids, semanticKey],
     item,
   );
   writePlannerPreviewCache(cache);
@@ -422,9 +420,6 @@ async function cachePlannerEditorPayloadAfterSchedule(
   const keys = [
     ...ids,
     `${network}|${scheduledAt}|${title}`,
-    `title|${title}`,
-    `${network}|${title}`,
-    "__latest__",
   ];
 
   addPlannerPreviewCacheKeys(cache as any, keys, item as any);
