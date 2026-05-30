@@ -19,20 +19,12 @@ const API_PROXY_PREFIX = "/api/proxy";
 
 async function proxyJson(path: string, init?: RequestInit) {
   const normalized = path.startsWith("/") ? path : `/${path}`;
+  const method = String(init?.method || "GET").toUpperCase();
+  const body = typeof init?.body === "string" ? safeParseJSON(init.body) : init?.body;
 
-  try {
-    const res = await fetch(`${API_PROXY_PREFIX}${normalized}`, {
-      credentials: "include",
-      ...init,
-      headers: {
-        "Content-Type": "application/json",
-        ...(init?.headers || {}),
-      },
-    });
-
-    if (res.ok) return await res.json().catch(() => ({}));
-  } catch {
-    // fallback direct API below
+  if (method === "POST") {
+    const res = await api.post(normalized, body || {});
+    return res?.data ?? {};
   }
 
   const res = await api.get(normalized);
@@ -45,10 +37,7 @@ type Props = {
   open: boolean;
   post: any | null;
   onClose: () => void;
-  onMarkStatus: (
-    postId: number | string,
-    status: ManualStatus,
-  ) => Promise<void>;
+  onMarkStatus: (postId: number | string, status: ManualStatus) => Promise<void>;
 };
 
 type PreviewLayer = {
@@ -77,6 +66,7 @@ type EditorRenderSpec = {
   draft: any;
   slideIndex?: number;
 };
+
 
 function safeParseJSON(value: any) {
   if (!value) return null;
@@ -162,9 +152,7 @@ function getImageFromLayer(layer: any) {
 function normalizeLayer(raw: any, index: number): PreviewLayer | null {
   if (!raw || typeof raw !== "object") return null;
 
-  const typeRaw = String(
-    raw?.type || raw?.kind || raw?.layerType || "",
-  ).toLowerCase();
+  const typeRaw = String(raw?.type || raw?.kind || raw?.layerType || "").toLowerCase();
   const type: PreviewLayer["type"] = typeRaw.includes("background")
     ? "background"
     : typeRaw.includes("image") || raw?.src || raw?.imageUrl || raw?.image_url
@@ -214,12 +202,8 @@ function getCanvasMeta(parsed: any, post: any) {
   ];
 
   for (const c of candidates) {
-    const width = Number(
-      c?.width ?? c?.w ?? c?.canvasWidth ?? c?.formatWidth ?? 0,
-    );
-    const height = Number(
-      c?.height ?? c?.h ?? c?.canvasHeight ?? c?.formatHeight ?? 0,
-    );
+    const width = Number(c?.width ?? c?.w ?? c?.canvasWidth ?? c?.formatWidth ?? 0);
+    const height = Number(c?.height ?? c?.h ?? c?.canvasHeight ?? c?.formatHeight ?? 0);
     if (width > 0 && height > 0) return { width, height };
   }
 
@@ -264,91 +248,48 @@ function inferCanvasSize(layers: PreviewLayer[], parsed: any, post: any) {
   let maxY = 0;
 
   for (const layer of layers) {
-    const w =
-      typeof layer.width === "number"
-        ? layer.width
-        : layer.type === "text"
-          ? 420
-          : 0;
-    const h =
-      typeof layer.height === "number"
-        ? layer.height
-        : layer.type === "text"
-          ? 160
-          : 0;
+    const w = typeof layer.width === "number" ? layer.width : layer.type === "text" ? 420 : 0;
+    const h = typeof layer.height === "number" ? layer.height : layer.type === "text" ? 160 : 0;
     maxX = Math.max(maxX, (layer.x || 0) + w);
     maxY = Math.max(maxY, (layer.y || 0) + h);
   }
 
-  return snapToCommonFormat(
-    Math.max(300, Math.round(maxX)),
-    Math.max(300, Math.round(maxY)),
-  );
-}
-
-function unwrapEditorPayloads(root: any): any[] {
-  const out: any[] = [];
-  const seen = new Set<any>();
-
-  const visit = (node: any) => {
-    if (!node || typeof node !== "object") return;
-    if (seen.has(node)) return;
-    seen.add(node);
-    out.push(node);
-
-    visit(node.payload);
-    visit(node.data);
-    visit(node.draft);
-    visit(node.content);
-    visit(node.contenu);
-    visit(node.editor);
-    visit(node.canvas);
-    visit(node.raw);
-  };
-
-  visit(root);
-  return out;
+  return snapToCommonFormat(Math.max(300, Math.round(maxX)), Math.max(300, Math.round(maxY)));
 }
 
 function extractPreviewCanvas(post: any, parsed: any): PreviewCanvas | null {
-  const roots = unwrapEditorPayloads(parsed);
+  const directLayerSources = [
+    { source: "parsed.layers", layers: extractLayers(parsed?.layers) },
+    { source: "parsed.elements", layers: extractLayers(parsed?.elements) },
+    { source: "parsed.objects", layers: extractLayers(parsed?.objects) },
+    { source: "parsed.contenu.layers", layers: extractLayers(parsed?.contenu?.layers) },
+    { source: "parsed.content.layers", layers: extractLayers(parsed?.content?.layers) },
+  ];
 
-  for (const root of roots) {
-    const directLayerSources = [
-      { source: "layers", layers: extractLayers(root?.layers) },
-      { source: "elements", layers: extractLayers(root?.elements) },
-      { source: "objects", layers: extractLayers(root?.objects) },
-      { source: "json_layers", layers: extractLayers(root?.json_layers) },
-    ];
+  for (const item of directLayerSources) {
+    if (!item.layers.length) continue;
+    const layers = item.layers.map(normalizeLayer).filter(Boolean) as PreviewLayer[];
+    if (!layers.length) continue;
+    const size = inferCanvasSize(layers, parsed, post);
+    return { width: size.width, height: size.height, layers, source: item.source };
+  }
 
-    for (const item of directLayerSources) {
-      if (!item.layers.length) continue;
-      const layers = item.layers.map(normalizeLayer).filter(Boolean) as PreviewLayer[];
-      if (!layers.length) continue;
-      const size = inferCanvasSize(layers, root, post);
-      return { width: size.width, height: size.height, layers, source: item.source };
-    }
+  const slides = extractSlides(parsed?.slides);
+  if (slides.length) {
+    for (let i = 0; i < slides.length; i += 1) {
+      const slide = slides[i];
+      const sourceLayers = [
+        { source: `parsed.slides[${i}].layers`, layers: extractLayers(slide?.layers) },
+        { source: `parsed.slides[${i}].elements`, layers: extractLayers(slide?.elements) },
+        { source: `parsed.slides[${i}].objects`, layers: extractLayers(slide?.objects) },
+      ];
 
-    const slides = extractSlides(root?.slides);
-    if (slides.length) {
-      for (let i = 0; i < slides.length; i += 1) {
-        const slide = slides[i];
-        const slideRoots = unwrapEditorPayloads(slide);
-        for (const slideRoot of slideRoots) {
-          const sourceLayers = [
-            { source: `slides[${i}].layers`, layers: extractLayers(slideRoot?.layers) },
-            { source: `slides[${i}].elements`, layers: extractLayers(slideRoot?.elements) },
-            { source: `slides[${i}].objects`, layers: extractLayers(slideRoot?.objects) },
-          ];
-
-          for (const item of sourceLayers) {
-            if (!item.layers.length) continue;
-            const layers = item.layers.map(normalizeLayer).filter(Boolean) as PreviewLayer[];
-            if (!layers.length) continue;
-            const size = inferCanvasSize(layers, slideRoot ?? root, post);
-            return { width: size.width, height: size.height, layers, source: item.source };
-          }
-        }
+      for (const item of sourceLayers) {
+        if (!item.layers.length) continue;
+        const layers = item.layers.map(normalizeLayer).filter(Boolean) as PreviewLayer[];
+        if (!layers.length) continue;
+        const size = inferCanvasSize(layers, slide ?? parsed, post);
+        return { width: size.width, height: size.height, layers, source: item.source };
       }
     }
   }
@@ -357,35 +298,57 @@ function extractPreviewCanvas(post: any, parsed: any): PreviewCanvas | null {
 }
 
 function inferEditorRenderSpec(post: any, parsed: any): EditorRenderSpec | null {
-  const roots = unwrapEditorPayloads(parsed);
+  const payload =
+    parsed?.payload && typeof parsed.payload === "object"
+      ? parsed.payload
+      : parsed?.draft && typeof parsed.draft === "object"
+        ? parsed.draft
+        : parsed;
 
-  for (const payload of roots) {
-    const slides = extractSlides(payload?.slides);
-    if (slides.length) {
-      const normalizedSlides = slides
-        .map((slide: any, index: number) => ({
-          id: String(slide?.id || `slide-${index + 1}`),
-          ui: slide?.ui || payload?.ui,
-          layers: extractLayers(slide?.layers),
-        }))
-        .filter((slide: any) => Array.isArray(slide.layers) && slide.layers.length > 0);
+  if (!payload || typeof payload !== "object") return null;
 
-      if (normalizedSlides.length) {
-        return {
-          mode: "carrousel",
-          draft: { ui: payload?.ui, slides: normalizedSlides },
-          slideIndex: 0,
-        };
-      }
-    }
+  const explicitType = String(
+    payload?.type ||
+      payload?.format ||
+      payload?.kind ||
+      post?.format ||
+      post?.type ||
+      ""
+  )
+    .trim()
+    .toLowerCase();
 
-    const layers = extractLayers(payload?.layers);
-    if (layers.length > 0) {
+  const slides = extractSlides(payload?.slides);
+  if (slides.length) {
+    const normalizedSlides = slides
+      .map((slide: any, index: number) => ({
+        id: String(slide?.id || `slide-${index + 1}`),
+        ui: slide?.ui || payload?.ui,
+        layers: extractLayers(slide?.layers),
+      }))
+      .filter((slide: any) => Array.isArray(slide.layers) && slide.layers.length > 0);
+
+    if (normalizedSlides.length) {
       return {
-        mode: "post",
-        draft: { ui: payload?.ui, layers },
+        mode: "carrousel",
+        draft: {
+          ui: payload?.ui,
+          slides: normalizedSlides,
+        },
+        slideIndex: 0,
       };
     }
+  }
+
+  const layers = extractLayers(payload?.layers);
+  if (layers.length || explicitType === "post") {
+    return {
+      mode: "post",
+      draft: {
+        ui: payload?.ui,
+        layers,
+      },
+    };
   }
 
   return null;
@@ -402,8 +365,7 @@ async function exportDataUrlImage(params: {
 }) {
   const { dataUrl, title, format } = params;
 
-  if (!dataUrl)
-    throw new Error("Aucun aperçu fidèle disponible pour l'export.");
+  if (!dataUrl) throw new Error("Aucun aperçu fidèle disponible pour l'export.");
 
   if (format === "png") {
     const blob = await dataUrlToBlob(dataUrl);
@@ -472,12 +434,8 @@ function flattenPossibleTextSources(post: any, parsed: any) {
       post?.generated_caption,
       post?.generated_text,
       post?.generatedText,
-      typeof post?.contenu === "string" && post.contenu.trim().startsWith("{")
-        ? ""
-        : post?.contenu,
-      typeof post?.content === "string" && post.content.trim().startsWith("{")
-        ? ""
-        : post?.content,
+      typeof post?.contenu === "string" && post.contenu.trim().startsWith("{") ? "" : post?.contenu,
+      typeof post?.content === "string" && post.content.trim().startsWith("{") ? "" : post?.content,
     ),
     firstNonEmptyString(
       parsed?.caption,
@@ -593,65 +551,16 @@ function flattenPossibleMediaSources(post: any, parsed: any) {
   ]).filter(looksLikeImageUrl);
 }
 
-function findExactPreviewImageDeep(value: any): string {
-  const wantedKeys = new Set([
-    "planner_preview_image",
-    "plannerPreviewImage",
-    "preview_image",
-    "previewImage",
-    "rendered_image",
-    "renderedImage",
-    "exact_preview_image",
-    "exactPreviewImage",
-  ]);
-
-  const seen = new Set<any>();
-  const walk = (node: any): string => {
-    if (!node || typeof node !== "object" || seen.has(node)) return "";
-    seen.add(node);
-
-    for (const [key, raw] of Object.entries(node)) {
-      if (!wantedKeys.has(key)) continue;
-      const value = firstNonEmptyString(raw);
-      if (value && looksLikeImageUrl(value)) return value;
-    }
-
-    for (const raw of Object.values(node)) {
-      if (!raw || typeof raw !== "object") continue;
-      const found = walk(raw);
-      if (found) return found;
-    }
-
-    return "";
-  };
-
-  return walk(value);
-}
-
 function extractExactPreviewImage(post: any, parsed: any) {
   return firstNonEmptyString(
     post?.planner_preview_image,
-    post?.plannerPreviewImage,
     post?.preview_image,
-    post?.previewImage,
     post?.rendered_image,
     post?.renderedImage,
     parsed?.planner_preview_image,
-    parsed?.plannerPreviewImage,
     parsed?.preview_image,
-    parsed?.previewImage,
     parsed?.rendered_image,
     parsed?.renderedImage,
-    parsed?.contenu?.planner_preview_image,
-    parsed?.contenu?.preview_image,
-    parsed?.content?.planner_preview_image,
-    parsed?.content?.preview_image,
-    parsed?.payload?.planner_preview_image,
-    parsed?.payload?.preview_image,
-    parsed?.draft?.planner_preview_image,
-    parsed?.draft?.preview_image,
-    findExactPreviewImageDeep(parsed),
-    findExactPreviewImageDeep(post),
   );
 }
 
@@ -678,9 +587,7 @@ function extractTitle(post: any, parsed: any) {
 }
 
 function buildNetworkUrl(network: string) {
-  const n = String(network || "")
-    .toLowerCase()
-    .trim();
+  const n = String(network || "").toLowerCase().trim();
   if (n === "instagram") return "https://www.instagram.com/";
   if (n === "facebook") return "https://www.facebook.com/";
   if (n === "pinterest") return "https://www.pinterest.com/";
@@ -690,13 +597,7 @@ function buildNetworkUrl(network: string) {
 }
 
 function getStatus(post: any, parsed: any) {
-  return String(
-    post?.statut ??
-      post?.status ??
-      parsed?.statut ??
-      parsed?.status ??
-      "scheduled",
-  )
+  return String(post?.statut ?? post?.status ?? parsed?.statut ?? parsed?.status ?? "scheduled")
     .toLowerCase()
     .trim();
 }
@@ -717,20 +618,14 @@ function buildHashtagsFromCaption(caption: string) {
     "socialmedia",
   ];
 
-  const dynamic = Array.from(new Set(words))
-    .slice(0, 4)
-    .map((w) => `#${w}`);
+  const dynamic = Array.from(new Set(words)).slice(0, 4).map((w) => `#${w}`);
   const base = common.slice(0, 4).map((w) => `#${w}`);
   return Array.from(new Set([...dynamic, ...base])).join(" ");
 }
 
 function buildCTAFromCaption(input: { objective?: string; network?: string }) {
-  const objective = String(input?.objective || "")
-    .toLowerCase()
-    .trim();
-  const network = String(input?.network || "")
-    .toLowerCase()
-    .trim();
+  const objective = String(input?.objective || "").toLowerCase().trim();
+  const network = String(input?.network || "").toLowerCase().trim();
 
   if (objective === "lead") {
     return "👉 Écris-nous en message privé pour recevoir plus d’infos et passer à l’étape suivante.";
@@ -759,15 +654,11 @@ function normalizeWhitespace(value: string) {
 
 function extractHashtagsOnly(value: string) {
   const matches = String(value || "").match(/#[A-Za-zÀ-ÖØ-öø-ÿ0-9_]+/g) || [];
-  return Array.from(new Set(matches.map((tag) => tag.trim())))
-    .join(" ")
-    .trim();
+  return Array.from(new Set(matches.map((tag) => tag.trim()))).join(" ").trim();
 }
 
 function isLikelyCtaLine(line: string) {
-  const lower = String(line || "")
-    .toLowerCase()
-    .trim();
+  const lower = String(line || "").toLowerCase().trim();
 
   return (
     line.startsWith("👉") ||
@@ -835,11 +726,7 @@ function splitCaptionParts(value: string) {
 }
 
 function composeCaptionParts(base: string, cta: string, hashtags: string) {
-  return [
-    normalizeWhitespace(base),
-    normalizeWhitespace(cta),
-    normalizeWhitespace(hashtags),
-  ]
+  return [normalizeWhitespace(base), normalizeWhitespace(cta), normalizeWhitespace(hashtags)]
     .filter(Boolean)
     .join("\n\n")
     .trim();
@@ -896,15 +783,13 @@ function downloadBlob(blob: Blob, filename: string) {
 }
 
 function sanitizeFilenamePart(value: string) {
-  return (
-    String(value || "publication-lgd")
-      .normalize("NFD")
-      .replace(/[̀-ͯ]/g, "")
-      .replace(/[^a-zA-Z0-9-_]+/g, "-")
-      .replace(/-{2,}/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .toLowerCase() || "publication-lgd"
-  );
+  return String(value || "publication-lgd")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-zA-Z0-9-_]+/g, "-")
+    .replace(/-{2,}/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .toLowerCase() || "publication-lgd";
 }
 
 function waitForImage(src: string) {
@@ -912,16 +797,14 @@ function waitForImage(src: string) {
     const img = new window.Image();
     img.crossOrigin = "anonymous";
     img.onload = () => resolve(img);
-    img.onerror = () =>
-      reject(new Error(`Impossible de charger l'image: ${src}`));
+    img.onerror = () => reject(new Error(`Impossible de charger l'image: ${src}`));
     img.src = src;
   });
 }
 
 function normalizeColorToCss(value: any) {
   if (typeof value === "string" && value.trim()) return value.trim();
-  if (typeof value === "number" && Number.isFinite(value))
-    return `#${value.toString(16).padStart(6, "0")}`;
+  if (typeof value === "number" && Number.isFinite(value)) return `#${value.toString(16).padStart(6, "0")}`;
   return "#ffffff";
 }
 
@@ -954,18 +837,10 @@ async function exportPreviewCanvasImage(params: {
   for (const layer of sortedLayers) {
     const x = Number(layer.x || 0);
     const y = Number(layer.y || 0);
-    const width =
-      typeof layer.width === "number" ? layer.width : exportCanvas.width;
-    const height =
-      typeof layer.height === "number" ? layer.height : exportCanvas.height;
-    const opacity =
-      typeof layer.style?.opacity === "number"
-        ? Number(layer.style.opacity)
-        : 1;
-    const rotation =
-      typeof layer.style?.rotation === "number"
-        ? Number(layer.style.rotation)
-        : 0;
+    const width = typeof layer.width === "number" ? layer.width : exportCanvas.width;
+    const height = typeof layer.height === "number" ? layer.height : exportCanvas.height;
+    const opacity = typeof layer.style?.opacity === "number" ? Number(layer.style.opacity) : 1;
+    const rotation = typeof layer.style?.rotation === "number" ? Number(layer.style.rotation) : 0;
 
     ctx.save();
     ctx.globalAlpha = Math.max(0, Math.min(1, opacity));
@@ -977,16 +852,9 @@ async function exportPreviewCanvasImage(params: {
     }
 
     if (layer.type === "background") {
-      const bg = String(
-        layer.style?.background || layer.style?.color || "#111827",
-      );
+      const bg = String(layer.style?.background || layer.style?.color || "#111827");
       if (bg.startsWith("linear-gradient")) {
-        const gradient = ctx.createLinearGradient(
-          0,
-          0,
-          exportCanvas.width,
-          exportCanvas.height,
-        );
+        const gradient = ctx.createLinearGradient(0, 0, exportCanvas.width, exportCanvas.height);
         gradient.addColorStop(0, "#111827");
         gradient.addColorStop(1, "#0f172a");
         ctx.fillStyle = gradient;
@@ -1014,16 +882,11 @@ async function exportPreviewCanvasImage(params: {
       const fontSize = Number(layer.style?.fontSize || 48);
       const fontWeight = Number(layer.style?.fontWeight || 700);
       const fontStyle = layer.style?.italic ? "italic" : "normal";
-      const fontFamily = String(
-        layer.style?.fontFamily || "Inter, Arial, sans-serif",
-      );
+      const fontFamily = String(layer.style?.fontFamily || "Inter, Arial, sans-serif");
       const color = normalizeColorToCss(layer.style?.color);
       const align = String(layer.style?.align || "left") as CanvasTextAlign;
       const lineHeight = Math.max(fontSize * 1.12, 24);
-      const maxWidth =
-        typeof layer.width === "number"
-          ? layer.width
-          : exportCanvas.width * 0.38;
+      const maxWidth = typeof layer.width === "number" ? layer.width : exportCanvas.width * 0.38;
 
       ctx.fillStyle = color;
       ctx.textAlign = align;
@@ -1048,12 +911,7 @@ async function exportPreviewCanvasImage(params: {
       }
       if (currentLine) lines.push(currentLine);
 
-      const drawX =
-        align === "center"
-          ? x + maxWidth / 2
-          : align === "right"
-            ? x + maxWidth
-            : x;
+      const drawX = align === "center" ? x + maxWidth / 2 : align === "right" ? x + maxWidth : x;
       lines.forEach((line, index) => {
         ctx.fillText(line, drawX, y + index * lineHeight, maxWidth);
       });
@@ -1115,63 +973,11 @@ async function exportMediaUrlImage(params: {
   ctx.drawImage(bitmap, 0, 0);
 
   const mimeType = format === "jpeg" ? "image/jpeg" : "image/png";
-  const dataUrl = exportCanvas.toDataURL(
-    mimeType,
-    format === "jpeg" ? 0.92 : (undefined as any),
-  );
+  const dataUrl = exportCanvas.toDataURL(mimeType, format === "jpeg" ? 0.92 : undefined as any);
   const exportResponse = await fetch(dataUrl);
   const exportBlob = await exportResponse.blob();
   const filename = `${sanitizeFilenamePart(title)}.${format === "jpeg" ? "jpg" : "png"}`;
   downloadBlob(exportBlob, filename);
-}
-
-function ExactReceivedImage({ src, alt }: { src: string; alt: string }) {
-  const [meta, setMeta] = useState<{ width: number; height: number } | null>(
-    null,
-  );
-
-  useEffect(() => {
-    if (!src) {
-      setMeta(null);
-      return;
-    }
-
-    let cancelled = false;
-    const img = new window.Image();
-    img.onload = () => {
-      if (cancelled) return;
-      setMeta({
-        width: img.naturalWidth || img.width || 0,
-        height: img.naturalHeight || img.height || 0,
-      });
-    };
-    img.onerror = () => {
-      if (!cancelled) setMeta(null);
-    };
-    img.src = src;
-
-    return () => {
-      cancelled = true;
-    };
-  }, [src]);
-
-  return (
-    <div className="rounded-xl border border-white/10 bg-black/40 p-2">
-      {meta?.width && meta?.height ? (
-        <div className="mb-2 text-[11px] text-white/45">
-          Format reçu : {meta.width} × {meta.height}
-        </div>
-      ) : null}
-      <div className="flex w-full justify-center overflow-visible rounded-lg bg-black/40">
-        <img
-          src={src}
-          alt={alt}
-          className="block h-auto w-auto max-w-full rounded-lg"
-          style={{ maxHeight: "70vh", objectFit: "contain" }}
-        />
-      </div>
-    </div>
-  );
 }
 
 function PreviewCanvasView({ canvas }: { canvas: PreviewCanvas }) {
@@ -1183,9 +989,7 @@ function PreviewCanvasView({ canvas }: { canvas: PreviewCanvas }) {
     <div className="rounded-2xl border border-yellow-500/20 bg-black/30 p-3">
       <div className="mb-3 flex items-center justify-between gap-3">
         <div>
-          <p className="text-xs uppercase tracking-[0.18em] text-yellow-300/80">
-            Aperçu réel
-          </p>
+          <p className="text-xs uppercase tracking-[0.18em] text-yellow-300/80">Aperçu réel</p>
           <p className="mt-1 text-[11px] text-white/45">
             Format détecté : {canvas.width} × {canvas.height}
           </p>
@@ -1196,10 +1000,7 @@ function PreviewCanvasView({ canvas }: { canvas: PreviewCanvas }) {
       </div>
 
       <div className="overflow-hidden rounded-xl border border-white/10 bg-[#0b0b0b]">
-        <div
-          className="relative w-full"
-          style={{ aspectRatio: `${canvas.width}/${canvas.height}` }}
-        >
+        <div className="relative w-full" style={{ aspectRatio: `${canvas.width}/${canvas.height}` }}>
           {sortedLayers.map((layer) => {
             const baseStyle: React.CSSProperties = {
               position: "absolute",
@@ -1216,10 +1017,7 @@ function PreviewCanvasView({ canvas }: { canvas: PreviewCanvas }) {
                   ? `${(layer.height / canvas.height) * 100}%`
                   : undefined,
               zIndex: layer.zIndex ?? 0,
-              opacity:
-                typeof layer.style?.opacity === "number"
-                  ? Number(layer.style.opacity)
-                  : 1,
+              opacity: typeof layer.style?.opacity === "number" ? Number(layer.style.opacity) : 1,
               transform:
                 typeof layer.style?.rotation === "number"
                   ? `rotate(${layer.style.rotation}deg)`
@@ -1247,11 +1045,7 @@ function PreviewCanvasView({ canvas }: { canvas: PreviewCanvas }) {
               );
             }
 
-            if (
-              layer.type === "image" &&
-              layer.src &&
-              looksLikeImageUrl(layer.src)
-            ) {
+            if (layer.type === "image" && layer.src && looksLikeImageUrl(layer.src)) {
               return (
                 <img
                   key={layer.id}
@@ -1274,9 +1068,7 @@ function PreviewCanvasView({ canvas }: { canvas: PreviewCanvas }) {
                     fontFamily: String(layer.style?.fontFamily || "inherit"),
                     fontWeight: Number(layer.style?.fontWeight || 700),
                     fontStyle: layer.style?.italic ? "italic" : "normal",
-                    textDecoration: layer.style?.underline
-                      ? "underline"
-                      : "none",
+                    textDecoration: layer.style?.underline ? "underline" : "none",
                     textAlign: (layer.style?.align as any) || "left",
                     whiteSpace: "pre-wrap",
                     lineHeight: 1.1,
@@ -1297,12 +1089,100 @@ function PreviewCanvasView({ canvas }: { canvas: PreviewCanvas }) {
   );
 }
 
-export default function AssistedPublishModal({
-  open,
-  post,
-  onClose,
-  onMarkStatus,
-}: Props) {
+
+const PLANNER_EDITOR_PAYLOAD_CACHE_KEY = "lgd_planner_editor_payload_cache_v1";
+const PLANNER_MEDIA_IDB_NAME = "lgd_planner_media_cache_v1";
+const PLANNER_MEDIA_IDB_STORE = "items";
+
+function buildPlannerCacheKeys(post: any, parsed: any) {
+  const title = extractTitle(post, parsed);
+  const network = String(post?.reseau ?? post?.network ?? parsed?.reseau ?? parsed?.network ?? "").trim();
+  const scheduledAt = String(
+    post?.scheduled_at ??
+      post?.date_programmee ??
+      parsed?.scheduled_at ??
+      parsed?.date_programmee ??
+      ""
+  ).trim();
+
+  return uniqueStrings([
+    String(post?.id ?? ""),
+    String(post?.post_id ?? ""),
+    String(post?.planner_id ?? ""),
+    `${network}|${scheduledAt}|${title}`,
+    `title|${title}`,
+    `${network}|${title}`,
+    "__latest__",
+  ]);
+}
+
+function readPlannerPayloadFromLocalCache(keys: string[]) {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(PLANNER_EDITOR_PAYLOAD_CACHE_KEY);
+    if (!raw) return null;
+    const cache = JSON.parse(raw);
+    if (!cache || typeof cache !== "object") return null;
+
+    for (const key of keys) {
+      const item = cache[key];
+      if (item?.payload && typeof item.payload === "object") return item.payload;
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+function openPlannerMediaDB(): Promise<IDBDatabase | null> {
+  if (typeof window === "undefined" || !("indexedDB" in window)) return Promise.resolve(null);
+
+  return new Promise((resolve) => {
+    const request = window.indexedDB.open(PLANNER_MEDIA_IDB_NAME, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(PLANNER_MEDIA_IDB_STORE)) {
+        db.createObjectStore(PLANNER_MEDIA_IDB_STORE);
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => resolve(null);
+  });
+}
+
+async function readPlannerPayloadFromIDB(keys: string[]) {
+  const db = await openPlannerMediaDB();
+  if (!db) return null;
+
+  try {
+    for (const key of keys) {
+      const item = await new Promise<any>((resolve) => {
+        try {
+          const tx = db.transaction(PLANNER_MEDIA_IDB_STORE, "readonly");
+          const req = tx.objectStore(PLANNER_MEDIA_IDB_STORE).get(key);
+          req.onsuccess = () => resolve(req.result ?? null);
+          req.onerror = () => resolve(null);
+          tx.onerror = () => resolve(null);
+          tx.onabort = () => resolve(null);
+        } catch {
+          resolve(null);
+        }
+      });
+
+      if (item?.payload && typeof item.payload === "object") return item.payload;
+    }
+  } finally {
+    try {
+      db.close();
+    } catch {
+      // ignore
+    }
+  }
+
+  return null;
+}
+
+export default function AssistedPublishModal({ open, post, onClose, onMarkStatus }: Props) {
   const [copied, setCopied] = useState<"" | "caption">("");
   const [saving, setSaving] = useState<"" | ManualStatus>("");
   const [exporting, setExporting] = useState<"" | "png" | "jpeg">("");
@@ -1316,52 +1196,65 @@ export default function AssistedPublishModal({
   const [editorPreviewUrl, setEditorPreviewUrl] = useState("");
   const [editorPreviewLoading, setEditorPreviewLoading] = useState(false);
 
-  const parsed = useMemo(
-    () => safeParseJSON(post?.contenu ?? post?.content ?? null),
-    [post],
-  );
+  const baseParsed = useMemo(() => safeParseJSON(post?.contenu ?? post?.content ?? null), [post]);
+  const [cachedPlannerPayload, setCachedPlannerPayload] = useState<any | null>(null);
+  const parsed = useMemo(() => {
+    if (cachedPlannerPayload && typeof cachedPlannerPayload === "object") {
+      return {
+        ...(baseParsed && typeof baseParsed === "object" ? baseParsed : {}),
+        ...cachedPlannerPayload,
+        payload: {
+          ...((baseParsed as any)?.payload && typeof (baseParsed as any).payload === "object" ? (baseParsed as any).payload : {}),
+          ...(cachedPlannerPayload?.payload && typeof cachedPlannerPayload.payload === "object" ? cachedPlannerPayload.payload : cachedPlannerPayload),
+        },
+      };
+    }
+    return baseParsed;
+  }, [baseParsed, cachedPlannerPayload]);
+
   const title = useMemo(() => extractTitle(post, parsed), [post, parsed]);
   const caption = useMemo(() => extractCaption(post, parsed), [post, parsed]);
-  const exactPreviewImage = useMemo(
-    () => extractExactPreviewImage(post, parsed),
-    [post, parsed],
-  );
+  const exactPreviewImage = useMemo(() => extractExactPreviewImage(post, parsed), [post, parsed]);
   const mediaUrl = useMemo(() => extractMediaUrl(post, parsed), [post, parsed]);
-  const mediaUrls = useMemo(
-    () => extractAllMediaUrls(post, parsed),
-    [post, parsed],
-  );
+  const mediaUrls = useMemo(() => extractAllMediaUrls(post, parsed), [post, parsed]);
   const slides = useMemo(() => extractSlides(parsed?.slides), [parsed]);
-  const editorRenderSpec = useMemo(
-    () => inferEditorRenderSpec(post, parsed),
-    [post, parsed],
-  );
-  const previewCanvas = useMemo(
-    () => extractPreviewCanvas(post, parsed),
-    [post, parsed],
-  );
-  const preferStructuredPreview = useMemo(() => {
-    if (!previewCanvas?.width || !previewCanvas?.height) return false;
-    const ratio = previewCanvas.width / previewCanvas.height;
-    return ratio < 0.78 || ratio > 1.28;
-  }, [previewCanvas]);
+  const editorRenderSpec = useMemo(() => inferEditorRenderSpec(post, parsed), [post, parsed]);
+  const previewCanvas = useMemo(() => extractPreviewCanvas(post, parsed), [post, parsed]);
   const network = useMemo(
-    () =>
-      String(
-        post?.reseau ??
-          post?.network ??
-          parsed?.reseau ??
-          parsed?.network ??
-          "",
-      ).toLowerCase(),
+    () => String(post?.reseau ?? post?.network ?? parsed?.reseau ?? parsed?.network ?? "").toLowerCase(),
     [post, parsed],
   );
   const networkUrl = useMemo(() => buildNetworkUrl(network), [network]);
   const status = useMemo(() => getStatus(post, parsed), [post, parsed]);
-  const isPublished =
-    status.includes("published") ||
-    status.includes("envoy") ||
-    status.includes("success");
+  const isPublished = status.includes("published") || status.includes("envoy") || status.includes("success");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadCachedPayload() {
+      if (!open || !post) {
+        setCachedPlannerPayload(null);
+        return;
+      }
+
+      const keys = buildPlannerCacheKeys(post, baseParsed);
+      const local = readPlannerPayloadFromLocalCache(keys);
+      if (!cancelled && local) {
+        setCachedPlannerPayload(local);
+        return;
+      }
+
+      const fromIDB = await readPlannerPayloadFromIDB(keys);
+      if (!cancelled) {
+        setCachedPlannerPayload(fromIDB || null);
+      }
+    }
+
+    loadCachedPayload();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, post?.id, baseParsed]);
 
   useEffect(() => {
     setEditableCaption(caption || "");
@@ -1414,7 +1307,17 @@ export default function AssistedPublishModal({
   }, [open]);
 
   useEffect(() => {
-    if (!open || !post || !editorRenderSpec) {
+    // LGD FIX — si une image exacte est déjà enregistrée depuis l’éditeur,
+    // on l’utilise en priorité et on ne tente PAS de reconstruire depuis les layers.
+    // Cela évite le faux rouge console "Aucun layer de post à rendre" tout en
+    // conservant le fallback rendu fidèle pour les anciens posts sans preview.
+    if (!open || !post || exactPreviewImage) {
+      setEditorPreviewUrl("");
+      setEditorPreviewLoading(false);
+      return;
+    }
+
+    if (!editorRenderSpec) {
       setEditorPreviewUrl("");
       setEditorPreviewLoading(false);
       return;
@@ -1441,9 +1344,11 @@ export default function AssistedPublishModal({
           setEditorPreviewUrl(dataUrl);
           setEditorPreviewLoading(false);
         }
-      } catch (error) {
+      } catch {
+        // Fallback silencieux : le modal affichera preview_image/mediaUrl si disponible.
+        // Ne pas polluer la console PROD avec une erreur non bloquante.
         if (!cancelled) {
-          console.error("LGD planner faithful preview error:", error);
+          setEditorPreviewUrl("");
           setEditorPreviewLoading(false);
         }
       }
@@ -1468,7 +1373,7 @@ export default function AssistedPublishModal({
       window.clearTimeout(t2);
       window.clearTimeout(t3);
     };
-  }, [open, post?.id, editorRenderSpec]);
+  }, [open, post?.id, editorRenderSpec, exactPreviewImage]);
 
   if (!open || !post) return null;
 
@@ -1498,15 +1403,6 @@ export default function AssistedPublishModal({
     try {
       setExporting(format);
 
-      if (preferStructuredPreview && previewCanvas) {
-        await exportPreviewCanvasImage({
-          canvas: previewCanvas,
-          title: title || "publication-lgd",
-          format,
-        });
-        return;
-      }
-
       if (exactPreviewImage && exactPreviewImage.startsWith("data:image/")) {
         await exportDataUrlImage({
           dataUrl: exactPreviewImage,
@@ -1525,7 +1421,7 @@ export default function AssistedPublishModal({
         return;
       }
 
-      if (editorPreviewUrl && !preferStructuredPreview) {
+      if (editorPreviewUrl) {
         await exportDataUrlImage({
           dataUrl: editorPreviewUrl,
           title: title || "publication-lgd",
@@ -1554,9 +1450,7 @@ export default function AssistedPublishModal({
 
       alert("Aucun visuel disponible pour l’export.");
     } catch (error: any) {
-      const message = String(
-        error?.message || "Export impossible pour ce visuel.",
-      );
+      const message = String(error?.message || "Export impossible pour ce visuel.");
       alert(message);
     } finally {
       setExporting("");
@@ -1612,20 +1506,16 @@ export default function AssistedPublishModal({
       const generated = normalizeWhitespace(String(data?.caption || ""));
 
       if (generated) {
-        setEditableCaption(
-          composeCaptionParts(generated, parts.cta, parts.hashtags),
-        );
+        setEditableCaption(composeCaptionParts(generated, parts.cta, parts.hashtags));
       } else {
-        setQuotaMessage(
-          "Aucune légende exploitable n’a été renvoyée par l’IA.",
-        );
+        setQuotaMessage("Aucune légende exploitable n’a été renvoyée par l’IA.");
       }
 
       const remaining = Number(
         data?.quota?.remaining ??
-          data?.quota?.remaining_tokens ??
-          quotaRemaining ??
-          0,
+        data?.quota?.remaining_tokens ??
+        quotaRemaining ??
+        0
       );
 
       if (Number.isFinite(remaining)) {
@@ -1675,18 +1565,15 @@ export default function AssistedPublishModal({
 
       const data = res?.data ?? {};
       const aiText = String(data?.caption || "");
-      const hashtags =
-        extractHashtagsOnly(aiText) || buildHashtagsFromCaption(promptBase);
+      const hashtags = extractHashtagsOnly(aiText) || buildHashtagsFromCaption(promptBase);
 
-      setEditableCaption(
-        composeCaptionParts(parts.base || promptBase, parts.cta, hashtags),
-      );
+      setEditableCaption(composeCaptionParts(parts.base || promptBase, parts.cta, hashtags));
 
       const remaining = Number(
         data?.quota?.remaining ??
-          data?.quota?.remaining_tokens ??
-          quotaRemaining ??
-          0,
+        data?.quota?.remaining_tokens ??
+        quotaRemaining ??
+        0
       );
 
       if (Number.isFinite(remaining)) {
@@ -1732,18 +1619,15 @@ export default function AssistedPublishModal({
 
       const data = res?.data ?? {};
       const aiText = String(data?.caption || "");
-      const cta =
-        extractCtaOnly(aiText) || buildCTAFromCaption({ objective, network });
+      const cta = extractCtaOnly(aiText) || buildCTAFromCaption({ objective, network });
 
-      setEditableCaption(
-        composeCaptionParts(parts.base || promptBase, cta, parts.hashtags),
-      );
+      setEditableCaption(composeCaptionParts(parts.base || promptBase, cta, parts.hashtags));
 
       const remaining = Number(
         data?.quota?.remaining ??
-          data?.quota?.remaining_tokens ??
-          quotaRemaining ??
-          0,
+        data?.quota?.remaining_tokens ??
+        quotaRemaining ??
+        0
       );
 
       if (Number.isFinite(remaining)) {
@@ -1777,15 +1661,10 @@ export default function AssistedPublishModal({
       <div className="mx-auto mt-10 w-full max-w-5xl rounded-[28px] border border-[#2a2a2a] bg-[#0b0b0b] shadow-[0_24px_80px_rgba(0,0,0,0.55)]">
         <div className="flex items-center justify-between border-b border-white/10 px-6 py-5 md:px-8">
           <div>
-            <p className="text-xs uppercase tracking-[0.25em] text-yellow-500/80">
-              Publication assistée
-            </p>
-            <h3 className="mt-2 text-xl font-semibold text-white md:text-2xl">
-              {title}
-            </h3>
+            <p className="text-xs uppercase tracking-[0.25em] text-yellow-500/80">Publication assistée</p>
+            <h3 className="mt-2 text-xl font-semibold text-white md:text-2xl">{title}</h3>
             <p className="mt-2 text-sm text-white/55">
-              Ouvre le réseau, colle la légende, ajoute le visuel et garde le
-              suivi directement dans le Planner.
+              Ouvre le réseau, colle la légende, ajoute le visuel et garde le suivi directement dans le Planner.
             </p>
           </div>
 
@@ -1803,18 +1682,12 @@ export default function AssistedPublishModal({
             <div className="rounded-2xl border border-white/10 bg-[#121212] p-5">
               <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.22em] text-yellow-300/80">
-                    IA Caption Generator
-                  </p>
+                  <p className="text-xs uppercase tracking-[0.22em] text-yellow-300/80">IA Caption Generator</p>
                   <p className="mt-2 text-sm text-white/70">
-                    Génère une légende optimisée selon le réseau, le ton et
-                    l’objectif.
+                    Génère une légende optimisée selon le réseau, le ton et l’objectif.
                   </p>
                   <p className="mt-2 text-xs text-white/50">
-                    Quota IA restant :{" "}
-                    <span className="font-semibold text-yellow-300">
-                      {quotaLoading ? "..." : (quotaRemaining ?? 0)}
-                    </span>
+                    Quota IA restant : <span className="font-semibold text-yellow-300">{quotaLoading ? "..." : quotaRemaining ?? 0}</span>
                   </p>
                 </div>
 
@@ -1847,9 +1720,7 @@ export default function AssistedPublishModal({
                 <button
                   type="button"
                   onClick={handleGenerateCaption}
-                  disabled={
-                    captionLoading || quotaLoading || (quotaRemaining ?? 0) <= 0
-                  }
+                  disabled={captionLoading || quotaLoading || (quotaRemaining ?? 0) <= 0}
                   className="inline-flex items-center gap-2 rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-2 text-sm font-semibold text-yellow-300 disabled:opacity-40"
                 >
                   <Sparkles className="h-4 w-4" />
@@ -1859,9 +1730,7 @@ export default function AssistedPublishModal({
                 <button
                   type="button"
                   onClick={handleRegenerateCaption}
-                  disabled={
-                    captionLoading || quotaLoading || (quotaRemaining ?? 0) <= 0
-                  }
+                  disabled={captionLoading || quotaLoading || (quotaRemaining ?? 0) <= 0}
                   className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 disabled:opacity-40"
                 >
                   <Sparkles className="h-4 w-4" />
@@ -1874,11 +1743,7 @@ export default function AssistedPublishModal({
                   disabled={!editableCaption}
                   className="inline-flex items-center gap-2 rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-2 text-sm font-semibold text-yellow-300 disabled:opacity-40"
                 >
-                  {copied === "caption" ? (
-                    <Check className="h-4 w-4" />
-                  ) : (
-                    <Copy className="h-4 w-4" />
-                  )}
+                  {copied === "caption" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                   Copier
                 </button>
 
@@ -1895,9 +1760,7 @@ export default function AssistedPublishModal({
                 <button
                   type="button"
                   onClick={handleAddHashtags}
-                  disabled={
-                    captionLoading || quotaLoading || (quotaRemaining ?? 0) <= 0
-                  }
+                  disabled={captionLoading || quotaLoading || (quotaRemaining ?? 0) <= 0}
                   className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/80 disabled:opacity-40"
                 >
                   Ajouter hashtags
@@ -1906,9 +1769,7 @@ export default function AssistedPublishModal({
                 <button
                   type="button"
                   onClick={handleAddCTA}
-                  disabled={
-                    captionLoading || quotaLoading || (quotaRemaining ?? 0) <= 0
-                  }
+                  disabled={captionLoading || quotaLoading || (quotaRemaining ?? 0) <= 0}
                   className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/80 disabled:opacity-40"
                 >
                   Ajouter CTA
@@ -1941,12 +1802,9 @@ export default function AssistedPublishModal({
             <div className="rounded-2xl border border-white/10 bg-[#121212] p-5">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.22em] text-white/40">
-                    Visuel / média
-                  </p>
+                  <p className="text-xs uppercase tracking-[0.22em] text-white/40">Visuel / média</p>
                   <p className="mt-2 text-sm text-white/70">
-                    LGD essaie d’afficher le rendu final réel en respectant le
-                    format du design.
+                    LGD essaie d’afficher le rendu final réel en respectant le format du design.
                   </p>
                 </div>
 
@@ -1954,14 +1812,7 @@ export default function AssistedPublishModal({
                   <button
                     type="button"
                     onClick={() => handleExport("png")}
-                    disabled={
-                      (!exactPreviewImage &&
-                        !editorPreviewUrl &&
-                        !previewCanvas &&
-                        !mediaUrl) ||
-                      !!exporting ||
-                      editorPreviewLoading
-                    }
+                    disabled={(!exactPreviewImage && !editorPreviewUrl && !previewCanvas && !mediaUrl) || !!exporting || editorPreviewLoading}
                     className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 disabled:opacity-40"
                   >
                     <Download className="h-4 w-4" />
@@ -1971,14 +1822,7 @@ export default function AssistedPublishModal({
                   <button
                     type="button"
                     onClick={() => handleExport("jpeg")}
-                    disabled={
-                      (!exactPreviewImage &&
-                        !editorPreviewUrl &&
-                        !previewCanvas &&
-                        !mediaUrl) ||
-                      !!exporting ||
-                      editorPreviewLoading
-                    }
+                    disabled={(!exactPreviewImage && !editorPreviewUrl && !previewCanvas && !mediaUrl) || !!exporting || editorPreviewLoading}
                     className="inline-flex items-center gap-2 rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-2 text-sm font-semibold text-yellow-300 disabled:opacity-40"
                   >
                     <Download className="h-4 w-4" />
@@ -1988,24 +1832,16 @@ export default function AssistedPublishModal({
               </div>
 
               <div className="mt-4 space-y-4 rounded-2xl border border-dashed border-white/10 bg-black/20 p-4 text-sm text-white/70">
-                {preferStructuredPreview && previewCanvas ? (
-                  <div>
-                    <div className="mb-3 flex items-center gap-2 text-sm text-yellow-200">
-                      <ImageIcon className="h-4 w-4 text-yellow-400" />
-                      Aperçu reconstruit depuis les données exactes reçues par
-                      le Planner.
-                    </div>
-                    <PreviewCanvasView canvas={previewCanvas} />
-                  </div>
-                ) : exactPreviewImage ? (
+                {exactPreviewImage ? (
                   <div className="rounded-2xl border border-yellow-500/20 bg-black/30 p-3">
                     <div className="mb-3 flex items-center gap-2 text-sm text-yellow-200">
                       <ImageIcon className="h-4 w-4 text-yellow-400" />
                       Aperçu exact enregistré depuis l’éditeur.
                     </div>
-                    <ExactReceivedImage
+                    <img
                       src={exactPreviewImage}
                       alt="aperçu exact"
+                      className="max-h-[560px] w-full rounded-xl border border-white/10 object-contain bg-black/40"
                     />
                   </div>
                 ) : editorPreviewLoading ? (
@@ -2016,12 +1852,12 @@ export default function AssistedPublishModal({
                   <div className="rounded-2xl border border-yellow-500/20 bg-black/30 p-3">
                     <div className="mb-3 flex items-center gap-2 text-sm text-yellow-200">
                       <ImageIcon className="h-4 w-4 text-yellow-400" />
-                      Aperçu reçu / reconstruit en conservant le ratio exact du
-                      visuel.
+                      Aperçu fidèle reconstruit depuis le moteur de rendu de l’éditeur.
                     </div>
-                    <ExactReceivedImage
+                    <img
                       src={editorPreviewUrl}
                       alt="aperçu fidèle"
+                      className="max-h-[560px] w-full rounded-xl border border-white/10 object-contain bg-black/40"
                     />
                   </div>
                 ) : previewCanvas ? (
@@ -2032,39 +1868,37 @@ export default function AssistedPublishModal({
                       <ImageIcon className="h-4 w-4 text-yellow-400" />
                       Média détecté pour cette publication.
                     </div>
-                    <ExactReceivedImage src={mediaUrl} alt="preview" />
+                    <img
+                      src={mediaUrl}
+                      alt="preview"
+                      className="max-h-[420px] w-full rounded-xl border border-white/10 object-contain bg-black/40"
+                    />
                   </div>
                 ) : (
                   <p>
-                    Aucun média détecté automatiquement. Utilise l’éditeur
-                    intelligent ou la bibliothèque pour récupérer le visuel.
+                    Aucun média détecté automatiquement. Utilise l’éditeur intelligent ou la bibliothèque pour récupérer le visuel.
                   </p>
                 )}
 
-                {!exactPreviewImage &&
-                  !previewCanvas &&
-                  mediaUrls.length > 1 && (
-                    <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-3">
-                      <p className="mb-2 text-xs uppercase tracking-[0.18em] text-yellow-300/80">
-                        Médias détectés
-                      </p>
-                      <div className="space-y-2">
-                        {mediaUrls.slice(0, 6).map((url, index) => (
-                          <div
-                            key={`${url}-${index}`}
-                            className="break-all rounded-lg bg-black/30 px-3 py-2 text-[11px] text-white/55"
-                          >
-                            {index + 1}. {url}
-                          </div>
-                        ))}
-                      </div>
+                {!exactPreviewImage && !previewCanvas && mediaUrls.length > 1 && (
+                  <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-3">
+                    <p className="mb-2 text-xs uppercase tracking-[0.18em] text-yellow-300/80">Médias détectés</p>
+                    <div className="space-y-2">
+                      {mediaUrls.slice(0, 6).map((url, index) => (
+                        <div
+                          key={`${url}-${index}`}
+                          className="break-all rounded-lg bg-black/30 px-3 py-2 text-[11px] text-white/55"
+                        >
+                          {index + 1}. {url}
+                        </div>
+                      ))}
                     </div>
-                  )}
+                  </div>
+                )}
 
                 {slides.length > 1 && (
                   <p className="text-xs text-yellow-300/90">
-                    Ce carrousel contient {slides.length} slides. LGD affiche
-                    ici la première composition exploitable détectée.
+                    Ce carrousel contient {slides.length} slides. LGD affiche ici la première composition exploitable détectée.
                   </p>
                 )}
               </div>
@@ -2073,22 +1907,12 @@ export default function AssistedPublishModal({
 
           <div className="space-y-6">
             <div className="rounded-2xl border border-yellow-500/20 bg-gradient-to-br from-yellow-500/10 to-transparent p-5">
-              <p className="text-xs uppercase tracking-[0.22em] text-yellow-300/85">
-                Flux recommandé
-              </p>
+              <p className="text-xs uppercase tracking-[0.22em] text-yellow-300/85">Flux recommandé</p>
               <ol className="mt-4 space-y-3 text-sm text-white/80">
                 <li>1. Copie la légende LGD.</li>
-                <li>
-                  2. Ouvre {network || "le réseau"} dans un nouvel onglet.
-                </li>
-                <li>
-                  3. Vérifie l’aperçu réel du format puis ajoute le média
-                  préparé.
-                </li>
-                <li>
-                  4. Publie manuellement et reviens marquer la publication comme
-                  envoyée.
-                </li>
+                <li>2. Ouvre {network || "le réseau"} dans un nouvel onglet.</li>
+                <li>3. Vérifie l’aperçu réel du format puis ajoute le média préparé.</li>
+                <li>4. Publie manuellement et reviens marquer la publication comme envoyée.</li>
               </ol>
 
               {networkUrl && (
@@ -2105,9 +1929,7 @@ export default function AssistedPublishModal({
             </div>
 
             <div className="rounded-2xl border border-white/10 bg-[#121212] p-5">
-              <p className="text-xs uppercase tracking-[0.22em] text-white/40">
-                Suivi Planner
-              </p>
+              <p className="text-xs uppercase tracking-[0.22em] text-white/40">Suivi Planner</p>
               <p className="mt-3 text-sm text-white/70">
                 Garde ton calendrier propre même sans auto-publication Meta.
               </p>
@@ -2134,21 +1956,14 @@ export default function AssistedPublishModal({
                   className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white/80 hover:border-yellow-500/30 disabled:opacity-60"
                 >
                   <Undo2 className="h-4 w-4" />
-                  {saving === "scheduled"
-                    ? "Mise à jour..."
-                    : "Remettre en planifié"}
+                  {saving === "scheduled" ? "Mise à jour..." : "Remettre en planifié"}
                 </button>
               </div>
 
               <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4 text-xs leading-6 text-white/55">
-                Statut actuel :{" "}
-                <span className="text-white/80">
-                  {isPublished ? "Publié" : "Planifié"}
-                </span>
+                Statut actuel : <span className="text-white/80">{isPublished ? "Publié" : "Planifié"}</span>
                 <br />
-                Publication assistée = LGD prépare le contenu, l’horaire et le
-                suivi. L’utilisateur garde le contrôle final sur le clic
-                publier.
+                Publication assistée = LGD prépare le contenu, l’horaire et le suivi. L’utilisateur garde le contrôle final sur le clic publier.
               </div>
             </div>
           </div>
@@ -2157,4 +1972,3 @@ export default function AssistedPublishModal({
     </div>
   );
 }
-
