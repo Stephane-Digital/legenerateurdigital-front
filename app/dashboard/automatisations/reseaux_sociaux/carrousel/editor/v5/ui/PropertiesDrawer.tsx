@@ -118,11 +118,19 @@ export default function PropertiesDrawer({ open, layer, onClose, onChange }: Pro
   const style = ((layer as any)?.style ?? {}) as any;
 
   const [textDraft, setTextDraft] = useState<string>(String((layer as any)?.text ?? ""));
+  const [fontSizeDraft, setFontSizeDraft] = useState<string>(
+    typeof style.fontSize === "number" ? String(style.fontSize) : ""
+  );
 
   useEffect(() => {
     if (!layer || !isText) return;
     setTextDraft(String((layer as any)?.text ?? ""));
   }, [layer?.id, (layer as any)?.text, isText]);
+
+  useEffect(() => {
+    if (!layer || !isText) return;
+    setFontSizeDraft(typeof style.fontSize === "number" ? String(style.fontSize) : "");
+  }, [layer?.id, style.fontSize, isText]);
 
   const metrics = useMemo(() => {
     if (!layer) return null;
@@ -357,26 +365,28 @@ export default function PropertiesDrawer({ open, layer, onClose, onChange }: Pro
             <div>
               <label className="block text-yellow-400 text-xs mb-2">Taille (px)</label>
               <input
-                type="number"
-                min={0}
-                max={400}
-                step={1}
-                value={typeof style.fontSize === "number" ? style.fontSize : ""}
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={fontSizeDraft}
                 onChange={(e) => {
-                  const rawValue = e.target.value;
+                  const rawValue = e.target.value.replace(/[^0-9]/g, "");
 
                   if (rawValue === "") {
-                    setStyle({ fontSize: 0 });
+                    setFontSizeDraft("");
                     return;
                   }
 
-                  const nextFontSize = clamp(Number(rawValue), 0, 400);
+                  const normalizedValue = String(Number(rawValue));
+                  const nextFontSize = clamp(Number(normalizedValue), 0, 400);
+                  setFontSizeDraft(normalizedValue);
                   setStyle({ fontSize: nextFontSize });
                 }}
-                onBlur={(e) => {
-                  if (e.currentTarget.value === "") {
-                    setStyle({ fontSize: 0 });
-                  }
+                onBlur={() => {
+                  if (fontSizeDraft === "") return;
+                  const normalizedValue = String(clamp(Number(fontSizeDraft), 0, 400));
+                  setFontSizeDraft(normalizedValue);
+                  setStyle({ fontSize: Number(normalizedValue) });
                 }}
                 className="w-full rounded-xl bg-black/40 border border-yellow-500/20 px-3 py-2 text-yellow-100"
               />
