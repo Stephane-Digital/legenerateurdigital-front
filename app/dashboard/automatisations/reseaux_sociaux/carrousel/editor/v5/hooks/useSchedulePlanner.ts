@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { renderEditorCreationToDataUrl } from "../../utils/downloadEditorCreation";
 
 type Network = "instagram" | "facebook" | "linkedin" | string;
 
@@ -83,90 +84,54 @@ function extractTextFromLayer(layer: any) {
   return trimString(layer.text ?? layer.value ?? layer.content ?? "", 800);
 }
 
-function serializableStyle(style: any) {
-  if (!style || typeof style !== "object") return undefined;
-
-  const out: Record<string, any> = {};
-  for (const [key, value] of Object.entries(style)) {
-    if (
-      typeof value === "string" ||
-      typeof value === "number" ||
-      typeof value === "boolean" ||
-      value === null
-    ) {
-      out[key] = value;
-    }
-  }
-
-  return Object.keys(out).length ? out : undefined;
-}
-
-function numberOrUndefined(value: unknown) {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : undefined;
+function pickLayerImageSource(layer: any) {
+  return String(
+    layer?.src ||
+      layer?.url ||
+      layer?.image_url ||
+      layer?.imageUrl ||
+      layer?.media_url ||
+      layer?.mediaUrl ||
+      layer?.preview_url ||
+      layer?.previewUrl ||
+      ""
+  ).trim();
 }
 
 function compactLayer(layer: any) {
   if (!layer || typeof layer !== "object") return null;
 
   const type = String(layer.type || "").toLowerCase();
-  const base = {
-    id: String(layer.id || `${type || "layer"}-${Date.now()}`),
-    type: type || "layer",
-    x: numberOrUndefined(layer.x),
-    y: numberOrUndefined(layer.y),
-    width: numberOrUndefined(layer.width),
-    height: numberOrUndefined(layer.height),
-    zIndex: numberOrUndefined(layer.zIndex),
-    visible: layer.visible !== false,
-    style: serializableStyle(layer.style),
-  };
 
   if (type === "text") {
     const text = extractTextFromLayer(layer);
     if (!text) return null;
 
     return {
-      ...base,
+      id: String(layer.id || `text-${Date.now()}`),
       type: "text",
       text,
-      html: typeof layer.html === "string" ? trimString(layer.html, 2200) : undefined,
     };
   }
 
   if (type === "image") {
-    const src = layer.src || layer.url || layer.image_url || layer.imageUrl || "";
+    const src = pickLayerImageSource(layer);
     return {
-      ...base,
+      id: String(layer.id || `image-${Date.now()}`),
       type: "image",
       has_image: !!src,
-      // IMPORTANT LGD — Planner mobile/desktop :
-      // on conserve l'image du layer courant, même en data:image,
-      // sinon le Planner ne peut pas reconstruire le vrai visuel
-      // et retombe sur une ancienne preview persistée.
+      // IMPORTANT LGD : on conserve src même si c'est un data:image.
+      // Le Planner peut ainsi reconstruire le bon visuel si l'aperçu final manque.
       src: src || undefined,
-      image_url: src || undefined,
+      url: !isHugeDataUrl(src) ? src || undefined : undefined,
+      image_url: !isHugeDataUrl(src) ? src || undefined : undefined,
     };
   }
 
-  if (type === "background") {
-    return {
-      ...base,
-      type: "background",
-    };
-  }
-
-  return base;
-}
-
-function hasRenderableLayers(layers: any[]) {
-  return Array.isArray(layers) && layers.some((layer) => {
-    if (!layer || typeof layer !== "object") return false;
-    if (layer.type === "text" && String(layer.text || "").trim()) return true;
-    if (layer.type === "image" && (layer.src || layer.image_url || layer.imageUrl || layer.url)) return true;
-    if (layer.type === "background") return true;
-    return false;
-  });
+  return {
+    id: String(layer.id || `${type || "layer"}-${Date.now()}`),
+    type: type || "layer",
+  };
 }
 
 function compactLayers(layers: any): any[] {
@@ -184,7 +149,7 @@ function extractCaptionFromLayers(layers: any[]) {
   return trimString(text, 1800);
 }
 
-function compactContentForPlanner(input: any, fallbackTitle?: string, fallbackFormat?: string) {
+function compactContentForPlanner(input: any, fallbackTitle?: string, fallbackFormat?: string, freshPreviewImage = "") {
   const source = input && typeof input === "object" ? input : {};
   const rawLayers =
     source.layers ||
@@ -199,6 +164,10 @@ function compactContentForPlanner(input: any, fallbackTitle?: string, fallbackFo
     source.draft?.slides ||
     source.payload?.slides ||
     [];
+
+  const hasEditablePayload =
+    (Array.isArray(rawLayers) && rawLayers.length > 0) ||
+    (Array.isArray(rawSlides) && rawSlides.length > 0);
 
   const layers = compactLayers(rawLayers);
   const slides = Array.isArray(rawSlides)
@@ -225,12 +194,7 @@ function compactContentForPlanner(input: any, fallbackTitle?: string, fallbackFo
       2000
     ) || "";
 
-  const currentLayersCanRender = hasRenderableLayers(layers);
-  const currentSlidesCanRender =
-    Array.isArray(slides) &&
-    slides.some((slide: any) => hasRenderableLayers(slide?.layers || []));
-
-  const rawPreviewImage =
+  const storedPreviewImage =
     source.planner_preview_image ||
     source.plannerPreviewImage ||
     source.preview_image ||
@@ -239,12 +203,9 @@ function compactContentForPlanner(input: any, fallbackTitle?: string, fallbackFo
     source.renderedImage ||
     "";
 
-  // Anti-bug LGD Planner :
-  // quand on vient de l'éditeur, les layers/slides courants sont la vérité.
-  // Une ancienne preview peut rester en mémoire et afficher toujours le même visuel.
-  // On ne transmet donc l'image finale que s'il n'y a pas de layers/slides exploitables.
-  const previewImage =
-    currentLayersCanRender || currentSlidesCanRender ? "" : rawPreviewImage;
+  // Si le contenu courant contient des layers/slides, l'ancien aperçu stocké n'est plus fiable.
+  // On privilégie donc uniquement l'aperçu fraîchement rendu au moment de l'envoi Planner.
+  const previewImage = freshPreviewImage || (hasEditablePayload ? "" : storedPreviewImage);
 
   return {
     type: type.includes("carrousel") || type.includes("carousel") ? "carrousel" : "post",
@@ -253,10 +214,13 @@ function compactContentForPlanner(input: any, fallbackTitle?: string, fallbackFo
     caption,
     text: caption,
     format: fallbackFormat || source.format || type,
+    // Résumé léger pour le Planner.
     layers,
     slides,
-    has_visual: !!previewImage || currentLayersCanRender || currentSlidesCanRender,
+    has_visual: !!previewImage || layers.length > 0 || slides.length > 0,
     source: "editor",
+    // LGD FIX — aperçu fidèle du modal Planner.
+    // On conserve seulement l'image de rendu finale, pas tout le draft brut.
     preview_image: previewImage || undefined,
     planner_preview_image: previewImage || undefined,
     rendered_image: previewImage || undefined,
@@ -273,6 +237,71 @@ function compactSlidesForPlanner(slides: any): any[] {
       caption: extractCaptionFromLayers(layers),
     };
   });
+}
+
+function extractRawLayers(input: any): any[] {
+  const source = input && typeof input === "object" ? input : {};
+  const raw =
+    source.layers ||
+    source.canvas?.layers ||
+    source.draft?.layers ||
+    source.payload?.layers ||
+    [];
+  return Array.isArray(raw) ? raw : [];
+}
+
+function extractRawSlides(input: any): any[] {
+  const source = input && typeof input === "object" ? input : {};
+  const raw =
+    source.slides ||
+    source.canvas?.slides ||
+    source.draft?.slides ||
+    source.payload?.slides ||
+    [];
+  return Array.isArray(raw) ? raw : [];
+}
+
+async function buildFreshPlannerPreview(input: any, isCarrousel: boolean): Promise<string> {
+  if (typeof window === "undefined") return "";
+
+  const source = input && typeof input === "object" ? input : {};
+  const rawLayers = extractRawLayers(source);
+  const rawSlides = extractRawSlides(source);
+
+  try {
+    if (isCarrousel && rawSlides.length > 0) {
+      const slides = rawSlides
+        .map((slide: any, index: number) => ({
+          id: String(slide?.id || `slide-${index + 1}`),
+          ui: slide?.ui || source?.ui || source?.canvas?.ui || source?.draft?.ui,
+          layers: Array.isArray(slide?.layers)
+            ? slide.layers
+            : Array.isArray(slide?.elements)
+              ? slide.elements
+              : [],
+        }))
+        .filter((slide: any) => Array.isArray(slide.layers) && slide.layers.length > 0);
+
+      if (slides.length > 0) {
+        return await renderEditorCreationToDataUrl({
+          mode: "carrousel",
+          draft: { ui: source?.ui || source?.canvas?.ui || source?.draft?.ui, slides },
+          slideIndex: 0,
+        });
+      }
+    }
+
+    if (rawLayers.length > 0) {
+      return await renderEditorCreationToDataUrl({
+        mode: "post",
+        draft: { ui: source?.ui || source?.canvas?.ui || source?.draft?.ui, layers: rawLayers },
+      });
+    }
+  } catch (error) {
+    console.error("[LGD Planner] fresh preview render failed", error);
+  }
+
+  return "";
 }
 
 export function useSchedulePlanner() {
@@ -295,10 +324,13 @@ export function useSchedulePlanner() {
       const isCarrousel = looksLikeCarrousel(payload);
       const endpoint = isCarrousel ? "/planner/schedule-carrousel" : "/planner/schedule-post";
 
+      const freshPreviewImage = await buildFreshPlannerPreview(payload.contenu, isCarrousel);
+
       const compactContent = compactContentForPlanner(
         payload.contenu,
         payload.titre,
-        isCarrousel ? "carrousel" : payload.format || "post"
+        isCarrousel ? "carrousel" : payload.format || "post",
+        freshPreviewImage
       );
 
       const compactSlides = compactSlidesForPlanner(payload.slides ?? payload.contenu?.slides ?? []);
@@ -316,6 +348,9 @@ export function useSchedulePlanner() {
             slides: compactSlides.length ? compactSlides : compactContent.slides || [],
             titre: payload.titre ?? compactContent.title,
             format: "carrousel",
+            preview_image: freshPreviewImage || undefined,
+            planner_preview_image: freshPreviewImage || undefined,
+            rendered_image: freshPreviewImage || undefined,
             contenu: {
               ...compactContent,
               type: "carrousel",
@@ -328,6 +363,9 @@ export function useSchedulePlanner() {
             supprimer_apres: !!payload.supprimer_apres,
             titre: payload.titre ?? compactContent.title,
             format: payload.format ?? "post",
+            preview_image: freshPreviewImage || undefined,
+            planner_preview_image: freshPreviewImage || undefined,
+            rendered_image: freshPreviewImage || undefined,
             contenu: {
               ...compactContent,
               type: "post",
