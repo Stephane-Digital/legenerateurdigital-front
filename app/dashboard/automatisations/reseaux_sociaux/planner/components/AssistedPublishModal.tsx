@@ -552,21 +552,15 @@ function flattenPossibleMediaSources(post: any, parsed: any) {
 }
 
 function extractExactPreviewImage(post: any, parsed: any) {
-  // LGD SAFE FIX — la vérité fraîche doit venir du payload/canvas courant
-  // avant les anciens champs racine du post qui peuvent rester persistés en base.
   return firstNonEmptyString(
-    parsed?.planner_preview_image,
-    parsed?.preview_image,
-    parsed?.rendered_image,
-    parsed?.renderedImage,
-    parsed?.payload?.planner_preview_image,
-    parsed?.payload?.preview_image,
-    parsed?.payload?.rendered_image,
-    parsed?.payload?.renderedImage,
     post?.planner_preview_image,
     post?.preview_image,
     post?.rendered_image,
     post?.renderedImage,
+    parsed?.planner_preview_image,
+    parsed?.preview_image,
+    parsed?.rendered_image,
+    parsed?.renderedImage,
   );
 }
 
@@ -1116,6 +1110,9 @@ function buildPlannerCacheKeys(post: any, parsed: any) {
     String(post?.post_id ?? ""),
     String(post?.planner_id ?? ""),
     `${network}|${scheduledAt}|${title}`,
+    `title|${title}`,
+    `${network}|${title}`,
+    "__latest__",
   ]);
 }
 
@@ -1310,17 +1307,7 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
   }, [open]);
 
   useEffect(() => {
-    // LGD FIX — si une image exacte est déjà enregistrée depuis l’éditeur,
-    // on l’utilise en priorité et on ne tente PAS de reconstruire depuis les layers.
-    // Cela évite le faux rouge console "Aucun layer de post à rendre" tout en
-    // conservant le fallback rendu fidèle pour les anciens posts sans preview.
-    if (!open || !post || exactPreviewImage) {
-      setEditorPreviewUrl("");
-      setEditorPreviewLoading(false);
-      return;
-    }
-
-    if (!editorRenderSpec) {
+    if (!open || !post || !editorRenderSpec) {
       setEditorPreviewUrl("");
       setEditorPreviewLoading(false);
       return;
@@ -1347,12 +1334,9 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
           setEditorPreviewUrl(dataUrl);
           setEditorPreviewLoading(false);
         }
-      } catch {
-        // Fallback silencieux : le modal affichera preview_image/mediaUrl si disponible.
-        // Ne pas polluer la console PROD avec une erreur non bloquante.
+      } catch (error) {
         if (!cancelled) {
-          setEditorPreviewUrl("");
-          setEditorPreviewLoading(false);
+          console.error("LGD planner faithful preview error:", error);
         }
       }
     };
@@ -1376,7 +1360,7 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
       window.clearTimeout(t2);
       window.clearTimeout(t3);
     };
-  }, [open, post?.id, editorRenderSpec, exactPreviewImage]);
+  }, [open, post?.id, editorRenderSpec]);
 
   if (!open || !post) return null;
 
