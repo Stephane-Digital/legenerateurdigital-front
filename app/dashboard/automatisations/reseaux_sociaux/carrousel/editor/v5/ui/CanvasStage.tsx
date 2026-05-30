@@ -11,6 +11,9 @@ const HANDLE_SIZE = 10;
 const RESIZE_HIT = 12;
 const BACKGROUND_LAYER_ID = "background-post";
 
+type ResizeHandle = "tl" | "tr" | "bl" | "br" | "l" | "r" | "t" | "b";
+const RESIZE_HANDLES = ["tl", "tr", "bl", "br", "l", "r", "t", "b"] as const;
+
 type DragState = {
   id: string;
   startX: number;
@@ -22,7 +25,7 @@ type DragState = {
 type ResizeImageState = {
   kind: "image";
   id: string;
-  corner: "tl" | "tr" | "bl" | "br";
+  corner: ResizeHandle;
   startX: number;
   startY: number;
   origX: number;
@@ -34,9 +37,11 @@ type ResizeImageState = {
 type ResizeTextState = {
   kind: "text";
   id: string;
-  corner: "tl" | "tr" | "bl" | "br";
+  corner: ResizeHandle;
   startX: number;
   startY: number;
+  origX: number;
+  origY: number;
   origW: number;
   origH: number;
   origFontSize: number;
@@ -83,15 +88,46 @@ function mergeStyle(a: any, b: any) {
   return { ...A, ...B };
 }
 
-function cornerCursor(corner: "tl" | "tr" | "bl" | "br") {
+function cornerCursor(corner: ResizeHandle) {
+  if (corner === "l" || corner === "r") return "ew-resize";
+  if (corner === "t" || corner === "b") return "ns-resize";
   if (corner === "tl" || corner === "br") return "nwse-resize";
   return "nesw-resize";
 }
 
-function getTouchDistance(touches: React.TouchList | TouchList) {
+function handlePositionStyle(corner: ResizeHandle): React.CSSProperties {
+  const size = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches ? 18 : HANDLE_SIZE;
+  const offset = -(size / 2);
+
+  return {
+    width: size,
+    height: size,
+    cursor: cornerCursor(corner),
+    left: corner.includes("l") ? offset : corner === "t" || corner === "b" ? "50%" : undefined,
+    right: corner.includes("r") ? offset : undefined,
+    top: corner.includes("t") ? offset : corner === "l" || corner === "r" ? "50%" : undefined,
+    bottom: corner.includes("b") ? offset : undefined,
+    transform:
+      corner === "t" || corner === "b"
+        ? "translateX(-50%)"
+        : corner === "l" || corner === "r"
+          ? "translateY(-50%)"
+          : undefined,
+    touchAction: "none",
+    userSelect: "none",
+  };
+}
+
+type LGDTouchList = {
+  length: number;
+  [index: number]: { clientX: number; clientY: number } | undefined;
+};
+
+function getTouchDistance(touches: LGDTouchList) {
   if (!touches || touches.length < 2) return 0;
   const a = touches[0];
   const b = touches[1];
+  if (!a || !b) return 0;
   return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
 }
 
@@ -379,7 +415,7 @@ export default function CanvasStage({
     [format.w, format.h, orderedLayers]
   );
 
-  const getTextCornerHit = (layer: any, localX: number, localY: number) => {
+  const getTextCornerHit = (layer: any, localX: number, localY: number): ResizeHandle | null => {
     const x = layer.x ?? 0;
     const y = layer.y ?? 0;
     const w = typeof layer.width === "number" ? layer.width : 420;
@@ -387,17 +423,25 @@ export default function CanvasStage({
 
     const rx = localX - x;
     const ry = localY - y;
-    if (rx < 0 || ry < 0 || rx > w || ry > h) return null;
+    const isCoarsePointer =
+      typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
+    const hit = isCoarsePointer ? 34 : RESIZE_HIT;
 
-    const left = rx <= RESIZE_HIT;
-    const right = rx >= w - RESIZE_HIT;
-    const top = ry <= RESIZE_HIT;
-    const bottom = ry >= h - RESIZE_HIT;
+    if (rx < -hit || ry < -hit || rx > w + hit || ry > h + hit) return null;
 
-    if (left && top) return "tl" as const;
-    if (right && top) return "tr" as const;
-    if (left && bottom) return "bl" as const;
-    if (right && bottom) return "br" as const;
+    const left = Math.abs(rx) <= hit;
+    const right = Math.abs(rx - w) <= hit;
+    const top = Math.abs(ry) <= hit;
+    const bottom = Math.abs(ry - h) <= hit;
+
+    if (left && top) return "tl";
+    if (right && top) return "tr";
+    if (left && bottom) return "bl";
+    if (right && bottom) return "br";
+    if (left && ry >= 0 && ry <= h) return "l";
+    if (right && ry >= 0 && ry <= h) return "r";
+    if (top && rx >= 0 && rx <= w) return "t";
+    if (bottom && rx >= 0 && rx <= w) return "b";
     return null;
   };
 
@@ -522,6 +566,8 @@ export default function CanvasStage({
           corner,
           startX: p.x,
           startY: p.y,
+          origX: (layer as any).x ?? 0,
+          origY: (layer as any).y ?? 0,
           origW: baseW,
           origH: baseH,
           origFontSize: fontSize,
@@ -542,7 +588,7 @@ export default function CanvasStage({
   const onMouseDownResizeImage = (
     e: React.MouseEvent,
     layer: any,
-    corner: "tl" | "tr" | "bl" | "br"
+    corner: ResizeHandle
   ) => {
     if (editingTextId) return;
 
@@ -571,7 +617,7 @@ export default function CanvasStage({
   const onMouseDownResizeText = (
     e: React.MouseEvent,
     layer: any,
-    corner: "tl" | "tr" | "bl" | "br"
+    corner: ResizeHandle
   ) => {
     if (editingTextId) return;
 
@@ -596,6 +642,8 @@ export default function CanvasStage({
       corner,
       startX: p.x,
       startY: p.y,
+      origX: layer.x ?? 0,
+      origY: layer.y ?? 0,
       origW: baseW,
       origH: baseH,
       origFontSize: fontSize,
@@ -677,6 +725,8 @@ export default function CanvasStage({
           corner,
           startX: p.x,
           startY: p.y,
+          origX: (layer as any).x ?? 0,
+          origY: (layer as any).y ?? 0,
           origW: typeof (layer as any).width === "number" ? (layer as any).width : 420,
           origH: typeof (layer as any).height === "number" ? (layer as any).height : 120,
           origFontSize: fontSize,
@@ -698,7 +748,7 @@ export default function CanvasStage({
   const onTouchStartResizeImage = (
     e: React.TouchEvent,
     layer: any,
-    corner: "tl" | "tr" | "bl" | "br"
+    corner: ResizeHandle
   ) => {
     if (editingTextId) return;
 
@@ -735,7 +785,7 @@ export default function CanvasStage({
   const onTouchStartResizeText = (
     e: React.TouchEvent,
     layer: any,
-    corner: "tl" | "tr" | "bl" | "br"
+    corner: ResizeHandle
   ) => {
     if (editingTextId) return;
 
@@ -765,6 +815,8 @@ export default function CanvasStage({
       corner,
       startX: p.x,
       startY: p.y,
+      origX: layer.x ?? 0,
+      origY: layer.y ?? 0,
       origW: typeof layer.width === "number" ? layer.width : 420,
       origH: typeof layer.height === "number" ? layer.height : 120,
       origFontSize: fontSize,
@@ -806,6 +858,8 @@ export default function CanvasStage({
         const dx = p.x - resize.startX;
         const dy = p.y - resize.startY;
 
+        let newX = resize.origX;
+        let newY = resize.origY;
         let newW = resize.origW;
         let newH = resize.origH;
 
@@ -814,15 +868,19 @@ export default function CanvasStage({
         }
         if (resize.corner.includes("l")) {
           newW = clamp(resize.origW - dx, 50, format.w * 2);
+          newX = resize.origX + dx;
         }
         if (resize.corner.includes("b")) {
           newH = clamp(resize.origH + dy, 30, format.h * 2);
         }
         if (resize.corner.includes("t")) {
           newH = clamp(resize.origH - dy, 30, format.h * 2);
+          newY = resize.origY + dy;
         }
 
         updateLayer(resize.id, {
+          x: newX,
+          y: newY,
           width: newW,
           height: newH,
         } as any);
@@ -1380,22 +1438,13 @@ export default function CanvasStage({
                   />
 
                   {isSelected &&
-                    (["tl", "tr", "bl", "br"] as const).map((corner) => (
+                    RESIZE_HANDLES.map((corner) => (
                       <div
                         key={corner}
                         onMouseDown={(e) => onMouseDownResizeImage(e, layer, corner)}
                         onTouchStart={(e) => onTouchStartResizeImage(e, layer, corner)}
                         className="absolute bg-[#ffb800] rounded-full"
-                        style={{
-                          width: HANDLE_SIZE,
-                          height: HANDLE_SIZE,
-                          cursor: cornerCursor(corner),
-                          left: corner.includes("l") ? -5 : undefined,
-                          right: corner.includes("r") ? -5 : undefined,
-                          top: corner.includes("t") ? -5 : undefined,
-                          bottom: corner.includes("b") ? -5 : undefined,
-                          touchAction: "none",
-                        }}
+                        style={handlePositionStyle(corner)}
                       />
                     ))}
                 </div>
@@ -1635,22 +1684,15 @@ export default function CanvasStage({
 
                   {isSelected &&
                     !isEditing &&
-                    (["tl", "tr", "bl", "br"] as const).map((corner) => (
+                    RESIZE_HANDLES.map((corner) => (
                       <div
                         key={corner}
                         onMouseDown={(e) => onMouseDownResizeText(e, layer, corner)}
                         onTouchStart={(e) => onTouchStartResizeText(e, layer, corner)}
                         className="absolute bg-[#ffb800] rounded-full"
                         style={{
-                          width: HANDLE_SIZE,
-                          height: HANDLE_SIZE,
-                          cursor: cornerCursor(corner),
-                          left: corner.includes("l") ? -5 : undefined,
-                          right: corner.includes("r") ? -5 : undefined,
-                          top: corner.includes("t") ? -5 : undefined,
-                          bottom: corner.includes("b") ? -5 : undefined,
+                          ...handlePositionStyle(corner),
                           boxShadow: "0 0 0 2px rgba(0,0,0,0.45)",
-                          touchAction: "none",
                         }}
                       />
                     ))}
