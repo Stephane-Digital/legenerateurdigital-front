@@ -358,8 +358,26 @@ export default function PropertiesDrawer({ open, layer, onClose, onChange }: Pro
               <label className="block text-yellow-400 text-xs mb-2">Taille (px)</label>
               <input
                 type="number"
-                value={typeof style.fontSize === "number" ? style.fontSize : 48}
-                onChange={(e) => setStyle({ fontSize: clamp(Number(e.target.value || 0), 10, 400) })}
+                min={0}
+                max={400}
+                step={1}
+                value={typeof style.fontSize === "number" ? style.fontSize : ""}
+                onChange={(e) => {
+                  const rawValue = e.target.value;
+
+                  if (rawValue === "") {
+                    setStyle({ fontSize: 0 });
+                    return;
+                  }
+
+                  const nextFontSize = clamp(Number(rawValue), 0, 400);
+                  setStyle({ fontSize: nextFontSize });
+                }}
+                onBlur={(e) => {
+                  if (e.currentTarget.value === "") {
+                    setStyle({ fontSize: 0 });
+                  }
+                }}
                 className="w-full rounded-xl bg-black/40 border border-yellow-500/20 px-3 py-2 text-yellow-100"
               />
             </div>
