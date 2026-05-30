@@ -356,141 +356,6 @@ function extractPreviewCanvas(post: any, parsed: any): PreviewCanvas | null {
   return null;
 }
 
-
-function findAnyPreviewCanvasDeep(post: any, parsed: any): PreviewCanvas | null {
-  const roots = [parsed, post, parsed?.contenu, parsed?.content, parsed?.payload, parsed?.draft, post?.contenu, post?.content].filter(Boolean);
-  const seen = new Set<any>();
-
-  const visit = (node: any): PreviewCanvas | null => {
-    if (!node || typeof node !== "object" || seen.has(node)) return null;
-    seen.add(node);
-
-    const layerSources = [
-      { source: "deep.layers", layers: extractLayers(node?.layers) },
-      { source: "deep.elements", layers: extractLayers(node?.elements) },
-      { source: "deep.objects", layers: extractLayers(node?.objects) },
-      { source: "deep.json_layers", layers: extractLayers(node?.json_layers) },
-    ];
-
-    for (const item of layerSources) {
-      if (!item.layers.length) continue;
-      const layers = item.layers.map(normalizeLayer).filter(Boolean) as PreviewLayer[];
-      if (!layers.length) continue;
-      const size = inferCanvasSize(layers, node, post);
-      return { width: size.width, height: size.height, layers, source: item.source };
-    }
-
-    const slides = extractSlides(node?.slides);
-    for (let index = 0; index < slides.length; index += 1) {
-      const slide = slides[index];
-      const found = visit(slide);
-      if (found) return { ...found, source: `deep.slides[${index}].${found.source}` };
-    }
-
-    for (const value of Object.values(node)) {
-      if (!value || typeof value !== "object") continue;
-      const found = visit(value);
-      if (found) return found;
-    }
-
-    return null;
-  };
-
-  for (const root of roots) {
-    const found = visit(root);
-    if (found) return found;
-  }
-
-  return null;
-}
-
-function buildTextOnlyPlannerCanvas(post: any, parsed: any): PreviewCanvas | null {
-  const title = extractTitle(post, parsed);
-  const caption = extractCaption(post, parsed);
-  const text = firstNonEmptyString(caption, title);
-  if (!text) return null;
-
-  const safeTitle = title || "Publication LGD";
-  const safeText = text.length > 520 ? `${text.slice(0, 520).trim()}…` : text;
-
-  return {
-    width: 1080,
-    height: 1350,
-    source: "planner-fallback-text",
-    layers: [
-      {
-        id: "fallback-background",
-        type: "background",
-        x: 0,
-        y: 0,
-        width: 1080,
-        height: 1350,
-        visible: true,
-        zIndex: 0,
-        style: {
-          background: "linear-gradient(135deg, #080808 0%, #17120a 45%, #0b0b0b 100%)",
-          color: "#0b0b0b",
-        },
-      },
-      {
-        id: "fallback-title",
-        type: "text",
-        x: 82,
-        y: 90,
-        width: 860,
-        height: 150,
-        text: safeTitle,
-        visible: true,
-        zIndex: 2,
-        style: {
-          fontSize: 58,
-          fontFamily: "Inter",
-          color: "#ffb800",
-          fontWeight: 900,
-          align: "left",
-        },
-      },
-      {
-        id: "fallback-caption",
-        type: "text",
-        x: 82,
-        y: 285,
-        width: 850,
-        height: 620,
-        text: safeText,
-        visible: true,
-        zIndex: 3,
-        style: {
-          fontSize: 38,
-          fontFamily: "Inter",
-          color: "#ffffff",
-          fontWeight: 600,
-          align: "left",
-        },
-      },
-      {
-        id: "fallback-badge",
-        type: "text",
-        x: 82,
-        y: 1160,
-        width: 520,
-        height: 80,
-        text: "Planifié avec LGD",
-        visible: true,
-        zIndex: 4,
-        style: {
-          fontSize: 30,
-          fontFamily: "Inter",
-          color: "#111111",
-          fontWeight: 900,
-          align: "center",
-          background: "#ffb800",
-        },
-      },
-    ],
-  };
-}
-
 function inferEditorRenderSpec(post: any, parsed: any): EditorRenderSpec | null {
   const roots = unwrapEditorPayloads(parsed);
 
@@ -1475,18 +1340,11 @@ export default function AssistedPublishModal({
     () => extractPreviewCanvas(post, parsed),
     [post, parsed],
   );
-  const plannerFallbackCanvas = useMemo(
-    () =>
-      previewCanvas ||
-      findAnyPreviewCanvasDeep(post, parsed) ||
-      buildTextOnlyPlannerCanvas(post, parsed),
-    [post, parsed, previewCanvas],
-  );
   const preferStructuredPreview = useMemo(() => {
-    if (!plannerFallbackCanvas?.width || !plannerFallbackCanvas?.height) return false;
-    const ratio = plannerFallbackCanvas.width / plannerFallbackCanvas.height;
+    if (!previewCanvas?.width || !previewCanvas?.height) return false;
+    const ratio = previewCanvas.width / previewCanvas.height;
     return ratio < 0.78 || ratio > 1.28;
-  }, [plannerFallbackCanvas]);
+  }, [previewCanvas]);
   const network = useMemo(
     () =>
       String(
@@ -1640,9 +1498,9 @@ export default function AssistedPublishModal({
     try {
       setExporting(format);
 
-      if (preferStructuredPreview && plannerFallbackCanvas) {
+      if (preferStructuredPreview && previewCanvas) {
         await exportPreviewCanvasImage({
-          canvas: plannerFallbackCanvas,
+          canvas: previewCanvas,
           title: title || "publication-lgd",
           format,
         });
@@ -1676,9 +1534,9 @@ export default function AssistedPublishModal({
         return;
       }
 
-      if (plannerFallbackCanvas) {
+      if (previewCanvas) {
         await exportPreviewCanvasImage({
-          canvas: plannerFallbackCanvas,
+          canvas: previewCanvas,
           title: title || "publication-lgd",
           format,
         });
@@ -2099,7 +1957,7 @@ export default function AssistedPublishModal({
                     disabled={
                       (!exactPreviewImage &&
                         !editorPreviewUrl &&
-                        !plannerFallbackCanvas &&
+                        !previewCanvas &&
                         !mediaUrl) ||
                       !!exporting ||
                       editorPreviewLoading
@@ -2116,7 +1974,7 @@ export default function AssistedPublishModal({
                     disabled={
                       (!exactPreviewImage &&
                         !editorPreviewUrl &&
-                        !plannerFallbackCanvas &&
+                        !previewCanvas &&
                         !mediaUrl) ||
                       !!exporting ||
                       editorPreviewLoading
@@ -2130,14 +1988,14 @@ export default function AssistedPublishModal({
               </div>
 
               <div className="mt-4 space-y-4 rounded-2xl border border-dashed border-white/10 bg-black/20 p-4 text-sm text-white/70">
-                {preferStructuredPreview && plannerFallbackCanvas ? (
+                {preferStructuredPreview && previewCanvas ? (
                   <div>
                     <div className="mb-3 flex items-center gap-2 text-sm text-yellow-200">
                       <ImageIcon className="h-4 w-4 text-yellow-400" />
                       Aperçu reconstruit depuis les données exactes reçues par
                       le Planner.
                     </div>
-                    <PreviewCanvasView canvas={plannerFallbackCanvas} />
+                    <PreviewCanvasView canvas={previewCanvas} />
                   </div>
                 ) : exactPreviewImage ? (
                   <div className="rounded-2xl border border-yellow-500/20 bg-black/30 p-3">
@@ -2166,8 +2024,8 @@ export default function AssistedPublishModal({
                       alt="aperçu fidèle"
                     />
                   </div>
-                ) : plannerFallbackCanvas ? (
-                  <PreviewCanvasView canvas={plannerFallbackCanvas} />
+                ) : previewCanvas ? (
+                  <PreviewCanvasView canvas={previewCanvas} />
                 ) : mediaUrl ? (
                   <div className="space-y-3">
                     <div className="flex items-center gap-2 text-white/85">
@@ -2184,7 +2042,7 @@ export default function AssistedPublishModal({
                 )}
 
                 {!exactPreviewImage &&
-                  !plannerFallbackCanvas &&
+                  !previewCanvas &&
                   mediaUrls.length > 1 && (
                     <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-3">
                       <p className="mb-2 text-xs uppercase tracking-[0.18em] text-yellow-300/80">
