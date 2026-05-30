@@ -9,6 +9,26 @@ import MobilePlannerView from "./mobile/MobilePlannerView";
 
 type ViewMode = "month" | "week" | "day";
 
+function useIsMobilePlanner() {
+  const [isMobile, setIsMobile] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const query = window.matchMedia("(max-width: 639px)");
+    const update = () => setIsMobile(query.matches);
+
+    update();
+    query.addEventListener("change", update);
+
+    return () => {
+      query.removeEventListener("change", update);
+    };
+  }, []);
+
+  return isMobile;
+}
+
 function safeParseDay(day: string | null): Date | null {
   if (!day) return null;
   const m = day.match(/^\d{4}-\d{2}-\d{2}$/);
@@ -48,8 +68,8 @@ function sameMonth(a: Date, b: Date) {
 
 function startOfWeek(base: Date) {
   const d = new Date(base.getFullYear(), base.getMonth(), base.getDate(), 12);
-  const jsDay = d.getDay(); // 0=dimanche
-  const diff = jsDay === 0 ? -6 : 1 - jsDay; // semaine FR lundi -> dimanche
+  const jsDay = d.getDay();
+  const diff = jsDay === 0 ? -6 : 1 - jsDay;
   d.setDate(d.getDate() + diff);
   return d;
 }
@@ -70,47 +90,31 @@ function isWithinWeek(target: Date, weekBase: Date) {
 export default function PlannerPage() {
   return (
     <Suspense fallback={<div className="min-h-screen" />}>
-      <PlannerPageInner />
+      <PlannerRouteSwitch />
     </Suspense>
   );
 }
 
-function PlannerPageInner() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
+function PlannerRouteSwitch() {
+  const isMobile = useIsMobilePlanner();
 
-  const [mobileReady, setMobileReady] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-  const [currentDate, setCurrentDate] = useState<Date>(() => new Date());
-  const [view, setView] = useState<ViewMode>("week");
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const mq = window.matchMedia("(max-width: 639px)");
-    const sync = () => {
-      setIsMobile(mq.matches);
-      setMobileReady(true);
-    };
-
-    sync();
-
-    if (typeof mq.addEventListener === "function") {
-      mq.addEventListener("change", sync);
-      return () => mq.removeEventListener("change", sync);
-    }
-
-    mq.addListener(sync);
-    return () => mq.removeListener(sync);
-  }, []);
-
-  if (!mobileReady) {
+  if (isMobile === null) {
     return <div className="min-h-screen w-full bg-[#050505]" />;
   }
 
   if (isMobile) {
     return <MobilePlannerView />;
   }
+
+  return <PlannerDesktopView />;
+}
+
+function PlannerDesktopView() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const [currentDate, setCurrentDate] = useState<Date>(() => new Date());
+  const [view, setView] = useState<ViewMode>("week");
 
   useEffect(() => {
     const qDay = safeParseDay(searchParams.get("day"));
@@ -177,7 +181,6 @@ function PlannerPageInner() {
   return (
     <div className="min-h-screen w-full text-white px-4 md:px-8 pb-24 pt-0">
       <div className="max-w-6xl mx-auto mt-[120px]">
-        {/* ====== RETOURS ====== */}
         <div className="mb-6 flex flex-col gap-2">
           {view === "day" && (
             <button
@@ -205,23 +208,18 @@ function PlannerPageInner() {
           <span className="text-yellow-400 capitalize">{titleMonthLabel}</span>
         </h1>
 
-        {/* Espacement validé */}
         <div className="mt-[72px]">
-          {/* ====== SWITCH + FLÈCHES (FIX) ====== */}
           <div className="flex flex-col items-center gap-4 mb-6">
             <div className="flex items-center gap-3">
-              {/* Flèche gauche */}
               <button
                 onClick={handlePrev}
-                className="h-9 w-9 rounded-full bg-black/60 border border-[#252525] grid place-items-center
-                           text-yellow-300 hover:text-yellow-200 hover:border-yellow-500/40 transition"
+                className="h-9 w-9 rounded-full bg-black/60 border border-[#252525] grid place-items-center text-yellow-300 hover:text-yellow-200 hover:border-yellow-500/40 transition"
                 aria-label="Précédent"
                 title="Précédent"
               >
                 ‹
               </button>
 
-              {/* Toggle */}
               <div className="inline-flex rounded-full bg-black/60 border border-[#252525] p-1 shadow-lg shadow-black/50">
                 <button
                   onClick={() => setView("month")}
@@ -255,11 +253,9 @@ function PlannerPageInner() {
                 </button>
               </div>
 
-              {/* Flèche droite */}
               <button
                 onClick={handleNext}
-                className="h-9 w-9 rounded-full bg-black/60 border border-[#252525] grid place-items-center
-                           text-yellow-300 hover:text-yellow-200 hover:border-yellow-500/40 transition"
+                className="h-9 w-9 rounded-full bg-black/60 border border-[#252525] grid place-items-center text-yellow-300 hover:text-yellow-200 hover:border-yellow-500/40 transition"
                 aria-label="Suivant"
                 title="Suivant"
               >
@@ -282,4 +278,3 @@ function PlannerPageInner() {
     </div>
   );
 }
-
