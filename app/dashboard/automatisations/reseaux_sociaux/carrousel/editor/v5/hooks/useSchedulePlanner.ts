@@ -83,37 +83,90 @@ function extractTextFromLayer(layer: any) {
   return trimString(layer.text ?? layer.value ?? layer.content ?? "", 800);
 }
 
+function serializableStyle(style: any) {
+  if (!style || typeof style !== "object") return undefined;
+
+  const out: Record<string, any> = {};
+  for (const [key, value] of Object.entries(style)) {
+    if (
+      typeof value === "string" ||
+      typeof value === "number" ||
+      typeof value === "boolean" ||
+      value === null
+    ) {
+      out[key] = value;
+    }
+  }
+
+  return Object.keys(out).length ? out : undefined;
+}
+
+function numberOrUndefined(value: unknown) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : undefined;
+}
+
 function compactLayer(layer: any) {
   if (!layer || typeof layer !== "object") return null;
 
   const type = String(layer.type || "").toLowerCase();
+  const base = {
+    id: String(layer.id || `${type || "layer"}-${Date.now()}`),
+    type: type || "layer",
+    x: numberOrUndefined(layer.x),
+    y: numberOrUndefined(layer.y),
+    width: numberOrUndefined(layer.width),
+    height: numberOrUndefined(layer.height),
+    zIndex: numberOrUndefined(layer.zIndex),
+    visible: layer.visible !== false,
+    style: serializableStyle(layer.style),
+  };
 
   if (type === "text") {
     const text = extractTextFromLayer(layer);
     if (!text) return null;
 
     return {
-      id: String(layer.id || `text-${Date.now()}`),
+      ...base,
       type: "text",
       text,
+      html: typeof layer.html === "string" ? trimString(layer.html, 2200) : undefined,
     };
   }
 
   if (type === "image") {
     const src = layer.src || layer.url || layer.image_url || layer.imageUrl || "";
     return {
-      id: String(layer.id || `image-${Date.now()}`),
+      ...base,
       type: "image",
       has_image: !!src,
-      // Ne jamais envoyer de base64/canvas complet au Planner.
-      image_url: isHugeDataUrl(src) ? undefined : src || undefined,
+      // IMPORTANT LGD — Planner mobile/desktop :
+      // on conserve l'image du layer courant, même en data:image,
+      // sinon le Planner ne peut pas reconstruire le vrai visuel
+      // et retombe sur une ancienne preview persistée.
+      src: src || undefined,
+      image_url: src || undefined,
     };
   }
 
-  return {
-    id: String(layer.id || `${type || "layer"}-${Date.now()}`),
-    type: type || "layer",
-  };
+  if (type === "background") {
+    return {
+      ...base,
+      type: "background",
+    };
+  }
+
+  return base;
+}
+
+function hasRenderableLayers(layers: any[]) {
+  return Array.isArray(layers) && layers.some((layer) => {
+    if (!layer || typeof layer !== "object") return false;
+    if (layer.type === "text" && String(layer.text || "").trim()) return true;
+    if (layer.type === "image" && (layer.src || layer.image_url || layer.imageUrl || layer.url)) return true;
+    if (layer.type === "background") return true;
+    return false;
+  });
 }
 
 function compactLayers(layers: any): any[] {
@@ -172,7 +225,12 @@ function compactContentForPlanner(input: any, fallbackTitle?: string, fallbackFo
       2000
     ) || "";
 
-  const previewImage =
+  const currentLayersCanRender = hasRenderableLayers(layers);
+  const currentSlidesCanRender =
+    Array.isArray(slides) &&
+    slides.some((slide: any) => hasRenderableLayers(slide?.layers || []));
+
+  const rawPreviewImage =
     source.planner_preview_image ||
     source.plannerPreviewImage ||
     source.preview_image ||
@@ -181,6 +239,13 @@ function compactContentForPlanner(input: any, fallbackTitle?: string, fallbackFo
     source.renderedImage ||
     "";
 
+  // Anti-bug LGD Planner :
+  // quand on vient de l'éditeur, les layers/slides courants sont la vérité.
+  // Une ancienne preview peut rester en mémoire et afficher toujours le même visuel.
+  // On ne transmet donc l'image finale que s'il n'y a pas de layers/slides exploitables.
+  const previewImage =
+    currentLayersCanRender || currentSlidesCanRender ? "" : rawPreviewImage;
+
   return {
     type: type.includes("carrousel") || type.includes("carousel") ? "carrousel" : "post",
     title,
@@ -188,13 +253,10 @@ function compactContentForPlanner(input: any, fallbackTitle?: string, fallbackFo
     caption,
     text: caption,
     format: fallbackFormat || source.format || type,
-    // Résumé léger pour le Planner.
     layers,
     slides,
-    has_visual: !!previewImage || layers.length > 0 || slides.length > 0,
+    has_visual: !!previewImage || currentLayersCanRender || currentSlidesCanRender,
     source: "editor",
-    // LGD FIX — aperçu fidèle du modal Planner.
-    // On conserve seulement l'image de rendu finale, pas tout le draft brut.
     preview_image: previewImage || undefined,
     planner_preview_image: previewImage || undefined,
     rendered_image: previewImage || undefined,
