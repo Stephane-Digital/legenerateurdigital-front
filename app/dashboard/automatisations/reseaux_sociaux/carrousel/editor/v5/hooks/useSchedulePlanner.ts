@@ -71,92 +71,6 @@ function isHugeDataUrl(value: unknown) {
   return typeof value === "string" && /^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(value);
 }
 
-function looksLikeImageSource(value: unknown) {
-  const v = String(value || "").trim();
-  return (
-    v.startsWith("data:image/") ||
-    v.startsWith("blob:") ||
-    v.startsWith("http://") ||
-    v.startsWith("https://")
-  );
-}
-
-function firstImageSourceFromLayer(layer: any): string {
-  if (!layer || typeof layer !== "object") return "";
-
-  const candidates = [
-    layer.planner_preview_image,
-    layer.plannerPreviewImage,
-    layer.preview_image,
-    layer.previewImage,
-    layer.rendered_image,
-    layer.renderedImage,
-    layer.src,
-    layer.url,
-    layer.image_url,
-    layer.imageUrl,
-    layer.media_url,
-    layer.mediaUrl,
-    layer.preview_url,
-    layer.previewUrl,
-    layer.thumbnail_url,
-    layer.thumbnailUrl,
-    layer.background,
-    layer.background_url,
-    layer.backgroundUrl,
-  ];
-
-  for (const candidate of candidates) {
-    if (typeof candidate === "string" && looksLikeImageSource(candidate)) {
-      return candidate.trim();
-    }
-  }
-
-  return "";
-}
-
-function findPreviewImageDeep(value: any): string {
-  const wantedKeys = new Set([
-    "planner_preview_image",
-    "plannerPreviewImage",
-    "preview_image",
-    "previewImage",
-    "rendered_image",
-    "renderedImage",
-    "exact_preview_image",
-    "exactPreviewImage",
-    "media_url",
-    "mediaUrl",
-    "image_url",
-    "imageUrl",
-    "src",
-  ]);
-
-  const seen = new Set<any>();
-
-  const walk = (node: any): string => {
-    if (!node || typeof node !== "object" || seen.has(node)) return "";
-    seen.add(node);
-
-    const layerCandidate = firstImageSourceFromLayer(node);
-    if (layerCandidate) return layerCandidate;
-
-    for (const [key, raw] of Object.entries(node)) {
-      if (!wantedKeys.has(key)) continue;
-      if (typeof raw === "string" && looksLikeImageSource(raw)) return raw.trim();
-    }
-
-    for (const raw of Object.values(node)) {
-      const found = walk(raw);
-      if (found) return found;
-    }
-
-    return "";
-  };
-
-  return walk(value);
-}
-
 function trimString(value: unknown, max = 1200) {
   const text = String(value ?? "");
   return text.length > max ? `${text.slice(0, max)}…` : text;
@@ -186,17 +100,13 @@ function compactLayer(layer: any) {
   }
 
   if (type === "image") {
-    const src = firstImageSourceFromLayer(layer);
+    const src = layer.src || layer.url || layer.image_url || layer.imageUrl || "";
     return {
       id: String(layer.id || `image-${Date.now()}`),
       type: "image",
       has_image: !!src,
-      // LGD mobile planner fix : conserver une référence exploitable.
-      // Si l'éditeur mobile n'a pas encore généré d'aperçu final, le Planner
-      // peut au moins détecter et afficher l'image runtime/importée.
-      image_url: src || undefined,
-      src: src || undefined,
-      preview_image: src || undefined,
+      // Ne jamais envoyer de base64/canvas complet au Planner.
+      image_url: isHugeDataUrl(src) ? undefined : src || undefined,
     };
   }
 
@@ -241,14 +151,10 @@ function compactContentForPlanner(input: any, fallbackTitle?: string, fallbackFo
   const slides = Array.isArray(rawSlides)
     ? rawSlides.slice(0, 20).map((slide: any, index: number) => {
         const slideLayers = compactLayers(slide?.layers || slide?.elements || []);
-        const slidePreview = findPreviewImageDeep(slide) || findPreviewImageDeep(slideLayers);
         return {
           id: String(slide?.id || `slide-${index + 1}`),
           layers: slideLayers,
           caption: extractCaptionFromLayers(slideLayers),
-          preview_image: slidePreview || undefined,
-          planner_preview_image: slidePreview || undefined,
-          rendered_image: slidePreview || undefined,
         };
       })
     : [];
@@ -273,9 +179,6 @@ function compactContentForPlanner(input: any, fallbackTitle?: string, fallbackFo
     source.previewImage ||
     source.rendered_image ||
     source.renderedImage ||
-    findPreviewImageDeep(source) ||
-    findPreviewImageDeep(rawLayers) ||
-    findPreviewImageDeep(rawSlides) ||
     "";
 
   return {
