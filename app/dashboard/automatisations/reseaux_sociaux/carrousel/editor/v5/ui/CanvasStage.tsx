@@ -88,7 +88,7 @@ function cornerCursor(corner: "tl" | "tr" | "bl" | "br") {
   return "nesw-resize";
 }
 
-function getTouchDistance(touches: TouchList) {
+function getTouchDistance(touches: React.TouchList | TouchList) {
   if (!touches || touches.length < 2) return 0;
   const a = touches[0];
   const b = touches[1];
