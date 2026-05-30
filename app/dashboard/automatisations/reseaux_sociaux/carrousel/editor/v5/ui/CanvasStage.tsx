@@ -118,6 +118,47 @@ function handlePositionStyle(corner: ResizeHandle): React.CSSProperties {
   };
 }
 
+function handleHitboxStyle(corner: ResizeHandle): React.CSSProperties {
+  const isCoarse = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
+  const size = isCoarse ? 46 : Math.max(18, HANDLE_SIZE + 8);
+  const offset = -(size / 2);
+
+  return {
+    width: size,
+    height: size,
+    cursor: cornerCursor(corner),
+    left: corner.includes("l") ? offset : corner === "t" || corner === "b" ? "50%" : undefined,
+    right: corner.includes("r") ? offset : undefined,
+    top: corner.includes("t") ? offset : corner === "l" || corner === "r" ? "50%" : undefined,
+    bottom: corner.includes("b") ? offset : undefined,
+    transform:
+      corner === "t" || corner === "b"
+        ? "translateX(-50%)"
+        : corner === "l" || corner === "r"
+          ? "translateY(-50%)"
+          : undefined,
+    touchAction: "none",
+    userSelect: "none",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: "transparent",
+  };
+}
+
+function handleDotStyle(): React.CSSProperties {
+  const isCoarse = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
+  const size = isCoarse ? 13 : HANDLE_SIZE;
+
+  return {
+    width: size,
+    height: size,
+    borderRadius: 9999,
+    background: "#ffb800",
+    pointerEvents: "none",
+  };
+}
+
 type LGDTouchList = {
   length: number;
   [index: number]: { clientX: number; clientY: number } | undefined;
@@ -1443,9 +1484,11 @@ export default function CanvasStage({
                         key={corner}
                         onMouseDown={(e) => onMouseDownResizeImage(e, layer, corner)}
                         onTouchStart={(e) => onTouchStartResizeImage(e, layer, corner)}
-                        className="absolute bg-[#ffb800] rounded-full"
-                        style={handlePositionStyle(corner)}
-                      />
+                        className="absolute"
+                        style={handleHitboxStyle(corner)}
+                      >
+                        <span style={handleDotStyle()} />
+                      </div>
                     ))}
                 </div>
               );
@@ -1689,12 +1732,16 @@ export default function CanvasStage({
                         key={corner}
                         onMouseDown={(e) => onMouseDownResizeText(e, layer, corner)}
                         onTouchStart={(e) => onTouchStartResizeText(e, layer, corner)}
-                        className="absolute bg-[#ffb800] rounded-full"
-                        style={{
-                          ...handlePositionStyle(corner),
-                          boxShadow: "0 0 0 2px rgba(0,0,0,0.45)",
-                        }}
-                      />
+                        className="absolute"
+                        style={handleHitboxStyle(corner)}
+                      >
+                        <span
+                          style={{
+                            ...handleDotStyle(),
+                            boxShadow: "0 0 0 2px rgba(0,0,0,0.45)",
+                          }}
+                        />
+                      </div>
                     ))}
                 </div>
               );
