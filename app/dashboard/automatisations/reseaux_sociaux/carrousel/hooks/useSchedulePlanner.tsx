@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { renderEditorCreationToDataUrl } from "../editor/utils/downloadEditorCreation";
 
 type Network = "instagram" | "facebook" | "linkedin" | string;
 
@@ -105,8 +106,10 @@ function compactLayer(layer: any) {
       id: String(layer.id || `image-${Date.now()}`),
       type: "image",
       has_image: !!src,
-      // Ne jamais envoyer de base64/canvas complet au Planner.
-      image_url: isHugeDataUrl(src) ? undefined : src || undefined,
+      // LGD MOBILE SAFE — on garde l’image courante de layer uniquement comme fallback léger
+      // si aucune preview fraîche n’a pu être rendue.
+      image_url: src || undefined,
+      src: src || undefined,
     };
   }
 
@@ -131,7 +134,68 @@ function extractCaptionFromLayers(layers: any[]) {
   return trimString(text, 1800);
 }
 
-function compactContentForPlanner(input: any, fallbackTitle?: string, fallbackFormat?: string) {
+
+async function renderFreshPlannerPreview(input: any, isCarrousel: boolean): Promise<string> {
+  if (typeof window === "undefined") return "";
+
+  const source = input && typeof input === "object" ? input : {};
+  const rawLayers =
+    source.layers ||
+    source.canvas?.layers ||
+    source.draft?.layers ||
+    source.payload?.layers ||
+    [];
+
+  const rawSlides =
+    source.slides ||
+    source.canvas?.slides ||
+    source.draft?.slides ||
+    source.payload?.slides ||
+    [];
+
+  try {
+    if (isCarrousel && Array.isArray(rawSlides) && rawSlides.length > 0) {
+      const normalizedSlides = rawSlides.map((slide: any, index: number) => ({
+        id: String(slide?.id || `slide-${index + 1}`),
+        ui: slide?.ui || source.ui || source.canvas?.ui || source.draft?.ui,
+        layers: Array.isArray(slide?.layers)
+          ? slide.layers
+          : Array.isArray(slide?.elements)
+            ? slide.elements
+            : [],
+      }));
+
+      const dataUrl = await renderEditorCreationToDataUrl({
+        mode: "carrousel",
+        draft: {
+          ui: source.ui || source.canvas?.ui || source.draft?.ui,
+          slides: normalizedSlides,
+        },
+        slideIndex: 0,
+      });
+
+      return typeof dataUrl === "string" && dataUrl.startsWith("data:image/") ? dataUrl : "";
+    }
+
+    if (Array.isArray(rawLayers) && rawLayers.length > 0) {
+      const dataUrl = await renderEditorCreationToDataUrl({
+        mode: "post",
+        draft: {
+          ui: source.ui || source.canvas?.ui || source.draft?.ui,
+          layers: rawLayers,
+        },
+      });
+
+      return typeof dataUrl === "string" && dataUrl.startsWith("data:image/") ? dataUrl : "";
+    }
+  } catch (error) {
+    console.warn("LGD Planner fresh preview render skipped:", error);
+  }
+
+  return "";
+}
+
+async function compactContentForPlanner(input: any, fallbackTitle?: string, fallbackFormat?: string, freshPreviewImage = "") {
   const source = input && typeof input === "object" ? input : {};
   const rawLayers =
     source.layers ||
@@ -172,14 +236,20 @@ function compactContentForPlanner(input: any, fallbackTitle?: string, fallbackFo
       2000
     ) || "";
 
-  const previewImage =
-    source.planner_preview_image ||
-    source.plannerPreviewImage ||
-    source.preview_image ||
-    source.previewImage ||
-    source.rendered_image ||
-    source.renderedImage ||
-    "";
+  const hasCurrentEditorStructure = layers.length > 0 || slides.length > 0;
+
+  // LGD FIX — la vérité doit être le rendu frais du canvas actuel.
+  // Si des layers/slides existent, on interdit de recycler une ancienne preview persistée.
+  const previewImage = freshPreviewImage ||
+    (!hasCurrentEditorStructure
+      ? source.planner_preview_image ||
+        source.plannerPreviewImage ||
+        source.preview_image ||
+        source.previewImage ||
+        source.rendered_image ||
+        source.renderedImage ||
+        ""
+      : "");
 
   return {
     type: type.includes("carrousel") || type.includes("carousel") ? "carrousel" : "post",
@@ -233,10 +303,13 @@ export function useSchedulePlanner() {
       const isCarrousel = looksLikeCarrousel(payload);
       const endpoint = isCarrousel ? "/planner/schedule-carrousel" : "/planner/schedule-post";
 
-      const compactContent = compactContentForPlanner(
+      const freshPreviewImage = await renderFreshPlannerPreview(payload.contenu, isCarrousel);
+
+      const compactContent = await compactContentForPlanner(
         payload.contenu,
         payload.titre,
-        isCarrousel ? "carrousel" : payload.format || "post"
+        isCarrousel ? "carrousel" : payload.format || "post",
+        freshPreviewImage
       );
 
       const compactSlides = compactSlidesForPlanner(payload.slides ?? payload.contenu?.slides ?? []);
