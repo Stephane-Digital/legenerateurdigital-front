@@ -1307,7 +1307,17 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
   }, [open]);
 
   useEffect(() => {
-    if (!open || !post || !editorRenderSpec) {
+    // LGD FIX — si une image exacte est déjà enregistrée depuis l’éditeur,
+    // on l’utilise en priorité et on ne tente PAS de reconstruire depuis les layers.
+    // Cela évite le faux rouge console "Aucun layer de post à rendre" tout en
+    // conservant le fallback rendu fidèle pour les anciens posts sans preview.
+    if (!open || !post || exactPreviewImage) {
+      setEditorPreviewUrl("");
+      setEditorPreviewLoading(false);
+      return;
+    }
+
+    if (!editorRenderSpec) {
       setEditorPreviewUrl("");
       setEditorPreviewLoading(false);
       return;
@@ -1334,9 +1344,12 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
           setEditorPreviewUrl(dataUrl);
           setEditorPreviewLoading(false);
         }
-      } catch (error) {
+      } catch {
+        // Fallback silencieux : le modal affichera preview_image/mediaUrl si disponible.
+        // Ne pas polluer la console PROD avec une erreur non bloquante.
         if (!cancelled) {
-          console.error("LGD planner faithful preview error:", error);
+          setEditorPreviewUrl("");
+          setEditorPreviewLoading(false);
         }
       }
     };
@@ -1360,7 +1373,7 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
       window.clearTimeout(t2);
       window.clearTimeout(t3);
     };
-  }, [open, post?.id, editorRenderSpec]);
+  }, [open, post?.id, editorRenderSpec, exactPreviewImage]);
 
   if (!open || !post) return null;
 
