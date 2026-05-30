@@ -5,6 +5,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import DayView from "./components/DayView";
 import MonthView from "./components/MonthView";
 import WeekView from "./components/WeekView";
+import MobilePlannerView from "./mobile/MobilePlannerView";
 
 type ViewMode = "month" | "week" | "day";
 
@@ -144,7 +145,9 @@ function PlannerPageInner() {
   };
 
   return (
-    <div className="min-h-screen w-full text-white px-4 md:px-8 pb-24 pt-0">
+    <>
+      <MobilePlannerView />
+      <div className="hidden min-h-screen w-full text-white px-4 pb-24 pt-0 sm:block md:px-8">
       <div className="max-w-6xl mx-auto mt-[120px]">
         {/* ====== RETOURS ====== */}
         <div className="mb-6 flex flex-col gap-2">
@@ -248,7 +251,7 @@ function PlannerPageInner() {
           {view === "day" && <DayView currentDate={currentDate} />}
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
-
