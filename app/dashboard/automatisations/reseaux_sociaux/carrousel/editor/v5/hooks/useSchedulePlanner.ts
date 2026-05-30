@@ -69,10 +69,14 @@ function looksLikeCarrousel(payload: SchedulePayload): boolean {
   return false;
 }
 
-function isHugeDataUrl(value: unknown) {
+function isImageLike(value: unknown) {
+  const text = String(value || "").trim();
+  if (!text) return false;
   return (
-    typeof value === "string" &&
-    /^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(value)
+    text.startsWith("data:image/") ||
+    text.startsWith("blob:") ||
+    text.startsWith("http://") ||
+    text.startsWith("https://")
   );
 }
 
@@ -88,6 +92,22 @@ function extractTextFromLayer(layer: any) {
   return trimString(layer.text ?? layer.value ?? layer.content ?? "", 800);
 }
 
+function getLayerImage(layer: any) {
+  if (!layer || typeof layer !== "object") return "";
+  return String(
+    layer.src ||
+      layer.url ||
+      layer.image ||
+      layer.image_url ||
+      layer.imageUrl ||
+      layer.media_url ||
+      layer.mediaUrl ||
+      layer.preview_url ||
+      layer.previewUrl ||
+      "",
+  ).trim();
+}
+
 function compactLayer(layer: any) {
   if (!layer || typeof layer !== "object") return null;
 
@@ -101,24 +121,41 @@ function compactLayer(layer: any) {
       id: String(layer.id || `text-${Date.now()}`),
       type: "text",
       text,
+      x: layer.x,
+      y: layer.y,
+      width: layer.width,
+      height: layer.height,
+      zIndex: layer.zIndex,
+      style: layer.style,
     };
   }
 
   if (type === "image") {
-    const src =
-      layer.src || layer.url || layer.image_url || layer.imageUrl || "";
+    const src = getLayerImage(layer);
     return {
       id: String(layer.id || `image-${Date.now()}`),
       type: "image",
       has_image: !!src,
-      // Ne jamais envoyer de base64/canvas complet au Planner.
-      image_url: isHugeDataUrl(src) ? undefined : src || undefined,
+      image_url: src || undefined,
+      src: src || undefined,
+      x: layer.x,
+      y: layer.y,
+      width: layer.width,
+      height: layer.height,
+      zIndex: layer.zIndex,
+      style: layer.style,
     };
   }
 
   return {
     id: String(layer.id || `${type || "layer"}-${Date.now()}`),
     type: type || "layer",
+    x: layer.x,
+    y: layer.y,
+    width: layer.width,
+    height: layer.height,
+    zIndex: layer.zIndex,
+    style: layer.style,
   };
 }
 
@@ -137,340 +174,83 @@ function extractCaptionFromLayers(layers: any[]) {
   return trimString(text, 1800);
 }
 
-const PLANNER_PREVIEW_CACHE_KEY = "lgd_planner_preview_cache_v1";
-
-type PlannerPreviewCacheItem = {
-  preview_image: string;
-  title?: string;
-  titre?: string;
-  network?: string;
-  scheduled_at?: string;
-  created_at: number;
-};
-
-function readPlannerPreviewCache(): Record<string, PlannerPreviewCacheItem> {
-  if (typeof window === "undefined") return {};
-  try {
-    const raw = window.localStorage.getItem(PLANNER_PREVIEW_CACHE_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
-      ? parsed
-      : {};
-  } catch {
-    return {};
+function firstImageFromLayers(layers: any[]): string {
+  for (const layer of layers || []) {
+    const src = getLayerImage(layer);
+    if (isImageLike(src)) return src;
   }
+  return "";
 }
 
-function writePlannerPreviewCache(
-  cache: Record<string, PlannerPreviewCacheItem>,
-) {
-  if (typeof window === "undefined") return;
-  try {
-    const entries = Object.entries(cache)
-      .filter(([, item]) => !!item?.preview_image)
-      .sort(
-        (a, b) => Number(b[1]?.created_at || 0) - Number(a[1]?.created_at || 0),
-      )
-      .slice(0, 8);
-    window.localStorage.setItem(
-      PLANNER_PREVIEW_CACHE_KEY,
-      JSON.stringify(Object.fromEntries(entries)),
-    );
-  } catch {
-    // Le Planner doit rester fonctionnel même si le cache navigateur est plein.
+function firstImageFromSlides(slides: any[]): string {
+  for (const slide of slides || []) {
+    const layers = Array.isArray(slide?.layers)
+      ? slide.layers
+      : Array.isArray(slide?.elements)
+        ? slide.elements
+        : [];
+    const src = firstImageFromLayers(layers);
+    if (src) return src;
   }
+  return "";
 }
 
-function addPlannerPreviewCacheKeys(
-  cache: Record<string, PlannerPreviewCacheItem>,
-  keys: Array<string | number | null | undefined>,
-  item: PlannerPreviewCacheItem,
-) {
-  for (const rawKey of keys) {
-    const key = String(rawKey ?? "").trim();
-    if (!key) continue;
-    cache[key] = item;
-  }
-}
-
-function cachePlannerPreviewAfterSchedule(
-  result: any,
-  body: any,
-  previewImage: string,
-) {
-  if (!previewImage || !isHugeDataUrl(previewImage)) return;
-
-  const item: PlannerPreviewCacheItem = {
-    preview_image: previewImage,
-    title: body?.titre || body?.title || body?.contenu?.title || "",
-    titre: body?.titre || body?.title || body?.contenu?.title || "",
-    network: body?.network || "",
-    scheduled_at: body?.scheduled_at || "",
-    created_at: Date.now(),
-  };
-
-  const cache = readPlannerPreviewCache();
-  const ids = [
-    result?.id,
-    result?.post_id,
-    result?.planner_id,
-    result?.data?.id,
-    result?.post?.id,
-    result?.item?.id,
+function pickPreviewImage(source: any, layers: any[], slides: any[]) {
+  const candidates = [
+    source?.planner_preview_image,
+    source?.plannerPreviewImage,
+    source?.preview_image,
+    source?.previewImage,
+    source?.rendered_image,
+    source?.renderedImage,
+    source?.media_url,
+    source?.mediaUrl,
+    source?.image_url,
+    source?.imageUrl,
+    source?.cover_url,
+    source?.coverUrl,
+    firstImageFromLayers(layers),
+    firstImageFromSlides(slides),
   ];
-  const semanticKey = `${item.network}|${item.scheduled_at}|${item.titre}`;
 
-  addPlannerPreviewCacheKeys(
-    cache,
-    [...ids, semanticKey],
-    item,
+  for (const value of candidates) {
+    const text = String(value || "").trim();
+    if (isImageLike(text)) return text;
+  }
+
+  return "";
+}
+
+function getRawLayers(source: any) {
+  return (
+    source?.layers ||
+    source?.canvas?.layers ||
+    source?.draft?.layers ||
+    source?.payload?.layers ||
+    []
   );
-  writePlannerPreviewCache(cache);
 }
 
-const PLANNER_EDITOR_PAYLOAD_CACHE_KEY = "lgd_planner_editor_payload_cache_v1";
-
-type PlannerEditorPayloadCacheItem = {
-  payload: any;
-  title?: string;
-  titre?: string;
-  network?: string;
-  scheduled_at?: string;
-  created_at: number;
-};
-
-function readPlannerEditorPayloadCache(): Record<
-  string,
-  PlannerEditorPayloadCacheItem
-> {
-  if (typeof window === "undefined") return {};
-  try {
-    const raw = window.localStorage.getItem(PLANNER_EDITOR_PAYLOAD_CACHE_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
-      ? parsed
-      : {};
-  } catch {
-    return {};
-  }
+function getRawSlides(source: any) {
+  return (
+    source?.slides ||
+    source?.canvas?.slides ||
+    source?.draft?.slides ||
+    source?.payload?.slides ||
+    []
+  );
 }
 
-function writePlannerEditorPayloadCache(
-  cache: Record<string, PlannerEditorPayloadCacheItem>,
-) {
-  if (typeof window === "undefined") return;
-  try {
-    const entries = Object.entries(cache)
-      .filter(([, item]) => !!item?.payload)
-      .sort(
-        (a, b) => Number(b[1]?.created_at || 0) - Number(a[1]?.created_at || 0),
-      )
-      .slice(0, 6);
-    window.localStorage.setItem(
-      PLANNER_EDITOR_PAYLOAD_CACHE_KEY,
-      JSON.stringify(Object.fromEntries(entries)),
-    );
-  } catch {
-    // Ne jamais bloquer l’envoi Planner si le navigateur refuse le cache local.
-  }
-}
-
-const PLANNER_MEDIA_IDB_NAME = "lgd_planner_media_cache_v1";
-const PLANNER_MEDIA_IDB_STORE = "items";
-
-type PlannerMediaCacheItem = PlannerEditorPayloadCacheItem & {
-  preview_image?: string;
-  planner_preview_image?: string;
-  rendered_image?: string;
-};
-
-function openPlannerMediaDB(): Promise<IDBDatabase | null> {
-  if (typeof window === "undefined" || !("indexedDB" in window))
-    return Promise.resolve(null);
-
-  return new Promise((resolve) => {
-    const request = window.indexedDB.open(PLANNER_MEDIA_IDB_NAME, 1);
-    request.onupgradeneeded = () => {
-      const db = request.result;
-      if (!db.objectStoreNames.contains(PLANNER_MEDIA_IDB_STORE)) {
-        db.createObjectStore(PLANNER_MEDIA_IDB_STORE);
-      }
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => resolve(null);
-  });
-}
-
-async function writePlannerMediaCacheToIDB(
-  keys: Array<string | number | null | undefined>,
-  item: PlannerMediaCacheItem,
-) {
-  const cleanKeys = keys.map((key) => String(key ?? "").trim()).filter(Boolean);
-  if (!cleanKeys.length || !item?.payload) return;
-
-  const db = await openPlannerMediaDB();
-  if (!db) return;
-
-  await new Promise<void>((resolve) => {
-    try {
-      const tx = db.transaction(PLANNER_MEDIA_IDB_STORE, "readwrite");
-      const store = tx.objectStore(PLANNER_MEDIA_IDB_STORE);
-      for (const key of cleanKeys) {
-        store.put(item, key);
-      }
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => resolve();
-      tx.onabort = () => resolve();
-    } catch {
-      resolve();
-    }
-  }).finally(() => {
-    try {
-      db.close();
-    } catch {
-      // ignore
-    }
-  });
-}
-
-async function cachePlannerEditorPayloadAfterSchedule(
-  result: any,
-  body: any,
-  originalPayload: any,
-) {
-  if (typeof window === "undefined") return;
-
-  const title = String(
-    body?.titre ||
-      body?.title ||
-      body?.contenu?.title ||
-      originalPayload?.title ||
-      originalPayload?.titre ||
-      "",
-  ).trim();
-  const network = String(body?.network || "").trim();
-  const scheduledAt = String(body?.scheduled_at || "").trim();
-
-  const original =
-    originalPayload && typeof originalPayload === "object"
-      ? originalPayload
-      : {};
-  const compact =
-    body?.contenu && typeof body.contenu === "object" ? body.contenu : {};
-
-  const payload = {
-    ...compact,
-    ...original,
-    title,
-    titre: title,
-    network,
-    scheduled_at: scheduledAt,
-    type: body?.format || original?.type || compact?.type || "post",
-    // Important : le cache local doit conserver le draft vivant complet.
-    // Les données compactées envoyées à l’API ne doivent jamais écraser
-    // les layers/slides complets utilisés par le modal pour reconstruire le visuel.
-    layers: Array.isArray(original?.layers)
-      ? original.layers
-      : Array.isArray(compact?.layers)
-        ? compact.layers
-        : undefined,
-    slides: Array.isArray(original?.slides)
-      ? original.slides
-      : Array.isArray(compact?.slides)
-        ? compact.slides
-        : undefined,
-    ui: original?.ui || compact?.ui || undefined,
-    preview_image:
-      body?.preview_image ||
-      compact?.preview_image ||
-      original?.preview_image ||
-      undefined,
-    planner_preview_image:
-      body?.planner_preview_image ||
-      compact?.planner_preview_image ||
-      original?.planner_preview_image ||
-      undefined,
-    rendered_image:
-      body?.rendered_image ||
-      compact?.rendered_image ||
-      original?.rendered_image ||
-      undefined,
-  };
-
-  const item: PlannerEditorPayloadCacheItem = {
-    payload,
-    title,
-    titre: title,
-    network,
-    scheduled_at: scheduledAt,
-    created_at: Date.now(),
-  };
-
-  const cache = readPlannerEditorPayloadCache();
-  const ids = [
-    result?.id,
-    result?.post_id,
-    result?.planner_id,
-    result?.data?.id,
-    result?.post?.id,
-    result?.item?.id,
-  ];
-  const keys = [
-    ...ids,
-    `${network}|${scheduledAt}|${title}`,
-  ];
-
-  addPlannerPreviewCacheKeys(cache as any, keys, item as any);
-  writePlannerEditorPayloadCache(cache);
-
-  await writePlannerMediaCacheToIDB(keys, {
-    ...item,
-    preview_image:
-      payload?.preview_image ||
-      payload?.planner_preview_image ||
-      payload?.rendered_image ||
-      undefined,
-    planner_preview_image:
-      payload?.planner_preview_image ||
-      payload?.preview_image ||
-      payload?.rendered_image ||
-      undefined,
-    rendered_image:
-      payload?.rendered_image ||
-      payload?.planner_preview_image ||
-      payload?.preview_image ||
-      undefined,
-  });
-}
-
-function compactContentForPlanner(
-  input: any,
-  fallbackTitle?: string,
-  fallbackFormat?: string,
-) {
+function compactContentForPlanner(input: any, fallbackTitle?: string, fallbackFormat?: string) {
   const source = input && typeof input === "object" ? input : {};
-  const rawLayers =
-    source.layers ||
-    source.canvas?.layers ||
-    source.draft?.layers ||
-    source.payload?.layers ||
-    [];
-
-  const rawSlides =
-    source.slides ||
-    source.canvas?.slides ||
-    source.draft?.slides ||
-    source.payload?.slides ||
-    [];
+  const rawLayers = getRawLayers(source);
+  const rawSlides = getRawSlides(source);
 
   const layers = compactLayers(rawLayers);
   const slides = Array.isArray(rawSlides)
     ? rawSlides.slice(0, 20).map((slide: any, index: number) => {
-        const slideLayers = compactLayers(
-          slide?.layers || slide?.elements || [],
-        );
+        const rawSlideLayers = slide?.layers || slide?.elements || [];
+        const slideLayers = compactLayers(rawSlideLayers);
         return {
           id: String(slide?.id || `slide-${index + 1}`),
           layers: slideLayers,
@@ -504,14 +284,7 @@ function compactContentForPlanner(
       2000,
     ) || "";
 
-  const previewImage =
-    source.planner_preview_image ||
-    source.plannerPreviewImage ||
-    source.preview_image ||
-    source.previewImage ||
-    source.rendered_image ||
-    source.renderedImage ||
-    "";
+  const previewImage = pickPreviewImage(source, Array.isArray(rawLayers) ? rawLayers : [], Array.isArray(rawSlides) ? rawSlides : []);
 
   return {
     type:
@@ -523,16 +296,15 @@ function compactContentForPlanner(
     caption,
     text: caption,
     format: fallbackFormat || source.format || type,
-    // Résumé léger pour le Planner.
     layers,
     slides,
     has_visual: !!previewImage || layers.length > 0 || slides.length > 0,
     source: "editor",
-    // LGD FIX — aperçu fidèle du modal Planner.
-    // On conserve seulement l'image de rendu finale, pas tout le draft brut.
     preview_image: previewImage || undefined,
     planner_preview_image: previewImage || undefined,
     rendered_image: previewImage || undefined,
+    media_url: previewImage || undefined,
+    image_url: previewImage || undefined,
   };
 }
 
@@ -575,23 +347,40 @@ export function useSchedulePlanner() {
           ? payload.contenu
           : {};
 
-      const previewImage =
-        originalContent?.planner_preview_image ||
-        originalContent?.preview_image ||
-        originalContent?.rendered_image ||
-        originalContent?.plannerPreviewImage ||
-        originalContent?.previewImage ||
-        originalContent?.renderedImage ||
-        "";
+      const rawLayers = Array.isArray(originalContent?.layers) ? originalContent.layers : [];
+      const rawSlides = Array.isArray(originalContent?.slides)
+        ? originalContent.slides
+        : Array.isArray(payload.slides)
+          ? payload.slides
+          : [];
+
+      const previewImage = pickPreviewImage(originalContent, rawLayers, rawSlides);
+
+      const compactContent = compactContentForPlanner(
+        {
+          ...originalContent,
+          preview_image: previewImage || originalContent?.preview_image,
+          planner_preview_image: previewImage || originalContent?.planner_preview_image,
+          rendered_image: previewImage || originalContent?.rendered_image,
+          media_url: previewImage || originalContent?.media_url,
+          image_url: previewImage || originalContent?.image_url,
+        },
+        payload.titre,
+        isCarrousel ? "carrousel" : payload.format || "post",
+      );
+
+      const compactSlides = compactSlidesForPlanner(rawSlides);
 
       const title =
         payload.titre ||
         originalContent?.titre ||
         originalContent?.title ||
+        compactContent.title ||
         (isCarrousel ? "Carrousel planifié" : "Post planifié");
 
       const fullContent = {
         ...originalContent,
+        ...compactContent,
         type: isCarrousel ? "carrousel" : "post",
         format: isCarrousel ? "carrousel" : payload.format || "post",
         title,
@@ -604,20 +393,20 @@ export function useSchedulePlanner() {
         ui: originalContent?.ui || {},
         ...(isCarrousel
           ? {
-              slides: Array.isArray(originalContent?.slides)
-                ? originalContent.slides
-                : Array.isArray(payload.slides)
-                  ? payload.slides
-                  : [],
+              slides: rawSlides,
+              compact_slides: compactSlides.length ? compactSlides : compactContent.slides || [],
             }
           : {
-              layers: Array.isArray(originalContent?.layers)
-                ? originalContent.layers
-                : [],
+              layers: rawLayers,
+              compact_layers: compactContent.layers || [],
             }),
+        has_visual: !!previewImage || rawLayers.length > 0 || rawSlides.length > 0,
         preview_image: previewImage || undefined,
         planner_preview_image: previewImage || undefined,
         rendered_image: previewImage || undefined,
+        media_url: previewImage || undefined,
+        image_url: previewImage || undefined,
+        preview_generated_at: new Date().toISOString(),
       };
 
       const body = {
@@ -631,9 +420,13 @@ export function useSchedulePlanner() {
         titre: title,
         title,
         format: isCarrousel ? "carrousel" : payload.format || "post",
+        has_visual: fullContent.has_visual,
         preview_image: previewImage || undefined,
         planner_preview_image: previewImage || undefined,
         rendered_image: previewImage || undefined,
+        media_url: previewImage || undefined,
+        image_url: previewImage || undefined,
+        preview_generated_at: fullContent.preview_generated_at,
         ...(isCarrousel
           ? {
               carrousel_id:
@@ -641,24 +434,11 @@ export function useSchedulePlanner() {
                 originalContent?.carrousel_id ??
                 originalContent?.id ??
                 null,
-              slides: Array.isArray(fullContent.slides) ? fullContent.slides : [],
+              slides: rawSlides,
             }
           : {}),
         contenu: fullContent,
       };
-
-      // LGD — cache média immédiat avant appel API : le modal Planner doit pouvoir
-      // récupérer le visuel même si la liste Planner renvoie un payload compacté
-      // ou si le fetch secondaire /planner/posts arrive avant la synchro backend.
-      await cachePlannerEditorPayloadAfterSchedule(
-        {
-          id: "__pending__",
-          post_id: "__pending__",
-          planner_id: "__pending__",
-        },
-        body,
-        payload.contenu,
-      );
 
       const res = await fetch(`${getApiBase()}${endpoint}`, {
         method: "POST",
@@ -678,14 +458,7 @@ export function useSchedulePlanner() {
         throw new Error(`Erreur API (${res.status}) ${text || ""}`.trim());
       }
 
-      const result = await res.json().catch(() => null);
-      cachePlannerPreviewAfterSchedule(result, body, previewImage);
-      await cachePlannerEditorPayloadAfterSchedule(
-        result,
-        body,
-        payload.contenu,
-      );
-      return result;
+      return await res.json().catch(() => null);
     } finally {
       setLoading(false);
     }
