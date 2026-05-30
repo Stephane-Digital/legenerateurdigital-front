@@ -37,6 +37,43 @@ function getAuthHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+
+function getApiBase() {
+  const raw = process.env.NEXT_PUBLIC_API_URL || "";
+  return raw.replace(/\/$/, "");
+}
+
+async function fetchPlannerPostsMobile() {
+  const authHeaders = getAuthHeaders();
+
+  const proxyRes = await fetch("/api/proxy/planner/posts", {
+    credentials: "include",
+    headers: { ...authHeaders },
+    cache: "no-store",
+  });
+
+  if (proxyRes.ok) {
+    return await proxyRes.json().catch(() => []);
+  }
+
+  const apiBase = getApiBase();
+  if (apiBase) {
+    const directRes = await fetch(`${apiBase}/planner/posts`, {
+      credentials: "include",
+      headers: { ...authHeaders },
+      cache: "no-store",
+    });
+
+    if (directRes.ok) {
+      return await directRes.json().catch(() => []);
+    }
+
+    throw new Error(`Chargement impossible (${directRes.status})`);
+  }
+
+  throw new Error(`Chargement impossible (${proxyRes.status})`);
+}
+
 function safeParseJSON(value: any) {
   if (!value) return null;
   if (typeof value === "object") return value;
@@ -346,17 +383,7 @@ export default function MobilePlannerView() {
     setError("");
 
     try {
-      const res = await fetch("/api/proxy/planner/posts", {
-        credentials: "include",
-        headers: { ...getAuthHeaders() },
-        cache: "no-store",
-      });
-
-      if (!res.ok) {
-        throw new Error(`Chargement impossible (${res.status})`);
-      }
-
-      const data = await res.json().catch(() => []);
+      const data = await fetchPlannerPostsMobile();
       const safe = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
       setPosts(safe);
     } catch (err: any) {
@@ -453,4 +480,3 @@ export default function MobilePlannerView() {
     </section>
   );
 }
-
