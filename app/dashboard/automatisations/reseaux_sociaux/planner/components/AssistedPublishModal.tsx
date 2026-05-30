@@ -552,15 +552,21 @@ function flattenPossibleMediaSources(post: any, parsed: any) {
 }
 
 function extractExactPreviewImage(post: any, parsed: any) {
+  // LGD SAFE FIX — la vérité fraîche doit venir du payload/canvas courant
+  // avant les anciens champs racine du post qui peuvent rester persistés en base.
   return firstNonEmptyString(
-    post?.planner_preview_image,
-    post?.preview_image,
-    post?.rendered_image,
-    post?.renderedImage,
     parsed?.planner_preview_image,
     parsed?.preview_image,
     parsed?.rendered_image,
     parsed?.renderedImage,
+    parsed?.payload?.planner_preview_image,
+    parsed?.payload?.preview_image,
+    parsed?.payload?.rendered_image,
+    parsed?.payload?.renderedImage,
+    post?.planner_preview_image,
+    post?.preview_image,
+    post?.rendered_image,
+    post?.renderedImage,
   );
 }
 
@@ -1110,9 +1116,6 @@ function buildPlannerCacheKeys(post: any, parsed: any) {
     String(post?.post_id ?? ""),
     String(post?.planner_id ?? ""),
     `${network}|${scheduledAt}|${title}`,
-    `title|${title}`,
-    `${network}|${title}`,
-    "__latest__",
   ]);
 }
 
