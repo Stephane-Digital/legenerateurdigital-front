@@ -1,6 +1,5 @@
 "use client";
 
-import api from "@/lib/api";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 type PlannerPost = Record<string, any>;
@@ -36,6 +35,52 @@ function getAuthHeaders() {
     "";
 
   return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+function getApiBase() {
+  return (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
+}
+
+function goToLogin() {
+  if (typeof window === "undefined") return;
+  const next = encodeURIComponent(`${window.location.pathname}${window.location.search}`);
+  window.location.href = `/auth/login?next=${next}`;
+}
+
+async function readPlannerPostsSafely() {
+  const headers = { ...getAuthHeaders() };
+
+  const tryFetch = async (url: string) => {
+    const res = await fetch(url, {
+      method: "GET",
+      credentials: "include",
+      headers,
+      cache: "no-store",
+    });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      const error = new Error(text || `HTTP ${res.status}`) as Error & { status?: number };
+      error.status = res.status;
+      throw error;
+    }
+
+    return await res.json().catch(() => []);
+  };
+
+  try {
+    return await tryFetch("/api/proxy/planner/posts");
+  } catch (firstError: any) {
+    const base = getApiBase();
+    if (base) {
+      try {
+        return await tryFetch(`${base}/planner/posts`);
+      } catch (secondError: any) {
+        throw secondError?.status ? secondError : firstError;
+      }
+    }
+    throw firstError;
+  }
 }
 
 function safeParseJSON(value: any) {
@@ -347,20 +392,18 @@ export default function MobilePlannerView() {
     setError("");
 
     try {
-      // LGD MOBILE SAFE — utiliser le même client API que le reste de l’application.
-      // Cela évite le fetch maison mobile qui ne transmettait pas l’auth comme le desktop.
-      const res = await (api as any).get("/planner/posts");
-      const data = res?.data ?? res ?? [];
+      const data = await readPlannerPostsSafely();
       const safe = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
       setPosts(safe);
     } catch (err: any) {
-      const status = err?.response?.status ?? err?.status ?? null;
+      const status = err?.status ?? err?.response?.status ?? null;
+      const message = String(err?.message || "");
       setPosts([]);
 
-      if (status === 401) {
-        setError("Session expirée ou non transmise sur mobile. Reconnecte-toi puis reviens dans le Planner.");
+      if (status === 401 || message.includes("AUTH_REQUIRED") || message.includes("Not authenticated")) {
+        setError("Session mobile non reconnue. Reconnecte-toi avec la route LGD officielle, puis reviens dans le Planner.");
       } else {
-        setError(String(err?.message || "Impossible de charger les publications."));
+        setError(message || "Impossible de charger les publications.");
       }
     } finally {
       setLoading(false);
@@ -408,13 +451,22 @@ export default function MobilePlannerView() {
           <div className="rounded-3xl border border-red-500/25 bg-red-500/10 p-5">
             <div className="text-sm font-bold text-red-200">Planner mobile indisponible</div>
             <p className="mt-2 text-sm text-red-100/75">{error}</p>
-            <button
-              type="button"
-              onClick={loadPosts}
-              className="mt-4 h-11 rounded-2xl bg-[#f5bf21] px-5 text-sm font-black text-black"
-            >
-              Réessayer
-            </button>
+            <div className="mt-4 flex flex-col gap-3">
+              <button
+                type="button"
+                onClick={loadPosts}
+                className="h-11 rounded-2xl bg-[#f5bf21] px-5 text-sm font-black text-black"
+              >
+                Réessayer
+              </button>
+              <button
+                type="button"
+                onClick={goToLogin}
+                className="h-11 rounded-2xl border border-[#f5bf21]/25 bg-black/30 px-5 text-sm font-black text-[#f5bf21]"
+              >
+                Se reconnecter
+              </button>
+            </div>
           </div>
         ) : null}
 
