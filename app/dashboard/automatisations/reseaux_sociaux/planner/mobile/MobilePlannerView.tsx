@@ -1,5 +1,6 @@
 "use client";
 
+import api from "@/lib/api";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 type PlannerPost = Record<string, any>;
@@ -23,19 +24,6 @@ type PreviewCanvas = {
   height: number;
   layers: PreviewLayer[];
 };
-
-function getAuthHeaders() {
-  if (typeof window === "undefined") return {};
-
-  const token =
-    window.localStorage.getItem("access_token") ||
-    window.localStorage.getItem("token") ||
-    window.localStorage.getItem("jwt") ||
-    window.localStorage.getItem("lgd_token") ||
-    "";
-
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
 
 function safeParseJSON(value: any) {
   if (!value) return null;
@@ -270,86 +258,17 @@ function extractNetwork(post: PlannerPost, parsed: any) {
 }
 
 
-function getApiBase() {
-  const raw = process.env.NEXT_PUBLIC_API_URL || "";
-  return raw.replace(/\/$/, "");
+async function fetchPlannerPostsLikeDesktop(): Promise<PlannerPost[]> {
+  const res = await (api as any).get("/planner/posts");
+  const data = res?.data ?? res ?? [];
+
+  return Array.isArray(data)
+    ? data
+    : Array.isArray(data?.items)
+      ? data.items
+      : [];
 }
 
-function normalizePlannerPostsResponse(data: any): PlannerPost[] {
-  if (Array.isArray(data)) return data;
-
-  const candidates = [
-    data?.items,
-    data?.posts,
-    data?.publications,
-    data?.results,
-    data?.data,
-    data?.data?.items,
-    data?.data?.posts,
-    data?.data?.publications,
-    data?.payload,
-    data?.payload?.items,
-    data?.payload?.posts,
-  ];
-
-  for (const candidate of candidates) {
-    if (Array.isArray(candidate)) return candidate;
-  }
-
-  return [];
-}
-
-async function fetchPlannerPostsNoRedirect(): Promise<PlannerPost[]> {
-  const base = getApiBase();
-  const headers = { ...getAuthHeaders() };
-
-  const urls = [
-    "/api/proxy/planner/posts",
-    "/api/proxy/planner",
-    base ? `${base}/planner/posts` : "",
-    base ? `${base}/planner` : "",
-  ].filter(Boolean);
-
-  let lastStatus = 0;
-  let lastMessage = "";
-
-  for (const url of urls) {
-    try {
-      const res = await fetch(url, {
-        credentials: "include",
-        headers,
-        cache: "no-store",
-      });
-
-      lastStatus = res.status;
-
-      if (res.status === 401 || res.status === 403) {
-        lastMessage = `Session mobile non authentifiée (${res.status})`;
-        continue;
-      }
-
-      if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        lastMessage = text || `Chargement impossible (${res.status})`;
-        continue;
-      }
-
-      const data = await res.json().catch(() => []);
-      const posts = normalizePlannerPostsResponse(data);
-
-      // Si l'endpoint répond correctement, on accepte la réponse même vide.
-      return posts;
-    } catch (error: any) {
-      lastMessage = String(error?.message || "Chargement impossible.");
-    }
-  }
-
-  if (lastStatus === 401 || lastStatus === 403) {
-    throw new Error(lastMessage || "Session mobile non authentifiée.");
-  }
-
-  throw new Error(lastMessage || "Impossible de charger les publications.");
-}
 
 function PreviewCanvasCard({ canvas }: { canvas: PreviewCanvas }) {
   const layers = [...canvas.layers]
@@ -428,7 +347,7 @@ export default function MobilePlannerView() {
     setError("");
 
     try {
-      const safe = await fetchPlannerPostsNoRedirect();
+      const safe = await fetchPlannerPostsLikeDesktop();
       setPosts(safe);
     } catch (err: any) {
       setPosts([]);
@@ -524,4 +443,3 @@ export default function MobilePlannerView() {
     </section>
   );
 }
-
