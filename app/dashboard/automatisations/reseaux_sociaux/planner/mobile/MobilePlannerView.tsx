@@ -24,6 +24,10 @@ type PreviewCanvas = {
   layers: PreviewLayer[];
 };
 
+function getApiBase() {
+  return String(process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
+}
+
 function getAuthHeaders() {
   if (typeof window === "undefined") return {};
 
@@ -37,49 +41,30 @@ function getAuthHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-function getApiBase() {
-  return (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
-}
-
-function goToLogin() {
-  if (typeof window === "undefined") return;
-  const next = encodeURIComponent(`${window.location.pathname}${window.location.search}`);
-  window.location.href = `/auth/login?next=${next}`;
-}
-
-async function readPlannerPostsSafely() {
-  const headers = { ...getAuthHeaders() };
-
-  const tryFetch = async (url: string) => {
-    const res = await fetch(url, {
-      method: "GET",
-      credentials: "include",
-      headers,
-      cache: "no-store",
-    });
-
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      const error = new Error(text || `HTTP ${res.status}`) as Error & { status?: number };
-      error.status = res.status;
-      throw error;
-    }
-
-    return await res.json().catch(() => []);
-  };
+async function fetchJsonWithTimeout(url: string, timeoutMs = 12000) {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    return await tryFetch("/api/proxy/planner/posts");
-  } catch (firstError: any) {
-    const base = getApiBase();
-    if (base) {
-      try {
-        return await tryFetch(`${base}/planner/posts`);
-      } catch (secondError: any) {
-        throw secondError?.status ? secondError : firstError;
-      }
+    const res = await fetch(url, {
+      credentials: "include",
+      headers: { ...getAuthHeaders() },
+      cache: "no-store",
+      signal: controller.signal,
+    });
+
+    const text = await res.text().catch(() => "");
+    let data: any = null;
+
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = text;
     }
-    throw firstError;
+
+    return { ok: res.ok, status: res.status, data };
+  } finally {
+    window.clearTimeout(timer);
   }
 }
 
@@ -392,26 +377,62 @@ export default function MobilePlannerView() {
     setError("");
 
     try {
-      const data = await readPlannerPostsSafely();
-      const safe = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
-      setPosts(safe);
-    } catch (err: any) {
-      const status = err?.status ?? err?.response?.status ?? null;
-      const message = String(err?.message || "");
-      setPosts([]);
+      const attempts = ["/api/proxy/planner/posts"];
+      const apiBase = getApiBase();
 
-      if (status === 401 || message.includes("AUTH_REQUIRED") || message.includes("Not authenticated")) {
-        setError("Session mobile non reconnue. Reconnecte-toi avec la route LGD officielle, puis reviens dans le Planner.");
-      } else {
-        setError(message || "Impossible de charger les publications.");
+      if (apiBase) {
+        attempts.push(`${apiBase}/planner/posts`);
       }
+
+      let lastStatus = 0;
+      let lastMessage = "";
+
+      for (const url of attempts) {
+        try {
+          const result = await fetchJsonWithTimeout(url, 12000);
+          lastStatus = result.status;
+
+          if (result.ok) {
+            const data = result.data;
+            const safe = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
+            setPosts(safe);
+            setError("");
+            return;
+          }
+
+          lastMessage = typeof result.data === "string" ? result.data : JSON.stringify(result.data || {});
+        } catch (err: any) {
+          lastMessage = err?.name === "AbortError" ? "Délai dépassé" : String(err?.message || err || "");
+        }
+      }
+
+      setPosts([]);
+      setError(
+        lastStatus === 401
+          ? "Session mobile expirée. Reconnecte-toi pour afficher tes publications."
+          : `Chargement impossible${lastStatus ? ` (${lastStatus})` : ""}${lastMessage ? ` — ${lastMessage}` : ""}`
+      );
+    } catch (err: any) {
+      setPosts([]);
+      setError(String(err?.message || "Impossible de charger les publications."));
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadPosts();
+    let mounted = true;
+
+    const run = async () => {
+      if (!mounted) return;
+      await loadPosts();
+    };
+
+    run();
+
+    return () => {
+      mounted = false;
+    };
   }, [loadPosts]);
 
   const normalizedPosts = useMemo(
@@ -450,7 +471,7 @@ export default function MobilePlannerView() {
         {!loading && error ? (
           <div className="rounded-3xl border border-red-500/25 bg-red-500/10 p-5">
             <div className="text-sm font-bold text-red-200">Planner mobile indisponible</div>
-            <p className="mt-2 text-sm text-red-100/75">{error}</p>
+            <p className="mt-2 whitespace-pre-wrap text-sm text-red-100/75">{error}</p>
             <div className="mt-4 flex flex-col gap-3">
               <button
                 type="button"
@@ -459,13 +480,14 @@ export default function MobilePlannerView() {
               >
                 Réessayer
               </button>
-              <button
-                type="button"
-                onClick={goToLogin}
-                className="h-11 rounded-2xl border border-[#f5bf21]/25 bg-black/30 px-5 text-sm font-black text-[#f5bf21]"
-              >
-                Se reconnecter
-              </button>
+              {error.toLowerCase().includes("session") ? (
+                <a
+                  href="/auth/login?next=/dashboard/automatisations/reseaux_sociaux/planner"
+                  className="grid h-11 place-items-center rounded-2xl border border-[#f5bf21]/30 bg-black/40 px-5 text-sm font-black text-[#f5bf21]"
+                >
+                  Se reconnecter
+                </a>
+              ) : null}
             </div>
           </div>
         ) : null}
