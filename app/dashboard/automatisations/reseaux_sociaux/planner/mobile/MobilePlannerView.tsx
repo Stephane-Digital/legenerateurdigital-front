@@ -24,10 +24,6 @@ type PreviewCanvas = {
   layers: PreviewLayer[];
 };
 
-function getApiBase() {
-  return String(process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
-}
-
 function getAuthHeaders() {
   if (typeof window === "undefined") return {};
 
@@ -39,33 +35,6 @@ function getAuthHeaders() {
     "";
 
   return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
-async function fetchJsonWithTimeout(url: string, timeoutMs = 12000) {
-  const controller = new AbortController();
-  const timer = window.setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    const res = await fetch(url, {
-      credentials: "include",
-      headers: { ...getAuthHeaders() },
-      cache: "no-store",
-      signal: controller.signal,
-    });
-
-    const text = await res.text().catch(() => "");
-    let data: any = null;
-
-    try {
-      data = text ? JSON.parse(text) : null;
-    } catch {
-      data = text;
-    }
-
-    return { ok: res.ok, status: res.status, data };
-  } finally {
-    window.clearTimeout(timer);
-  }
 }
 
 function safeParseJSON(value: any) {
@@ -300,6 +269,88 @@ function extractNetwork(post: PlannerPost, parsed: any) {
   return firstNonEmptyString(post?.reseau, post?.network, parsed?.reseau, parsed?.network, "instagram");
 }
 
+
+function getApiBase() {
+  const raw = process.env.NEXT_PUBLIC_API_URL || "";
+  return raw.replace(/\/$/, "");
+}
+
+function normalizePlannerPostsResponse(data: any): PlannerPost[] {
+  if (Array.isArray(data)) return data;
+
+  const candidates = [
+    data?.items,
+    data?.posts,
+    data?.publications,
+    data?.results,
+    data?.data,
+    data?.data?.items,
+    data?.data?.posts,
+    data?.data?.publications,
+    data?.payload,
+    data?.payload?.items,
+    data?.payload?.posts,
+  ];
+
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) return candidate;
+  }
+
+  return [];
+}
+
+async function fetchPlannerPostsNoRedirect(): Promise<PlannerPost[]> {
+  const base = getApiBase();
+  const headers = { ...getAuthHeaders() };
+
+  const urls = [
+    "/api/proxy/planner/posts",
+    "/api/proxy/planner",
+    base ? `${base}/planner/posts` : "",
+    base ? `${base}/planner` : "",
+  ].filter(Boolean);
+
+  let lastStatus = 0;
+  let lastMessage = "";
+
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, {
+        credentials: "include",
+        headers,
+        cache: "no-store",
+      });
+
+      lastStatus = res.status;
+
+      if (res.status === 401 || res.status === 403) {
+        lastMessage = `Session mobile non authentifiée (${res.status})`;
+        continue;
+      }
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        lastMessage = text || `Chargement impossible (${res.status})`;
+        continue;
+      }
+
+      const data = await res.json().catch(() => []);
+      const posts = normalizePlannerPostsResponse(data);
+
+      // Si l'endpoint répond correctement, on accepte la réponse même vide.
+      return posts;
+    } catch (error: any) {
+      lastMessage = String(error?.message || "Chargement impossible.");
+    }
+  }
+
+  if (lastStatus === 401 || lastStatus === 403) {
+    throw new Error(lastMessage || "Session mobile non authentifiée.");
+  }
+
+  throw new Error(lastMessage || "Impossible de charger les publications.");
+}
+
 function PreviewCanvasCard({ canvas }: { canvas: PreviewCanvas }) {
   const layers = [...canvas.layers]
     .filter((layer) => layer.visible !== false)
@@ -377,41 +428,8 @@ export default function MobilePlannerView() {
     setError("");
 
     try {
-      const attempts = ["/api/proxy/planner/posts"];
-      const apiBase = getApiBase();
-
-      if (apiBase) {
-        attempts.push(`${apiBase}/planner/posts`);
-      }
-
-      let lastStatus = 0;
-      let lastMessage = "";
-
-      for (const url of attempts) {
-        try {
-          const result = await fetchJsonWithTimeout(url, 12000);
-          lastStatus = result.status;
-
-          if (result.ok) {
-            const data = result.data;
-            const safe = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
-            setPosts(safe);
-            setError("");
-            return;
-          }
-
-          lastMessage = typeof result.data === "string" ? result.data : JSON.stringify(result.data || {});
-        } catch (err: any) {
-          lastMessage = err?.name === "AbortError" ? "Délai dépassé" : String(err?.message || err || "");
-        }
-      }
-
-      setPosts([]);
-      setError(
-        lastStatus === 401
-          ? "Session mobile expirée. Reconnecte-toi pour afficher tes publications."
-          : `Chargement impossible${lastStatus ? ` (${lastStatus})` : ""}${lastMessage ? ` — ${lastMessage}` : ""}`
-      );
+      const safe = await fetchPlannerPostsNoRedirect();
+      setPosts(safe);
     } catch (err: any) {
       setPosts([]);
       setError(String(err?.message || "Impossible de charger les publications."));
@@ -421,18 +439,7 @@ export default function MobilePlannerView() {
   }, []);
 
   useEffect(() => {
-    let mounted = true;
-
-    const run = async () => {
-      if (!mounted) return;
-      await loadPosts();
-    };
-
-    run();
-
-    return () => {
-      mounted = false;
-    };
+    loadPosts();
   }, [loadPosts]);
 
   const normalizedPosts = useMemo(
@@ -471,24 +478,14 @@ export default function MobilePlannerView() {
         {!loading && error ? (
           <div className="rounded-3xl border border-red-500/25 bg-red-500/10 p-5">
             <div className="text-sm font-bold text-red-200">Planner mobile indisponible</div>
-            <p className="mt-2 whitespace-pre-wrap text-sm text-red-100/75">{error}</p>
-            <div className="mt-4 flex flex-col gap-3">
-              <button
-                type="button"
-                onClick={loadPosts}
-                className="h-11 rounded-2xl bg-[#f5bf21] px-5 text-sm font-black text-black"
-              >
-                Réessayer
-              </button>
-              {error.toLowerCase().includes("session") ? (
-                <a
-                  href="/auth/login?next=/dashboard/automatisations/reseaux_sociaux/planner"
-                  className="grid h-11 place-items-center rounded-2xl border border-[#f5bf21]/30 bg-black/40 px-5 text-sm font-black text-[#f5bf21]"
-                >
-                  Se reconnecter
-                </a>
-              ) : null}
-            </div>
+            <p className="mt-2 text-sm text-red-100/75">{error}</p>
+            <button
+              type="button"
+              onClick={loadPosts}
+              className="mt-4 h-11 rounded-2xl bg-[#f5bf21] px-5 text-sm font-black text-black"
+            >
+              Réessayer
+            </button>
           </div>
         ) : null}
 
