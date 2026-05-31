@@ -1,5 +1,6 @@
 "use client";
 
+import api from "@/lib/api";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 type PlannerPost = Record<string, any>;
@@ -346,22 +347,21 @@ export default function MobilePlannerView() {
     setError("");
 
     try {
-      const res = await fetch("/api/proxy/planner/posts", {
-        credentials: "include",
-        headers: { ...getAuthHeaders() },
-        cache: "no-store",
-      });
-
-      if (!res.ok) {
-        throw new Error(`Chargement impossible (${res.status})`);
-      }
-
-      const data = await res.json().catch(() => []);
+      // LGD MOBILE SAFE — utiliser le même client API que le reste de l’application.
+      // Cela évite le fetch maison mobile qui ne transmettait pas l’auth comme le desktop.
+      const res = await (api as any).get("/planner/posts");
+      const data = res?.data ?? res ?? [];
       const safe = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
       setPosts(safe);
     } catch (err: any) {
+      const status = err?.response?.status ?? err?.status ?? null;
       setPosts([]);
-      setError(String(err?.message || "Impossible de charger les publications."));
+
+      if (status === 401) {
+        setError("Session expirée ou non transmise sur mobile. Reconnecte-toi puis reviens dans le Planner.");
+      } else {
+        setError(String(err?.message || "Impossible de charger les publications."));
+      }
     } finally {
       setLoading(false);
     }
