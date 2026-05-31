@@ -127,6 +127,142 @@ function compactLayers(layers: any): any[] {
   return layers.map(compactLayer).filter(Boolean);
 }
 
+
+function firstStringValue(...values: any[]) {
+  for (const value of values) {
+    if (typeof value !== "string") continue;
+    const v = value.trim();
+    if (v) return v;
+  }
+  return "";
+}
+
+function looksLikePlannerVisual(value: unknown) {
+  if (typeof value !== "string") return false;
+  const v = value.trim().toLowerCase();
+  return (
+    v.startsWith("http://") ||
+    v.startsWith("https://") ||
+    v.startsWith("blob:") ||
+    v.startsWith("data:image/")
+  );
+}
+
+function extractVisualFromLayers(layers: any): string {
+  if (!Array.isArray(layers)) return "";
+
+  for (const layer of layers) {
+    if (!layer || typeof layer !== "object") continue;
+
+    const candidate = firstStringValue(
+      layer.planner_preview_image,
+      layer.preview_image,
+      layer.rendered_image,
+      layer.src,
+      layer.url,
+      layer.image,
+      layer.imageUrl,
+      layer.image_url,
+      layer.media_url,
+      layer.mediaUrl,
+      layer.preview_url,
+      layer.previewUrl,
+      layer.thumbnail_url,
+      layer.thumbnailUrl,
+      layer.background,
+      layer.backgroundUrl,
+      layer.background_url,
+    );
+
+    if (looksLikePlannerVisual(candidate)) return candidate;
+  }
+
+  return "";
+}
+
+function extractVisualFromSlides(slides: any): string {
+  if (!Array.isArray(slides)) return "";
+
+  for (const slide of slides) {
+    if (!slide || typeof slide !== "object") continue;
+
+    const direct = firstStringValue(
+      slide.planner_preview_image,
+      slide.preview_image,
+      slide.rendered_image,
+      slide.image_url,
+      slide.media_url,
+      slide.imageUrl,
+      slide.mediaUrl,
+      slide.preview_url,
+      slide.previewUrl,
+      slide.thumbnail_url,
+      slide.thumbnailUrl,
+      slide.src,
+      slide.url,
+      slide.background,
+      slide.backgroundUrl,
+      slide.background_url,
+    );
+
+    if (looksLikePlannerVisual(direct)) return direct;
+
+    const fromLayers =
+      extractVisualFromLayers(slide.layers) ||
+      extractVisualFromLayers(slide.elements) ||
+      extractVisualFromLayers(slide.objects);
+
+    if (looksLikePlannerVisual(fromLayers)) return fromLayers;
+  }
+
+  return "";
+}
+
+function extractPlannerVisualSource(source: any): string {
+  if (!source || typeof source !== "object") return "";
+
+  const direct = firstStringValue(
+    source.planner_preview_image,
+    source.plannerPreviewImage,
+    source.preview_image,
+    source.previewImage,
+    source.rendered_image,
+    source.renderedImage,
+    source.media_url,
+    source.mediaUrl,
+    source.image_url,
+    source.imageUrl,
+    source.preview_url,
+    source.previewUrl,
+    source.thumbnail_url,
+    source.thumbnailUrl,
+    source.cover_url,
+    source.coverUrl,
+  );
+
+  if (looksLikePlannerVisual(direct)) return direct;
+
+  const nested =
+    extractPlannerVisualSource(source.payload) ||
+    extractPlannerVisualSource(source.draft) ||
+    extractPlannerVisualSource(source.canvas) ||
+    extractPlannerVisualSource(source.editor);
+
+  if (looksLikePlannerVisual(nested)) return nested;
+
+  const fromLayers =
+    extractVisualFromLayers(source.layers) ||
+    extractVisualFromLayers(source.elements) ||
+    extractVisualFromLayers(source.objects);
+
+  if (looksLikePlannerVisual(fromLayers)) return fromLayers;
+
+  const fromSlides = extractVisualFromSlides(source.slides);
+  if (looksLikePlannerVisual(fromSlides)) return fromSlides;
+
+  return "";
+}
+
 function extractCaptionFromLayers(layers: any[]) {
   const text = layers
     .map((layer) => (layer?.type === "text" ? String(layer.text || "") : ""))
@@ -509,14 +645,7 @@ function compactContentForPlanner(
       2000,
     ) || "";
 
-  const previewImage =
-    source.planner_preview_image ||
-    source.plannerPreviewImage ||
-    source.preview_image ||
-    source.previewImage ||
-    source.rendered_image ||
-    source.renderedImage ||
-    "";
+  const previewImage = extractPlannerVisualSource(source);
 
   return {
     type:
@@ -538,6 +667,8 @@ function compactContentForPlanner(
     preview_image: previewImage || undefined,
     planner_preview_image: previewImage || undefined,
     rendered_image: previewImage || undefined,
+    media_url: previewImage || undefined,
+    image_url: previewImage || undefined,
   };
 }
 
@@ -580,14 +711,7 @@ export function useSchedulePlanner() {
           ? payload.contenu
           : {};
 
-      const previewImage =
-        originalContent?.planner_preview_image ||
-        originalContent?.preview_image ||
-        originalContent?.rendered_image ||
-        originalContent?.plannerPreviewImage ||
-        originalContent?.previewImage ||
-        originalContent?.renderedImage ||
-        "";
+      const previewImage = extractPlannerVisualSource(originalContent);
 
       const title =
         payload.titre ||
@@ -623,6 +747,8 @@ export function useSchedulePlanner() {
         preview_image: previewImage || undefined,
         planner_preview_image: previewImage || undefined,
         rendered_image: previewImage || undefined,
+        media_url: previewImage || undefined,
+        image_url: previewImage || undefined,
       };
 
       const body = {
@@ -639,6 +765,8 @@ export function useSchedulePlanner() {
         preview_image: previewImage || undefined,
         planner_preview_image: previewImage || undefined,
         rendered_image: previewImage || undefined,
+        media_url: previewImage || undefined,
+        image_url: previewImage || undefined,
         ...(isCarrousel
           ? {
               carrousel_id:
