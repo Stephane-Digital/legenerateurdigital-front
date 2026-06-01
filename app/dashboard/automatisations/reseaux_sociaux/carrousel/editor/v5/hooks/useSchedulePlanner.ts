@@ -711,11 +711,12 @@ export function useSchedulePlanner() {
           ? payload.contenu
           : {};
       
-      console.log("LGD DEBUG CONTENT", originalContent);
-      console.log("LGD DEBUG PREVIEW", previewImage);
-      
       const previewImage = extractPlannerVisualSource(originalContent);
 
+      console.log("LGD DEBUG CONTENT", originalContent);
+      console.log("LGD DEBUG PREVIEW", previewImage);
+
+      
       const title =
         payload.titre ||
         originalContent?.titre ||
