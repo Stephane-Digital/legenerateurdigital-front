@@ -771,6 +771,50 @@ function buildMockCaption(input: {
   return `${intro}\n\n${body}\n\nÀ partir de "${safeTitle}", LGD peut t’aider à mieux structurer ton message et accélérer ta publication.\n\n${goal}\n\n${buildCTAFromCaption({ objective, network })}\n\n${buildHashtagsFromCaption(source)}`;
 }
 
+function buildCaptionPromptSource(input: {
+  post: any;
+  parsed: any;
+  title: string;
+  fallbackCaption?: string;
+  network: string;
+  tone: string;
+  objective: string;
+}) {
+  const { post, parsed, title, fallbackCaption, network, tone, objective } = input;
+
+  const sourceTexts = flattenPossibleTextSources(post, parsed)
+    .map((value) => normalizeWhitespace(String(value || "")))
+    .filter(Boolean);
+
+  const visualText = uniqueStrings([
+    normalizeWhitespace(fallbackCaption || ""),
+    ...sourceTexts,
+  ])
+    .join("\n")
+    .slice(0, 3200);
+
+  const safeTitle = normalizeWhitespace(title || "Publication LGD");
+  const safeVisualText = visualText || safeTitle;
+
+  return [
+    "SOURCE RÉELLE DE LA PUBLICATION LGD",
+    `Titre : ${safeTitle}`,
+    `Réseau : ${network || "instagram"}`,
+    `Ton demandé : ${tone || "premium"}`,
+    `Objectif : ${objective || "conversion"}`,
+    "",
+    "Texte réel détecté dans le post / visuel / layers / Performeur Réseaux :",
+    safeVisualText,
+    "",
+    "RÈGLES STRICTES :",
+    "- Génère une légende alignée uniquement avec cette source.",
+    "- N'invente pas un sujet différent.",
+    "- Ne parle pas de MRR, LGD, formation, business ou présentation mobile si la source ne le mentionne pas.",
+    "- Si la source parle de yoga, concentration, bien-être ou tout autre thème, reste exactement sur ce thème.",
+    "- Résume, reformule et rends la publication exploitable pour le réseau choisi.",
+  ].join("\n");
+}
+
 function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
@@ -1490,10 +1534,19 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
     try {
       const current = editableCaption || caption || title;
       const parts = splitCaptionParts(current);
-      const promptBase = parts.base || current || title;
+      const promptBase = buildCaptionPromptSource({
+        post,
+        parsed,
+        title,
+        fallbackCaption: parts.base || current || caption || "",
+        network,
+        tone,
+        objective,
+      });
 
       const res = await api.post("/ai-caption/generate", {
         prompt: promptBase,
+        existing_caption: editableCaption || caption || "",
         network,
         tone,
         objective,
@@ -1551,10 +1604,19 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
     try {
       const current = editableCaption || caption || title;
       const parts = splitCaptionParts(current);
-      const promptBase = parts.base || title;
+      const promptBase = buildCaptionPromptSource({
+        post,
+        parsed,
+        title,
+        fallbackCaption: parts.base || caption || "",
+        network,
+        tone,
+        objective,
+      });
 
       const res = await api.post("/ai-caption/generate", {
-        prompt: `À partir du texte suivant, renvoie uniquement des hashtags pertinents en français, sans phrase, sans introduction, uniquement des hashtags séparés par des espaces.\n\n${promptBase}`,
+        prompt: `À partir de la source réelle ci-dessous, renvoie uniquement des hashtags pertinents en français, sans phrase, sans introduction, uniquement des hashtags séparés par des espaces.\n\n${promptBase}`,
+        existing_caption: editableCaption || caption || "",
         network,
         tone,
         objective,
@@ -1605,10 +1667,19 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
     try {
       const current = editableCaption || caption || title;
       const parts = splitCaptionParts(current);
-      const promptBase = parts.base || title;
+      const promptBase = buildCaptionPromptSource({
+        post,
+        parsed,
+        title,
+        fallbackCaption: parts.base || caption || "",
+        network,
+        tone,
+        objective,
+      });
 
       const res = await api.post("/ai-caption/generate", {
-        prompt: `À partir du texte suivant, renvoie uniquement un CTA final en français sur une seule ligne, sans hashtags, sans introduction, sans reformuler la légende complète.\n\n${promptBase}`,
+        prompt: `À partir de la source réelle ci-dessous, renvoie uniquement un CTA final en français sur une seule ligne, sans hashtags, sans introduction, sans reformuler la légende complète.\n\n${promptBase}`,
+        existing_caption: editableCaption || caption || "",
         network,
         tone,
         objective,
@@ -1931,7 +2002,7 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
             <div className="rounded-2xl border border-white/10 bg-[#121212] p-5">
               <p className="text-xs uppercase tracking-[0.22em] text-white/40">Suivi Planner</p>
               <p className="mt-3 text-sm text-white/70">
-                Garde ton calendrier propre même sans auto-publication Meta.
+                Toutes tes publications planifiées en un clein d'oeil.
               </p>
 
               <div className="mt-5 grid gap-3">
