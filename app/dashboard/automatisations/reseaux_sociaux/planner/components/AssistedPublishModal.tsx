@@ -1134,6 +1134,106 @@ function PreviewCanvasView({ canvas }: { canvas: PreviewCanvas }) {
 }
 
 
+
+const ASSISTED_CAPTION_CACHE_KEY = "lgd_assisted_caption_cache_v1";
+
+type AssistedCaptionCacheItem = {
+  caption: string;
+  title?: string;
+  network?: string;
+  updated_at: number;
+};
+
+function readAssistedCaptionCache(): Record<string, AssistedCaptionCacheItem> {
+  if (typeof window === "undefined") return {};
+
+  try {
+    const raw = window.localStorage.getItem(ASSISTED_CAPTION_CACHE_KEY);
+    if (!raw) return {};
+
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeAssistedCaptionCache(cache: Record<string, AssistedCaptionCacheItem>) {
+  if (typeof window === "undefined") return;
+
+  try {
+    const entries = Object.entries(cache)
+      .filter(([, item]) => !!item?.caption)
+      .sort((a, b) => Number(b[1]?.updated_at || 0) - Number(a[1]?.updated_at || 0))
+      .slice(0, 40);
+
+    window.localStorage.setItem(
+      ASSISTED_CAPTION_CACHE_KEY,
+      JSON.stringify(Object.fromEntries(entries)),
+    );
+  } catch {
+    // Ne jamais bloquer Publication assistée si le navigateur refuse le stockage local.
+  }
+}
+
+function buildAssistedCaptionCacheKeys(input: { post: any; parsed: any; title: string; network: string }) {
+  const { post, parsed, title, network } = input;
+  const scheduledAt = String(
+    post?.scheduled_at ??
+      post?.date_programmee ??
+      parsed?.scheduled_at ??
+      parsed?.date_programmee ??
+      "",
+  ).trim();
+
+  return uniqueStrings([
+    String(post?.id ?? ""),
+    String(post?.post_id ?? ""),
+    String(post?.planner_id ?? ""),
+    `${network || "instagram"}|${scheduledAt}|${title || "Publication LGD"}`,
+    `title|${title || "Publication LGD"}`,
+  ]);
+}
+
+function readSavedAssistedCaption(keys: string[]) {
+  const cache = readAssistedCaptionCache();
+
+  for (const key of keys) {
+    const item = cache[key];
+    if (item?.caption && typeof item.caption === "string") {
+      return item.caption;
+    }
+  }
+
+  return "";
+}
+
+function saveAssistedCaption(keys: string[], caption: string, meta: { title: string; network: string }) {
+  const cleanCaption = normalizeWhitespace(caption);
+  if (!keys.length) return;
+
+  const cache = readAssistedCaptionCache();
+
+  if (!cleanCaption) {
+    for (const key of keys) delete cache[key];
+    writeAssistedCaptionCache(cache);
+    return;
+  }
+
+  const item: AssistedCaptionCacheItem = {
+    caption: cleanCaption,
+    title: meta.title,
+    network: meta.network,
+    updated_at: Date.now(),
+  };
+
+  for (const key of keys) {
+    cache[key] = item;
+  }
+
+  writeAssistedCaptionCache(cache);
+}
+
 const PLANNER_EDITOR_PAYLOAD_CACHE_KEY = "lgd_planner_editor_payload_cache_v1";
 const PLANNER_MEDIA_IDB_NAME = "lgd_planner_media_cache_v1";
 const PLANNER_MEDIA_IDB_STORE = "items";
@@ -1271,6 +1371,10 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
   const networkUrl = useMemo(() => buildNetworkUrl(network), [network]);
   const status = useMemo(() => getStatus(post, parsed), [post, parsed]);
   const isPublished = status.includes("published") || status.includes("envoy") || status.includes("success");
+  const assistedCaptionCacheKeys = useMemo(
+    () => buildAssistedCaptionCacheKeys({ post, parsed, title, network }),
+    [post, parsed, title, network],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -1301,8 +1405,27 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
   }, [open, post?.id, baseParsed]);
 
   useEffect(() => {
-    setEditableCaption(caption || "");
-  }, [caption, post?.id]);
+    if (!open || !post) {
+      setEditableCaption("");
+      return;
+    }
+
+    const savedCaption = readSavedAssistedCaption(assistedCaptionCacheKeys);
+    setEditableCaption(savedCaption || caption || "");
+  }, [open, post?.id, caption, assistedCaptionCacheKeys]);
+
+  useEffect(() => {
+    if (!open || !post) return;
+
+    const timer = window.setTimeout(() => {
+      saveAssistedCaption(assistedCaptionCacheKeys, editableCaption, {
+        title,
+        network,
+      });
+    }, 350);
+
+    return () => window.clearTimeout(timer);
+  }, [open, post?.id, editableCaption, assistedCaptionCacheKeys, title, network]);
 
   useEffect(() => {
     let mounted = true;
@@ -1559,7 +1682,9 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
       const generated = normalizeWhitespace(String(data?.caption || ""));
 
       if (generated) {
-        setEditableCaption(composeCaptionParts(generated, parts.cta, parts.hashtags));
+        const nextCaption = composeCaptionParts(generated, parts.cta, parts.hashtags);
+        setEditableCaption(nextCaption);
+        saveAssistedCaption(assistedCaptionCacheKeys, nextCaption, { title, network });
       } else {
         setQuotaMessage("Aucune légende exploitable n’a été renvoyée par l’IA.");
       }
@@ -1629,7 +1754,9 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
       const aiText = String(data?.caption || "");
       const hashtags = extractHashtagsOnly(aiText) || buildHashtagsFromCaption(promptBase);
 
-      setEditableCaption(composeCaptionParts(parts.base || promptBase, parts.cta, hashtags));
+      const nextCaption = composeCaptionParts(parts.base || promptBase, parts.cta, hashtags);
+      setEditableCaption(nextCaption);
+      saveAssistedCaption(assistedCaptionCacheKeys, nextCaption, { title, network });
 
       const remaining = Number(
         data?.quota?.remaining ??
@@ -1692,7 +1819,9 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
       const aiText = String(data?.caption || "");
       const cta = extractCtaOnly(aiText) || buildCTAFromCaption({ objective, network });
 
-      setEditableCaption(composeCaptionParts(parts.base || promptBase, cta, parts.hashtags));
+      const nextCaption = composeCaptionParts(parts.base || promptBase, cta, parts.hashtags);
+      setEditableCaption(nextCaption);
+      saveAssistedCaption(assistedCaptionCacheKeys, nextCaption, { title, network });
 
       const remaining = Number(
         data?.quota?.remaining ??
@@ -1725,6 +1854,7 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
     if (captionLoading) return;
     setQuotaMessage("");
     setEditableCaption("");
+    saveAssistedCaption(assistedCaptionCacheKeys, "", { title, network });
   };
 
   return (
