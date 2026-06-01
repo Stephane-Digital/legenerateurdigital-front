@@ -449,6 +449,16 @@ export default function MobilePlannerView() {
         const image = extractImage(post, parsed);
         const canvas = extractPreviewCanvas(post, parsed);
 
+        console.log("LGD MOBILE DEBUG", {
+  id: post?.id,
+  title: post?.title || post?.titre,
+  media_url: post?.media_url ? "OUI" : "NON",
+  image_url: post?.image_url ? "OUI" : "NON",
+  planner_preview_image: post?.planner_preview_image ? "OUI" : "NON",
+  extracted_image: image ? "OUI" : "NON",
+  canvas: canvas ? "OUI" : "NON",
+});
+
         return {
           post,
           parsed,
