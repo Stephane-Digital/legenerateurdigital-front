@@ -710,7 +710,10 @@ export function useSchedulePlanner() {
         payload.contenu && typeof payload.contenu === "object"
           ? payload.contenu
           : {};
-
+      
+      console.log("LGD DEBUG CONTENT", originalContent);
+      console.log("LGD DEBUG PREVIEW", previewImage);
+      
       const previewImage = extractPlannerVisualSource(originalContent);
 
       const title =
