@@ -148,6 +148,65 @@ function looksLikePlannerVisual(value: unknown) {
   );
 }
 
+
+function loadImageFromDataUrl(dataUrl: string): Promise<HTMLImageElement | null> {
+  if (typeof window === "undefined") return Promise.resolve(null);
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = dataUrl;
+  });
+}
+
+async function compressPlannerDataImage(dataUrl: string): Promise<string> {
+  const source = String(dataUrl || "").trim();
+  if (!source.startsWith("data:image/")) return source;
+
+  // Déjà acceptable pour le backend Render.
+  if (source.length <= 1_200_000) return source;
+
+  try {
+    const img = await loadImageFromDataUrl(source);
+    if (!img) return "";
+
+    const maxSide = 900;
+    const ratio = Math.min(1, maxSide / Math.max(img.width || 1, img.height || 1));
+    const width = Math.max(1, Math.round((img.width || maxSide) * ratio));
+    const height = Math.max(1, Math.round((img.height || maxSide) * ratio));
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return "";
+
+    ctx.drawImage(img, 0, 0, width, height);
+
+    const qualities = [0.82, 0.72, 0.62, 0.52, 0.42];
+    for (const quality of qualities) {
+      const compressed = canvas.toDataURL("image/jpeg", quality);
+      if (compressed && compressed.length <= 1_200_000) return compressed;
+    }
+
+    const smallest = canvas.toDataURL("image/jpeg", 0.34);
+    return smallest && smallest.length <= 1_800_000 ? smallest : "";
+  } catch {
+    return "";
+  }
+}
+
+async function normalizePlannerPreviewImage(value: string): Promise<string> {
+  const preview = String(value || "").trim();
+  if (!looksLikePlannerVisual(preview)) return "";
+
+  if (!preview.startsWith("data:image/")) return preview;
+
+  return compressPlannerDataImage(preview);
+}
+
 function extractVisualFromLayers(layers: any): string {
   if (!Array.isArray(layers)) return "";
 
@@ -710,9 +769,10 @@ export function useSchedulePlanner() {
         payload.contenu && typeof payload.contenu === "object"
           ? payload.contenu
           : {};
-      
-      const previewImage = extractPlannerVisualSource(originalContent);
-      
+
+      const rawPreviewImage = extractPlannerVisualSource(originalContent);
+      const previewImage = await normalizePlannerPreviewImage(rawPreviewImage);
+
       const title =
         payload.titre ||
         originalContent?.titre ||
