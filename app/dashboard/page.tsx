@@ -930,16 +930,18 @@ export default function DashboardPage() {
               <div className="mx-auto w-full max-w-none">
                 <div className="flex flex-col items-center text-center">
                   <div className="inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-4 py-1 text-[12px] text-white/75">
-                    <FaBolt className="text-yellow-300" />
-                    Mode CMO IA
+                    <span className="h-2.5 w-2.5 rounded-full bg-green-400 animate-pulse" />
+                    IA LIVE
                   </div>
 
                   <h2 className="mt-4 text-2xl sm:text-4xl font-extrabold text-[#ffb800]">
-                    Ton CMO IA a pris une décision pour toi
+                    🎯 Mission Cash du Jour IA
                   </h2>
 
                   <p className="mt-3 max-w-4xl text-white/75 text-sm sm:text-base">
-                    LGD te propose une action rapide gratuite. L’analyse CMO IA avancée reste disponible uniquement quand tu la demandes.
+                    LGD te propose une action rapide à réaliser immédiatement.
+
+                    Passe à l'action ou lance une nouvelle analyse IA Live pour obtenir une recommandation différente.
                   </p>
 
                   <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#050505] px-4 py-2 text-[12px] font-semibold text-yellow-100 shadow-[0_0_24px_rgba(255,184,0,0.08)]">
@@ -1011,7 +1013,7 @@ export default function DashboardPage() {
 
                   <div className="rounded-3xl border border-yellow-600/20 bg-[#0b0b0b]/80 p-5 text-left">
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-yellow-300">
-                      ⚡ Exécution rapide
+                      🎯 Passe à l'action
                     </p>
 
                     {cmoResult?.next_best_action ? (
@@ -1034,7 +1036,7 @@ export default function DashboardPage() {
                         href="/dashboard/cmo-v2"
                         className="w-full rounded-2xl px-5 py-3 text-center font-semibold border border-yellow-600/25 bg-[#0b0b0b] text-white/85 hover:bg-yellow-500/10 transition-all"
                       >
-                        Générer avec CMO IA
+                        🟢 Nouvelle analyse IA Live
                       </Link>
 
                     </div>
