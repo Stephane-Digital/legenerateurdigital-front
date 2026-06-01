@@ -1,7 +1,6 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
@@ -812,7 +811,7 @@ export default function DashboardPage() {
       setCmoResult(result);
     } catch (error) {
       console.error(error);
-      setCmoError("CMO IA indisponible pour le moment. Tu peux continuer avec Coach Alex.");
+      setCmoError("Stratège IA Live indisponible pour le moment. Tu peux continuer avec Coach Alex.");
     } finally {
       setCmoLoading(false);
     }
@@ -962,7 +961,7 @@ export default function DashboardPage() {
                     <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                       <div>
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-yellow-300">
-                          🎯 Action prioritaire recommandée
+                          🎯 Mission Cash du Jour
                         </p>
                         <p className="mt-3 text-xl font-extrabold leading-snug text-white">
                           {cmoResult?.priority_action || "Lancer Coach Alex pour clarifier ton action la plus rentable."}
@@ -986,7 +985,7 @@ export default function DashboardPage() {
                       <div className="mt-5 rounded-2xl border border-yellow-400/20 bg-yellow-400/10 px-4 py-3 text-sm font-semibold text-yellow-100">
                         <span className="inline-flex items-center gap-3">
                           <FaSyncAlt className="animate-spin text-yellow-300" />
-                          Le CMO IA analyse ton objectif et choisit le module le plus rentable...
+                          Le Stratège IA Live analyse ton activité et prépare une nouvelle recommandation personnalisée...
                         </span>
                       </div>
                     ) : cmoResult?.diagnostic ? (
@@ -995,7 +994,7 @@ export default function DashboardPage() {
                       </p>
                     ) : (
                       <p className="mt-5 text-sm leading-7 text-white/60">
-                        Une action locale gratuite est proposée automatiquement à chaque chargement.
+                        Une Mission Cash du Jour est proposée automatiquement à chaque chargement.
                       </p>
                     )}
 
@@ -1023,7 +1022,7 @@ export default function DashboardPage() {
                       </div>
                     ) : (
                       <p className="mt-4 text-sm leading-7 text-white/60">
-                        Génère une décision CMO pour obtenir la prochaine action exacte à exécuter.
+                        Lance le Stratège IA Live pour obtenir une nouvelle direction stratégique.
                       </p>
                     )}
 
@@ -1032,17 +1031,22 @@ export default function DashboardPage() {
                         {cmoModuleTarget.label}
                       </PrimaryButton>
 
-                      <Link
-                        href="/dashboard/cmo-v2"
-                        className="w-full rounded-2xl px-5 py-3 text-center font-semibold border border-yellow-600/25 bg-[#0b0b0b] text-white/85 hover:bg-yellow-500/10 transition-all"
+                      <button
+                        type="button"
+                        onClick={loadCmoLive}
+                        disabled={cmoLoading}
+                        className="w-full rounded-2xl px-5 py-3 text-center font-semibold border border-yellow-600/25 bg-[#0b0b0b] text-white/85 hover:bg-yellow-500/10 transition-all disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        🟢 Nouvelle analyse IA Live
-                      </Link>
+                        {cmoLoading ? "Analyse IA Live en cours..." : "🟢 Nouvelle analyse IA Live"}
+                      </button>
 
                     </div>
 
                     <p className="mt-3 text-center text-xs leading-5 text-white/45">
-                      L’action locale ouvre le bon module sans consommer de jetons. L’analyse avancée se lance uniquement avec le bouton CMO IA.
+                      Passe à l'action avec la Mission Cash du Jour.
+
+                      Besoin d'une nouvelle stratégie ?
+                      Lance le Stratège IA Live pour obtenir une analyse personnalisée de ton activité.
                     </p>
 
 
