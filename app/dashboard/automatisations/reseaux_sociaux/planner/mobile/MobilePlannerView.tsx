@@ -2,6 +2,7 @@
 
 import api from "@/lib/api";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import AssistedPublishModal from "../components/AssistedPublishModal";
 
 type PlannerPost = Record<string, any>;
 
@@ -257,6 +258,104 @@ function extractNetwork(post: PlannerPost, parsed: any) {
   return firstNonEmptyString(post?.reseau, post?.network, parsed?.reseau, parsed?.network, "instagram");
 }
 
+function extractCaption(post: PlannerPost, parsed: any) {
+  return firstNonEmptyString(
+    parsed?.caption,
+    parsed?.text,
+    parsed?.texte,
+    parsed?.description,
+    parsed?.message,
+    parsed?.generated_caption,
+    parsed?.payload?.caption,
+    parsed?.payload?.text,
+    parsed?.payload?.description,
+    parsed?.content?.caption,
+    parsed?.content?.text,
+    parsed?.contenu?.caption,
+    parsed?.contenu?.text,
+    post?.caption,
+    post?.text,
+    post?.description,
+    post?.content?.caption,
+    post?.content?.text,
+    post?.contenu?.caption,
+    post?.contenu?.text,
+  );
+}
+
+function sanitizeFilename(value: string) {
+  const clean = String(value || "publication-lgd")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9-_]+/g, "-")
+    .replace(/-{2,}/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 80);
+
+  return clean || "publication-lgd";
+}
+
+function extensionFromImageUrl(value: string) {
+  const v = String(value || "").toLowerCase();
+  if (v.startsWith("data:image/png")) return "png";
+  if (v.startsWith("data:image/webp")) return "webp";
+  return "jpg";
+}
+
+async function copyTextToClipboard(text: string) {
+  const value = String(text || "").trim();
+  if (!value) return false;
+
+  try {
+    if (navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value);
+      return true;
+    }
+  } catch {
+    // Fallback ci-dessous.
+  }
+
+  try {
+    const textarea = document.createElement("textarea");
+    textarea.value = value;
+    textarea.setAttribute("readonly", "true");
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(textarea);
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
+function downloadPlannerImage(imageUrl: string, title: string) {
+  const image = String(imageUrl || "").trim();
+  if (!image || !looksLikeImageUrl(image)) return false;
+
+  try {
+    const link = document.createElement("a");
+    link.href = image;
+    link.download = `${sanitizeFilename(title)}.${extensionFromImageUrl(image)}`;
+    link.rel = "noopener noreferrer";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    return true;
+  } catch {
+    try {
+      window.open(image, "_blank", "noopener,noreferrer");
+      return true;
+    } catch {
+      return false;
+    }
+  }
+}
+
 
 const PLANNER_EDITOR_PAYLOAD_CACHE_KEY = "lgd_planner_editor_payload_cache_v1";
 
@@ -421,6 +520,9 @@ export default function MobilePlannerView() {
   const [posts, setPosts] = useState<PlannerPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [selectedPost, setSelectedPost] = useState<PlannerPost | null>(null);
+  const [copiedPostId, setCopiedPostId] = useState<string | null>(null);
+  const [mobileActionMessage, setMobileActionMessage] = useState("");
 
   const loadPosts = useCallback(async () => {
     setLoading(true);
@@ -449,16 +551,6 @@ export default function MobilePlannerView() {
         const image = extractImage(post, parsed);
         const canvas = extractPreviewCanvas(post, parsed);
 
-        console.log("LGD MOBILE DEBUG", {
-  id: post?.id,
-  title: post?.title || post?.titre,
-  media_url: post?.media_url ? "OUI" : "NON",
-  image_url: post?.image_url ? "OUI" : "NON",
-  planner_preview_image: post?.planner_preview_image ? "OUI" : "NON",
-  extracted_image: image ? "OUI" : "NON",
-  canvas: canvas ? "OUI" : "NON",
-});
-
         return {
           post,
           parsed,
@@ -466,14 +558,69 @@ export default function MobilePlannerView() {
           date: extractDate(post, parsed),
           network: extractNetwork(post, parsed),
           image: image && looksLikeImageUrl(image) ? image : "",
+          caption: extractCaption(post, parsed),
           canvas,
         };
       }),
     [posts],
   );
 
+  const handleOpenAssistedPublish = useCallback((post: PlannerPost) => {
+    setSelectedPost(post);
+  }, []);
+
+  const handleDownloadVisual = useCallback((image: string, title: string) => {
+    const ok = downloadPlannerImage(image, title);
+    setMobileActionMessage(
+      ok
+        ? "Téléchargement du visuel lancé."
+        : "Aucun visuel téléchargeable pour cette publication.",
+    );
+    window.setTimeout(() => setMobileActionMessage(""), 2600);
+  }, []);
+
+  const handleCopyCaption = useCallback(async (caption: string, title: string, id: any) => {
+    const text = firstNonEmptyString(caption, title);
+    const ok = await copyTextToClipboard(text);
+
+    if (ok) {
+      setCopiedPostId(String(id ?? title ?? "publication"));
+      setMobileActionMessage("Légende copiée.");
+      window.setTimeout(() => setCopiedPostId(null), 2200);
+    } else {
+      setMobileActionMessage("Impossible de copier la légende sur ce navigateur.");
+    }
+
+    window.setTimeout(() => setMobileActionMessage(""), 2600);
+  }, []);
+
+  const handleMarkStatusFromModal = useCallback(
+    async (postId: number | string, status: "published" | "scheduled") => {
+      const pid = Number(postId);
+      if (!Number.isFinite(pid)) return;
+
+      setPosts((current) =>
+        current.map((post) =>
+          Number(post?.id) === pid
+            ? {
+                ...post,
+                statut: status,
+                status,
+                published_at: status === "published" ? new Date().toISOString() : null,
+              }
+            : post,
+        ),
+      );
+
+      await (api as any).patch(`/planner/posts/${pid}/manual-status`, { status });
+      await loadPosts();
+    },
+    [loadPosts],
+  );
+
   return (
-    <section className="min-h-screen w-full bg-[#050505] px-3 pb-28 pt-[96px] text-white sm:hidden">
+    <>
+      <section className="min-h-screen w-full bg-[#050505] px-3 pb-28 pt-[96px] text-white sm:hidden">
       <div className="mx-auto w-full max-w-[560px]">
         <div className="mb-5 rounded-3xl border border-[#f5bf21]/18 bg-[#090909] p-4 shadow-[0_16px_60px_rgba(0,0,0,0.45)]">
           <div className="text-[11px] font-black uppercase tracking-[0.22em] text-[#f5bf21]/80">Planner mobile</div>
@@ -526,11 +673,54 @@ export default function MobilePlannerView() {
                   </div>
                   <div className="shrink-0 rounded-2xl border border-[#f5bf21]/20 bg-[#f5bf21]/10 px-3 py-2 text-xs font-bold text-[#ffe49a]">{item.date}</div>
                 </div>
+
+                <div className="mt-4 grid grid-cols-1 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleOpenAssistedPublish(item.post)}
+                    className="h-11 rounded-2xl border border-[#f5bf21]/35 bg-[#f5bf21] px-4 text-sm font-black text-black shadow-[0_10px_30px_rgba(245,191,33,0.16)] active:scale-[0.99]"
+                  >
+                    🚀 Publication assistée
+                  </button>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadVisual(item.image, item.title)}
+                      disabled={!item.image}
+                      className="h-11 rounded-2xl border border-white/10 bg-white/[0.06] px-3 text-xs font-black text-white transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      📥 Télécharger
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleCopyCaption(item.caption, item.title, item.post?.id)}
+                      className="h-11 rounded-2xl border border-white/10 bg-white/[0.06] px-3 text-xs font-black text-white transition active:scale-[0.99]"
+                    >
+                      {copiedPostId === String(item.post?.id ?? item.title) ? "✅ Copiée" : "📋 Copier légende"}
+                    </button>
+                  </div>
+                </div>
               </div>
             </article>
           ))}
         </div>
       </div>
-    </section>
+      </section>
+
+      {mobileActionMessage ? (
+        <div className="fixed bottom-5 left-1/2 z-[80] w-[calc(100%-32px)] max-w-[420px] -translate-x-1/2 rounded-2xl border border-[#f5bf21]/25 bg-[#090909] px-4 py-3 text-center text-sm font-bold text-[#ffe49a] shadow-[0_18px_60px_rgba(0,0,0,0.55)] sm:hidden">
+          {mobileActionMessage}
+        </div>
+      ) : null}
+
+      <AssistedPublishModal
+        open={!!selectedPost}
+        post={selectedPost}
+        onClose={() => setSelectedPost(null)}
+        onMarkStatus={handleMarkStatusFromModal}
+      />
+    </>
   );
 }
