@@ -713,8 +713,9 @@ export function useSchedulePlanner() {
       
       const previewImage = extractPlannerVisualSource(originalContent);
 
-      console.log("LGD DEBUG CONTENT", originalContent);
-      console.log("LGD DEBUG PREVIEW", previewImage);
+      alert(
+  `LGD DEBUG\n\npreviewImage=${previewImage ? "TROUVEE" : "VIDE"}`
+);
 
       
       const title =
