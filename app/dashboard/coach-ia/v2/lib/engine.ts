@@ -1201,6 +1201,10 @@ export function createInitialContext(args: {
   businessModel?: AlexBusinessModel;
   audienceSize?: AlexAudienceSize;
   mainBlocker?: AlexMainBlocker;
+  offerDescription?: string;
+  targetAudienceDescription?: string;
+  primaryChannel?: string;
+  channelNotes?: string;
 }): AlexContext {
   const ts = nowISO();
   const trajectory = createTrajectory(args);
@@ -1220,6 +1224,10 @@ export function createInitialContext(args: {
     businessModel: args.businessModel || "affiliation",
     audienceSize: args.audienceSize || "moins_500",
     mainBlocker: args.mainBlocker || "dispersion",
+    offerDescription: args.offerDescription || "",
+    targetAudienceDescription: args.targetAudienceDescription || "",
+    primaryChannel: args.primaryChannel || "",
+    channelNotes: args.channelNotes || "",
     revenueGoalMonthly: trajectory.targetRevenueMonthly,
     deadlineDays: trajectory.horizonDays,
     trajectory,
