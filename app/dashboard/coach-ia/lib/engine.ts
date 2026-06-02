@@ -1370,7 +1370,7 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
   if (weekIndex === 1 && dayIndex === 1) {
     return {
       ...base,
-      title: `Clarifier ${offer}`,
+      title: `### TEST LGD ### ${offer}`
       objective: `Transformer ${offer} en promesse simple pour ${audience}, puis adapter ton profil ${channel} pour attirer des prospects liés à ton objectif : ${goal}.`,
       checklist: [
         `Écris en 1 phrase : “J’aide ${audience} à obtenir un résultat concret grâce à ${offer}”.`,
