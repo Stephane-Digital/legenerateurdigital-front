@@ -1377,14 +1377,105 @@ function blockerFocus(blocker?: AlexMainBlocker): string {
   }
 }
 
-function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: number, base: DayPlan): DayPlan {
-  const offer = shortText(ctx.offerDescription, "ton offre", 80);
-  const audience = shortText(ctx.targetAudienceDescription, "ton client idéal", 95);
-  const channel = channelLabel(ctx.primaryChannel || ctx.channelNotes);
+function extractAudienceSegment(value: unknown): string {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (!text) return "ton client idéal";
+
+  const parts = text
+    .split(/[.,;\n\r]+/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  const agePart = parts.find((p) => /\d{2}\s*[-/]\s*\d{2}|\d{2}\s*(ans|an)/i.test(p));
+  const jobPart = parts.find((p) => /salari|employ|parent|maman|papa|solo|indépend|entrepreneur|débutant|formation|mrr/i.test(p));
+  const desirePart = parts.find((p) => /revenu|complément|maison|liberté|temps|argent|reconversion|bloqué|changer/i.test(p));
+
+  const compact = [agePart, jobPart, desirePart]
+    .filter(Boolean)
+    .filter((v, i, arr) => arr.indexOf(v) === i)
+    .join(" · ");
+
+  return shortText(compact || text, "ton client idéal", 70);
+}
+
+function firstChannel(value?: string): string {
+  const raw = String(value || "").trim();
+  if (!raw) return "Instagram";
+  const normalized = raw.toLowerCase();
+  if (normalized.includes("instagram")) return "Instagram";
+  if (normalized.includes("tiktok")) return "TikTok";
+  if (normalized.includes("facebook")) return "Facebook";
+  if (normalized.includes("linkedin")) return "LinkedIn";
+  if (normalized.includes("pinterest")) return "Pinterest";
+  return channelLabel(raw);
+}
+
+function ctxFlag(value: unknown, pattern: RegExp): boolean {
+  return pattern.test(String(value || "").toLowerCase());
+}
+
+function strategicProfile(ctx: AlexContext) {
+  const offer = shortText(ctx.offerDescription, "ton offre", 64);
+  const audience = extractAudienceSegment(ctx.targetAudienceDescription);
+  const channel = firstChannel(ctx.primaryChannel || ctx.channelNotes);
   const goal = objectiveAngle(ctx.businessGoal);
-  const model = readableBusinessModel(ctx.businessModel);
   const blocker = readableBlocker(ctx.mainBlocker);
   const focus = blockerFocus(ctx.mainBlocker);
+  const model = readableBusinessModel(ctx.businessModel);
+
+  const isSalesBlocker = ctx.mainBlocker === "vente" || ctxFlag(ctx.mainBlocker, /vente|vendre|closing|closer/);
+  const isConfidenceBlocker = ctx.mainBlocker === "confiance" || ctxFlag(ctx.mainBlocker, /confiance|légitime|oser/);
+  const isTimeBlocker = ctx.mainBlocker === "temps" || ctxFlag(ctx.mainBlocker, /temps/);
+  const isTechnicalBlocker = ctx.mainBlocker === "technique" || ctxFlag(ctx.mainBlocker, /technique|outil|site|tunnel/);
+  const isBeginner = ctx.level === "debutant" || ctx.level === "sans_resultat";
+  const hasAudience = ctx.audienceSize && ctx.audienceSize !== "zero";
+  const isDigitalOffer = ctx.businessModel === "offre_digitale" || ctxFlag(ctx.offerDescription, /formation|programme|mrr|mlr|ebook|code|digital/);
+  const isAffiliation = ctx.businessModel === "affiliation" || ctxFlag(ctx.offerDescription, /affiliation|commission|mrr/);
+  const isInstagram = channel.toLowerCase().includes("instagram");
+
+  const archetype = isSalesBlocker
+    ? "vendeur_doux"
+    : isConfidenceBlocker
+      ? "confiance_autorite"
+      : isTimeBlocker
+        ? "execution_courte"
+        : isTechnicalBlocker
+          ? "anti_technique"
+          : isAffiliation
+            ? "affiliation_conversation"
+            : isDigitalOffer
+              ? "offre_digitale"
+              : isBeginner
+                ? "debutant_structure"
+                : hasAudience
+                  ? "audience_conversion"
+                  : "standard";
+
+  const dmKeyword = ctxFlag(offer, /libert|code/) ? "LIBERTÉ" : ctxFlag(offer, /coach/) ? "COACH" : ctxFlag(offer, /formation/) ? "FORMATION" : "PLAN";
+
+  return {
+    offer,
+    audience,
+    channel,
+    goal,
+    blocker,
+    focus,
+    model,
+    archetype,
+    dmKeyword,
+    isSalesBlocker,
+    isConfidenceBlocker,
+    isTimeBlocker,
+    isTechnicalBlocker,
+    isBeginner,
+    isDigitalOffer,
+    isAffiliation,
+    isInstagram,
+  };
+}
+
+function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: number, base: DayPlan): DayPlan {
+  const p = strategicProfile(ctx);
 
   const hasQuestionnaireContext = Boolean(
     ctx.offerDescription?.trim() ||
@@ -1404,304 +1495,307 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
     businessModel: base.businessModel,
   });
 
-  const week1: Record<number, Partial<DayPlan>> = {
+  const week1Base: Record<number, Partial<DayPlan>> = {
     1: {
-      title: "Clarifier la promesse de ton offre",
-      objective: `Transformer ${offer} en message simple pour ${audience}, avec un profil ${channel} aligné sur l’objectif : ${goal}.`,
+      title: "Promesse claire + profil aligné",
+      objective: `Transformer ${p.offer} en promesse simple pour ${p.audience}, avec un profil ${p.channel} qui ouvre naturellement la conversation.`,
       checklist: [
-        `Écris une promesse claire : résultat + cible + bénéfice concret.`,
-        `Supprime le flou : dis exactement à qui ${offer} s’adresse.`,
-        `Prépare un CTA simple en DM pour ouvrir la conversation.`,
+        `Écris une phrase : “J’aide ${p.audience} à avancer grâce à ${p.offer}”.`,
+        `Ajoute un bénéfice concret lié à l’objectif : ${p.goal}.`,
+        `Mets un CTA visible : “DM ${p.dmKeyword}” ou “commente ${p.dmKeyword}”.`,
       ],
       kpiLabel: "Promesse + CTA validés",
     },
     2: {
-      title: "Créer un contenu problème → solution",
-      objective: `Publier un contenu qui part d’une douleur concrète de ${audience} et montre le pont vers ${offer}, sans vendre trop vite.`,
+      title: p.isInstagram ? "Post/Reel douleur → déclic" : "Contenu douleur → déclic",
+      objective: `Publier un contenu qui nomme la vraie frustration de ${p.audience} puis fait le lien avec ${p.offer}, sans vente agressive.`,
       checklist: [
-        `Accroche : nomme une frustration précise de ${audience}.`,
-        `Explique pourquoi ce blocage arrive et ce qu’il coûte.`,
-        `Termine par une question ou un mot-clé DM.`,
+        `Accroche : “Tu veux ${p.goal}, mais tu bloques sur…”`,
+        `Montre le coût du blocage : ${p.blocker}.`,
+        `Termine par une question simple + mot-clé ${p.dmKeyword}.`,
       ],
       kpiLabel: "Commentaires / DMs qualifiés",
     },
     3: {
       title: "Repérer 10 prospects cohérents",
-      objective: `Trouver sur ${channel} des profils qui ressemblent à ${audience} et ouvrir 3 conversations naturelles.`,
+      objective: `Trouver sur ${p.channel} des profils proches de ${p.audience} avant d’envoyer le moindre message.`,
       checklist: [
-        `Liste 10 profils qui correspondent à ton client idéal.`,
-        `Observe leur bio, leurs posts ou leurs commentaires.`,
-        `Envoie 3 messages courts : contexte + question simple.`,
+        `Liste 10 profils qui ressemblent à ${p.audience}.`,
+        `Repère 1 signal réel : bio, commentaire, post ou story.`,
+        `Garde seulement les profils avec un besoin visible.`,
       ],
-      kpiLabel: "Conversations lancées",
+      kpiLabel: "Prospects cohérents repérés",
     },
     4: {
-      title: "Story empathie et confiance",
-      objective: `Montrer que tu comprends la situation de ${audience}, notamment le blocage : ${blocker}.`,
+      title: "Story empathie + question",
+      objective: `Créer une story qui fait dire à ${p.audience} : “c’est exactement moi”.`,
       checklist: [
-        `Story 1 : décris une situation réelle de ton audience.`,
-        `Story 2 : explique pourquoi ce blocage est normal.`,
-        `Story 3 : invite à répondre en DM pour recevoir une piste.`,
+        `Story 1 : situation concrète vécue par ${p.audience}.`,
+        `Story 2 : normalise le blocage : ${p.blocker}.`,
+        `Story 3 : “tu veux que je te montre le chemin ? Réponds ${p.dmKeyword}”.`,
       ],
       kpiLabel: "Réponses story",
     },
     5: {
-      title: "Relancer sans forcer",
-      objective: `Relancer les personnes déjà exposées à ton contenu avec une question utile, pas avec un pavé de vente.`,
+      title: "3 DMs sans vendre",
+      objective: `Ouvrir 3 conversations utiles sur ${p.channel}, sans pitcher ${p.offer} trop tôt.`,
       checklist: [
-        `Liste 5 personnes qui ont vu, liké ou répondu.`,
-        `Relance avec une phrase liée à leur situation.`,
-        `Demande si elles veulent que tu leur montres l’étape suivante.`,
-      ],
-      kpiLabel: "Réponses relance",
-    },
-    6: {
-      title: "Présenter ton offre simplement",
-      objective: `Formuler ${offer} comme une prochaine étape logique pour un prospect qualifié, en respectant le focus : ${focus}.`,
-      checklist: [
-        `Résume le besoin du prospect en 1 phrase.`,
-        `Présente ${offer} avec bénéfice + simplicité.`,
-        `Pose une question de décision douce, sans pression.`,
-      ],
-      kpiLabel: "Propositions envoyées",
-    },
-    7: {
-      title: "Bilan des signaux utiles",
-      objective: `Identifier ce qui a réellement attiré ${audience} et corriger un seul levier avant la semaine suivante.`,
-      checklist: [
-        `Note le contenu qui a généré le plus de réaction.`,
-        `Note le message DM qui a obtenu la meilleure réponse.`,
-        `Choisis une amélioration : promesse, CTA, angle ou profil.`,
-      ],
-      kpiLabel: "Meilleur signal de la semaine",
-    },
-  };
-
-  const week2: Record<number, Partial<DayPlan>> = {
-    1: {
-      title: "Positionnement en une phrase",
-      objective: `Rendre ton positionnement lisible immédiatement : ${offer}, pour ${audience}, sur ${channel}.`,
-      checklist: [
-        `Réécris ton message en une phrase simple.`,
-        `Ajoute le bénéfice principal pour ${audience}.`,
-        `Garde un seul CTA visible.`,
-      ],
-      kpiLabel: "Message compris en 5 secondes",
-    },
-    2: {
-      title: "Carrousel 3 erreurs",
-      objective: `Attirer ${audience} avec trois erreurs fréquentes qui les empêchent de ${goal}.`,
-      checklist: [
-        `Erreur 1 : le faux problème qu’ils pensent avoir.`,
-        `Erreur 2 : la mauvaise méthode qu’ils répètent.`,
-        `Erreur 3 : l’action simple qu’ils évitent.`,
-        `CTA : proposer un DM mot-clé.`,
-      ],
-      kpiLabel: "Sauvegardes / DMs",
-    },
-    3: {
-      title: "Interactions ciblées",
-      objective: `Augmenter ta visibilité auprès de profils proches de ${audience}, sans partir dans tous les sens.`,
-      checklist: [
-        `20 interactions sur des profils ciblés.`,
-        `5 commentaires utiles et humains.`,
-        `2 DMs contextuels seulement si c’est naturel.`,
-      ],
-      kpiLabel: "Réponses / visites profil",
-    },
-    4: {
-      title: "Story preuve simple",
-      objective: `Rassurer ton audience avec une preuve, un exemple ou une démonstration autour de ${offer}.`,
-      checklist: [
-        `Montre un résultat, un process ou une capture utile.`,
-        `Explique ce que ça change concrètement.`,
-        `CTA : répondre “PREUVE” ou “PLAN”.`,
-      ],
-      kpiLabel: "Réponses story",
-    },
-    5: {
-      title: "DM d’ouverture propre",
-      objective: `Démarrer des conversations qualifiées avec ${audience}, sans vendre dès le premier message.`,
-      checklist: [
-        `Choisis 5 prospects actifs.`,
-        `Message : observation + question.`,
-        `Relance 24h après si nécessaire.`,
+        `Message 1 : observation personnalisée.`,
+        `Message 2 : question sur leur objectif ou leur blocage.`,
+        `Ne propose ${p.offer} que si la personne exprime un besoin réel.`,
       ],
       kpiLabel: "Conversations ouvertes",
     },
     6: {
-      title: "Mini proposition d’étape suivante",
-      objective: `Proposer une étape simple liée à ${offer} quand un prospect montre un intérêt réel.`,
+      title: "Mini pitch naturel",
+      objective: `S’entraîner à présenter ${p.offer} en 2 phrases simples, sans pression ni pavé.`,
       checklist: [
-        `Reformule son besoin.`,
-        `Propose une ressource, un plan ou une explication.`,
-        `Demande son accord avant d’envoyer plus.`,
+        `Phrase 1 : résume le problème du prospect.`,
+        `Phrase 2 : explique pourquoi ${p.offer} est la prochaine étape logique.`,
+        `Question finale : “tu veux que je t’explique comment ça marche ?”.`,
       ],
-      kpiLabel: "Accords obtenus",
+      kpiLabel: "Mini pitch prêt",
     },
     7: {
-      title: "Bilan attraction",
-      objective: `Comparer contenus, DMs et réactions pour décider ce qu’il faut répéter sur ${channel}.`,
+      title: "Bilan des signaux d’achat",
+      objective: `Identifier ce qui attire vraiment ${p.audience} : contenus, stories, DMs ou objections.`,
       checklist: [
-        `Note abonnés, commentaires, DMs.`,
-        `Identifie l’angle qui attire le mieux.`,
-        `Planifie un contenu similaire amélioré.`,
+        `Note le contenu qui a généré le meilleur signal.`,
+        `Note la question ou objection la plus fréquente.`,
+        `Choisis un seul ajustement pour la semaine 2.`,
       ],
-      kpiLabel: "Angle gagnant identifié",
+      kpiLabel: "Signal principal identifié",
     },
   };
 
-  const week3: Record<number, Partial<DayPlan>> = {
+  const week2Instagram: Record<number, Partial<DayPlan>> = {
     1: {
-      title: "Script DM en 3 questions",
-      objective: `Structurer tes conversations avec ${audience} pour comprendre leur besoin avant de parler de ${offer}.`,
+      title: "Bio Instagram orientée DM",
+      objective: `Faire comprendre en 5 secondes qui tu aides, pourquoi ${p.offer} est utile, et quoi faire ensuite.`,
       checklist: [
-        `Question 1 : objectif concret.`,
-        `Question 2 : blocage actuel.`,
-        `Question 3 : ce qu’ils ont déjà essayé.`,
+        `Ligne 1 : cible + résultat recherché.`,
+        `Ligne 2 : mécanisme simple lié à ${p.offer}.`,
+        `Ligne 3 : CTA “DM ${p.dmKeyword}”.`,
+      ],
+      kpiLabel: "Bio lisible en 5 secondes",
+    },
+    2: {
+      title: "Carrousel 3 erreurs",
+      objective: `Attirer ${p.audience} avec 3 erreurs qui les empêchent de ${p.goal}.`,
+      checklist: [
+        `Erreur 1 : rester seul avec le problème.`,
+        `Erreur 2 : consommer du contenu sans passer à l’action.`,
+        `Erreur 3 : croire qu’il faut être expert pour commencer.`,
+        `CTA : “DM ${p.dmKeyword} pour recevoir le plan”.`,
+      ],
+      kpiLabel: "Sauvegardes / DMs",
+    },
+    3: {
+      title: "Commentaires ciblés",
+      objective: `Se rendre visible auprès de ${p.audience} sans dépendre de l’algorithme.`,
+      checklist: [
+        `Trouve 10 comptes suivis par ton audience.`,
+        `Commente 5 posts avec une vraie idée utile.`,
+        `Réponds aux commentaires de personnes qui expriment un blocage.`,
+      ],
+      kpiLabel: "Visites profil / réponses",
+    },
+    4: {
+      title: "Story sondage désir",
+      objective: `Faire sortir les prospects silencieux en demandant ce qu’ils veulent vraiment obtenir.`,
+      checklist: [
+        `Question : “si tu pouvais résoudre 1 chose ce mois-ci, ce serait quoi ?”.`,
+        `Sondage : temps / argent / méthode / confiance.`,
+        `Réponds en DM aux personnes qui votent.`,
+      ],
+      kpiLabel: "Réponses / votes story",
+    },
+    5: {
+      title: "DM d’ouverture propre",
+      objective: `Transformer les réactions en conversations qualifiées avec ${p.audience}.`,
+      checklist: [
+        `Choisis 5 personnes qui ont réagi.`,
+        `Message : “j’ai vu ta réponse, tu bloques surtout sur quoi aujourd’hui ?”.`,
+        `Relance 24h après si nécessaire.`,
+      ],
+      kpiLabel: "Conversations qualifiées",
+    },
+    6: {
+      title: "Mini ressource DM",
+      objective: `Donner une petite valeur avant de proposer ${p.offer}.`,
+      checklist: [
+        `Prépare 3 étapes simples pour aider ${p.audience}.`,
+        `Envoie-les seulement aux personnes qui demandent.`,
+        `Termine par : “tu veux la version complète ?”.`,
+      ],
+      kpiLabel: "Demandes de suite",
+    },
+    7: {
+      title: "Bilan attraction Instagram",
+      objective: `Repérer l’angle qui déclenche le plus de DMs et le garder comme axe principal.`,
+      checklist: [
+        `Compare post, carrousel, story, DM.`,
+        `Garde l’angle avec le plus de réponses.`,
+        `Planifie 2 contenus similaires améliorés.`,
+      ],
+      kpiLabel: "Angle Instagram gagnant",
+    },
+  };
+
+  const week3Sales: Record<number, Partial<DayPlan>> = {
+    1: {
+      title: "Script DM diagnostic",
+      objective: `Remplacer la peur de vendre par 3 questions qui clarifient le besoin avant de parler de ${p.offer}.`,
+      checklist: [
+        `Question 1 : “tu veux obtenir quoi précisément ?”.`,
+        `Question 2 : “qu’est-ce qui bloque aujourd’hui ?”.`,
+        `Question 3 : “qu’est-ce que tu as déjà tenté ?”.`,
       ],
       kpiLabel: "Prospects qualifiés",
     },
     2: {
-      title: "Contenu FAQ",
-      objective: `Répondre aux questions que ${audience} se pose avant d’oser passer à l’action.`,
+      title: "Contenu objections",
+      objective: `Répondre publiquement à l’objection principale liée à ${p.blocker}.`,
       checklist: [
-        `Liste 5 questions fréquentes.`,
-        `Réponds court, clair, concret.`,
-        `CTA : DM “FAQ” pour continuer.`,
+        `Nomme l’objection sans juger.`,
+        `Explique le vrai risque de rester bloqué.`,
+        `Donne une mini action simple.`,
       ],
-      kpiLabel: "Questions / DMs reçus",
+      kpiLabel: "Réactions / DMs",
     },
     3: {
       title: "Relances propres",
-      objective: `Relancer sans pression les prospects déjà en conversation, en gardant une posture d’aide.`,
+      objective: `Relancer les prospects tièdes sans pression, avec une question qui les aide à décider.`,
       checklist: [
-        `10 relances maximum.`,
-        `Une phrase + une question.`,
-        `Pas de justification longue.`,
+        `Liste 10 conversations en attente.`,
+        `Relance : “tu veux que je te montre l’étape la plus simple ?”.`,
+        `Stop si la personne n’est pas concernée.`,
       ],
       kpiLabel: "Réponses relance",
     },
     4: {
-      title: "Traiter l’objection principale",
-      objective: `Créer un contenu court qui répond au blocage ${blocker} et sécurise ton audience.`,
+      title: "Preuve ou démonstration",
+      objective: `Rassurer ${p.audience} en montrant un exemple concret, un process ou une preuve autour de ${p.offer}.`,
       checklist: [
-        `Nomme l’objection sans la juger.`,
-        `Explique le vrai problème derrière.`,
-        `Donne une petite action simple.`,
+        `Avant : situation bloquée.`,
+        `Pendant : mécanisme ou méthode.`,
+        `Après : bénéfice concret ou prochaine étape.`,
       ],
-      kpiLabel: "Réactions / réponses",
+      kpiLabel: "DM preuve / plan",
     },
     5: {
       title: "Mini-audit en DM",
-      objective: `Créer de la valeur pour 5 prospects en leur donnant une observation utile et personnalisée.`,
+      objective: `Donner une observation utile à 5 prospects pour créer la confiance avant la proposition.`,
       checklist: [
-        `Choisis 5 prospects.`,
+        `Choisis 5 prospects qualifiés.`,
         `Donne 1 observation + 1 amélioration.`,
-        `Demande s’ils veulent le plan complet.`,
+        `Demande : “tu veux que je te donne le chemin complet ?”.`,
       ],
       kpiLabel: "Demandes de suite",
     },
     6: {
-      title: "Proposition d’étape suivante",
-      objective: `Transformer 2 conversations qualifiées en proposition claire autour de ${offer}.`,
+      title: "Proposition douce",
+      objective: `Présenter ${p.offer} comme une solution logique, pas comme une vente forcée.`,
       checklist: [
-        `Résumé du problème.`,
-        `Lien logique avec ton offre.`,
-        `Question de décision simple.`,
+        `Résumé : “si je comprends bien, tu veux…”.`,
+        `Pont : “c’est justement ce que permet ${p.offer}”.`,
+        `Question : “tu veux que je t’envoie les détails ?”.`,
       ],
-      kpiLabel: "Étapes suivantes acceptées",
+      kpiLabel: "Propositions acceptées",
     },
     7: {
-      title: "Bilan conversations",
-      objective: `Repérer ce qui bloque entre intérêt, DM et décision pour améliorer ton message de vente.`,
+      title: "Bilan DM → proposition",
+      objective: `Comprendre où les conversations bloquent : qualification, confiance, proposition ou timing.`,
       checklist: [
-        `Compte réponses, qualifs, propositions.`,
-        `Note l’objection la plus fréquente.`,
-        `Ajuste un seul script.`,
+        `Compte DMs, réponses, prospects qualifiés, propositions.`,
+        `Repère l’objection qui revient le plus.`,
+        `Réécris une phrase de vente plus simple.`,
       ],
-      kpiLabel: "Meilleur script DM",
+      kpiLabel: "Blocage conversion identifié",
     },
   };
 
-  const week4: Record<number, Partial<DayPlan>> = {
+  const week4Conversion: Record<number, Partial<DayPlan>> = {
     1: {
       title: "Offre claire en 3 bullets",
-      objective: `Rendre ${offer} facile à comprendre et facile à proposer à ${audience}.`,
+      objective: `Rendre ${p.offer} facile à comprendre pour ${p.audience}.`,
       checklist: [
-        `Bullet 1 : résultat attendu.`,
+        `Bullet 1 : résultat concret attendu.`,
         `Bullet 2 : ce que la personne reçoit.`,
         `Bullet 3 : pourquoi c’est adapté à sa situation.`,
       ],
       kpiLabel: "Offre claire validée",
     },
     2: {
-      title: "Preuve ou cas pratique",
-      objective: `Montrer concrètement comment ${offer} aide ton audience à avancer.`,
+      title: "Post preuve / cas pratique",
+      objective: `Montrer comment ${p.offer} aide concrètement une personne comme ${p.audience}.`,
       checklist: [
-        `Avant : situation bloquée.`,
-        `Pendant : méthode ou déclic.`,
-        `Après : bénéfice concret.`,
+        `Avant : situation de départ.`,
+        `Déclic : ce qui change avec la méthode.`,
+        `CTA : “DM ${p.dmKeyword} si tu veux le détail”.`,
       ],
-      kpiLabel: "DM / demandes reçues",
+      kpiLabel: "DM intéressés",
     },
     3: {
-      title: "Closing soft en deux options",
-      objective: `Aider le prospect à choisir une prochaine étape sans pression.`,
+      title: "Closing en deux options",
+      objective: `Aider le prospect à choisir sans pression entre recevoir plus d’explications ou passer à l’étape suivante.`,
       checklist: [
-        `Option A : ressource / explication.`,
-        `Option B : accès / accompagnement / offre.`,
+        `Option A : je t’envoie le détail.`,
+        `Option B : je te montre comment démarrer.`,
         `Question : “tu préfères A ou B ?”.`,
       ],
       kpiLabel: "Choix obtenus",
     },
     4: {
-      title: "Story offre en 3 frames",
-      objective: `Présenter ${offer} en story sans agressivité : problème, solution, action.`,
+      title: "Story offre simple",
+      objective: `Présenter ${p.offer} en story avec un angle humain : problème, solution, action.`,
       checklist: [
-        `Frame 1 : problème vécu.`,
+        `Frame 1 : problème vécu par ${p.audience}.`,
         `Frame 2 : solution proposée.`,
-        `Frame 3 : CTA DM simple.`,
+        `Frame 3 : DM ${p.dmKeyword}.`,
       ],
       kpiLabel: "Réponses story",
     },
     5: {
-      title: "Relance des prospects chauds",
-      objective: `Relancer les prospects les plus proches de la décision avec un message court et humain.`,
+      title: "Relance prospects chauds",
+      objective: `Relancer uniquement les prospects qui ont déjà montré un intérêt réel.`,
       checklist: [
         `Liste 5 prospects chauds.`,
-        `Rappelle leur objectif.`,
+        `Rappelle leur objectif en 1 phrase.`,
         `Propose une prochaine étape claire.`,
       ],
-      kpiLabel: "Réponses obtenues",
+      kpiLabel: "Réponses relance",
     },
     6: {
-      title: "Deux propositions concrètes",
-      objective: `Envoyer 2 propositions simples et assumées autour de ${offer}.`,
+      title: "2 propositions assumées",
+      objective: `Envoyer 2 propositions simples autour de ${p.offer}, sans t’excuser de vendre.`,
       checklist: [
-        `Proposition claire.`,
+        `Proposition claire et courte.`,
         `Bénéfice principal.`,
         `Question de validation.`,
       ],
       kpiLabel: "Propositions envoyées",
     },
     7: {
-      title: "Bilan conversion",
-      objective: `Comprendre ce qui convertit et corriger un seul point : offre, preuve, CTA ou DM.`,
+      title: "Bilan première vente",
+      objective: `Identifier ce qui rapproche le plus de la première vente et supprimer une friction.`,
       checklist: [
-        `Note DM → qualifs → propositions.`,
-        `Identifie le meilleur levier.`,
-        `Décide quoi répéter la semaine suivante.`,
+        `Mesure DM → qualifs → propositions.`,
+        `Note la meilleure phrase de closing.`,
+        `Choisis quoi répéter la semaine suivante.`,
       ],
       kpiLabel: "Levier conversion #1",
     },
   };
 
+  const week2 = p.isInstagram ? week2Instagram : week2Instagram;
+  const week3 = p.isSalesBlocker ? week3Sales : week3Sales;
+
   const maps: Record<number, Record<number, Partial<DayPlan>>> = {
-    1: week1,
+    1: week1Base,
     2: week2,
     3: week3,
-    4: week4,
+    4: week4Conversion,
   };
 
   const specific = maps[weekIndex]?.[dayIndex];
@@ -1710,11 +1804,11 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
   if (base.missionType === "content") {
     return withBase({
       title: base.format === "carrousel" ? "Carrousel ciblé" : "Contenu ciblé",
-      objective: `Publier sur ${channel} un contenu utile pour ${audience}, relié à ${offer} et à l’objectif : ${goal}.`,
+      objective: `Publier sur ${p.channel} un contenu utile pour ${p.audience}, relié à ${p.offer} et à l’objectif : ${p.goal}.`,
       checklist: [
         `Accroche : douleur ou désir précis.`,
         `Valeur : une idée actionnable.`,
-        `CTA : DM avec un mot-clé simple.`,
+        `CTA : DM ${p.dmKeyword}.`,
       ],
       kpiLabel: "Commentaires / DMs qualifiés",
     });
@@ -1723,7 +1817,7 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
   if (base.missionType === "conversation") {
     return withBase({
       title: "Conversations qualifiées",
-      objective: `Ouvrir des échanges naturels avec ${audience} sans tomber dans la vente forcée.`,
+      objective: `Ouvrir des échanges naturels avec ${p.audience} sans tomber dans la vente forcée.`,
       checklist: [
         `Trouve 10 profils cohérents.`,
         `Interagis avant de contacter.`,
@@ -1736,7 +1830,7 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
   if (base.missionType === "vente") {
     return withBase({
       title: "Proposition claire",
-      objective: `Présenter ${offer} à un prospect qualifié comme une étape logique et simple.`,
+      objective: `Présenter ${p.offer} à un prospect qualifié comme une étape logique et simple.`,
       checklist: [
         `Résume son besoin.`,
         `Explique le lien avec ton offre.`,
@@ -1747,7 +1841,7 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
   }
 
   return withBase({
-    objective: `${base.objective} Contexte : ${model}, ${goal}, canal ${channel}, blocage ${blocker}.`,
+    objective: `${base.objective} Contexte : ${p.model}, ${p.goal}, canal ${p.channel}, blocage ${p.blocker}.`,
   });
 }
 
