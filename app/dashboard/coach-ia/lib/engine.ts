@@ -1201,6 +1201,10 @@ export function createInitialContext(args: {
   businessModel?: AlexBusinessModel;
   audienceSize?: AlexAudienceSize;
   mainBlocker?: AlexMainBlocker;
+  offerDescription?: string;
+  targetAudienceDescription?: string;
+  primaryChannel?: string;
+  channelNotes?: string;
 }): AlexContext {
   const ts = nowISO();
   const trajectory = createTrajectory(args);
@@ -1220,12 +1224,142 @@ export function createInitialContext(args: {
     businessModel: args.businessModel || "affiliation",
     audienceSize: args.audienceSize || "moins_500",
     mainBlocker: args.mainBlocker || "dispersion",
+    offerDescription: args.offerDescription || "",
+    targetAudienceDescription: args.targetAudienceDescription || "",
+    primaryChannel: args.primaryChannel || "instagram",
+    channelNotes: args.channelNotes || "",
     revenueGoalMonthly: trajectory.targetRevenueMonthly,
     deadlineDays: trajectory.horizonDays,
     trajectory,
     startedAtISO: ts,
     lastUpdatedAtISO: ts,
   };
+}
+
+
+function shortText(value: unknown, fallback: string, max = 95): string {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (!text) return fallback;
+  if (text.length <= max) return text;
+  return `${text.slice(0, max).trim()}...`;
+}
+
+function readableBusinessGoal(goal?: AlexBusinessGoal): string {
+  switch (goal) {
+    case "revenu_500":
+      return "atteindre 500€/mois";
+    case "quitter_job":
+      return "préparer une sortie progressive du salariat";
+    case "premiers_clients":
+      return "obtenir tes premiers clients";
+    case "business_stable":
+      return "construire un business stable";
+    case "premiers_revenus":
+    default:
+      return "obtenir tes premiers revenus";
+  }
+}
+
+function readableBusinessModel(model?: AlexBusinessModel): string {
+  switch (model) {
+    case "affiliation":
+      return "affiliation";
+    case "offre_digitale":
+      return "produit digital / formation";
+    case "coaching":
+      return "coaching / accompagnement";
+    case "contenu":
+      return "contenu + audience";
+    case "pas_encore":
+    default:
+      return "offre à clarifier";
+  }
+}
+
+function readableBlocker(blocker?: AlexMainBlocker): string {
+  switch (blocker) {
+    case "temps":
+      return "manque de temps";
+    case "technique":
+      return "blocage technique";
+    case "vente":
+      return "difficulté à vendre";
+    case "confiance":
+      return "manque de confiance";
+    case "dispersion":
+    default:
+      return "dispersion";
+  }
+}
+
+function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: number, base: DayPlan): DayPlan {
+  const offer = shortText(ctx.offerDescription, "ton offre", 80);
+  const audience = shortText(ctx.targetAudienceDescription, "ton client idéal", 95);
+  const channel = shortText(ctx.primaryChannel || ctx.channelNotes, "Instagram", 40);
+  const goal = readableBusinessGoal(ctx.businessGoal);
+  const model = readableBusinessModel(ctx.businessModel);
+  const blocker = readableBlocker(ctx.mainBlocker);
+  const hasRichContext = Boolean(ctx.offerDescription?.trim() || ctx.targetAudienceDescription?.trim());
+
+  if (!hasRichContext) return base;
+
+  if (weekIndex === 1 && dayIndex === 1) {
+    return {
+      ...base,
+      title: `Clarifier la promesse de ton offre`,
+      objective: `Transformer ${offer} en message simple pour ${audience}, avec un profil ${channel} orienté ${goal}.`,
+      checklist: [
+        `Résume ton offre en 1 phrase : résultat + cible + bénéfice concret.`,
+        `Ajoute dans ton profil un message clair pour ${audience}.`,
+        `Prépare 1 CTA simple : commenter, DM ou demander plus d'informations.`,
+      ],
+      kpiLabel: "Promesse clarifiée (oui/non)",
+    };
+  }
+
+  if (base.missionType === "content") {
+    return {
+      ...base,
+      title: base.format === "carrousel" ? `Créer un carrousel pour ${audience}` : `Créer un post pour ${audience}`,
+      objective: `Publier sur ${channel} un contenu qui relie le problème de ${audience} à ${offer}.`,
+      checklist: [
+        `Accroche : parle du problème concret de ${audience}.`,
+        `Corps : explique pourquoi ${offer} peut aider sans promesse excessive.`,
+        `CTA : invite à répondre ou demander la suite.`,
+      ],
+      kpiLabel: "Commentaires / DMs qualifiés",
+    };
+  }
+
+  if (base.missionType === "conversation") {
+    return {
+      ...base,
+      title: `Démarrer des conversations avec ton client idéal`,
+      objective: `Identifier des profils proches de ${audience} et ouvrir des échanges naturels autour de ${offer}.`,
+      checklist: [
+        `Trouve 10 profils correspondant à ton client idéal.`,
+        `Interagis avec 3 contenus avant tout message.`,
+        `Envoie 3 messages courts basés sur leur situation, sans pousser la vente.`,
+      ],
+      kpiLabel: "Conversations qualifiées lancées",
+    };
+  }
+
+  if (base.missionType === "vente") {
+    return {
+      ...base,
+      title: `Faire une proposition simple autour de ton offre`,
+      objective: `Présenter ${offer} à des prospects qualifiés en partant de leur blocage principal : ${blocker}.`,
+      checklist: [
+        `Résume le besoin du prospect en 1 phrase.`,
+        `Présente ${offer} comme une prochaine étape logique.`,
+        `Pose une question de décision simple : “tu veux que je t’explique comment ça marche ?”.`,
+      ],
+      kpiLabel: "Propositions envoyées",
+    };
+  }
+
+  return { ...base, objective: `${base.objective} Contexte : ${model}, ${goal}, blocage principal : ${blocker}.` };
 }
 
 export function createInitialRoadmap(ctx: AlexContext): AlexRoadmap {
@@ -1235,47 +1369,47 @@ export function createInitialRoadmap(ctx: AlexContext): AlexRoadmap {
     {
       weekIndex: 1,
       label: "FIRST_SALE — Préparer l’offre + profil vendeur",
-      days: Array.from({ length: 7 }).map((_, i) => dayTemplate(1, i + 1, ctx.intent, ctx.level, ctx.timePerDay)),
+      days: Array.from({ length: 7 }).map((_, i) => contextualizeDayPlan(ctx, 1, i + 1, dayTemplate(1, i + 1, ctx.intent, ctx.level, ctx.timePerDay))),
     },
     {
       weekIndex: 2,
       label: "FIRST_SALE — Attirer des prospects",
-      days: Array.from({ length: 7 }).map((_, i) => dayTemplate(2, i + 1, ctx.intent, ctx.level, ctx.timePerDay)),
+      days: Array.from({ length: 7 }).map((_, i) => contextualizeDayPlan(ctx, 2, i + 1, dayTemplate(2, i + 1, ctx.intent, ctx.level, ctx.timePerDay))),
     },
     {
       weekIndex: 3,
       label: "FIRST_SALE — Conversations & DM",
-      days: Array.from({ length: 7 }).map((_, i) => dayTemplate(3, i + 1, ctx.intent, ctx.level, ctx.timePerDay)),
+      days: Array.from({ length: 7 }).map((_, i) => contextualizeDayPlan(ctx, 3, i + 1, dayTemplate(3, i + 1, ctx.intent, ctx.level, ctx.timePerDay))),
     },
     {
       weekIndex: 4,
       label: "FIRST_SALE — Closing & 1ère vente",
-      days: Array.from({ length: 7 }).map((_, i) => dayTemplate(4, i + 1, ctx.intent, ctx.level, ctx.timePerDay)),
+      days: Array.from({ length: 7 }).map((_, i) => contextualizeDayPlan(ctx, 4, i + 1, dayTemplate(4, i + 1, ctx.intent, ctx.level, ctx.timePerDay))),
     },
     {
       weekIndex: 5,
       label: "STABILIZE — Process répétable (contenu → DM → offre)",
-      days: Array.from({ length: 7 }).map((_, i) => dayTemplate(5, i + 1, ctx.intent, ctx.level, ctx.timePerDay)),
+      days: Array.from({ length: 7 }).map((_, i) => contextualizeDayPlan(ctx, 5, i + 1, dayTemplate(5, i + 1, ctx.intent, ctx.level, ctx.timePerDay))),
     },
     {
       weekIndex: 6,
       label: "STABILIZE — Système de suivi + preuves",
-      days: Array.from({ length: 7 }).map((_, i) => dayTemplate(6, i + 1, ctx.intent, ctx.level, ctx.timePerDay)),
+      days: Array.from({ length: 7 }).map((_, i) => contextualizeDayPlan(ctx, 6, i + 1, dayTemplate(6, i + 1, ctx.intent, ctx.level, ctx.timePerDay))),
     },
     {
       weekIndex: 7,
       label: "SCALE — Volume (contenu + optimisation)",
-      days: Array.from({ length: 7 }).map((_, i) => dayTemplate(7, i + 1, ctx.intent, ctx.level, ctx.timePerDay)),
+      days: Array.from({ length: 7 }).map((_, i) => contextualizeDayPlan(ctx, 7, i + 1, dayTemplate(7, i + 1, ctx.intent, ctx.level, ctx.timePerDay))),
     },
     {
       weekIndex: 8,
       label: "SCALE — Multiplication (audience + offres)",
-      days: Array.from({ length: 7 }).map((_, i) => dayTemplate(8, i + 1, ctx.intent, ctx.level, ctx.timePerDay)),
+      days: Array.from({ length: 7 }).map((_, i) => contextualizeDayPlan(ctx, 8, i + 1, dayTemplate(8, i + 1, ctx.intent, ctx.level, ctx.timePerDay))),
     },
     {
       weekIndex: 9,
       label: "AMBASSADOR — Ambassadeur LGD (affiliation 60%)",
-      days: Array.from({ length: 7 }).map((_, i) => dayTemplate(9, i + 1, ctx.intent, ctx.level, ctx.timePerDay)),
+      days: Array.from({ length: 7 }).map((_, i) => contextualizeDayPlan(ctx, 9, i + 1, dayTemplate(9, i + 1, ctx.intent, ctx.level, ctx.timePerDay))),
     },
   ];
 
@@ -1319,6 +1453,10 @@ export function buildTodayFromRoadmap(args: { ctx: AlexContext; roadmap: AlexRoa
       revenueGoalMonthly: ctx.revenueGoalMonthly,
       deadlineDays: ctx.deadlineDays,
       mainBlocker: ctx.mainBlocker,
+      offerDescription: ctx.offerDescription,
+      targetAudienceDescription: ctx.targetAudienceDescription,
+      primaryChannel: ctx.primaryChannel,
+      channelNotes: ctx.channelNotes,
     },
   };
 
