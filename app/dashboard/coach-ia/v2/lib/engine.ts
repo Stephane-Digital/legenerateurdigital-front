@@ -1547,6 +1547,68 @@ function extractCoreBelief(audienceDescription: unknown, blocker?: AlexMainBlock
   return "je veux réussir, mais je ne sais pas quelle action faire maintenant";
 }
 
+function humanEmotionSentence(emotion: string): string {
+  const text = normalizeText(emotion);
+
+  if (/frustration|resultat|résultat|efforts/.test(text)) {
+    return "Ces personnes ont l’impression de faire beaucoup d’efforts sans jamais voir de résultat.";
+  }
+  if (/doute|investi|investir/.test(text)) {
+    return "Elles commencent à douter parce qu’elles ont déjà investi du temps ou de l’argent sans vraie avancée.";
+  }
+  if (/pression|revenus|risquer/.test(text)) {
+    return "Elles veulent améliorer leur situation sans mettre en danger leur stabilité actuelle.";
+  }
+  if (/famille|maison/.test(text)) {
+    return "Elles veulent construire mieux tout en protégeant leur équilibre de vie.";
+  }
+  if (/déranger|vendeur|vendre/.test(text)) {
+    return "Elles ont peur de déranger ou de passer pour quelqu’un qui force la vente.";
+  }
+  if (/légitimité|legitimite/.test(text)) {
+    return "Elles doutent encore de leur légitimité à publier, proposer ou se montrer.";
+  }
+  if (/temps/.test(text)) {
+    return "Elles veulent avancer mais ont besoin d’actions courtes et réalistes.";
+  }
+  if (/technique|outils/.test(text)) {
+    return "Elles sont fatiguées de se perdre dans les outils au lieu d’obtenir un résultat concret.";
+  }
+
+  return "Elles ont envie d’avancer, mais elles ont besoin d’un chemin clair et rassurant.";
+}
+
+function humanBeliefSentence(coreBelief: string): string {
+  const text = normalizeText(coreBelief);
+
+  if (/vendre|vente/.test(text)) {
+    return "Elles commencent à se demander si le problème ne vient pas d’elles ou de leur façon de vendre.";
+  }
+  if (/quelque chose me manque|deja essaye|déjà essayé/.test(text)) {
+    return "Elles ont l’impression d’avoir essayé, mais qu’il leur manque la bonne méthode ou le bon déclic.";
+  }
+  if (/legitime|légitime/.test(text)) {
+    return "Elles pensent qu’elles doivent encore attendre avant d’être légitimes.";
+  }
+  if (/tromper|risquer/.test(text)) {
+    return "Elles veulent avancer, mais elles ont peur de se tromper encore une fois.";
+  }
+  if (/insistant|forcer/.test(text)) {
+    return "Elles associent encore la vente à quelque chose d’insistant ou de désagréable.";
+  }
+  if (/montrer/.test(text)) {
+    return "Elles ne se sentent pas encore prêtes à prendre leur place publiquement.";
+  }
+  if (/temps/.test(text)) {
+    return "Elles pensent qu’il faut beaucoup plus de temps qu’elles n’en ont réellement.";
+  }
+  if (/technique/.test(text)) {
+    return "Elles croient que la technique risque de les bloquer avant même de commencer.";
+  }
+
+  return "Elles veulent réussir, mais elles ne savent pas quelle action faire maintenant.";
+}
+
 function firstChannel(value?: string): string {
   const raw = String(value || "").trim();
   if (!raw) return "Instagram";
@@ -1571,6 +1633,8 @@ function strategicProfile(ctx: AlexContext) {
   const humanAudience = humanAudienceLabel(audience, pain, desire);
   const emotion = extractEmotion(ctx.targetAudienceDescription, ctx.mainBlocker);
   const coreBelief = extractCoreBelief(ctx.targetAudienceDescription, ctx.mainBlocker);
+  const emotionSentence = humanEmotionSentence(emotion);
+  const beliefSentence = humanBeliefSentence(coreBelief);
   const channel = firstChannel(ctx.primaryChannel || ctx.channelNotes);
   const goal = objectiveAngle(ctx.businessGoal);
   const blocker = readableBlocker(ctx.mainBlocker);
@@ -1615,6 +1679,8 @@ function strategicProfile(ctx: AlexContext) {
     desire,
     emotion,
     coreBelief,
+    emotionSentence,
+    beliefSentence,
     channel,
     goal,
     blocker,
@@ -1657,10 +1723,10 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
   const week1Base: Record<number, Partial<DayPlan>> = {
     1: {
       title: "Promesse qui redonne confiance",
-      objective: `Transformer ${p.offer} en promesse claire pour ${p.humanAudience}. Le message doit parler à leur émotion dominante : ${p.emotion}, et casser la croyance : “${p.coreBelief}”.`,
+      objective: `Créer un message qui donne envie à ${p.humanAudience} de reprendre confiance et de te contacter. ${p.emotionSentence} ${p.beliefSentence}`,
       checklist: [
-        `Écris une phrase : “J’aide ${p.humanAudience} à ${p.desire} grâce à ${p.offer}”.`,
-        `Ajoute une phrase qui rassure : “même si aujourd’hui tu penses : ${p.coreBelief}”.`,
+        `Écris une phrase simple : “J’aide ${p.humanAudience} à ${p.desire} grâce à ${p.offer}”.`,
+        `Ajoute une phrase rassurante qui montre qu’il existe une étape plus simple pour avancer.`,
         `Mets un CTA visible : “DM ${p.dmKeyword}” ou “commente ${p.dmKeyword}”.`,
       ],
       kpiLabel: "Promesse + CTA validés",
@@ -1690,7 +1756,7 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
       objective: `Créer une story qui fait dire à ${p.humanAudience} : “c’est exactement ce que je ressens”.`,
       checklist: [
         `Story 1 : situation concrète liée à ${p.pain}.`,
-        `Story 2 : nomme l’émotion sans dramatiser : ${p.emotion}.`,
+        `Story 2 : reformule ce ressenti avec des mots humains : ${p.emotionSentence}`,
         `Story 3 : “tu veux que je te montre le chemin ? Réponds ${p.dmKeyword}”.`,
       ],
       kpiLabel: "Réponses story",
@@ -1960,7 +2026,7 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
     },
     2: {
       title: "Follow-up empathique",
-      objective: `Relancer les prospects sans pression en partant de leur émotion : ${p.emotion}.`,
+      objective: `Relancer les prospects sans pression en partant de ce qu’ils ressentent vraiment. ${p.emotionSentence}`,
       checklist: [
         `Liste 10 prospects tièdes.`,
         `Relance avec une phrase courte : “tu en es où avec ${p.pain} ?”.`,
@@ -1970,7 +2036,7 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
     },
     3: {
       title: "Preuve rassurante",
-      objective: `Créer une preuve simple qui casse la croyance : “${p.coreBelief}”.`,
+      objective: `Créer une preuve simple qui rassure les prospects au moment où ils doutent d’eux-mêmes. ${p.beliefSentence}`,
       checklist: [
         `Montre un résultat, un process ou une étape concrète.`,
         `Explique pourquoi ce résultat est accessible à ${p.humanAudience}.`,
@@ -2000,9 +2066,9 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
     },
     6: {
       title: "Carrousel croyance limitante",
-      objective: `Publier un carrousel qui démonte la croyance : “${p.coreBelief}”.`,
+      objective: `Publier un carrousel qui aide les prospects à sortir de leur croyance bloquante. ${p.beliefSentence}`,
       checklist: [
-        `Slide 1 : nomme la croyance.`,
+        `Slide 1 : nomme le doute principal avec des mots simples.`,
         `Slides 2-4 : montre pourquoi elle bloque.`,
         `Dernière slide : DM ${p.dmKeyword}.`,
       ],
@@ -2013,7 +2079,7 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
       objective: `Identifier ce qui a le mieux transformé l’attention en conversations qualifiées.`,
       checklist: [
         `Mesure contenus → DMs → propositions.`,
-        `Garde l’angle qui touche le plus ${p.emotion}.`,
+        `Garde l’angle qui fait le plus écho à ce qu’ils ressentent vraiment.`,
         `Supprime une action qui disperse.`,
       ],
       kpiLabel: "Levier système #1",
@@ -2033,7 +2099,7 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
     },
     2: {
       title: "Story avant → après émotionnelle",
-      objective: `Raconter le passage de ${p.emotion} vers une action plus claire et rassurante.`,
+      objective: `Raconter comment une personne peut passer du doute à une action claire et rassurante. ${p.emotionSentence}`,
       checklist: [
         `Avant : frustration, doute ou blocage.`,
         `Déclic : ce qui simplifie le chemin.`,
@@ -2136,7 +2202,7 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
     },
     5: {
       title: "DM sprint qualifié",
-      objective: `Augmenter le volume sans perdre l’empathie envers ${p.emotion}.`,
+      objective: `Augmenter le volume sans perdre l’empathie. ${p.emotionSentence}`,
       checklist: [
         `30 messages courts et personnalisés.`,
         `10 follow-ups utiles.`,
@@ -2173,7 +2239,7 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
       checklist: [
         `Réduis la promesse à une phrase.`,
         `Supprime un mot trop technique.`,
-        `Ajoute une phrase qui répond à “${p.coreBelief}”.`,
+        `Ajoute une phrase qui rassure ce doute : ${p.beliefSentence}`,
       ],
       kpiLabel: "Message optimisé",
     },
@@ -2189,7 +2255,7 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
     },
     3: {
       title: "Angle preuve renforcé",
-      objective: `Créer une preuve plus crédible pour réduire ${p.emotion}.`,
+      objective: `Créer une preuve plus crédible pour rassurer les prospects qui doutent encore. ${p.emotionSentence}`,
       checklist: [
         `Montre le chemin plutôt que promettre un miracle.`,
         `Utilise un exemple concret.`,
@@ -2252,7 +2318,7 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
     },
     2: {
       title: "Post avant/après avec outil",
-      objective: `Comparer l’avant (${p.emotion}) et l’après (plan clair + exécution).`,
+      objective: `Comparer l’avant — confusion, doute ou frustration — et l’après : un plan clair + une action simple.`,
       checklist: [
         `Avant : dispersion ou blocage.`,
         `Après : plan simple et mission claire.`,
@@ -2350,7 +2416,7 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
       checklist: [
         `Trouve 10 profils qui expriment ${p.pain}.`,
         `Interagis avant de contacter.`,
-        `Envoie 3 messages courts basés sur leur situation et leur émotion : ${p.emotion}.`,
+        `Envoie 3 messages courts basés sur leur situation : ${p.emotionSentence}`,
       ],
       kpiLabel: "Conversations lancées",
     });
@@ -2384,23 +2450,23 @@ function roadmapLabel(ctx: AlexContext, weekIndex: number): string {
 
   switch (weekIndex) {
     case 1:
-      return `CLARTÉ — Promesse pour ${humanAudience}`;
+      return `MESSAGE — Donner confiance à ${humanAudience}`;
     case 2:
-      return `ATTRACTION — Contenus ${channel} qui déclenchent des DMs`;
+      return `VISIBILITÉ — Faire venir les bonnes personnes sur ${channel}`;
     case 3:
-      return `CONVERSATIONS — Qualifier la douleur sans forcer`;
+      return `CONVERSATIONS — Transformer l’intérêt en échanges utiles`;
     case 4:
-      return `CONVERSION — Première vente de ${offer}`;
+      return `VENTE — Obtenir les premières décisions autour de ${offer}`;
     case 5:
-      return `STABILISATION — Process contenu → DM → offre`;
+      return `SYSTÈME — Répéter contenu → DM → proposition`;
     case 6:
-      return `PREUVES — Rassurer et lever les objections`;
+      return `PREUVES — Rassurer les prospects qui doutent`;
     case 7:
-      return `SCALE — Augmenter le volume ciblé`;
+      return `VOLUME — Multiplier les bons contacts sans spam`;
     case 8:
-      return `SCALE — Optimiser audience, CTA et offre`;
+      return `OPTIMISATION — Faire avancer les prospects hésitants`;
     case 9:
-      return `AMBASSADOR — Levier LGD soft`;
+      return `AMBASSADEUR — Partager LGD sans forcer`;
     default:
       return `PLAN ALEX — ${offer}`;
   }
