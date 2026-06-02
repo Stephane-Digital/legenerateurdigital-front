@@ -632,8 +632,8 @@ useEffect(() => {
     goStage("ONBOARDING");
   }
 
-  function onSubmitOnboarding(data: { intent: AlexIntent; level: AlexLevel; timePerDay: TimePerDay; businessGoal?: AlexBusinessGoal; businessModel?: AlexBusinessModel; audienceSize?: AlexAudienceSize; mainBlocker?: AlexMainBlocker }) {
-    const ctx = createInitialContext({ intent: data.intent, level: data.level, timePerDay: data.timePerDay, businessGoal: data.businessGoal, businessModel: data.businessModel, audienceSize: data.audienceSize, mainBlocker: data.mainBlocker });
+  function onSubmitOnboarding(data: { intent: AlexIntent; level: AlexLevel; timePerDay: TimePerDay; businessGoal?: AlexBusinessGoal; businessModel?: AlexBusinessModel; audienceSize?: AlexAudienceSize; mainBlocker?: AlexMainBlocker; offerDescription?: string; targetAudienceDescription?: string; primaryChannel?: string; channelNotes?: string }) {
+    const ctx = createInitialContext({ intent: data.intent, level: data.level, timePerDay: data.timePerDay, businessGoal: data.businessGoal, businessModel: data.businessModel, audienceSize: data.audienceSize, mainBlocker: data.mainBlocker, offerDescription: data.offerDescription, targetAudienceDescription: data.targetAudienceDescription, primaryChannel: data.primaryChannel, channelNotes: data.channelNotes });
     const rm = createInitialRoadmap(ctx);
     const td = buildTodayFromRoadmap({ ctx, roadmap: rm, weekIndex: 1, dayIndex: 1 });
 
@@ -1047,4 +1047,3 @@ useEffect(() => {
     </div>
   );
 }
-
