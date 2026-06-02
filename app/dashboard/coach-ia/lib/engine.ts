@@ -1167,14 +1167,44 @@ function blockerAdvice(blocker?: AlexMainBlocker): string[] {
   }
 }
 
+function channelLabel(value?: string): string {
+  const raw = String(value || "").trim();
+  if (!raw) return "Instagram";
+
+  const normalized = raw.toLowerCase();
+  if (normalized.includes("instagram")) return "Instagram";
+  if (normalized.includes("facebook")) return "Facebook";
+  if (normalized.includes("tiktok")) return "TikTok";
+  if (normalized.includes("linkedin")) return "LinkedIn";
+  if (normalized.includes("pinterest")) return "Pinterest";
+
+  return raw.charAt(0).toUpperCase() + raw.slice(1);
+}
+
+function compactText(value: unknown, fallback: string, max = 120): string {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (!text) return fallback;
+  if (text.length <= max) return text;
+  return `${text.slice(0, max).trim()}...`;
+}
+
 function createTrajectory(args: {
   businessGoal?: AlexBusinessGoal;
   businessModel?: AlexBusinessModel;
   audienceSize?: AlexAudienceSize;
   mainBlocker?: AlexMainBlocker;
+  offerDescription?: string;
+  targetAudienceDescription?: string;
+  primaryChannel?: string;
+  channelNotes?: string;
 }) {
   const target = targetFromBusinessGoal(args.businessGoal);
   const priorityModel: AlexBusinessModel = args.businessModel || "affiliation";
+  const offer = compactText(args.offerDescription, "l’offre à clarifier", 100);
+  const audience = compactText(args.targetAudienceDescription, "le client idéal", 115);
+  const channel = channelLabel(args.primaryChannel || args.channelNotes);
+  const blocker = readableBlocker(args.mainBlocker);
+  const goal = readableBusinessGoal(args.businessGoal);
 
   return {
     targetLabel: target.label,
@@ -1182,13 +1212,36 @@ function createTrajectory(args: {
     horizonDays: target.days,
     priorityChannel: "instagram" as const,
     priorityModel,
-    currentStep: args.audienceSize === "zero" ? "Créer une base de confiance" : "Transformer l’audience existante en conversations",
+    currentStep:
+      args.audienceSize === "zero"
+        ? `Créer une base de confiance sur ${channel} autour de ${offer} pour ${audience}`
+        : `Transformer l’audience existante sur ${channel} en conversations qualifiées autour de ${offer}`,
     forbiddenFocus: blockerAdvice(args.mainBlocker),
     milestones: [
-      { label: "Base", objective: "clarifier promesse, profil et angle", weekFrom: 1, weekTo: 1 },
-      { label: "Audience", objective: "publier régulièrement et attirer les bons profils", weekFrom: 2, weekTo: 4 },
-      { label: "Conversations", objective: "convertir l’attention en DM qualifiés", weekFrom: 5, weekTo: 8 },
-      { label: "Revenus", objective: "faire les premières ventes puis stabiliser", weekFrom: 9, weekTo: 12 },
+      {
+        label: "Clarté",
+        objective: `clarifier ${offer}, le message et le profil ${channel} pour parler à ${audience}`,
+        weekFrom: 1,
+        weekTo: 1,
+      },
+      {
+        label: "Attraction",
+        objective: `publier des contenus reliés au problème de ${audience} et à l’objectif : ${goal}`,
+        weekFrom: 2,
+        weekTo: 4,
+      },
+      {
+        label: "Conversations",
+        objective: `ouvrir des DM qualifiés sans forcer la vente, malgré le blocage principal : ${blocker}`,
+        weekFrom: 5,
+        weekTo: 8,
+      },
+      {
+        label: "Revenus",
+        objective: `présenter ${offer} comme une prochaine étape logique aux prospects les plus chauds`,
+        weekFrom: 9,
+        weekTo: 12,
+      },
     ],
   };
 }
@@ -1293,73 +1346,211 @@ function readableBlocker(blocker?: AlexMainBlocker): string {
 }
 
 function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: number, base: DayPlan): DayPlan {
-  const offer = shortText(ctx.offerDescription, "ton offre", 80);
-  const audience = shortText(ctx.targetAudienceDescription, "ton client idéal", 95);
-  const channel = shortText(ctx.primaryChannel || ctx.channelNotes, "Instagram", 40);
+  const offer = shortText(ctx.offerDescription, "ton offre", 90);
+  const audience = shortText(ctx.targetAudienceDescription, "ton client idéal", 110);
+  const channel = channelLabel(ctx.primaryChannel || ctx.channelNotes);
   const goal = readableBusinessGoal(ctx.businessGoal);
   const model = readableBusinessModel(ctx.businessModel);
   const blocker = readableBlocker(ctx.mainBlocker);
-  const hasRichContext = Boolean(ctx.offerDescription?.trim() || ctx.targetAudienceDescription?.trim());
 
-  if (!hasRichContext) return base;
+  const hasQuestionnaireContext = Boolean(
+    ctx.offerDescription?.trim() ||
+      ctx.targetAudienceDescription?.trim() ||
+      ctx.businessGoal ||
+      ctx.businessModel ||
+      ctx.mainBlocker ||
+      ctx.primaryChannel ||
+      ctx.channelNotes
+  );
+
+  if (!hasQuestionnaireContext) return base;
+
+  const commonContextLine = `Contexte Alex : offre = ${offer} ; client idéal = ${audience} ; objectif = ${goal} ; canal = ${channel} ; blocage = ${blocker}.`;
 
   if (weekIndex === 1 && dayIndex === 1) {
     return {
       ...base,
-      title: `Clarifier la promesse de ton offre`,
-      objective: `Transformer ${offer} en message simple pour ${audience}, avec un profil ${channel} orienté ${goal}.`,
+      title: `Clarifier ${offer}`,
+      objective: `Transformer ${offer} en promesse simple pour ${audience}, puis adapter ton profil ${channel} pour attirer des prospects liés à ton objectif : ${goal}.`,
       checklist: [
-        `Résume ton offre en 1 phrase : résultat + cible + bénéfice concret.`,
-        `Ajoute dans ton profil un message clair pour ${audience}.`,
-        `Prépare 1 CTA simple : commenter, DM ou demander plus d'informations.`,
+        `Écris en 1 phrase : “J’aide ${audience} à obtenir un résultat concret grâce à ${offer}”.`,
+        `Ajoute cette promesse dans ta bio ou ton profil ${channel}.`,
+        `Prépare un CTA simple : “DM LIBERTÉ” ou “commente LIBERTÉ” pour ouvrir la conversation.`,
       ],
-      kpiLabel: "Promesse clarifiée (oui/non)",
+      kpiLabel: "Promesse + profil alignés",
+      businessModel: base.businessModel,
+    };
+  }
+
+  if (weekIndex === 1 && dayIndex === 2) {
+    return {
+      ...base,
+      title: `Carrousel problème pour ${audience}`,
+      objective: `Créer un carrousel ${channel} qui parle du problème réel de ${audience} et introduit ${offer} sans vendre trop vite.`,
+      checklist: [
+        `Slide 1 : nomme la douleur principale de ${audience}.`,
+        `Slides 2-4 : montre 3 erreurs ou blocages qui empêchent d’avancer.`,
+        `Dernière slide : CTA vers un DM pour comprendre si ${offer} peut les aider.`,
+      ],
+      kpiLabel: "DM / commentaires qualifiés",
+      businessModel: base.businessModel,
+    };
+  }
+
+  if (weekIndex === 1 && dayIndex === 3) {
+    return {
+      ...base,
+      title: `Trouver 10 profils proches de ${audience}`,
+      objective: `Identifier des personnes qui ressemblent à ton client idéal et ouvrir 3 échanges naturels autour de leur situation.`,
+      checklist: [
+        `Trouve 10 profils sur ${channel} qui correspondent à ${audience}.`,
+        `Observe leur contenu ou leur bio pour repérer leur besoin réel.`,
+        `Envoie 3 messages courts : question + empathie, sans pousser ${offer}.`,
+      ],
+      kpiLabel: "Conversations qualifiées lancées",
+      businessModel: base.businessModel,
+    };
+  }
+
+  if (weekIndex === 1 && dayIndex === 4) {
+    return {
+      ...base,
+      title: `Story empathie pour ${audience}`,
+      objective: `Publier une story qui montre que tu comprends le blocage de ${audience}, surtout autour de : ${blocker}.`,
+      checklist: [
+        `Story 1 : décris leur situation avec des mots simples.`,
+        `Story 2 : explique pourquoi ce blocage est normal.`,
+        `Story 3 : propose de répondre en DM pour recevoir une piste concrète.`,
+      ],
+      kpiLabel: "Réponses story",
+      businessModel: base.businessModel,
+    };
+  }
+
+  if (weekIndex === 1 && dayIndex === 5) {
+    return {
+      ...base,
+      title: `Relancer sans forcer autour de ${offer}`,
+      objective: `Relancer 5 prospects chauds en partant de leur besoin, pas d’un message de vente agressif.`,
+      checklist: [
+        `Liste 5 personnes qui ont réagi à ton contenu ou à tes stories.`,
+        `Relance avec 1 phrase utile liée à leur situation.`,
+        `Demande simplement si elles veulent que tu leur montres comment ${offer} peut aider.`,
+      ],
+      kpiLabel: "Réponses relance",
+      businessModel: base.businessModel,
+    };
+  }
+
+  if (weekIndex === 1 && dayIndex === 6) {
+    return {
+      ...base,
+      title: `Présenter ${offer} simplement`,
+      objective: `Faire 2 propositions claires à des prospects qualifiés en tenant compte du blocage principal : ${blocker}.`,
+      checklist: [
+        `Résume leur problème en 1 phrase.`,
+        `Présente ${offer} comme la prochaine étape logique.`,
+        `Pose une question simple : “tu veux que je t’explique comment ça marche ?”.`,
+      ],
+      kpiLabel: "Propositions envoyées",
+      businessModel: base.businessModel,
+    };
+  }
+
+  if (weekIndex === 1 && dayIndex === 7) {
+    return {
+      ...base,
+      title: `Bilan : ${offer} + ${audience}`,
+      objective: `Mesurer ce qui attire vraiment ${audience} et corriger 1 point avant la semaine suivante.`,
+      checklist: [
+        `Note le contenu qui a généré le plus de réactions.`,
+        `Note le message DM qui a obtenu la meilleure réponse.`,
+        `Choisis 1 amélioration : promesse, CTA, profil ou angle de contenu.`,
+      ],
+      kpiLabel: "Meilleur signal de la semaine",
+      businessModel: base.businessModel,
     };
   }
 
   if (base.missionType === "content") {
     return {
       ...base,
-      title: base.format === "carrousel" ? `Créer un carrousel pour ${audience}` : `Créer un post pour ${audience}`,
-      objective: `Publier sur ${channel} un contenu qui relie le problème de ${audience} à ${offer}.`,
+      title: base.format === "carrousel" ? `Carrousel utile pour ${audience}` : `Contenu utile pour ${audience}`,
+      objective: `Publier sur ${channel} un contenu relié à ${offer}, au besoin de ${audience} et à ton objectif : ${goal}.`,
       checklist: [
-        `Accroche : parle du problème concret de ${audience}.`,
-        `Corps : explique pourquoi ${offer} peut aider sans promesse excessive.`,
-        `CTA : invite à répondre ou demander la suite.`,
+        `Accroche : parle d’un problème concret de ${audience}.`,
+        `Corps : donne 1 idée actionnable en lien avec ${offer}.`,
+        `CTA : invite à répondre en DM avec un mot-clé simple.`,
       ],
       kpiLabel: "Commentaires / DMs qualifiés",
+      businessModel: base.businessModel,
     };
   }
 
   if (base.missionType === "conversation") {
     return {
       ...base,
-      title: `Démarrer des conversations avec ton client idéal`,
-      objective: `Identifier des profils proches de ${audience} et ouvrir des échanges naturels autour de ${offer}.`,
+      title: `Conversations qualifiées avec ${audience}`,
+      objective: `Ouvrir des échanges naturels sur ${channel} avec des prospects proches de ${audience}, sans bloquer sur : ${blocker}.`,
       checklist: [
-        `Trouve 10 profils correspondant à ton client idéal.`,
+        `Trouve 10 profils correspondant à ${audience}.`,
         `Interagis avec 3 contenus avant tout message.`,
-        `Envoie 3 messages courts basés sur leur situation, sans pousser la vente.`,
+        `Envoie 3 messages courts basés sur leur situation et non sur une vente directe.`,
       ],
       kpiLabel: "Conversations qualifiées lancées",
+      businessModel: base.businessModel,
     };
   }
 
   if (base.missionType === "vente") {
     return {
       ...base,
-      title: `Faire une proposition simple autour de ton offre`,
-      objective: `Présenter ${offer} à des prospects qualifiés en partant de leur blocage principal : ${blocker}.`,
+      title: `Proposition claire : ${offer}`,
+      objective: `Présenter ${offer} à des prospects qualifiés comme une solution logique pour ${audience}.`,
       checklist: [
         `Résume le besoin du prospect en 1 phrase.`,
-        `Présente ${offer} comme une prochaine étape logique.`,
-        `Pose une question de décision simple : “tu veux que je t’explique comment ça marche ?”.`,
+        `Explique pourquoi ${offer} correspond à sa situation.`,
+        `Pose une question de décision simple, sans pression.`,
       ],
       kpiLabel: "Propositions envoyées",
+      businessModel: base.businessModel,
     };
   }
 
-  return { ...base, objective: `${base.objective} Contexte : ${model}, ${goal}, blocage principal : ${blocker}.` };
+  return {
+    ...base,
+    objective: `${base.objective} ${commonContextLine} Modèle prioritaire : ${model}.`,
+    businessModel: base.businessModel,
+  };
+}
+
+function roadmapLabel(ctx: AlexContext, weekIndex: number): string {
+  const offer = shortText(ctx.offerDescription, "offre", 55);
+  const audience = shortText(ctx.targetAudienceDescription, "client idéal", 65);
+  const channel = channelLabel(ctx.primaryChannel || ctx.channelNotes);
+
+  switch (weekIndex) {
+    case 1:
+      return `CLARTÉ — ${offer} pour ${audience}`;
+    case 2:
+      return `ATTRACTION — Contenus ${channel} pour ${audience}`;
+    case 3:
+      return `CONVERSATIONS — DM qualifiés autour de ${offer}`;
+    case 4:
+      return `CONVERSION — Première vente de ${offer}`;
+    case 5:
+      return `STABILISATION — Process contenu → DM → offre`;
+    case 6:
+      return `PREUVES — Rassurer et convertir ${audience}`;
+    case 7:
+      return `SCALE — Volume ciblé sur ${channel}`;
+    case 8:
+      return `SCALE — Optimisation audience + offre`;
+    case 9:
+      return `AMBASSADOR — Levier LGD soft`;
+    default:
+      return `PLAN ALEX — ${offer}`;
+  }
 }
 
 export function createInitialRoadmap(ctx: AlexContext): AlexRoadmap {
@@ -1368,47 +1559,47 @@ export function createInitialRoadmap(ctx: AlexContext): AlexRoadmap {
   const weeks = [
     {
       weekIndex: 1,
-      label: "FIRST_SALE — Préparer l’offre + profil vendeur",
+      label: roadmapLabel(ctx, 1),
       days: Array.from({ length: 7 }).map((_, i) => contextualizeDayPlan(ctx, 1, i + 1, dayTemplate(1, i + 1, ctx.intent, ctx.level, ctx.timePerDay))),
     },
     {
       weekIndex: 2,
-      label: "FIRST_SALE — Attirer des prospects",
+      label: roadmapLabel(ctx, 2),
       days: Array.from({ length: 7 }).map((_, i) => contextualizeDayPlan(ctx, 2, i + 1, dayTemplate(2, i + 1, ctx.intent, ctx.level, ctx.timePerDay))),
     },
     {
       weekIndex: 3,
-      label: "FIRST_SALE — Conversations & DM",
+      label: roadmapLabel(ctx, 3),
       days: Array.from({ length: 7 }).map((_, i) => contextualizeDayPlan(ctx, 3, i + 1, dayTemplate(3, i + 1, ctx.intent, ctx.level, ctx.timePerDay))),
     },
     {
       weekIndex: 4,
-      label: "FIRST_SALE — Closing & 1ère vente",
+      label: roadmapLabel(ctx, 4),
       days: Array.from({ length: 7 }).map((_, i) => contextualizeDayPlan(ctx, 4, i + 1, dayTemplate(4, i + 1, ctx.intent, ctx.level, ctx.timePerDay))),
     },
     {
       weekIndex: 5,
-      label: "STABILIZE — Process répétable (contenu → DM → offre)",
+      label: roadmapLabel(ctx, 5),
       days: Array.from({ length: 7 }).map((_, i) => contextualizeDayPlan(ctx, 5, i + 1, dayTemplate(5, i + 1, ctx.intent, ctx.level, ctx.timePerDay))),
     },
     {
       weekIndex: 6,
-      label: "STABILIZE — Système de suivi + preuves",
+      label: roadmapLabel(ctx, 6),
       days: Array.from({ length: 7 }).map((_, i) => contextualizeDayPlan(ctx, 6, i + 1, dayTemplate(6, i + 1, ctx.intent, ctx.level, ctx.timePerDay))),
     },
     {
       weekIndex: 7,
-      label: "SCALE — Volume (contenu + optimisation)",
+      label: roadmapLabel(ctx, 7),
       days: Array.from({ length: 7 }).map((_, i) => contextualizeDayPlan(ctx, 7, i + 1, dayTemplate(7, i + 1, ctx.intent, ctx.level, ctx.timePerDay))),
     },
     {
       weekIndex: 8,
-      label: "SCALE — Multiplication (audience + offres)",
+      label: roadmapLabel(ctx, 8),
       days: Array.from({ length: 7 }).map((_, i) => contextualizeDayPlan(ctx, 8, i + 1, dayTemplate(8, i + 1, ctx.intent, ctx.level, ctx.timePerDay))),
     },
     {
       weekIndex: 9,
-      label: "AMBASSADOR — Ambassadeur LGD (affiliation 60%)",
+      label: roadmapLabel(ctx, 9),
       days: Array.from({ length: 7 }).map((_, i) => contextualizeDayPlan(ctx, 9, i + 1, dayTemplate(9, i + 1, ctx.intent, ctx.level, ctx.timePerDay))),
     },
   ];
@@ -1423,7 +1614,8 @@ export function createInitialRoadmap(ctx: AlexContext): AlexRoadmap {
 export function buildTodayFromRoadmap(args: { ctx: AlexContext; roadmap: AlexRoadmap; weekIndex: number; dayIndex: number }): AlexToday {
   const { ctx, roadmap, weekIndex, dayIndex } = args;
   const week = roadmap.weeks.find((w) => w.weekIndex === weekIndex) || roadmap.weeks[0];
-  const day = week.days.find((d) => d.dayIndex === dayIndex) || week.days[0];
+  const rawDay = week.days.find((d) => d.dayIndex === dayIndex) || week.days[0];
+  const day = contextualizeDayPlan(ctx, week.weekIndex, rawDay.dayIndex, rawDay);
 
   const tone = toneFromIntent(ctx.intent);
   const goal: MissionBrief["goal"] = day.missionType === "vente" ? "convert" : day.missionType === "conversation" ? "engage" : "attract";
