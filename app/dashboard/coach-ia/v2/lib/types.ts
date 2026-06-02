@@ -65,6 +65,10 @@ export type AlexContext = {
   revenueGoalMonthly?: number;
   deadlineDays?: number;
   trajectory?: AlexGoalTrajectory;
+  offerDescription?: string;
+  targetAudienceDescription?: string;
+  primaryChannel?: string;
+  channelNotes?: string;
 };
 
 export type MissionBrief = {
