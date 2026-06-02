@@ -222,7 +222,7 @@ export function buildAlexLiveStrategistPayload(args: {
   return {
     context: args.context,
     today: args.today || null,
-    currentMission: args.currentMission || args.today?.plan || null,
+    currentMission: args.currentMission || null,
     generatedAtISO: nowISO(),
   };
 }
