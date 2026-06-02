@@ -1428,6 +1428,80 @@ function extractAudienceSegment(value: unknown): string {
   return shortText(compact, "ton client idéal", 70);
 }
 
+
+function normalizeText(value: unknown): string {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function extractPainPoint(audienceDescription: unknown, blocker?: AlexMainBlocker): string {
+  const text = normalizeText(audienceDescription);
+
+  if (/aucune vente|0 vente|zero vente|pas fait.*vente|sans vente|n['’]?ont fait aucune vente/.test(text)) {
+    return "ne pas avoir encore réalisé leur première vente";
+  }
+  if (/achete|acheté|formation|mrr|master resale/.test(text) && /bloque|bloqué|perdu|resultat|résultat/.test(text)) {
+    return "avoir acheté une formation sans réussir à la transformer en revenus";
+  }
+  if (/complement|revenu|argent|fin de mois/.test(text) && /salarie|employe|job|travail/.test(text)) {
+    return "vouloir un revenu complémentaire sans savoir par où commencer";
+  }
+  if (/maison|domicile|chez soi|chez eux/.test(text)) {
+    return "vouloir gagner depuis la maison sans système clair";
+  }
+  if (blocker === "vente") return "ne pas savoir vendre naturellement";
+  if (blocker === "confiance") return "ne pas se sentir légitime pour publier et proposer";
+  if (blocker === "temps") return "manquer de temps pour agir régulièrement";
+  if (blocker === "technique") return "se perdre dans la technique au lieu de vendre";
+  return "rester bloqués entre l’envie de réussir et le passage à l’action";
+}
+
+function extractDesiredOutcome(audienceDescription: unknown, goal?: AlexBusinessGoal, intent?: AlexIntent): string {
+  const text = normalizeText(audienceDescription);
+
+  if (/complement|revenu complementaire|fin de mois/.test(text)) return "créer un revenu complémentaire";
+  if (/maison|domicile|chez soi|chez eux/.test(text)) return "travailler depuis la maison";
+  if (/liberte|quitter|job|salariat/.test(text) || goal === "quitter_job" || intent === "quitter_job") {
+    return "préparer une sortie progressive du salariat";
+  }
+  if (/premiere vente|aucune vente|sans vente|0 vente|zero vente/.test(text)) return "réaliser leur première vente";
+
+  switch (goal) {
+    case "revenu_500":
+      return "atteindre leurs premiers 500€/mois";
+    case "premiers_clients":
+      return "trouver leurs premiers clients";
+    case "business_stable":
+      return "mettre en place un business plus stable";
+    case "premiers_revenus":
+    default:
+      return "obtenir leurs premiers revenus";
+  }
+}
+
+function humanAudienceLabel(segment: string, pain: string, desire: string): string {
+  const s = String(segment || "").trim();
+
+  if (/Débutants MRR/i.test(s) && /première vente|vente/.test(pain)) {
+    return "personnes qui ont acheté une formation MRR mais n’ont pas encore fait leur première vente";
+  }
+  if (/Salariés/i.test(s) && /revenu complémentaire/i.test(desire)) {
+    return "salariés qui cherchent un revenu complémentaire concret";
+  }
+  if (/Parents/i.test(s) && /maison/i.test(desire)) {
+    return "parents qui veulent travailler depuis la maison";
+  }
+  if (/Débutants/i.test(s)) {
+    return "débutants qui veulent passer de l’envie à une vraie première action rentable";
+  }
+
+  return s || "ton client idéal";
+}
+
 function firstChannel(value?: string): string {
   const raw = String(value || "").trim();
   if (!raw) return "Instagram";
@@ -1447,6 +1521,9 @@ function ctxFlag(value: unknown, pattern: RegExp): boolean {
 function strategicProfile(ctx: AlexContext) {
   const offer = shortText(ctx.offerDescription, "ton offre", 64);
   const audience = extractAudienceSegment(ctx.targetAudienceDescription);
+  const pain = extractPainPoint(ctx.targetAudienceDescription, ctx.mainBlocker);
+  const desire = extractDesiredOutcome(ctx.targetAudienceDescription, ctx.businessGoal, ctx.intent);
+  const humanAudience = humanAudienceLabel(audience, pain, desire);
   const channel = firstChannel(ctx.primaryChannel || ctx.channelNotes);
   const goal = objectiveAngle(ctx.businessGoal);
   const blocker = readableBlocker(ctx.mainBlocker);
@@ -1486,6 +1563,9 @@ function strategicProfile(ctx: AlexContext) {
   return {
     offer,
     audience,
+    humanAudience,
+    pain,
+    desire,
     channel,
     goal,
     blocker,
@@ -1528,9 +1608,9 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
   const week1Base: Record<number, Partial<DayPlan>> = {
     1: {
       title: "Promesse claire + profil aligné",
-      objective: `Transformer ${p.offer} en promesse simple pour ${p.audience}, avec un profil ${p.channel} qui ouvre naturellement la conversation.`,
+      objective: `Transformer ${p.offer} en promesse claire pour ${p.humanAudience}, avec un profil ${p.channel} qui promet ${p.desire} sans minimiser leur douleur : ${p.pain}.`,
       checklist: [
-        `Écris une phrase : “J’aide ${p.audience} à avancer grâce à ${p.offer}”.`,
+        `Écris une phrase : “J’aide ${p.humanAudience} à ${p.desire} grâce à ${p.offer}”.`,
         `Ajoute un bénéfice concret lié à l’objectif : ${p.goal}.`,
         `Mets un CTA visible : “DM ${p.dmKeyword}” ou “commente ${p.dmKeyword}”.`,
       ],
@@ -1538,9 +1618,9 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
     },
     2: {
       title: p.isInstagram ? "Post/Reel douleur → déclic" : "Contenu douleur → déclic",
-      objective: `Publier un contenu qui nomme la vraie frustration de ${p.audience} puis fait le lien avec ${p.offer}, sans vente agressive.`,
+      objective: `Publier un contenu qui nomme la vraie douleur — ${p.pain} — puis fait le lien avec ${p.offer}, sans vente agressive.`,
       checklist: [
-        `Accroche : “Tu veux ${p.goal}, mais tu bloques sur…”`,
+        `Accroche : “Tu veux ${p.desire}, mais tu bloques encore sur ${p.pain}”.`,
         `Montre le coût du blocage : ${p.blocker}.`,
         `Termine par une question simple + mot-clé ${p.dmKeyword}.`,
       ],
@@ -1548,9 +1628,9 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
     },
     3: {
       title: "Repérer 10 prospects cohérents",
-      objective: `Trouver sur ${p.channel} des profils proches de ${p.audience} avant d’envoyer le moindre message.`,
+      objective: `Trouver sur ${p.channel} des personnes proches de ${p.humanAudience} avant d’envoyer le moindre message.`,
       checklist: [
-        `Liste 10 profils qui ressemblent à ${p.audience}.`,
+        `Liste 10 profils qui ressemblent à ${p.humanAudience}.`,
         `Repère 1 signal réel : bio, commentaire, post ou story.`,
         `Garde seulement les profils avec un besoin visible.`,
       ],
@@ -1558,9 +1638,9 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
     },
     4: {
       title: "Story empathie + question",
-      objective: `Créer une story qui fait dire à ${p.audience} : “c’est exactement moi”.`,
+      objective: `Créer une story qui fait dire à ${p.humanAudience} : “c’est exactement mon problème”.`,
       checklist: [
-        `Story 1 : situation concrète vécue par ${p.audience}.`,
+        `Story 1 : situation concrète liée à ${p.pain}.`,
         `Story 2 : normalise le blocage : ${p.blocker}.`,
         `Story 3 : “tu veux que je te montre le chemin ? Réponds ${p.dmKeyword}”.`,
       ],
@@ -1588,7 +1668,7 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
     },
     7: {
       title: "Bilan des signaux d’achat",
-      objective: `Identifier ce qui attire vraiment ${p.audience} : contenus, stories, DMs ou objections.`,
+      objective: `Identifier ce qui attire vraiment ${p.humanAudience} : contenus, stories, DMs ou objections.`,
       checklist: [
         `Note le contenu qui a généré le meilleur signal.`,
         `Note la question ou objection la plus fréquente.`,
@@ -1611,7 +1691,7 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
     },
     2: {
       title: "Carrousel 3 erreurs",
-      objective: `Attirer ${p.audience} avec 3 erreurs qui les empêchent de ${p.goal}.`,
+      objective: `Attirer ${p.humanAudience} avec 3 erreurs qui les empêchent de ${p.desire}.`,
       checklist: [
         `Erreur 1 : rester seul avec le problème.`,
         `Erreur 2 : consommer du contenu sans passer à l’action.`,
@@ -1622,7 +1702,7 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
     },
     3: {
       title: "Commentaires ciblés",
-      objective: `Se rendre visible auprès de ${p.audience} sans dépendre de l’algorithme.`,
+      objective: `Se rendre visible auprès de ${p.humanAudience} sans dépendre uniquement de l’algorithme.`,
       checklist: [
         `Trouve 10 comptes suivis par ton audience.`,
         `Commente 5 posts avec une vraie idée utile.`,
@@ -1642,7 +1722,7 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
     },
     5: {
       title: "DM d’ouverture propre",
-      objective: `Transformer les réactions en conversations qualifiées avec ${p.audience}.`,
+      objective: `Transformer les réactions en conversations qualifiées avec ${p.humanAudience}.`,
       checklist: [
         `Choisis 5 personnes qui ont réagi.`,
         `Message : “j’ai vu ta réponse, tu bloques surtout sur quoi aujourd’hui ?”.`,
@@ -1705,7 +1785,7 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
     },
     4: {
       title: "Preuve ou démonstration",
-      objective: `Rassurer ${p.audience} en montrant un exemple concret, un process ou une preuve autour de ${p.offer}.`,
+      objective: `Rassurer ${p.humanAudience} en montrant un exemple concret, un process ou une preuve autour de ${p.offer}.`,
       checklist: [
         `Avant : situation bloquée.`,
         `Pendant : mécanisme ou méthode.`,
@@ -1748,7 +1828,7 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
   const week4Conversion: Record<number, Partial<DayPlan>> = {
     1: {
       title: "Offre claire en 3 bullets",
-      objective: `Rendre ${p.offer} facile à comprendre pour ${p.audience}.`,
+      objective: `Rendre ${p.offer} facile à comprendre pour ${p.humanAudience}.`,
       checklist: [
         `Bullet 1 : résultat concret attendu.`,
         `Bullet 2 : ce que la personne reçoit.`,
@@ -1758,7 +1838,7 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
     },
     2: {
       title: "Post preuve / cas pratique",
-      objective: `Montrer comment ${p.offer} aide concrètement une personne comme ${p.audience}.`,
+      objective: `Montrer comment ${p.offer} aide concrètement une personne qui vit ${p.pain}.`,
       checklist: [
         `Avant : situation de départ.`,
         `Déclic : ce qui change avec la méthode.`,
@@ -1780,7 +1860,7 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
       title: "Story offre simple",
       objective: `Présenter ${p.offer} en story avec un angle humain : problème, solution, action.`,
       checklist: [
-        `Frame 1 : problème vécu par ${p.audience}.`,
+        `Frame 1 : problème vécu — ${p.pain}.`,
         `Frame 2 : solution proposée.`,
         `Frame 3 : DM ${p.dmKeyword}.`,
       ],
@@ -1834,7 +1914,7 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
   if (base.missionType === "content") {
     return withBase({
       title: base.format === "carrousel" ? "Carrousel ciblé" : "Contenu ciblé",
-      objective: `Publier sur ${p.channel} un contenu utile pour ${p.audience}, relié à ${p.offer} et à l’objectif : ${p.goal}.`,
+      objective: `Publier sur ${p.channel} un contenu utile pour ${p.humanAudience}, relié à ${p.offer} et à l’objectif : ${p.desire}.`,
       checklist: [
         `Accroche : douleur ou désir précis.`,
         `Valeur : une idée actionnable.`,
@@ -1847,7 +1927,7 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
   if (base.missionType === "conversation") {
     return withBase({
       title: "Conversations qualifiées",
-      objective: `Ouvrir des échanges naturels avec ${p.audience} sans tomber dans la vente forcée.`,
+      objective: `Ouvrir des échanges naturels avec ${p.humanAudience} sans tomber dans la vente forcée.`,
       checklist: [
         `Trouve 10 profils cohérents.`,
         `Interagis avant de contacter.`,
@@ -1878,15 +1958,18 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
 function roadmapLabel(ctx: AlexContext, weekIndex: number): string {
   const offer = shortText(ctx.offerDescription, "ton offre", 42);
   const audience = extractAudienceSegment(ctx.targetAudienceDescription);
+  const pain = extractPainPoint(ctx.targetAudienceDescription, ctx.mainBlocker);
+  const desire = extractDesiredOutcome(ctx.targetAudienceDescription, ctx.businessGoal, ctx.intent);
+  const humanAudience = humanAudienceLabel(audience, pain, desire);
   const channel = channelLabel(ctx.primaryChannel || ctx.channelNotes);
 
   switch (weekIndex) {
     case 1:
-      return `CLARTÉ — Promesse + profil pour ${audience}`;
+      return `CLARTÉ — Promesse pour ${humanAudience}`;
     case 2:
       return `ATTRACTION — Contenus ${channel} qui déclenchent des DMs`;
     case 3:
-      return `CONVERSATIONS — Qualifier sans forcer la vente`;
+      return `CONVERSATIONS — Qualifier la douleur sans forcer`;
     case 4:
       return `CONVERSION — Première vente de ${offer}`;
     case 5:
@@ -1967,6 +2050,7 @@ export function buildTodayFromRoadmap(args: { ctx: AlexContext; roadmap: AlexRoa
   const week = roadmap.weeks.find((w) => w.weekIndex === weekIndex) || roadmap.weeks[0];
   const rawDay = week.days.find((d) => d.dayIndex === dayIndex) || week.days[0];
   const day = contextualizeDayPlan(ctx, week.weekIndex, rawDay.dayIndex, rawDay);
+  const p = strategicProfile(ctx);
 
   const tone = toneFromIntent(ctx.intent);
   const goal: MissionBrief["goal"] = day.missionType === "vente" ? "convert" : day.missionType === "conversation" ? "engage" : "attract";
@@ -1998,6 +2082,10 @@ export function buildTodayFromRoadmap(args: { ctx: AlexContext; roadmap: AlexRoa
       mainBlocker: ctx.mainBlocker,
       offerDescription: ctx.offerDescription,
       targetAudienceDescription: ctx.targetAudienceDescription,
+      audienceSegment: p.audience,
+      humanAudience: p.humanAudience,
+      painPoint: p.pain,
+      desiredOutcome: p.desire,
       primaryChannel: ctx.primaryChannel,
       channelNotes: ctx.channelNotes,
     },
