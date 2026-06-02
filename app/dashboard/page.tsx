@@ -240,6 +240,56 @@ function formatQuotaNumber(value: number) {
   return Math.max(0, Math.round(value)).toLocaleString("fr-FR");
 }
 
+type CoachProfileSnapshot = {
+  profile?: Record<string, any>;
+  intent?: string | null;
+  level?: string | null;
+  time_per_day?: number | null;
+};
+
+function firstProfileString(profile: Record<string, any>, ...keys: string[]) {
+  for (const key of keys) {
+    const value = profile?.[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+    if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  }
+  return "";
+}
+
+function compactCoachProfile(profile: Record<string, any>) {
+  const entries = [
+    ["Objectif", firstProfileString(profile, "goal", "businessGoal", "objective", "intent")],
+    ["Offre", firstProfileString(profile, "offer", "offerName", "product", "service")],
+    ["Niche", firstProfileString(profile, "niche", "market", "sector")],
+    ["Audience", firstProfileString(profile, "audience", "target", "targetAudience")],
+    ["Modèle", firstProfileString(profile, "businessModel", "model")],
+    ["Niveau", firstProfileString(profile, "level", "stage")],
+    ["Temps disponible", firstProfileString(profile, "timePerDay", "time_per_day")],
+    ["Blocage", firstProfileString(profile, "mainBlocker", "blocker", "obstacle")],
+  ].filter(([, value]) => value);
+
+  if (!entries.length) return "Profil Coach Alex encore incomplet.";
+  return entries.map(([label, value]) => `${label} : ${value}`).join("\n");
+}
+
+async function fetchCoachProfileSnapshot(base: string, token: string): Promise<CoachProfileSnapshot | null> {
+  try {
+    const res = await fetch(`${base}/coach-profile`, {
+      method: "GET",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      cache: "no-store",
+    });
+
+    if (!res.ok) return null;
+    return (await res.json()) as CoachProfileSnapshot;
+  } catch {
+    return null;
+  }
+}
 
 async function fetchCmoDashboardStrategy(): Promise<CmoDashboardResult> {
   const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
@@ -249,6 +299,25 @@ async function fetchCmoDashboardStrategy(): Promise<CmoDashboardResult> {
     throw new Error("Token utilisateur introuvable.");
   }
 
+  const coachProfile = await fetchCoachProfileSnapshot(base, token);
+  const profile = coachProfile?.profile && typeof coachProfile.profile === "object" ? coachProfile.profile : {};
+
+  const objective = firstProfileString(
+    profile,
+    "goal",
+    "businessGoal",
+    "objective",
+    "intent"
+  ) || coachProfile?.intent || "Choisir l'action la plus utile à exécuter aujourd'hui selon l'objectif actif du Coach Alex.";
+
+  const offer = firstProfileString(profile, "offer", "offerName", "product", "service");
+  const niche = firstProfileString(profile, "niche", "market", "sector");
+  const audience = firstProfileString(profile, "audience", "target", "targetAudience");
+  const blocker = firstProfileString(profile, "mainBlocker", "blocker", "obstacle");
+  const businessModel = firstProfileString(profile, "businessModel", "model");
+  const stage = firstProfileString(profile, "stage", "level") || coachProfile?.level || "intermediate";
+  const timePerDay = firstProfileString(profile, "timePerDay", "time_per_day") || String(coachProfile?.time_per_day || "");
+
   const res = await fetch(`${base}/cmo-ai/strategy`, {
     method: "POST",
     credentials: "include",
@@ -257,15 +326,25 @@ async function fetchCmoDashboardStrategy(): Promise<CmoDashboardResult> {
       Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify({
-      objective: "Aider l'utilisateur LGD à choisir l'action la plus rentable aujourd'hui pour obtenir ou accélérer ses ventes.",
-      niche: "business en ligne, marketing digital, création de contenu, prospection",
-      audience: "entrepreneurs, créateurs, indépendants et débutants qui veulent vendre avec l'IA",
-      offer: "Le Générateur Digital",
-      current_situation: "L'utilisateur arrive sur le dashboard LGD et doit savoir quoi faire maintenant.",
-      constraints: "Réponse courte, actionnable, non technique, orientée vente. Une seule priorité.",
-      preferred_channel: "Coach Alex, Emailing IA, Éditeur intelligent ou Lead Engine selon la meilleure action.",
+      objective,
+      niche,
+      audience,
+      offer,
+      current_situation: [
+        "Contexte actif issu du questionnaire Coach Alex.",
+        compactCoachProfile({ ...profile, level: stage, timePerDay }),
+      ].join("\n"),
+      constraints: [
+        "Réponse courte, actionnable, non technique, orientée exécution.",
+        "Une seule priorité claire pour aujourd'hui.",
+        blocker ? `Blocage principal : ${blocker}` : "Blocage principal non renseigné.",
+        businessModel ? `Modèle économique : ${businessModel}` : "Modèle économique non renseigné.",
+        timePerDay ? `Temps disponible par jour : ${timePerDay}` : "Temps disponible non renseigné.",
+        "Ne jamais citer LGD, Le Générateur Digital, MRR ou l'affiliation LGD sauf si ces éléments sont explicitement présents dans le profil Coach ou dans l'objectif actif.",
+      ].join("\n"),
+      preferred_channel: "Choisir automatiquement le meilleur module entre Coach Alex, Emailing IA, Éditeur intelligent ou Lead Engine selon le profil actif.",
       tone: "premium, humain, direct, motivant",
-      user_level: "intermediate",
+      user_level: stage || "intermediate",
     }),
     cache: "no-store",
   });
