@@ -1,4 +1,4 @@
-import type { AlexContext, AlexToday, DayPlan } from "./types";
+import type { AlexContext, AlexToday } from "./types";
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || "https://legenerateurdigital-backend-m9b5.onrender.com").replace(/\/$/, "");
 
@@ -7,7 +7,7 @@ export type AlexLiveStrategistMode = "live" | "fallback";
 export type AlexLiveStrategistPayload = {
   context: AlexContext;
   today: AlexToday | null;
-  currentMission: DayPlan | null;
+  currentMission: AlexToday["mission"] | null;
   generatedAtISO: string;
 };
 
@@ -182,7 +182,7 @@ function normalizeBackendResult(response: BackendLiveStrategistResponse, fallbac
 
 function buildEditorPrompt(args: {
   ctx: AlexContext;
-  mission: DayPlan | null;
+  mission: AlexToday["mission"] | null;
   diagnostic: string;
   realBlocker: string;
   premiumMission: string;
@@ -217,7 +217,7 @@ function buildEditorPrompt(args: {
 export function buildAlexLiveStrategistPayload(args: {
   context: AlexContext;
   today?: AlexToday | null;
-  currentMission?: DayPlan | null;
+  currentMission?: AlexToday["mission"] | null;
 }): AlexLiveStrategistPayload {
   return {
     context: args.context,
@@ -230,7 +230,7 @@ export function buildAlexLiveStrategistPayload(args: {
 export async function generateAlexLiveStrategy(args: {
   context: AlexContext;
   today?: AlexToday | null;
-  currentMission?: DayPlan | null;
+  currentMission?: AlexToday["mission"] | null;
   signal?: AbortSignal;
 }): Promise<AlexLiveStrategistResult> {
   const payload = buildAlexLiveStrategistPayload(args);
@@ -262,7 +262,7 @@ export async function generateAlexLiveStrategy(args: {
 export function buildAlexLiveFallback(args: {
   context: AlexContext;
   today?: AlexToday | null;
-  currentMission?: DayPlan | null;
+  currentMission?: AlexToday["mission"] | null;
 }): AlexLiveStrategistResult {
   return fallbackLiveStrategy(buildAlexLiveStrategistPayload(args));
 }
