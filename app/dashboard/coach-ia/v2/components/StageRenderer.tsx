@@ -185,7 +185,7 @@ export default function StageRenderer(props: {
   );
 }
 
-function OnboardingCard(props: { onSubmit: (data: { intent: AlexIntent; level: AlexLevel; timePerDay: TimePerDay; businessGoal: AlexBusinessGoal; businessModel: AlexBusinessModel; audienceSize: AlexAudienceSize; mainBlocker: AlexMainBlocker }) => void }) {
+function OnboardingCard(props: { onSubmit: (data: { intent: AlexIntent; level: AlexLevel; timePerDay: TimePerDay; businessGoal: AlexBusinessGoal; businessModel: AlexBusinessModel; audienceSize: AlexAudienceSize; mainBlocker: AlexMainBlocker; offerDescription:string; targetAudienceDescription:string; primaryChannel:string; channelNotes:string }) => void }) {
   const { onSubmit } = props;
   const [step, setStep] = useState(0);
   const [intent, setIntent] = useState<AlexIntent>("argent_vite");
@@ -195,9 +195,13 @@ function OnboardingCard(props: { onSubmit: (data: { intent: AlexIntent; level: A
   const [businessModel, setBusinessModel] = useState<AlexBusinessModel>("affiliation");
   const [audienceSize, setAudienceSize] = useState<AlexAudienceSize>("moins_500");
   const [mainBlocker, setMainBlocker] = useState<AlexMainBlocker>("dispersion");
+  const [offerDescription,setOfferDescription]=useState("");
+  const [targetAudienceDescription,setTargetAudienceDescription]=useState("");
+  const [primaryChannel,setPrimaryChannel]=useState("instagram");
+  const [channelNotes,setChannelNotes]=useState("");
 
   const canNext = useMemo(() => true, []);
-  const totalSteps = 7;
+  const totalSteps = 10;
 
   return (
     <div className="rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-6">
@@ -267,6 +271,10 @@ function OnboardingCard(props: { onSubmit: (data: { intent: AlexIntent; level: A
           </>
         ) : step === 5 ? (
           <>
+            <div className="text-white/85 font-semibold">Décris ton offre</div><textarea value={offerDescription} onChange={(e)=>setOfferDescription(e.target.value)} className="mt-3 w-full rounded-2xl bg-black/20 p-3 text-white" rows={5} />
+          </>
+        ) : step === 6 ? (
+          <>
             <div className="text-white/85 font-semibold">Où en es-tu aujourd’hui ?</div>
             <div className="mt-3 grid grid-cols-1 gap-2">
               <PickRow checked={level === "debutant"} onClick={() => setLevel("debutant")} label="Je débute totalement" />
@@ -274,7 +282,7 @@ function OnboardingCard(props: { onSubmit: (data: { intent: AlexIntent; level: A
               <PickRow checked={level === "quelques_ventes"} onClick={() => setLevel("quelques_ventes")} label="J’ai déjà fait quelques ventes" />
             </div>
           </>
-        ) : (
+        ) : step === 7 ? (<><div className="text-white/85 font-semibold">Décris ton client idéal</div><textarea value={targetAudienceDescription} onChange={(e)=>setTargetAudienceDescription(e.target.value)} className="mt-3 w-full rounded-2xl bg-black/20 p-3 text-white" rows={5} /></>) : step === 8 ? (<><div className="text-white/85 font-semibold">Canal principal</div><input value={primaryChannel} onChange={(e)=>setPrimaryChannel(e.target.value)} className="mt-3 w-full rounded-2xl bg-black/20 p-3 text-white" /></>) : (
           <>
             <div className="text-white/85 font-semibold">Temps disponible par jour</div>
             <div className="mt-3 grid grid-cols-1 gap-2">
@@ -311,7 +319,7 @@ function OnboardingCard(props: { onSubmit: (data: { intent: AlexIntent; level: A
             </button>
           ) : (
             <button
-              onClick={() => onSubmit({ intent, level, timePerDay, businessGoal, businessModel, audienceSize, mainBlocker })}
+              onClick={() => onSubmit({ intent, level, timePerDay, businessGoal, businessModel, audienceSize, mainBlocker, offerDescription, targetAudienceDescription, primaryChannel, channelNotes })}
               className="rounded-2xl bg-yellow-400 px-5 py-3 text-sm font-semibold text-black hover:bg-yellow-300 transition"
             >
               Générer ma trajectoire
