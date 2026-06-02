@@ -1377,25 +1377,55 @@ function blockerFocus(blocker?: AlexMainBlocker): string {
   }
 }
 
-function extractAudienceSegment(value: unknown): string {
-  const text = String(value || "").replace(/\s+/g, " ").trim();
-  if (!text) return "ton client idéal";
+function extractAgeRange(value: string): string {
+  const text = value.replace(/\s+/g, " ").trim();
 
-  const parts = text
+  const range = text.match(/(\d{2})\s*(?:[-/]|à|a)\s*(\d{2})\s*(?:ans|an)?/i);
+  if (range?.[1] && range?.[2]) return `${range[1]}-${range[2]} ans`;
+
+  const single = text.match(/(\d{2})\s*(?:ans|an)/i);
+  if (single?.[1]) return `${single[1]} ans`;
+
+  return "";
+}
+
+function extractAudienceSegment(value: unknown): string {
+  const raw = String(value || "").replace(/\s+/g, " ").trim();
+  if (!raw) return "ton client idéal";
+
+  const normalized = raw
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+  const age = extractAgeRange(raw);
+
+  const hasMrr = /\bmrr\b|master resale|droits? de revente|formation/i.test(normalized);
+  const hasNoSale = /aucune vente|0 vente|zero vente|pas fait.*vente|sans vente|n['’]?ont fait aucune vente|bloque/i.test(normalized);
+  const hasBeginner = /debutant|aucune experience|sans experience|premier|demarre|novice/i.test(normalized);
+  const hasParents = /papa|maman|parent|solo|marie|famille/i.test(normalized);
+  const hasEmployees = /salarie|employe|travail|job|cdi|bureau/i.test(normalized);
+  const hasComplement = /complement|revenu|argent|fin de mois|maison|liberte/i.test(normalized);
+  const hasHome = /maison|domicile|chez eux|chez soi/i.test(normalized);
+
+  const ageSuffix = age ? ` ${age}` : "";
+
+  if (hasMrr && hasNoSale) return shortText(`Débutants MRR${ageSuffix} bloqués sans vente`, "ton client idéal", 70);
+  if (hasMrr && hasBeginner) return shortText(`Débutants MRR${ageSuffix} à guider pas à pas`, "ton client idéal", 70);
+  if (hasEmployees && hasComplement) return shortText(`Salariés${ageSuffix} cherchant un revenu complémentaire`, "ton client idéal", 70);
+  if (hasParents && hasComplement) return shortText(`Parents${ageSuffix} cherchant un revenu complémentaire`, "ton client idéal", 70);
+  if (hasParents && hasHome) return shortText(`Parents${ageSuffix} qui veulent travailler depuis la maison`, "ton client idéal", 70);
+  if (hasBeginner && hasComplement) return shortText(`Débutants${ageSuffix} qui veulent générer leurs premiers revenus`, "ton client idéal", 70);
+  if (hasBeginner) return shortText(`Débutants${ageSuffix} à accompagner étape par étape`, "ton client idéal", 70);
+
+  const parts = raw
     .split(/[.,;\n\r]+/)
     .map((p) => p.trim())
-    .filter(Boolean);
-
-  const agePart = parts.find((p) => /\d{2}\s*[-/]\s*\d{2}|\d{2}\s*(ans|an)/i.test(p));
-  const jobPart = parts.find((p) => /salari|employ|parent|maman|papa|solo|indépend|entrepreneur|débutant|formation|mrr/i.test(p));
-  const desirePart = parts.find((p) => /revenu|complément|maison|liberté|temps|argent|reconversion|bloqué|changer/i.test(p));
-
-  const compact = [agePart, jobPart, desirePart]
     .filter(Boolean)
-    .filter((v, i, arr) => arr.indexOf(v) === i)
-    .join(" · ");
+    .filter((p) => !/hommes?\s*\/\s*femmes?|h\/f/i.test(p));
 
-  return shortText(compact || text, "ton client idéal", 70);
+  const compact = parts.slice(0, 2).join(" · ") || raw;
+  return shortText(compact, "ton client idéal", 70);
 }
 
 function firstChannel(value?: string): string {
@@ -1847,7 +1877,7 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
 
 function roadmapLabel(ctx: AlexContext, weekIndex: number): string {
   const offer = shortText(ctx.offerDescription, "ton offre", 42);
-  const audience = shortText(ctx.targetAudienceDescription, "ton client idéal", 52);
+  const audience = extractAudienceSegment(ctx.targetAudienceDescription);
   const channel = channelLabel(ctx.primaryChannel || ctx.channelNotes);
 
   switch (weekIndex) {
