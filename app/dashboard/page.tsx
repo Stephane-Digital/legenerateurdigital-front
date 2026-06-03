@@ -97,8 +97,26 @@ type MissionCashActionRecord = {
   cta: string;
 };
 
+type RealActionModule = "editor" | "emailing" | "lead_engine" | "coach" | "planner" | "library";
+
+type RealActionRecord = {
+  id: string;
+  date: string;
+  createdAt: string;
+  module: RealActionModule;
+  action: string;
+  label: string;
+  title: string;
+  details?: string;
+  source?: string;
+  missionCashActionId?: string;
+  missionCashTitle?: string;
+};
+
 const CMO_AUTO_PAYLOAD_KEY = "lgd_cmo_module_auto_payload";
 const LGD_MISSION_CASH_HISTORY_KEY = "lgd_mission_cash_action_history";
+const LGD_REAL_ACTIONS_HISTORY_KEY = "lgd_real_actions_history_v1";
+const LGD_ACTIVE_MISSION_CASH_ACTION_KEY = "lgd_active_mission_cash_action_v1";
 
 
 const SYSTEMEIO_PLANS_URL =
@@ -392,6 +410,8 @@ async function fetchCmoDashboardStrategy(): Promise<CmoDashboardResult> {
   const alexMissionObjective = firstProfileString(mission || {}, "objective");
   const missionCashHistory = readMissionCashHistory();
   const missionCashHistorySummary = summarizeMissionCashHistory(missionCashHistory);
+  const realActionsHistory = readRealActionsHistory();
+  const realActionsHistorySummary = summarizeRealActionsHistory(realActionsHistory);
 
   const objective =
     [
@@ -425,6 +445,8 @@ async function fetchCmoDashboardStrategy(): Promise<CmoDashboardResult> {
         alexMissionObjective ? `Objectif mission Alex : ${alexMissionObjective}` : "",
         "Historique Mission Cash récent :",
         missionCashHistorySummary,
+        "Actions réellement réalisées dans LGD :",
+        realActionsHistorySummary,
       ]
         .filter(Boolean)
         .join("\n"),
@@ -432,6 +454,7 @@ async function fetchCmoDashboardStrategy(): Promise<CmoDashboardResult> {
         "Tu dois t'inspirer du cerveau Coach Alex, pas générer une idée marketing générique.",
         "La Mission Cash doit être directement reliée à l'offre, au client idéal, au blocage, au canal et à la mission Alex du jour.",
         "Tiens compte de l'historique Mission Cash récent : si une action similaire vient d'être démarrée, propose l'étape logique suivante.",
+        "Tiens compte des actions réellement réalisées : si un contenu, email ou lead magnet vient d'être créé, ne répète pas la même mission et propose l'étape business suivante.",
         "Propose UNE action rapide orientée vente, réponse, DM, email, relance, post ou conversion.",
         "Évite les conseils vagues comme créer un questionnaire ou créer un post engageant si le contexte permet une action plus précise.",
         "Réponse courte, actionnable, non technique, orientée exécution et résultat mesurable aujourd'hui.",
@@ -994,6 +1017,132 @@ function summarizeMissionCashHistory(history: MissionCashActionRecord[]) {
     .join("\n");
 }
 
+
+function createRealActionId() {
+  return `ra_${Date.now()}_${Math.random().toString(16).slice(2, 10)}`;
+}
+
+function normalizeRealActionModule(value: unknown): RealActionModule {
+  const raw = String(value || "");
+  if (["editor", "emailing", "lead_engine", "coach", "planner", "library"].includes(raw)) {
+    return raw as RealActionModule;
+  }
+  return "coach";
+}
+
+function readRealActionsHistory(): RealActionRecord[] {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const raw = window.localStorage.getItem(LGD_REAL_ACTIONS_HISTORY_KEY);
+    if (!raw) return [];
+
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed
+      .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
+      .map((item): RealActionRecord => ({
+        id: String(item.id || createRealActionId()),
+        date: String(item.date || todayISODate()),
+        createdAt: String(item.createdAt || new Date().toISOString()),
+        module: normalizeRealActionModule(item.module),
+        action: String(item.action || "action_completed"),
+        label: String(item.label || "Action réalisée"),
+        title: String(item.title || item.label || "Action réalisée"),
+        details: item.details ? String(item.details) : "",
+        source: item.source ? String(item.source) : "lgd",
+        missionCashActionId: item.missionCashActionId ? String(item.missionCashActionId) : "",
+        missionCashTitle: item.missionCashTitle ? String(item.missionCashTitle) : "",
+      }))
+      .slice(0, 30);
+  } catch {
+    return [];
+  }
+}
+
+function writeRealActionsHistory(history: RealActionRecord[]) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(LGD_REAL_ACTIONS_HISTORY_KEY, JSON.stringify(history.slice(0, 30)));
+}
+
+function summarizeRealActionsHistory(history: RealActionRecord[]) {
+  const recent = history.slice(0, 8);
+  if (!recent.length) {
+    return "Aucune action réelle détectée récemment.";
+  }
+
+  return recent
+    .map((item) => {
+      const moduleLabel: Record<RealActionModule, string> = {
+        editor: "Éditeur intelligent",
+        emailing: "Emailing IA",
+        lead_engine: "Lead Engine",
+        coach: "Coach Alex",
+        planner: "Planner",
+        library: "Bibliothèque",
+      };
+
+      return [
+        `${item.date} — ${item.label || item.title}`,
+        `Module : ${moduleLabel[item.module] || item.module}`,
+        item.missionCashTitle ? `Mission liée : ${item.missionCashTitle}` : "",
+        item.details ? `Détail : ${item.details}` : "",
+      ]
+        .filter(Boolean)
+        .join(" | ");
+    })
+    .join("\n");
+}
+
+async function patchCoachProfileRealActionsHistory(history: RealActionRecord[]) {
+  const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
+  const token = getStoredToken();
+  if (!token) return;
+
+  try {
+    await fetch(`${base}/coach-profile`, {
+      method: "PATCH",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        profile: {
+          real_actions_history: history.slice(0, 20),
+          real_action_last: history[0] || null,
+          real_actions_last_sync_at: new Date().toISOString(),
+        },
+      }),
+      cache: "no-store",
+    });
+  } catch (error) {
+    console.warn("Real actions history sync skipped", error);
+  }
+}
+
+function syncDailyProgressFromRealActions(progress: DailyProgress): DailyProgress {
+  const history = readRealActionsHistory();
+  if (!history.length) return progress;
+
+  const today = todayISODate();
+  const todayActions = history.filter((item) => item.date === today);
+  if (!todayActions.length) return progress;
+
+  const hasEditor = todayActions.some((item) => item.module === "editor");
+  const hasEmailing = todayActions.some((item) => item.module === "emailing");
+  const hasLeadEngine = todayActions.some((item) => item.module === "lead_engine");
+
+  return {
+    ...progress,
+    idea: progress.idea || hasLeadEngine || hasEditor || hasEmailing,
+    content: progress.content || hasEditor,
+    email: progress.email || hasEmailing,
+    offer: progress.offer || hasLeadEngine,
+  };
+}
+
 function buildMissionCashRecord(
   result: CmoDashboardResult | null,
   target: CmoModuleTarget,
@@ -1109,8 +1258,9 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    const saved = readDailyProgress();
+    const saved = syncDailyProgressFromRealActions(readDailyProgress());
     setDailyProgress(saved);
+    writeDailyProgress(saved);
     setCmoResult(getRandomLocalCmoAction());
     setProgressHydrated(true);
   }, []);
@@ -1202,6 +1352,7 @@ export default function DashboardPage() {
     void patchCoachProfileMissionCashHistory(updatedHistory);
 
     if (typeof window !== "undefined") {
+      window.localStorage.setItem(LGD_ACTIVE_MISSION_CASH_ACTION_KEY, JSON.stringify(actionRecord));
       window.localStorage.setItem(
         CMO_AUTO_PAYLOAD_KEY,
         JSON.stringify({
