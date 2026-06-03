@@ -1629,17 +1629,10 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-[#050505] text-white">
       <div className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(circle_at_top_right,rgba(255,184,0,0.10),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(255,184,0,0.07),transparent_32%)]" />
 
-      <aside className="fixed left-4 top-4 z-[2147483646] hidden h-[calc(100vh-32px)] w-[280px] flex-col overflow-y-auto rounded-[30px] border border-yellow-600/20 bg-[#070707]/95 p-5 shadow-[0_0_55px_rgba(255,184,0,0.08)] backdrop-blur-xl lg:flex">
-        <div className="rounded-3xl border border-yellow-600/20 bg-gradient-to-br from-[#111] to-[#070707] p-4">
-          <div className="text-xs font-semibold uppercase tracking-[0.25em] text-white/45">Le Générateur Digital</div>
-          <div className="mt-2 text-3xl font-black tracking-tight text-yellow-400">LGD</div>
-          <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-green-400/20 bg-green-400/10 px-3 py-1 text-[12px] font-semibold text-green-200">
-            <span className="h-2 w-2 rounded-full bg-green-400 shadow-[0_0_12px_rgba(74,222,128,0.8)]" />
-            IA Business Active
-          </div>
-        </div>
+      <div className="fixed left-0 right-0 top-0 z-[2147483645] h-[62px] bg-[#050505]" />
 
-        <nav className="mt-5 grid gap-2 text-sm">
+      <aside className="fixed left-4 top-4 z-[2147483646] hidden h-[calc(100vh-32px)] w-[280px] flex-col overflow-y-auto rounded-[30px] border border-yellow-600/20 bg-[#070707]/95 p-5 shadow-[0_0_55px_rgba(255,184,0,0.08)] backdrop-blur-xl lg:flex">
+        <nav className="grid gap-2 text-sm">
           <button type="button" onClick={() => go('/dashboard')} className="rounded-2xl border border-yellow-600/15 bg-yellow-500/10 px-4 py-3 text-left font-semibold text-yellow-100 transition hover:bg-yellow-500/15">🏠 Accueil</button>
           <button type="button" onClick={() => go('/dashboard')} className="rounded-2xl px-4 py-3 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">🎯 Mission Cash IA</button>
           <button type="button" onClick={() => accessOrExplain('coach')} className="rounded-2xl px-4 py-3 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">🧠 Coach Alex IA</button>
