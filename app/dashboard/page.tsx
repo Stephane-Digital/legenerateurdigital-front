@@ -1629,7 +1629,7 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-[#050505] text-white">
       <div className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(circle_at_top_right,rgba(255,184,0,0.10),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(255,184,0,0.07),transparent_32%)]" />
 
-      <aside className="fixed left-4 top-4 z-[9994] hidden h-[calc(100vh-32px)] w-[280px] flex-col rounded-[30px] border border-yellow-600/20 bg-[#070707]/95 p-5 shadow-[0_0_55px_rgba(255,184,0,0.08)] backdrop-blur-xl lg:flex">
+      <aside className="fixed left-4 top-4 z-[2147483646] hidden h-[calc(100vh-32px)] w-[280px] flex-col overflow-y-auto rounded-[30px] border border-yellow-600/20 bg-[#070707]/95 p-5 shadow-[0_0_55px_rgba(255,184,0,0.08)] backdrop-blur-xl lg:flex">
         <div className="rounded-3xl border border-yellow-600/20 bg-gradient-to-br from-[#111] to-[#070707] p-4">
           <div className="text-xs font-semibold uppercase tracking-[0.25em] text-white/45">Le Générateur Digital</div>
           <div className="mt-2 text-3xl font-black tracking-tight text-yellow-400">LGD</div>
@@ -1652,6 +1652,13 @@ export default function DashboardPage() {
           <button type="button" onClick={() => go('/dashboard/automatisations/reseaux-sociaux/planner')} className="rounded-2xl px-4 py-3 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">📅 Planner IA</button>
           <button type="button" onClick={() => go('/dashboard/library')} className="rounded-2xl px-4 py-3 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">📚 Bibliothèque</button>
         </nav>
+
+        <div className="mt-4 grid gap-2 border-t border-yellow-600/15 pt-4 text-sm">
+          <button type="button" onClick={openPlans} className="rounded-2xl px-4 py-3 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">👑 Plans</button>
+          <button type="button" onClick={openSettings} className="rounded-2xl px-4 py-3 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">⚙️ Paramètres</button>
+          <button type="button" onClick={handleLogout} className="rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-left font-semibold text-red-100 transition hover:bg-red-500/10">🚪 Se déconnecter</button>
+        </div>
+
 
         <div className="mt-4 rounded-3xl border border-yellow-600/20 bg-black/35 p-4">
           <div className="text-sm font-extrabold text-yellow-200">📈 Activité</div>
@@ -1677,32 +1684,9 @@ export default function DashboardPage() {
           <div className="mt-1 text-xs leading-5 text-white/60">Recommande LGD et développe tes revenus récurrents.</div>
         </button>
 
-        <div className="mt-4 grid gap-2 border-t border-yellow-600/15 pt-4 text-sm">
-          <button
-            type="button"
-            onClick={openPlans}
-            className="rounded-2xl px-4 py-3 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100"
-          >
-            👑 Plans
-          </button>
-          <button
-            type="button"
-            onClick={openSettings}
-            className="rounded-2xl px-4 py-3 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100"
-          >
-            ⚙️ Paramètres
-          </button>
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-left font-semibold text-red-100 transition hover:bg-red-500/10"
-          >
-            🚪 Se déconnecter
-          </button>
-        </div>
       </aside>
 
-      <div className="sticky top-0 z-[9994] border-b border-yellow-600/15 bg-[#050505]/92 px-4 py-3 backdrop-blur-xl lg:hidden">
+      <div className="sticky top-0 z-[2147483646] border-b border-yellow-600/15 bg-[#050505]/92 px-4 py-3 backdrop-blur-xl lg:hidden">
         <div className="flex items-center justify-between gap-3">
           <div>
             <div className="text-lg font-black text-yellow-400">LGD 3.0</div>
@@ -1738,19 +1722,53 @@ export default function DashboardPage() {
         ) : null}
       </div>
 
-      <main className="relative z-[9992] px-4 pb-16 pt-4 sm:px-6 lg:pl-[320px] lg:pr-8">
+      <main className="relative z-[2147483645] px-4 pb-16 pt-4 sm:px-6 lg:pl-[320px] lg:pr-8 lg:pt-4">
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35 }}
-          className="mx-auto max-w-[1200px] text-center"
+          className="mx-auto max-w-[1600px] text-center"
         >
-          <div className="overflow-hidden rounded-[34px] border border-yellow-600/20 bg-[#050505] shadow-[0_0_70px_rgba(255,184,0,0.10)]">
-            <img
-               src="/images/lgd-hero-business-active.svg"
-              alt="LGD IA Business Active"
-              className="block h-auto w-full"
-            />
+          <div className="relative overflow-hidden rounded-[34px] border border-yellow-600/20 bg-[#050505] shadow-[0_0_70px_rgba(255,184,0,0.10)]">
+            <div className="absolute inset-0 bg-[linear-gradient(rgba(255,184,0,0.055)_1px,transparent_1px),linear-gradient(90deg,rgba(255,184,0,0.055)_1px,transparent_1px)] bg-[size:42px_42px]" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_35%,rgba(255,205,64,0.24),transparent_28%),radial-gradient(circle_at_78%_45%,rgba(34,197,94,0.12),transparent_26%)]" />
+            <div className="relative grid min-h-[360px] items-center gap-8 px-8 py-12 text-left lg:grid-cols-[1.05fr_0.8fr] lg:px-16 lg:py-16">
+              <div>
+                <div className="inline-flex items-center gap-3 rounded-full border border-green-400/25 bg-green-400/10 px-5 py-2 text-sm font-black text-green-100 shadow-[0_0_28px_rgba(34,197,94,0.16)]">
+                  <span className="h-3 w-3 rounded-full bg-green-400 shadow-[0_0_16px_rgba(74,222,128,0.95)]" />
+                  IA Business Active
+                </div>
+                <h1 className="mt-7 max-w-4xl text-4xl font-black leading-none tracking-tight text-[#ffcc16] drop-shadow-[0_0_22px_rgba(255,184,0,0.45)] sm:text-6xl lg:text-7xl">
+                  Le Générateur Digital
+                </h1>
+                <p className="mt-7 max-w-4xl text-2xl font-black leading-tight text-white sm:text-3xl">
+                  LGD ne t’apprend pas seulement le marketing digital.
+                  <br />
+                  LGD travaille avec toi.
+                </p>
+                <p className="mt-8 max-w-3xl text-lg font-semibold leading-8 text-white/82 sm:text-xl">
+                  Analyse ton activité. Détecte la prochaine action rentable.
+                  <br />
+                  Crée tes contenus, tes campagnes et tes systèmes de conversion.
+                </p>
+                <div className="mt-9 flex flex-wrap gap-4">
+                  <div className="rounded-full border border-yellow-500/30 bg-black/45 px-6 py-3 text-sm font-black text-yellow-100">Mission Cash prête</div>
+                  <div className="rounded-full border border-yellow-500/30 bg-black/45 px-6 py-3 text-sm font-black text-yellow-100">Actions mémorisées</div>
+                  <div className="rounded-full border border-yellow-500/30 bg-black/45 px-6 py-3 text-sm font-black text-yellow-100">Business en action</div>
+                </div>
+              </div>
+
+              <div className="relative hidden min-h-[250px] items-center justify-center lg:flex">
+                <div className="absolute h-72 w-72 rounded-full border border-yellow-500/20" />
+                <div className="absolute h-48 w-48 rounded-full border border-green-400/10" />
+                <div className="relative w-full max-w-[430px] rounded-[34px] border border-yellow-500/25 bg-black/55 p-8 shadow-[0_0_55px_rgba(255,184,0,0.12)] backdrop-blur">
+                  <div className="rounded-2xl border border-green-400/20 bg-white/5 px-5 py-4 text-lg font-black text-green-100">● Analyse active</div>
+                  <div className="mt-6 rounded-2xl border border-yellow-500/25 bg-black/50 px-5 py-4 text-lg font-black text-yellow-100">Mission du jour</div>
+                  <div className="mt-4 rounded-2xl border border-yellow-500/20 bg-black/45 px-5 py-4 text-lg font-black text-yellow-100">Module recommandé</div>
+                  <div className="mt-7 h-3 rounded-full bg-gradient-to-r from-yellow-500/40 via-yellow-300 to-green-400/50" />
+                </div>
+              </div>
+            </div>
           </div>
         </motion.div>
 
