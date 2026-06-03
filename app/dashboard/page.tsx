@@ -1965,79 +1965,7 @@ export default function DashboardPage() {
           </motion.div>
         )}
 
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.1, duration: 0.3 }}
-          className="max-w-6xl mx-auto mt-12"
-        >
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-<CardLuxe className="min-h-[230px] flex flex-col items-center justify-between px-6 py-6 text-center">
-              <div className="flex flex-col items-center">
-                <FaUserAstronaut className={iconGlow} />
-                <h3 className="mt-3 text-xl font-bold text-[#ffb800]">
-                  Coach Alex V2
-                </h3>
-                <p className="mt-2 text-white/70 max-w-[420px]">
-                  Ton plan d’action quotidien pour générer ta première vente puis scaler. L’IA te guide, tu exécutes.
-                </p>
-                {!hasPaidAccess ? <div className="mt-3"><LockBadge /></div> : null}
-              </div>
 
-              <div className="w-full mt-6">
-                <SecondaryButton onClick={() => accessOrExplain("coach")}>
-                  {hasPaidAccess ? "Accéder" : "Découvrir"}
-                </SecondaryButton>
-              </div>
-            </CardLuxe>
-
-            <CardLuxe className="min-h-[230px] flex flex-col items-center justify-between px-6 py-6 text-center">
-              <div className="flex flex-col items-center">
-                <FaRobot className={iconGlow} />
-                <h3 className="mt-3 text-xl font-bold text-[#ffb800]">
-                  Éditeur Intelligent
-                </h3>
-                <p className="mt-2 text-white/70 max-w-[420px]">
-                  Transforme une idée en contenu qui attire, engage et vend. Post + Carrousel optimisés conversion.
-                </p>
-                {!hasPaidAccess ? <div className="mt-3"><LockBadge /></div> : null}
-              </div>
-
-              <div className="w-full mt-6">
-                <SecondaryButton
-                  onClick={() => accessOrExplain("editor")}
-                >
-                  {hasPaidAccess ? "Accéder" : "Découvrir"}
-                </SecondaryButton>
-              </div>
-            </CardLuxe>
-
-            <CardLuxe className="min-h-[230px] flex flex-col items-center justify-between px-6 py-6 text-center">
-              <div className="flex flex-col items-center">
-                <FaEnvelope className={iconGlow} />
-                <h3 className="mt-3 text-xl font-bold text-[#ffb800]">
-                  Campagnes E-mailing IA
-                </h3>
-                <p className="mt-2 text-white/70 max-w-[420px]">
-                  Transforme ton audience en prospects puis en clients avec des séquences email prêtes à vendre.
-                </p>
-                {!hasPaidAccess ? (
-                  <div className="mt-3">
-                    <LockBadge />
-                  </div>
-                ) : null}
-              </div>
-
-              <div className="w-full mt-6">
-                <SecondaryButton onClick={() => accessOrExplain("emailing")}>
-                  {hasPaidAccess ? "Accéder" : "Découvrir"}
-                </SecondaryButton>
-              </div>
-            </CardLuxe>
-
-            <LeadEngineBlock onDiscover={() => (hasPaidAccess ? go("/dashboard/lead-engine") : openModal("lead_engine"))} />
-          </div>
-        </motion.div>
 
       </main>
 
