@@ -29,6 +29,9 @@ const LS_CARROUSEL = "lgd_editor_carrousel_draft_v5";
 // Dashboard progression bridge
 const LS_DASHBOARD_DAILY_PROGRESS = "lgd_dashboard_daily_progress";
 const LS_CMO_AUTO_PAYLOAD = "lgd_cmo_module_auto_payload";
+const LGD_REAL_ACTIONS_HISTORY_KEY = "lgd_real_actions_history_v1";
+const LGD_MISSION_CASH_HISTORY_KEY = "lgd_mission_cash_action_history";
+const LGD_ACTIVE_MISSION_CASH_ACTION_KEY = "lgd_active_mission_cash_action_v1";
 const LGD_EDITOR_LOAD_DRAFT_EVENT = "lgd:editor:load-draft";
 
 function safeJsonParse(raw: string | null) {
@@ -40,6 +43,101 @@ function safeJsonParse(raw: string | null) {
   }
 }
 
+
+
+type RealActionModule = "editor" | "emailing" | "lead_engine" | "coach" | "planner" | "library";
+
+type RealActionRecord = {
+  id: string;
+  date: string;
+  createdAt: string;
+  module: RealActionModule;
+  action: string;
+  label: string;
+  title: string;
+  details?: string;
+  source?: string;
+  missionCashActionId?: string;
+  missionCashTitle?: string;
+};
+
+function todayISODate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function createRealActionId() {
+  return `ra_${Date.now()}_${Math.random().toString(16).slice(2, 10)}`;
+}
+
+function readJsonArrayFromStorage(key: string): any[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(key);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function readMissionCashActionFromPayload() {
+  if (typeof window === "undefined") return null;
+  try {
+    const activeRaw = window.localStorage.getItem(LGD_ACTIVE_MISSION_CASH_ACTION_KEY);
+    if (activeRaw) return JSON.parse(activeRaw);
+
+    const raw = window.localStorage.getItem(LS_CMO_AUTO_PAYLOAD);
+    if (!raw) return null;
+    const payload = JSON.parse(raw);
+    return payload?.mission_cash_action && typeof payload.mission_cash_action === "object"
+      ? payload.mission_cash_action
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeDashboardProgressPatch(patch: Partial<{ idea: boolean; content: boolean; email: boolean; offer: boolean }>) {
+  if (typeof window === "undefined") return;
+  try {
+    const key = "lgd_dashboard_daily_progress";
+    const raw = window.localStorage.getItem(key);
+    const parsed = raw ? JSON.parse(raw) : {};
+    window.localStorage.setItem(key, JSON.stringify({ ...parsed, ...patch }));
+  } catch {
+    // ignore
+  }
+}
+
+function recordRealAction(action: Omit<RealActionRecord, "id" | "date" | "createdAt">) {
+  if (typeof window === "undefined") return;
+
+  const mission = readMissionCashActionFromPayload();
+  const record: RealActionRecord = {
+    id: createRealActionId(),
+    date: todayISODate(),
+    createdAt: new Date().toISOString(),
+    ...action,
+    missionCashActionId: action.missionCashActionId || String(mission?.id || ""),
+    missionCashTitle: action.missionCashTitle || String(mission?.missionTitle || ""),
+  };
+
+  const history = readJsonArrayFromStorage(LGD_REAL_ACTIONS_HISTORY_KEY);
+  window.localStorage.setItem(LGD_REAL_ACTIONS_HISTORY_KEY, JSON.stringify([record, ...history].slice(0, 30)));
+
+  try {
+    const missionHistory = readJsonArrayFromStorage(LGD_MISSION_CASH_HISTORY_KEY).map((item) => {
+      if (mission?.id && item?.id === mission.id) {
+        return { ...item, status: "completed", updatedAt: new Date().toISOString() };
+      }
+      return item;
+    });
+    window.localStorage.setItem(LGD_MISSION_CASH_HISTORY_KEY, JSON.stringify(missionHistory.slice(0, 20)));
+    window.localStorage.removeItem(LGD_ACTIVE_MISSION_CASH_ACTION_KEY);
+  } catch {
+    // ignore
+  }
+}
 
 const LGD_IDB_NAME = "lgd_editor_persistence_v1";
 const LGD_IDB_STORE = "drafts";
@@ -1036,6 +1134,16 @@ export default function EditorModeRouter() {
         }
         throw new Error(detail || `Erreur archive (HTTP ${res.status})`);
       }
+
+      recordRealAction({
+        module: "editor",
+        action: mode === "post" ? "post_archived" : "carrousel_archived",
+        label: mode === "post" ? "Post créé et archivé" : "Carrousel créé et archivé",
+        title,
+        details: "Création sauvegardée dans la Bibliothèque LGD.",
+        source: "editor_archive",
+      });
+      writeDashboardProgressPatch({ idea: true, content: true });
 
       setArchiveMsg("✅ Archivé dans la Bibliothèque.");
     } catch (e: any) {
