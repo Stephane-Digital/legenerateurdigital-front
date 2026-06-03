@@ -1705,7 +1705,7 @@ export default function DashboardPage() {
             <button type="button" onClick={() => accessOrExplain('editor')} className="rounded-2xl px-4 py-3 text-left text-white/75 hover:bg-yellow-500/10">✍️ Éditeur Intelligent</button>
             <button type="button" onClick={() => accessOrExplain('emailing')} className="rounded-2xl px-4 py-3 text-left text-white/75 hover:bg-yellow-500/10">📧 Emailing IA</button>
             <button type="button" onClick={() => accessOrExplain('lead_engine')} className="rounded-2xl px-4 py-3 text-left text-white/75 hover:bg-yellow-500/10">🧲 Lead Engine IA</button>
-            <button type="button" onClick={() => go('/dashboard/automatisations/reseaux-sociaux/planner')} className="rounded-2xl px-4 py-3 text-left text-white/75 hover:bg-yellow-500/10">📅 Planner IA</button>
+            <button type="button" onClick={() => go('/dashboard/automatisations/reseaux_sociaux/planner')} className="rounded-2xl px-4 py-3 text-left text-white/75 hover:bg-yellow-500/10">📅 Planner IA</button>
             <button type="button" onClick={() => go('/dashboard/library')} className="rounded-2xl px-4 py-3 text-left text-white/75 hover:bg-yellow-500/10">📚 Bibliothèque</button>
             <div className="rounded-2xl border border-yellow-600/15 bg-black/35 px-4 py-3 text-left text-white/75">📈 Activité : {businessJournalSummary.totalActions} action{businessJournalSummary.totalActions > 1 ? "s" : ""} cette semaine</div>
             <button type="button" onClick={openAffiliationProgram} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-left font-semibold text-yellow-100">💰 Programme Ambassadeur LGD</button>
