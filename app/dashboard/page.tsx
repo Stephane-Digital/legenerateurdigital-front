@@ -125,6 +125,8 @@ const SYSTEMEIO_TRIAL_URL =
   process.env.NEXT_PUBLIC_SYSTEMEIO_TRIAL_URL || "https://legenerateurdigital.systeme.io/trial";
 const SYSTEMEIO_CREATE_ACCOUNT_URL =
   process.env.NEXT_PUBLIC_SYSTEMEIO_CREATE_ACCOUNT_URL || "https://legenerateurdigital.systeme.io/lgd";
+const SYSTEMEIO_AFFILIATION_URL =
+  process.env.NEXT_PUBLIC_SYSTEMEIO_AFFILIATION_URL || "https://legenerateurdigital.systeme.io/affiliation-lgd";
 
 const LOGIN_PATH = "/auth/login";
 
@@ -1386,6 +1388,7 @@ export default function DashboardPage() {
   const [cmoLoading, setCmoLoading] = useState(false);
   const [cmoError, setCmoError] = useState<string | null>(null);
   const [aiQuota, setAiQuota] = useState<AiQuotaSnapshot | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -1439,7 +1442,7 @@ export default function DashboardPage() {
   const hasPaidAccess = useMemo(() => isLoggedIn, [isLoggedIn]);
 
   const heroTitle =
-    "Crée du contenu • Attire des prospects • Génère tes premières ventes avec l’IA";
+    "Ton IA Business qui transforme tes idées en actions rentables.";
 
   const cmoModuleTarget = useMemo(() => getCmoModuleTarget(cmoResult, dailyProgress), [cmoResult, dailyProgress]);
 
@@ -1460,7 +1463,13 @@ export default function DashboardPage() {
   }
 
   function go(path: string) {
+    setMobileMenuOpen(false);
     router.push(path);
+  }
+
+  function openAffiliationProgram() {
+    setMobileMenuOpen(false);
+    openExternal(SYSTEMEIO_AFFILIATION_URL);
   }
 
   function accessOrExplain(key: "editor" | "coach" | "emailing" | "lead_engine") {
@@ -1591,52 +1600,133 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white">
-      <div className="px-6 pt-[120px] pb-16">
+    <div className="min-h-screen bg-[#050505] text-white">
+      <div className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(circle_at_top_right,rgba(255,184,0,0.10),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(255,184,0,0.07),transparent_32%)]" />
+
+      <aside className="fixed left-4 top-[96px] z-30 hidden h-[calc(100vh-112px)] w-[280px] flex-col rounded-[30px] border border-yellow-600/20 bg-[#070707]/95 p-5 shadow-[0_0_55px_rgba(255,184,0,0.08)] backdrop-blur-xl lg:flex">
+        <div className="rounded-3xl border border-yellow-600/20 bg-gradient-to-br from-[#111] to-[#070707] p-4">
+          <div className="text-xs font-semibold uppercase tracking-[0.25em] text-white/45">Le Générateur Digital</div>
+          <div className="mt-2 text-3xl font-black tracking-tight text-yellow-400">LGD</div>
+          <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-green-400/20 bg-green-400/10 px-3 py-1 text-[12px] font-semibold text-green-200">
+            <span className="h-2 w-2 rounded-full bg-green-400 shadow-[0_0_12px_rgba(74,222,128,0.8)]" />
+            IA Business Active
+          </div>
+        </div>
+
+        <nav className="mt-5 grid gap-2 text-sm">
+          <button type="button" onClick={() => go('/dashboard')} className="rounded-2xl border border-yellow-600/15 bg-yellow-500/10 px-4 py-3 text-left font-semibold text-yellow-100 transition hover:bg-yellow-500/15">🏠 Accueil</button>
+          <button type="button" onClick={() => go('/dashboard')} className="rounded-2xl px-4 py-3 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">🎯 Mission Cash IA</button>
+          <button type="button" onClick={() => accessOrExplain('coach')} className="rounded-2xl px-4 py-3 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">🧠 Coach Alex IA</button>
+
+          <div className="my-2 border-t border-yellow-600/15" />
+
+          <button type="button" onClick={() => accessOrExplain('editor')} className="rounded-2xl px-4 py-3 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">✍️ Éditeur Intelligent</button>
+          <button type="button" onClick={() => accessOrExplain('emailing')} className="rounded-2xl px-4 py-3 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">📧 Emailing IA</button>
+          <button type="button" onClick={() => accessOrExplain('lead_engine')} className="rounded-2xl px-4 py-3 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">🧲 Lead Engine IA</button>
+          <button type="button" onClick={() => go('/dashboard/automatisations/reseaux-sociaux/planner')} className="rounded-2xl px-4 py-3 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">📅 Planner IA</button>
+          <button type="button" onClick={() => go('/dashboard/library')} className="rounded-2xl px-4 py-3 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">📚 Bibliothèque</button>
+        </nav>
+
+        <button
+          type="button"
+          onClick={openAffiliationProgram}
+          className="mt-auto rounded-3xl border border-yellow-500/25 bg-gradient-to-br from-yellow-500/15 to-yellow-500/5 p-4 text-left transition hover:-translate-y-0.5 hover:bg-yellow-500/15"
+        >
+          <div className="text-sm font-extrabold text-yellow-200">💰 Programme Ambassadeur</div>
+          <div className="mt-1 text-xs leading-5 text-white/60">Recommande LGD et développe tes revenus récurrents.</div>
+        </button>
+      </aside>
+
+      <div className="sticky top-0 z-40 border-b border-yellow-600/15 bg-[#050505]/92 px-4 py-3 backdrop-blur-xl lg:hidden">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="text-lg font-black text-yellow-400">LGD 3.0</div>
+            <div className="mt-1 inline-flex items-center gap-2 text-[11px] font-semibold text-green-200">
+              <span className="h-2 w-2 rounded-full bg-green-400" />
+              IA Business Active
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen((value) => !value)}
+            className="rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-4 py-2 text-sm font-semibold text-yellow-100"
+          >
+            {mobileMenuOpen ? "Fermer" : "Modules"}
+          </button>
+        </div>
+
+        {mobileMenuOpen ? (
+          <div className="mt-4 grid gap-2 rounded-3xl border border-yellow-600/20 bg-[#080808] p-3 text-sm shadow-[0_0_45px_rgba(255,184,0,0.12)]">
+            <button type="button" onClick={() => go('/dashboard')} className="rounded-2xl bg-yellow-500/10 px-4 py-3 text-left font-semibold text-yellow-100">🏠 Accueil</button>
+            <button type="button" onClick={() => accessOrExplain('coach')} className="rounded-2xl px-4 py-3 text-left text-white/75 hover:bg-yellow-500/10">🧠 Coach Alex IA</button>
+            <button type="button" onClick={() => accessOrExplain('editor')} className="rounded-2xl px-4 py-3 text-left text-white/75 hover:bg-yellow-500/10">✍️ Éditeur Intelligent</button>
+            <button type="button" onClick={() => accessOrExplain('emailing')} className="rounded-2xl px-4 py-3 text-left text-white/75 hover:bg-yellow-500/10">📧 Emailing IA</button>
+            <button type="button" onClick={() => accessOrExplain('lead_engine')} className="rounded-2xl px-4 py-3 text-left text-white/75 hover:bg-yellow-500/10">🧲 Lead Engine IA</button>
+            <button type="button" onClick={() => go('/dashboard/automatisations/reseaux-sociaux/planner')} className="rounded-2xl px-4 py-3 text-left text-white/75 hover:bg-yellow-500/10">📅 Planner IA</button>
+            <button type="button" onClick={() => go('/dashboard/library')} className="rounded-2xl px-4 py-3 text-left text-white/75 hover:bg-yellow-500/10">📚 Bibliothèque</button>
+            <button type="button" onClick={openAffiliationProgram} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-left font-semibold text-yellow-100">💰 Programme Ambassadeur LGD</button>
+          </div>
+        ) : null}
+      </div>
+
+      <main className="relative z-10 px-4 pb-16 pt-[120px] sm:px-6 lg:pl-[320px] lg:pr-8">
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35 }}
-          className="max-w-6xl mx-auto text-center"
+          className="mx-auto max-w-[1200px] text-center"
         >
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-yellow-400">
-            Centre de contrôle LGD
-          </h1>
-          <p className="mt-2 text-white/70">{heroTitle}</p>
-
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-            <Pill>
-              <FaBolt className="text-yellow-300" />
-              Affiliation accessible à vie
-            </Pill>
-            <Pill>
-              <FaCrown className="text-yellow-300" />
-              Modules activés selon ton plan
-            </Pill>
-            <Pill>
-              <FaRobot className="text-yellow-300" />
-              Objectif : 1ère vente → scaler
-            </Pill>
-          </div>
-
-          {isLoggedIn ? (
-            <div className="mt-6 text-[14px] text-white/80">
-              {loadingPlan ? (
-                <span className="inline-flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-yellow-400 animate-pulse" />
-                  Vérification du plan…
-                </span>
-              ) : (
-                <span>
-                  Plan actuel :{" "}
-                  <span className="text-yellow-200 font-semibold">
-                    {planLabel(plan)}
-                  </span>
-                </span>
-              )}
+          <div className="rounded-[34px] border border-yellow-600/20 bg-gradient-to-br from-[#101010] via-[#070707] to-[#15110a] px-5 py-8 shadow-[0_0_70px_rgba(255,184,0,0.10)] sm:px-8 sm:py-10">
+            <div className="inline-flex items-center gap-2 rounded-full border border-green-400/20 bg-green-400/10 px-4 py-1 text-[12px] font-semibold text-green-200">
+              <span className="h-2 w-2 rounded-full bg-green-400 shadow-[0_0_12px_rgba(74,222,128,0.8)]" />
+              IA Business Active
             </div>
-          ) : null}
+
+            <h1 className="mt-5 text-3xl font-black tracking-tight text-yellow-400 sm:text-5xl">
+              Le Générateur Digital
+            </h1>
+            <p className="mx-auto mt-3 max-w-3xl text-base leading-7 text-white/72 sm:text-lg">
+              Ton IA Business analyse ton activité, détecte la prochaine action rentable et t'oriente vers le bon module pour passer à l'exécution.
+            </p>
+
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+              <Pill>
+                <FaBolt className="text-yellow-300" />
+                Mission du jour prête
+              </Pill>
+              <Pill>
+                <FaRobot className="text-yellow-300" />
+                Actions réelles mémorisées
+              </Pill>
+              <button
+                type="button"
+                onClick={openAffiliationProgram}
+                className="inline-flex items-center gap-2 rounded-full border border-yellow-500/25 bg-yellow-500/10 px-4 py-1 text-[12px] font-semibold text-yellow-100 transition hover:bg-yellow-500/15"
+              >
+                💰 Programme Ambassadeur LGD
+              </button>
+            </div>
+
+            {isLoggedIn ? (
+              <div className="mt-5 text-[14px] text-white/80">
+                {loadingPlan ? (
+                  <span className="inline-flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-yellow-400 animate-pulse" />
+                    Vérification du plan…
+                  </span>
+                ) : (
+                  <span>
+                    Plan actuel :{" "}
+                    <span className="font-semibold text-yellow-200">
+                      {planLabel(plan)}
+                    </span>
+                  </span>
+                )}
+              </div>
+            ) : null}
+          </div>
         </motion.div>
+
 
         {isLoggedIn ? (
           <motion.div
@@ -1650,7 +1740,7 @@ export default function DashboardPage() {
                 <div className="flex flex-col items-center text-center">
                   <div className="inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-4 py-1 text-[12px] text-white/75">
                     <span className={["h-2.5 w-2.5 rounded-full", cmoLoading ? "bg-yellow-300 animate-pulse" : cmoResult?.source === "live" ? "bg-green-400" : "bg-yellow-400"].join(" ")} />
-                    {cmoLoading ? "IA LIVE EN COURS" : cmoResult?.source === "live" ? "IA LIVE" : "Fallback premium"}
+                    {cmoLoading ? "IA Business en cours" : cmoResult?.source === "live" ? "IA Business Active" : "Fallback premium"}
                   </div>
 
                   <h2 className="mt-4 text-2xl sm:text-4xl font-extrabold text-[#ffb800]">
@@ -1975,7 +2065,7 @@ export default function DashboardPage() {
           </div>
         </motion.div>
 
-      </div>
+      </main>
 
       <ModalShell
         open={activeModal === "editor"}
