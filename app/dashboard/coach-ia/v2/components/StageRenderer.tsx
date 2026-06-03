@@ -426,7 +426,7 @@ function MissionCard(props: { today: AlexToday | null; onAskCommit: () => void; 
     <div className="rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <div className="text-3xl font-semibold text-yellow-400">🎯 Ce que tu dois faire aujourd’hui</div>
+          <div className="text-2xl font-semibold text-yellow-400">🎯 Ce que tu dois faire aujourd’hui</div>
           <div className="mt-1 text-sm text-white/55"> Une seule action. Un seul objectif. Un résultat mesurable.</div>
         </div>
         <button
