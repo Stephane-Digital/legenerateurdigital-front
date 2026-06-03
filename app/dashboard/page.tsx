@@ -1909,7 +1909,7 @@ export default function DashboardPage() {
         >
           <div className="relative overflow-hidden rounded-[34px] border border-yellow-600/20 bg-[#050505] shadow-[0_0_70px_rgba(255,184,0,0.10)]">
             <img
-              src="/images/hero-le-generateur-digital.png"
+              src="/images/herolegenerateurdigital.png"
               alt="Cerveau Collectif IA LGD - Le Générateur Digital"
               className="block h-auto w-full select-none object-cover"
               draggable={false}
