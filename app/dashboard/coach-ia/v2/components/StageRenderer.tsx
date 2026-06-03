@@ -426,8 +426,8 @@ function MissionCard(props: { today: AlexToday | null; onAskCommit: () => void; 
     <div className="rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <div className="text-3xl font-semibold text-yellow-400">Ta mission aujourd’hui</div>
-          <div className="mt-1 text-sm text-white/55">Objectif business. Pas de bavardage.</div>
+          <div className="text-3xl font-semibold text-yellow-400">🎯 Ce que tu dois faire aujourd’hui</div>
+          <div className="mt-1 text-sm text-white/55"> Une seule action. Un seul objectif. Un résultat mesurable.</div>
         </div>
         <button
           onClick={onOpenParcours}
@@ -465,7 +465,7 @@ function MissionCard(props: { today: AlexToday | null; onAskCommit: () => void; 
         </div>
 
         <button onClick={onAskCommit} className="mt-5 w-full rounded-2xl bg-yellow-400 px-5 py-3 text-sm font-semibold text-black hover:bg-yellow-300 transition">
-          Je veux faire cette mission
+          🚀 Exécuter maintenant.
         </button>
 
         <div className="mt-3 text-xs text-white/45">Accès à l’éditeur intelligent uniquement après validation.</div>
