@@ -359,6 +359,7 @@ export default function AlexV2Shell() {
   const [liveStrategy, setLiveStrategy] = useState<AlexLiveStrategistResult | null>(null);
   const [liveLoading, setLiveLoading] = useState(false);
   const [liveError, setLiveError] = useState<string>("");
+  const [liveLastRefreshAtISO, setLiveLastRefreshAtISO] = useState<string>("");
 
   // ===== quota
   const [quotaLoading, setQuotaLoading] = useState(false);
@@ -621,6 +622,7 @@ useEffect(() => {
     if (!context || !today?.mission) {
       setLiveStrategy(null);
       setLiveError("");
+      setLiveLastRefreshAtISO("");
       return;
     }
 
@@ -638,6 +640,14 @@ useEffect(() => {
     setLiveLoading(true);
     setLiveError("");
 
+    // Force UX visible: when the user clicks “Régénérer”, we clear the previous card
+    // so the skeleton + button state confirm the action immediately, even if the
+    // backend returns a very similar analysis.
+    if (args?.force) {
+      setLiveStrategy(null);
+      setLiveLastRefreshAtISO("");
+    }
+
     try {
       const result = await generateAlexLiveStrategy({
         context,
@@ -647,6 +657,7 @@ useEffect(() => {
       });
 
       setLiveStrategy(result);
+      setLiveLastRefreshAtISO(new Date().toISOString());
 
       if (result.mode === "live") {
         void refreshQuota();
@@ -893,6 +904,7 @@ useEffect(() => {
     liveStrategistSigRef.current = "";
     setLiveStrategy(null);
     setLiveError("");
+    setLiveLastRefreshAtISO("");
 
     setServerSynced(false);
     setStageState("ONBOARDING");
@@ -1072,6 +1084,11 @@ useEffect(() => {
               >
                 {liveLoading ? "Génération…" : "Régénérer l’analyse"}
               </button>
+              {liveLastRefreshAtISO ? (
+                <div className="rounded-2xl border border-yellow-500/10 bg-black/15 px-4 py-2 text-[11px] font-semibold text-white/45">
+                  Mise à jour : {new Date(liveLastRefreshAtISO).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                </div>
+              ) : null}
             </div>
           </div>
 
