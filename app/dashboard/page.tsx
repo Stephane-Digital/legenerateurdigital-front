@@ -1642,7 +1642,7 @@ export default function DashboardPage() {
           <button type="button" onClick={() => accessOrExplain('editor')} className="rounded-2xl px-4 py-3 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">✍️ Éditeur Intelligent</button>
           <button type="button" onClick={() => accessOrExplain('emailing')} className="rounded-2xl px-4 py-3 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">📧 Emailing IA</button>
           <button type="button" onClick={() => accessOrExplain('lead_engine')} className="rounded-2xl px-4 py-3 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">🧲 Lead Engine IA</button>
-          <button type="button" onClick={() => go('/dashboard/automatisations/reseaux-sociaux/planner')} className="rounded-2xl px-4 py-3 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">📅 Planner IA</button>
+          <button type="button" onClick={() => go('/dashboard/automatisations/reseaux_sociaux/planner')} className="rounded-2xl px-4 py-3 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">📅 Planner IA</button>
           <button type="button" onClick={() => go('/dashboard/library')} className="rounded-2xl px-4 py-3 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">📚 Bibliothèque</button>
         </nav>
 
