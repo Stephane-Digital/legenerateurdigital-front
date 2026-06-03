@@ -1143,6 +1143,172 @@ function syncDailyProgressFromRealActions(progress: DailyProgress): DailyProgres
   };
 }
 
+type BusinessJournalSummary = {
+  totalActions: number;
+  contentCreated: number;
+  emailsGenerated: number;
+  leadMagnetsCreated: number;
+  missionsCompleted: number;
+  recentActions: RealActionRecord[];
+  insightTitle: string;
+  insightText: string;
+  nextPriority: string;
+};
+
+function getCurrentWeekStartISO() {
+  const now = new Date();
+  const day = now.getDay() || 7;
+  const monday = new Date(now);
+  monday.setHours(0, 0, 0, 0);
+  monday.setDate(now.getDate() - day + 1);
+  return monday.toISOString().slice(0, 10);
+}
+
+function isSameOrAfterISO(date: string, minDate: string) {
+  return String(date || "") >= minDate;
+}
+
+function buildBusinessJournalSummary(
+  actions: RealActionRecord[],
+  missions: MissionCashActionRecord[]
+): BusinessJournalSummary {
+  const weekStart = getCurrentWeekStartISO();
+  const weekActions = actions.filter((item) => isSameOrAfterISO(item.date, weekStart));
+  const weekMissions = missions.filter((item) => isSameOrAfterISO(item.date, weekStart));
+
+  const contentCreated = weekActions.filter((item) => item.module === "editor").length;
+  const emailsGenerated = weekActions.filter((item) => item.module === "emailing").length;
+  const leadMagnetsCreated = weekActions.filter((item) => item.module === "lead_engine").length;
+  const missionsCompleted =
+    weekMissions.filter((item) => item.status === "completed").length ||
+    weekActions.filter((item) => item.missionCashActionId).length;
+
+  let insightTitle = "Premiers signaux détectés";
+  let insightText =
+    "LGD commence à mémoriser tes actions réelles. Plus tu exécutes dans les modules, plus Mission Cash pourra proposer l’étape utile au bon moment.";
+  let nextPriority = "Exécuter une première action complète dans un module LGD.";
+
+  if (contentCreated >= 3 && emailsGenerated === 0) {
+    insightTitle = "Tu crées, maintenant il faut convertir";
+    insightText =
+      "Cette semaine, tu as surtout avancé côté contenu. Le prochain levier n’est pas de produire encore plus, mais de transformer cette attention en conversation ou en relance.";
+    nextPriority = "Créer une relance email ou un DM de suivi pour les personnes intéressées.";
+  } else if (emailsGenerated >= 2 && contentCreated === 0) {
+    insightTitle = "Bonne dynamique email";
+    insightText =
+      "Tu as déjà travaillé la relance et la conversion. Il manque maintenant une source d’attention régulière pour alimenter ces campagnes.";
+    nextPriority = "Créer un post ou carrousel qui amène vers cette campagne.";
+  } else if (leadMagnetsCreated >= 1 && emailsGenerated === 0) {
+    insightTitle = "Actif de capture créé";
+    insightText =
+      "Tu as posé une base de conversion avec un lead magnet. Le prochain mouvement logique est de préparer la séquence qui transforme ces contacts en prospects chauds.";
+    nextPriority = "Créer la séquence email associée au lead magnet.";
+  } else if (contentCreated > 0 && emailsGenerated > 0 && leadMagnetsCreated > 0) {
+    insightTitle = "Système business en construction";
+    insightText =
+      "Tu as touché les trois leviers : attraction, capture et relance. La priorité devient maintenant le suivi commercial et l’optimisation de ce qui fonctionne.";
+    nextPriority = "Analyser les réponses, commentaires ou clics puis relancer les prospects les plus chauds.";
+  } else if (weekActions.length > 0) {
+    insightTitle = "Momentum en cours";
+    insightText =
+      "LGD détecte déjà des actions réelles cette semaine. Continue à enchaîner une action courte par jour pour créer un vrai rythme d’exécution.";
+    nextPriority = "Lancer une nouvelle Mission Cash IA pour choisir l’étape suivante.";
+  }
+
+  return {
+    totalActions: weekActions.length,
+    contentCreated,
+    emailsGenerated,
+    leadMagnetsCreated,
+    missionsCompleted,
+    recentActions: actions.slice(0, 4),
+    insightTitle,
+    insightText,
+    nextPriority,
+  };
+}
+
+function BusinessJournalMetric({
+  value,
+  label,
+}: {
+  value: number;
+  label: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-yellow-600/15 bg-[#0b0b0b] px-4 py-4 text-center">
+      <div className="text-2xl font-extrabold text-yellow-300">{value}</div>
+      <div className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-white/50">{label}</div>
+    </div>
+  );
+}
+
+function BusinessJournalCard({ summary }: { summary: BusinessJournalSummary }) {
+  return (
+    <div className="mt-7 w-full border-t border-yellow-600/15 pt-6">
+      <div className="rounded-[28px] border border-yellow-600/20 bg-gradient-to-br from-[#101010] via-[#090909] to-[#15110a] p-5 text-left shadow-[0_0_42px_rgba(255,184,0,0.07)]">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-4 py-1 text-[12px] text-white/75">
+              <FaBolt className="text-yellow-300" />
+              Journal Business IA
+            </div>
+            <h3 className="mt-4 text-2xl font-extrabold text-[#ffb800]">
+              📈 Tes vraies actions de la semaine
+            </h3>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">
+              LGD ne se contente plus de générer des idées : il mémorise ce que tu exécutes réellement pour orienter les prochaines missions.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-yellow-600/15 bg-black/35 px-4 py-3 text-sm text-yellow-100">
+            <span className="font-bold">{summary.totalActions}</span> action{summary.totalActions > 1 ? "s" : ""} détectée{summary.totalActions > 1 ? "s" : ""} cette semaine
+          </div>
+        </div>
+
+        <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <BusinessJournalMetric value={summary.contentCreated} label="Contenus" />
+          <BusinessJournalMetric value={summary.emailsGenerated} label="Emails" />
+          <BusinessJournalMetric value={summary.leadMagnetsCreated} label="Lead magnets" />
+          <BusinessJournalMetric value={summary.missionsCompleted} label="Missions finies" />
+        </div>
+
+        <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_0.9fr]">
+          <div className="rounded-2xl border border-yellow-600/15 bg-black/35 px-4 py-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-yellow-300/80">Analyse IA locale</p>
+            <p className="mt-2 text-base font-bold text-yellow-100">{summary.insightTitle}</p>
+            <p className="mt-2 text-sm leading-6 text-white/70">{summary.insightText}</p>
+            <div className="mt-4 rounded-2xl border border-yellow-600/15 bg-[#0b0b0b] px-4 py-3">
+              <p className="text-xs uppercase tracking-[0.18em] text-white/45">Priorité conseillée</p>
+              <p className="mt-2 text-sm font-semibold leading-6 text-yellow-100">{summary.nextPriority}</p>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-yellow-600/15 bg-black/35 px-4 py-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-yellow-300/80">Dernières actions détectées</p>
+            {summary.recentActions.length ? (
+              <div className="mt-3 space-y-3">
+                {summary.recentActions.map((action) => (
+                  <div key={action.id} className="rounded-2xl border border-yellow-600/10 bg-[#0b0b0b] px-4 py-3">
+                    <p className="text-sm font-semibold text-white/85">{action.label || action.title}</p>
+                    <p className="mt-1 text-xs text-white/45">
+                      {action.date} • {action.module === "lead_engine" ? "Lead Engine" : action.module === "emailing" ? "Emailing IA" : action.module === "editor" ? "Éditeur" : action.module}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-3 text-sm leading-6 text-white/55">
+                Aucune action réelle détectée pour le moment. Lance une Mission Cash, exécute-la dans un module, puis reviens ici.
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function buildMissionCashRecord(
   result: CmoDashboardResult | null,
   target: CmoModuleTarget,
@@ -1276,6 +1442,11 @@ export default function DashboardPage() {
     "Crée du contenu • Attire des prospects • Génère tes premières ventes avec l’IA";
 
   const cmoModuleTarget = useMemo(() => getCmoModuleTarget(cmoResult, dailyProgress), [cmoResult, dailyProgress]);
+
+  const businessJournalSummary = useMemo(
+    () => buildBusinessJournalSummary(readRealActionsHistory(), readMissionCashHistory()),
+    [dailyProgress, cmoResult]
+  );
 
   const iconGlow =
     "text-4xl text-[#ffb800] drop-shadow-[0_0_12px_rgba(255,184,0,0.35)]";
@@ -1633,6 +1804,8 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 </div>
+
+                <BusinessJournalCard summary={businessJournalSummary} />
               </div>
             </div>
           </motion.div>
