@@ -223,7 +223,7 @@ async function syncCoachV2AtBoot(args: { local: CoachV2Snapshot | null }) {
 }
 
 import { writeEditorBrief } from "../lib/bridgeEditor";
-import { generateAlexLiveStrategy } from "../lib/live-strategist";
+import { buildAlexLiveFallback, generateAlexLiveStrategy } from "../lib/live-strategist";
 import type { AlexLiveStrategistResult } from "../lib/live-strategist";
 import {
   buildTodayFromRoadmap,
@@ -651,16 +651,54 @@ useEffect(() => {
     try {
       const regenerationId = args?.force ? `regen_${Date.now()}_${Math.random().toString(36).slice(2)}` : undefined;
 
-      const result = await generateAlexLiveStrategy({
+      const previousStrategy = liveStrategy;
+      const regenerationInstruction = args?.force
+        ? "Régénération manuelle demandée par l'utilisateur : produire une nouvelle lecture stratégique, avec un angle différent, des formulations différentes et des actions renouvelées, sans changer l'objectif business."
+        : undefined;
+
+      let result = await generateAlexLiveStrategy({
         context,
         today,
         currentMission: today.mission,
         signal: args?.signal,
         regenerationId,
-        regenerationInstruction: args?.force
-          ? "Régénération manuelle demandée par l'utilisateur : produire une nouvelle lecture stratégique, avec un angle différent, des formulations différentes et des actions renouvelées, sans changer l'objectif business."
-          : undefined,
+        regenerationInstruction,
       });
+
+      // Sécurité UX : si le backend renvoie exactement la même analyse, on force
+      // une variation locale premium pour que le clic Régénérer produise toujours
+      // un changement visible à l'écran.
+      if (args?.force && previousStrategy) {
+        const previousSignature = JSON.stringify({
+          title: previousStrategy.title,
+          diagnostic: previousStrategy.diagnostic,
+          realBlocker: previousStrategy.realBlocker,
+          premiumMission: previousStrategy.premiumMission,
+          mistakeToAvoid: previousStrategy.mistakeToAvoid,
+          expectedResult: previousStrategy.expectedResult,
+          actionSteps: previousStrategy.actionSteps,
+        });
+
+        const nextSignature = JSON.stringify({
+          title: result.title,
+          diagnostic: result.diagnostic,
+          realBlocker: result.realBlocker,
+          premiumMission: result.premiumMission,
+          mistakeToAvoid: result.mistakeToAvoid,
+          expectedResult: result.expectedResult,
+          actionSteps: result.actionSteps,
+        });
+
+        if (previousSignature === nextSignature) {
+          result = buildAlexLiveFallback({
+            context,
+            today,
+            currentMission: today.mission,
+            regenerationId,
+            regenerationInstruction,
+          });
+        }
+      }
 
       setLiveStrategy(result);
       setLiveLastRefreshAtISO(new Date().toISOString());
