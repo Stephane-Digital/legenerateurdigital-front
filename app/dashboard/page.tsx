@@ -1696,7 +1696,7 @@ export default function DashboardPage() {
         >
           <div className="overflow-hidden rounded-[34px] border border-yellow-600/20 bg-[#050505] shadow-[0_0_70px_rgba(255,184,0,0.10)]">
             <img
-              src="/lgd-hero-business-active.svg"
+              src="legenerateurdigital-front/public/images/lgd-hero-business-active.svg"
               alt="LGD IA Business Active"
               className="block h-auto w-full"
             />
