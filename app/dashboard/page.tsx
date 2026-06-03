@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import CardLuxe from "@/components/ui/CardLuxe";
-import LeadEngineBlock from "./components/LeadEngineBlock";
 
 // Icons (react-icons/fa)
 import {
@@ -13,7 +12,6 @@ import {
   FaBook,
   FaCheckCircle,
   FaCircle,
-  FaCrown,
   FaEnvelope,
   FaFilter,
   FaGem,
@@ -21,7 +19,7 @@ import {
   FaRobot,
   FaSyncAlt,
   FaTimes,
-  FaUserAstronaut,
+  FaUserAstronaut
 } from "react-icons/fa";
 
 type Plan = "none" | "azur" | "essentiel" | "pro" | "ultime";
@@ -1472,6 +1470,34 @@ export default function DashboardPage() {
     openExternal(SYSTEMEIO_AFFILIATION_URL);
   }
 
+  function openPlans() {
+    setMobileMenuOpen(false);
+    openSystemeioPlans();
+  }
+
+  function openSettings() {
+    setMobileMenuOpen(false);
+    go("/dashboard/parametres");
+  }
+
+  function handleLogout() {
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem("access_token");
+      window.localStorage.removeItem("lgd_token");
+      window.localStorage.removeItem("token");
+      window.localStorage.removeItem("jwt");
+      window.localStorage.removeItem("user");
+      window.localStorage.removeItem("lgd_user");
+      document.cookie = "access_token=; Max-Age=0; path=/";
+      document.cookie = "token=; Max-Age=0; path=/";
+      document.cookie = "lgd_token=; Max-Age=0; path=/";
+    }
+
+    setMobileMenuOpen(false);
+    setIsLoggedIn(false);
+    router.push(LOGIN_PATH);
+  }
+
   function accessOrExplain(key: "editor" | "coach" | "emailing" | "lead_engine") {
     if (!isLoggedIn) {
       openModal(key);
@@ -1603,9 +1629,7 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-[#050505] text-white">
       <div className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(circle_at_top_right,rgba(255,184,0,0.10),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(255,184,0,0.07),transparent_32%)]" />
 
-      <div className="fixed left-0 right-0 top-0 z-[9990] h-[92px] bg-[#050505] lg:h-[84px]" />
-
-      <aside className="fixed left-4 top-4 z-[9991] hidden h-[calc(100vh-32px)] w-[280px] flex-col rounded-[30px] border border-yellow-600/20 bg-[#070707]/95 p-5 shadow-[0_0_55px_rgba(255,184,0,0.08)] backdrop-blur-xl lg:flex">
+      <aside className="fixed left-4 top-4 z-[9994] hidden h-[calc(100vh-32px)] w-[280px] flex-col rounded-[30px] border border-yellow-600/20 bg-[#070707]/95 p-5 shadow-[0_0_55px_rgba(255,184,0,0.08)] backdrop-blur-xl lg:flex">
         <div className="rounded-3xl border border-yellow-600/20 bg-gradient-to-br from-[#111] to-[#070707] p-4">
           <div className="text-xs font-semibold uppercase tracking-[0.25em] text-white/45">Le Générateur Digital</div>
           <div className="mt-2 text-3xl font-black tracking-tight text-yellow-400">LGD</div>
@@ -1652,9 +1676,33 @@ export default function DashboardPage() {
           <div className="text-sm font-extrabold text-yellow-200">💰 Programme Ambassadeur</div>
           <div className="mt-1 text-xs leading-5 text-white/60">Recommande LGD et développe tes revenus récurrents.</div>
         </button>
+
+        <div className="mt-4 grid gap-2 border-t border-yellow-600/15 pt-4 text-sm">
+          <button
+            type="button"
+            onClick={openPlans}
+            className="rounded-2xl px-4 py-3 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100"
+          >
+            👑 Plans
+          </button>
+          <button
+            type="button"
+            onClick={openSettings}
+            className="rounded-2xl px-4 py-3 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100"
+          >
+            ⚙️ Paramètres
+          </button>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-left font-semibold text-red-100 transition hover:bg-red-500/10"
+          >
+            🚪 Se déconnecter
+          </button>
+        </div>
       </aside>
 
-      <div className="sticky top-0 z-[9991] border-b border-yellow-600/15 bg-[#050505]/92 px-4 py-3 backdrop-blur-xl lg:hidden">
+      <div className="sticky top-0 z-[9994] border-b border-yellow-600/15 bg-[#050505]/92 px-4 py-3 backdrop-blur-xl lg:hidden">
         <div className="flex items-center justify-between gap-3">
           <div>
             <div className="text-lg font-black text-yellow-400">LGD 3.0</div>
@@ -1683,11 +1731,14 @@ export default function DashboardPage() {
             <button type="button" onClick={() => go('/dashboard/library')} className="rounded-2xl px-4 py-3 text-left text-white/75 hover:bg-yellow-500/10">📚 Bibliothèque</button>
             <div className="rounded-2xl border border-yellow-600/15 bg-black/35 px-4 py-3 text-left text-white/75">📈 Activité : {businessJournalSummary.totalActions} action{businessJournalSummary.totalActions > 1 ? "s" : ""} cette semaine</div>
             <button type="button" onClick={openAffiliationProgram} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-left font-semibold text-yellow-100">💰 Programme Ambassadeur LGD</button>
+            <button type="button" onClick={openPlans} className="rounded-2xl px-4 py-3 text-left text-white/75 hover:bg-yellow-500/10">👑 Plans</button>
+            <button type="button" onClick={openSettings} className="rounded-2xl px-4 py-3 text-left text-white/75 hover:bg-yellow-500/10">⚙️ Paramètres</button>
+            <button type="button" onClick={handleLogout} className="rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-left font-semibold text-red-100 hover:bg-red-500/10">🚪 Se déconnecter</button>
           </div>
         ) : null}
       </div>
 
-      <main className="relative z-10 px-4 pb-16 pt-4 sm:px-6 lg:pl-[320px] lg:pr-8">
+      <main className="relative z-[9992] px-4 pb-16 pt-4 sm:px-6 lg:pl-[320px] lg:pr-8">
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -1696,7 +1747,7 @@ export default function DashboardPage() {
         >
           <div className="overflow-hidden rounded-[34px] border border-yellow-600/20 bg-[#050505] shadow-[0_0_70px_rgba(255,184,0,0.10)]">
             <img
-              src="legenerateurdigital-front/public/images/lgd-hero-business-active.svg"
+               src="/images/lgd-hero-business-active.svg"
               alt="LGD IA Business Active"
               className="block h-auto w-full"
             />
