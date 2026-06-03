@@ -1822,40 +1822,40 @@ export default function DashboardPage() {
 
       <div className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(circle_at_top_right,rgba(255,184,0,0.10),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(255,184,0,0.07),transparent_32%)]" />
 
-      <aside className="fixed left-4 top-4 z-[2147483646] hidden h-[calc(100vh-32px)] w-[280px] flex-col overflow-hidden rounded-[30px] border border-yellow-600/20 bg-[#070707]/95 p-4 shadow-[0_0_55px_rgba(255,184,0,0.08)] backdrop-blur-xl lg:flex">
-        <nav className="grid gap-1.5 text-sm">
-          <button type="button" onClick={() => { setActiveWorkspace('home'); go('/dashboard'); }} className="rounded-2xl border border-yellow-600/15 bg-yellow-500/10 px-4 py-2.5 text-left font-semibold text-yellow-100 transition hover:bg-yellow-500/15">🏠 Accueil</button>
-          <button type="button" onClick={() => setActiveWorkspace('home')} className="rounded-2xl px-4 py-2.5 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">🎯 Mission Cash IA</button>
-          <button type="button" onClick={() => accessOrExplain('coach')} className="rounded-2xl px-4 py-2.5 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">🧠 Coach Alex IA</button>
+      <aside className="fixed left-4 top-10 z-[2147483646] hidden h-[calc(100vh-56px)] w-[300px] flex-col overflow-hidden rounded-[30px] border border-yellow-600/20 bg-[#070707]/95 p-5 shadow-[0_0_55px_rgba(255,184,0,0.08)] backdrop-blur-xl lg:flex">
+        <nav className="grid gap-2.5 text-[17px] font-semibold">
+          <button type="button" onClick={() => { setActiveWorkspace('home'); go('/dashboard'); }} className="rounded-2xl border border-yellow-600/15 bg-yellow-500/10 px-4 py-3.5 text-left font-semibold text-yellow-100 transition hover:bg-yellow-500/15">🏠 Accueil</button>
+          <button type="button" onClick={() => setActiveWorkspace('home')} className="rounded-2xl px-4 py-3.5 text-left text-white/82 transition hover:bg-yellow-500/10 hover:text-yellow-100">🎯 Mission Cash IA</button>
+          <button type="button" onClick={() => accessOrExplain('coach')} className="rounded-2xl px-4 py-3.5 text-left text-white/82 transition hover:bg-yellow-500/10 hover:text-yellow-100">🧠 Coach Alex IA</button>
 
           <div className="my-2 border-t border-yellow-600/15" />
 
-          <button type="button" onClick={() => accessOrExplain('editor')} className="rounded-2xl px-4 py-2.5 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">✍️ Éditeur Intelligent</button>
-          <button type="button" onClick={() => accessOrExplain('emailing')} className="rounded-2xl px-4 py-2.5 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">📧 Emailing IA</button>
-          <button type="button" onClick={() => accessOrExplain('lead_engine')} className="rounded-2xl px-4 py-2.5 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">🧲 Lead Engine IA</button>
-          <button type="button" onClick={() => go('/dashboard/automatisations/reseaux_sociaux/planner')} className="rounded-2xl px-4 py-2.5 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">📅 Planner IA</button>
-          <button type="button" onClick={() => go('/dashboard/library')} className="rounded-2xl px-4 py-2.5 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">📚 Bibliothèque</button>
+          <button type="button" onClick={() => accessOrExplain('editor')} className="rounded-2xl px-4 py-3.5 text-left text-white/82 transition hover:bg-yellow-500/10 hover:text-yellow-100">✍️ Éditeur Intelligent</button>
+          <button type="button" onClick={() => accessOrExplain('emailing')} className="rounded-2xl px-4 py-3.5 text-left text-white/82 transition hover:bg-yellow-500/10 hover:text-yellow-100">📧 Emailing IA</button>
+          <button type="button" onClick={() => accessOrExplain('lead_engine')} className="rounded-2xl px-4 py-3.5 text-left text-white/82 transition hover:bg-yellow-500/10 hover:text-yellow-100">🧲 Lead Engine IA</button>
+          <button type="button" onClick={() => go('/dashboard/automatisations/reseaux_sociaux/planner')} className="rounded-2xl px-4 py-3.5 text-left text-white/82 transition hover:bg-yellow-500/10 hover:text-yellow-100">📅 Planner IA</button>
+          <button type="button" onClick={() => go('/dashboard/library')} className="rounded-2xl px-4 py-3.5 text-left text-white/82 transition hover:bg-yellow-500/10 hover:text-yellow-100">📚 Bibliothèque</button>
         </nav>
 
-        <div className="mt-4 grid gap-2 border-t border-yellow-600/15 pt-4 text-sm">
-          <button type="button" onClick={openPlans} className="rounded-2xl px-4 py-2.5 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">👑 Plans</button>
-          <button type="button" onClick={openSettings} className="rounded-2xl px-4 py-2.5 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">⚙️ Paramètres</button>
-          <button type="button" onClick={handleLogout} className="rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-2.5 text-left font-semibold text-red-100 transition hover:bg-red-500/10">🚪 Se déconnecter</button>
+        <div className="mt-6 grid gap-3 border-t border-yellow-600/15 pt-5 text-[17px]">
+          <button type="button" onClick={openPlans} className="rounded-2xl px-4 py-3.5 text-left text-white/82 transition hover:bg-yellow-500/10 hover:text-yellow-100">👑 Plans</button>
+          <button type="button" onClick={openSettings} className="rounded-2xl px-4 py-3.5 text-left text-white/82 transition hover:bg-yellow-500/10 hover:text-yellow-100">⚙️ Paramètres</button>
+          <button type="button" onClick={handleLogout} className="rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-3.5 text-left font-semibold text-red-100 transition hover:bg-red-500/10">🚪 Se déconnecter</button>
         </div>
 
 
-        <div className="mt-4 grid gap-2 border-t border-yellow-600/15 pt-4 text-sm">
+        <div className="mt-6 grid gap-3 border-t border-yellow-600/15 pt-5 text-[17px]">
           <button
             type="button"
             onClick={() => setActiveWorkspace("activity")}
-            className="rounded-2xl border border-yellow-600/15 bg-yellow-500/5 px-4 py-2.5 text-left font-semibold text-yellow-100 transition hover:bg-yellow-500/10"
+            className="rounded-2xl border border-yellow-600/15 bg-yellow-500/5 px-4 py-3.5 text-left font-semibold text-yellow-100 transition hover:bg-yellow-500/10"
           >
             📈 Activité Progression
           </button>
           <button
             type="button"
             onClick={openAffiliationProgram}
-            className="rounded-2xl border border-yellow-500/20 bg-yellow-500/5 px-4 py-2.5 text-left font-semibold text-yellow-100 transition hover:bg-yellow-500/10"
+            className="rounded-2xl border border-yellow-500/20 bg-yellow-500/5 px-4 py-3.5 text-left font-semibold text-yellow-100 transition hover:bg-yellow-500/10"
           >
             💰 Programme affiliation
           </button>
@@ -1882,24 +1882,24 @@ export default function DashboardPage() {
         </div>
 
         {mobileMenuOpen ? (
-          <div className="mt-4 grid gap-2 rounded-3xl border border-yellow-600/20 bg-[#080808] p-3 text-sm shadow-[0_0_45px_rgba(255,184,0,0.12)]">
-            <button type="button" onClick={() => { setActiveWorkspace('home'); go('/dashboard'); }} className="rounded-2xl bg-yellow-500/10 px-4 py-2.5 text-left font-semibold text-yellow-100">🏠 Accueil</button>
-            <button type="button" onClick={() => accessOrExplain('coach')} className="rounded-2xl px-4 py-2.5 text-left text-white/75 hover:bg-yellow-500/10">🧠 Coach Alex IA</button>
-            <button type="button" onClick={() => accessOrExplain('editor')} className="rounded-2xl px-4 py-2.5 text-left text-white/75 hover:bg-yellow-500/10">✍️ Éditeur Intelligent</button>
-            <button type="button" onClick={() => accessOrExplain('emailing')} className="rounded-2xl px-4 py-2.5 text-left text-white/75 hover:bg-yellow-500/10">📧 Emailing IA</button>
-            <button type="button" onClick={() => accessOrExplain('lead_engine')} className="rounded-2xl px-4 py-2.5 text-left text-white/75 hover:bg-yellow-500/10">🧲 Lead Engine IA</button>
-            <button type="button" onClick={() => go('/dashboard/automatisations/reseaux_sociaux/planner')} className="rounded-2xl px-4 py-2.5 text-left text-white/75 hover:bg-yellow-500/10">📅 Planner IA</button>
-            <button type="button" onClick={() => go('/dashboard/library')} className="rounded-2xl px-4 py-2.5 text-left text-white/75 hover:bg-yellow-500/10">📚 Bibliothèque</button>
-            <div className="rounded-2xl border border-yellow-600/15 bg-black/35 px-4 py-2.5 text-left text-white/75">📈 Activité : {businessJournalSummary.totalActions} action{businessJournalSummary.totalActions > 1 ? "s" : ""} cette semaine</div>
-            <button type="button" onClick={openAffiliationProgram} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-2.5 text-left font-semibold text-yellow-100">💰 Programme Ambassadeur LGD</button>
-            <button type="button" onClick={openPlans} className="rounded-2xl px-4 py-3 text-left text-white/75 hover:bg-yellow-500/10">👑 Plans</button>
-            <button type="button" onClick={openSettings} className="rounded-2xl px-4 py-3 text-left text-white/75 hover:bg-yellow-500/10">⚙️ Paramètres</button>
-            <button type="button" onClick={handleLogout} className="rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-left font-semibold text-red-100 hover:bg-red-500/10">🚪 Se déconnecter</button>
+          <div className="mt-6 grid gap-3 rounded-3xl border border-yellow-600/20 bg-[#080808] p-4 text-[17px] font-semibold shadow-[0_0_45px_rgba(255,184,0,0.12)]">
+            <button type="button" onClick={() => { setActiveWorkspace('home'); go('/dashboard'); }} className="rounded-2xl bg-yellow-500/10 px-4 py-3.5.5 text-left font-semibold text-yellow-100">🏠 Accueil</button>
+            <button type="button" onClick={() => accessOrExplain('coach')} className="rounded-2xl px-4 py-3.5.5 text-left text-white/82 hover:bg-yellow-500/10">🧠 Coach Alex IA</button>
+            <button type="button" onClick={() => accessOrExplain('editor')} className="rounded-2xl px-4 py-3.5.5 text-left text-white/82 hover:bg-yellow-500/10">✍️ Éditeur Intelligent</button>
+            <button type="button" onClick={() => accessOrExplain('emailing')} className="rounded-2xl px-4 py-3.5.5 text-left text-white/82 hover:bg-yellow-500/10">📧 Emailing IA</button>
+            <button type="button" onClick={() => accessOrExplain('lead_engine')} className="rounded-2xl px-4 py-3.5.5 text-left text-white/82 hover:bg-yellow-500/10">🧲 Lead Engine IA</button>
+            <button type="button" onClick={() => go('/dashboard/automatisations/reseaux_sociaux/planner')} className="rounded-2xl px-4 py-3.5.5 text-left text-white/82 hover:bg-yellow-500/10">📅 Planner IA</button>
+            <button type="button" onClick={() => go('/dashboard/library')} className="rounded-2xl px-4 py-3.5.5 text-left text-white/82 hover:bg-yellow-500/10">📚 Bibliothèque</button>
+            <div className="rounded-2xl border border-yellow-600/15 bg-black/35 px-4 py-3.5.5 text-left text-white/82">📈 Activité : {businessJournalSummary.totalActions} action{businessJournalSummary.totalActions > 1 ? "s" : ""} cette semaine</div>
+            <button type="button" onClick={openAffiliationProgram} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3.5.5 text-left font-semibold text-yellow-100">💰 Programme Ambassadeur LGD</button>
+            <button type="button" onClick={openPlans} className="rounded-2xl px-4 py-3.5 text-left text-white/82 hover:bg-yellow-500/10">👑 Plans</button>
+            <button type="button" onClick={openSettings} className="rounded-2xl px-4 py-3.5 text-left text-white/82 hover:bg-yellow-500/10">⚙️ Paramètres</button>
+            <button type="button" onClick={handleLogout} className="rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-3.5 text-left font-semibold text-red-100 hover:bg-red-500/10">🚪 Se déconnecter</button>
           </div>
         ) : null}
       </div>
 
-      <main className="relative z-[2147483645] px-4 pb-16 pt-4 sm:px-6 lg:pl-[320px] lg:pr-8 lg:pt-4">
+      <main className="relative z-[2147483645] px-4 pb-16 pt-4 sm:px-6 lg:pl-[340px] lg:pr-8 lg:pt-4">
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
