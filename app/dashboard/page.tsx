@@ -53,8 +53,10 @@ type AiQuotaSnapshot = {
   dailyLimit: number;
 };
 
+type CmoModuleKey = "coach" | "emailing" | "editor" | "lead_engine";
+
 type CmoDashboardResult = {
-  local_target?: CmoModuleTarget["key"];
+  local_target?: CmoModuleKey;
   source?: "live" | "local";
   diagnostic?: string;
   priority_action?: string;
@@ -70,7 +72,7 @@ type CmoDashboardResult = {
 };
 
 type CmoModuleTarget = {
-  key: "coach" | "emailing" | "editor" | "lead_engine";
+  key: CmoModuleKey;
   label: string;
   path: string;
 };
@@ -84,7 +86,7 @@ type MissionCashActionRecord = {
   updatedAt: string;
   source: "live" | "local";
   status: MissionCashActionStatus;
-  module: CmoModuleTarget["key"];
+  module: CmoModuleKey;
   moduleLabel: string;
   missionTitle: string;
   diagnostic: string;
@@ -921,32 +923,39 @@ function readMissionCashHistory(): MissionCashActionRecord[] {
     const raw = window.localStorage.getItem(LGD_MISSION_CASH_HISTORY_KEY);
     if (!raw) return [];
 
-    const parsed = JSON.parse(raw);
+    const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
 
     return parsed
-      .filter((item) => item && typeof item === "object")
-      .map((item) => ({
-        id: String(item.id || createMissionCashActionId()),
-        date: String(item.date || todayISODate()),
-        createdAt: String(item.createdAt || new Date().toISOString()),
-        updatedAt: String(item.updatedAt || new Date().toISOString()),
-        source: item.source === "live" ? "live" : "local",
-        status: ["generated", "started", "completed"].includes(String(item.status))
-          ? (String(item.status) as MissionCashActionStatus)
-          : "generated",
-        module: ["coach", "emailing", "editor", "lead_engine"].includes(String(item.module))
-          ? (String(item.module) as CmoModuleTarget["key"])
-          : "coach",
-        moduleLabel: String(item.moduleLabel || "Coach Alex"),
-        missionTitle: String(item.missionTitle || "Mission Cash"),
-        diagnostic: String(item.diagnostic || ""),
-        opportunity: String(item.opportunity || ""),
-        expectedResult: String(item.expectedResult || ""),
-        mistakeToAvoid: String(item.mistakeToAvoid || ""),
-        immediateAction: String(item.immediateAction || ""),
-        cta: String(item.cta || ""),
-      }))
+      .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
+      .map((item): MissionCashActionRecord => {
+        const statusRaw = String(item.status || "");
+        const moduleRaw = String(item.module || "");
+        const module: CmoModuleKey = ["coach", "emailing", "editor", "lead_engine"].includes(moduleRaw)
+          ? (moduleRaw as CmoModuleKey)
+          : "coach";
+        const status: MissionCashActionStatus = ["generated", "started", "completed"].includes(statusRaw)
+          ? (statusRaw as MissionCashActionStatus)
+          : "generated";
+
+        return {
+          id: String(item.id || createMissionCashActionId()),
+          date: String(item.date || todayISODate()),
+          createdAt: String(item.createdAt || new Date().toISOString()),
+          updatedAt: String(item.updatedAt || new Date().toISOString()),
+          source: item.source === "live" ? "live" : "local",
+          status,
+          module,
+          moduleLabel: String(item.moduleLabel || "Coach Alex"),
+          missionTitle: String(item.missionTitle || "Mission Cash"),
+          diagnostic: String(item.diagnostic || ""),
+          opportunity: String(item.opportunity || ""),
+          expectedResult: String(item.expectedResult || ""),
+          mistakeToAvoid: String(item.mistakeToAvoid || ""),
+          immediateAction: String(item.immediateAction || ""),
+          cta: String(item.cta || ""),
+        };
+      })
       .slice(0, 20);
   } catch {
     return [];
