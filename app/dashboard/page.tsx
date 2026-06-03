@@ -1397,6 +1397,7 @@ function ActivityProgressWorkspace({
   const coachDays = Array.from({ length: 7 }, (_, index) => {
     const mission = missions[index];
     const done = Boolean(mission?.status === "completed" || index < Math.min(summary.missionsCompleted, 7));
+
     return {
       day: index + 1,
       label: mission?.missionTitle || `Mission Coach Alex J${index + 1}`,
@@ -1404,8 +1405,9 @@ function ActivityProgressWorkspace({
     };
   });
 
+  const completedCoachDays = coachDays.filter((item) => item.done).length;
   const productivity = Math.min(100, Math.round(((summary.totalActions + completedToday) / 8) * 100));
-  const assiduity = Math.min(100, Math.round((coachDays.filter((item) => item.done).length / 7) * 100));
+  const assiduity = Math.min(100, Math.round((completedCoachDays / 7) * 100));
   const execution = Math.min(100, Math.round((completedToday / 4) * 100));
 
   const bars = [
@@ -1419,97 +1421,105 @@ function ActivityProgressWorkspace({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.06, duration: 0.32 }}
-      className="mx-auto mt-10 w-full max-w-[1200px] px-4"
+      className="mx-auto mt-10 w-full max-w-[1120px] px-2 sm:px-4"
     >
-      <div className="rounded-[32px] border border-yellow-600/25 bg-gradient-to-br from-[#101010] via-[#090909] to-[#15110a] p-6 shadow-[0_0_70px_rgba(255,184,0,0.10)] sm:p-10">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <div className="rounded-[32px] border border-yellow-600/25 bg-gradient-to-br from-[#101010] via-[#090909] to-[#15110a] p-5 shadow-[0_0_70px_rgba(255,184,0,0.10)] sm:p-8">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-4 py-1 text-[12px] font-semibold text-yellow-100">
               📊 Activité Progression
             </div>
             <h2 className="mt-4 text-3xl font-black text-[#ffb800] sm:text-4xl">
-              Tableau de progression Business IA
+              Progression Business IA
             </h2>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-white/65 sm:text-base">
-              Suis tes missions Coach Alex, ton rythme d’exécution Mission Cash et ta dynamique business sur 7 jours.
+              Suis ton rythme d’exécution sur 7 jours : missions Coach Alex, actions Mission Cash, productivité et assiduité.
             </p>
           </div>
 
           <button
             type="button"
             onClick={onOpenCoach}
-            className="rounded-2xl border border-yellow-500/25 bg-yellow-500/10 px-5 py-3 text-sm font-black text-yellow-100 transition hover:-translate-y-0.5 hover:bg-yellow-500/15"
+            className="w-full rounded-2xl border border-yellow-500/25 bg-yellow-500/10 px-5 py-3 text-sm font-black text-yellow-100 transition hover:-translate-y-0.5 hover:bg-yellow-500/15 sm:w-auto"
           >
             Ouvrir Coach Alex
           </button>
         </div>
 
-        <div className="mt-8 grid grid-cols-1 gap-5 lg:grid-cols-[1fr_0.85fr]">
-          <div className="rounded-[28px] border border-yellow-600/20 bg-black/35 p-5">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.22em] text-yellow-300/80">
-                  Coach Alex IA
-                </p>
-                <h3 className="mt-2 text-xl font-black text-white">
-                  Progression 7 jours
-                </h3>
-              </div>
-              <div className="rounded-full border border-green-400/20 bg-green-400/10 px-4 py-2 text-sm font-bold text-green-100">
-                {coachDays.filter((item) => item.done).length}/7 missions
-              </div>
-            </div>
+        <div className="mt-7 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="rounded-2xl border border-yellow-600/15 bg-black/35 p-4 text-center">
+            <div className="text-3xl font-black text-yellow-300">{summary.totalActions}</div>
+            <div className="mt-1 text-xs uppercase tracking-[0.15em] text-white/45">actions</div>
+          </div>
+          <div className="rounded-2xl border border-yellow-600/15 bg-black/35 p-4 text-center">
+            <div className="text-3xl font-black text-green-300">{completedToday}/4</div>
+            <div className="mt-1 text-xs uppercase tracking-[0.15em] text-white/45">jour</div>
+          </div>
+          <div className="rounded-2xl border border-yellow-600/15 bg-black/35 p-4 text-center">
+            <div className="text-3xl font-black text-blue-300">{completedCoachDays}/7</div>
+            <div className="mt-1 text-xs uppercase tracking-[0.15em] text-white/45">missions</div>
+          </div>
+          <div className="rounded-2xl border border-yellow-600/15 bg-black/35 p-4 text-center">
+            <div className="text-3xl font-black text-yellow-100">{productivity}%</div>
+            <div className="mt-1 text-xs uppercase tracking-[0.15em] text-white/45">productivité</div>
+          </div>
+        </div>
 
-            <div className="mt-5 grid gap-3">
-              {coachDays.map((item) => (
-                <div
-                  key={item.day}
-                  className={[
-                    "flex items-center gap-3 rounded-2xl border px-4 py-3",
-                    item.done
-                      ? "border-green-400/25 bg-green-400/10"
-                      : "border-yellow-600/12 bg-[#080808]",
-                  ].join(" ")}
-                >
-                  <div
-                    className={[
-                      "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-black",
-                      item.done ? "bg-green-400 text-black" : "bg-white/10 text-white/45",
-                    ].join(" ")}
-                  >
-                    {item.day}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-bold text-white/90">{item.label}</p>
-                    <p className={["mt-0.5 text-xs", item.done ? "text-green-200" : "text-white/40"].join(" ")}>
-                      {item.done ? "Mission accomplie" : "À compléter"}
-                    </p>
-                  </div>
-                </div>
-              ))}
+        <div className="mt-7 rounded-[28px] border border-yellow-600/20 bg-black/35 p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.22em] text-yellow-300/80">
+                Coach Alex IA
+              </p>
+              <h3 className="mt-2 text-xl font-black text-white">
+                Progression 7 jours
+              </h3>
+            </div>
+            <div className="w-fit rounded-full border border-green-400/20 bg-green-400/10 px-4 py-2 text-sm font-bold text-green-100">
+              {completedCoachDays}/7 missions
             </div>
           </div>
 
-          <div className="rounded-[28px] border border-yellow-600/20 bg-black/35 p-5">
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-yellow-300/80">
-              Mission Cash IA
-            </p>
-            <h3 className="mt-2 text-xl font-black text-white">
-              Activité & productivité
-            </h3>
-
-            <div className="mt-5 grid grid-cols-2 gap-3">
-              <div className="rounded-2xl border border-yellow-600/15 bg-[#080808] p-4 text-center">
-                <div className="text-3xl font-black text-yellow-300">{summary.totalActions}</div>
-                <div className="mt-1 text-xs uppercase tracking-[0.15em] text-white/45">actions</div>
+          <div className="mt-5 grid gap-3">
+            {coachDays.map((item) => (
+              <div
+                key={item.day}
+                className={[
+                  "flex items-start gap-3 rounded-2xl border px-4 py-3",
+                  item.done
+                    ? "border-green-400/25 bg-green-400/10"
+                    : "border-yellow-600/12 bg-[#080808]",
+                ].join(" ")}
+              >
+                <div
+                  className={[
+                    "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-black",
+                    item.done ? "bg-green-400 text-black" : "bg-white/10 text-white/45",
+                  ].join(" ")}
+                >
+                  {item.day}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold leading-5 text-white/90">{item.label}</p>
+                  <p className={["mt-1 text-xs", item.done ? "text-green-200" : "text-white/40"].join(" ")}>
+                    {item.done ? "Mission accomplie" : "À compléter"}
+                  </p>
+                </div>
               </div>
-              <div className="rounded-2xl border border-yellow-600/15 bg-[#080808] p-4 text-center">
-                <div className="text-3xl font-black text-green-300">{completedToday}/4</div>
-                <div className="mt-1 text-xs uppercase tracking-[0.15em] text-white/45">jour</div>
-              </div>
-            </div>
+            ))}
+          </div>
+        </div>
 
-            <div className="mt-6 space-y-5">
+        <div className="mt-7 rounded-[28px] border border-yellow-600/20 bg-black/35 p-5">
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-yellow-300/80">
+            Mission Cash IA
+          </p>
+          <h3 className="mt-2 text-xl font-black text-white">
+            Activité, productivité et assiduité
+          </h3>
+
+          <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_0.85fr]">
+            <div className="space-y-5">
               {bars.map((bar) => (
                 <div key={bar.label}>
                   <div className="flex items-center justify-between text-sm">
@@ -1526,7 +1536,7 @@ function ActivityProgressWorkspace({
               ))}
             </div>
 
-            <div className="mt-6 rounded-2xl border border-yellow-600/15 bg-[#080808] p-4">
+            <div className="rounded-2xl border border-yellow-600/15 bg-[#080808] p-4">
               <p className="text-xs uppercase tracking-[0.18em] text-white/45">Analyse IA</p>
               <p className="mt-2 text-sm font-semibold leading-6 text-yellow-100">
                 {summary.insightTitle}
