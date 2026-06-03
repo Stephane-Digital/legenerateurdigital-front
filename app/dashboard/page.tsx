@@ -55,6 +55,7 @@ type AiQuotaSnapshot = {
 
 type CmoDashboardResult = {
   local_target?: CmoModuleTarget["key"];
+  source?: "live" | "local";
   diagnostic?: string;
   priority_action?: string;
   why_this_action?: string;
@@ -256,16 +257,69 @@ function firstProfileString(profile: Record<string, any>, ...keys: string[]) {
   return "";
 }
 
-function compactCoachProfile(profile: Record<string, any>) {
+function readableBusinessGoal(value: string) {
+  const v = String(value || "").toLowerCase();
+  if (v.includes("premiers_revenus")) return "obtenir les premiers revenus";
+  if (v.includes("revenu_500")) return "atteindre les premiers 500€/mois";
+  if (v.includes("premiers_clients")) return "obtenir les premiers clients";
+  if (v.includes("quitter_job")) return "préparer une sortie progressive du salariat";
+  if (v.includes("business_stable")) return "construire un business stable";
+  return value || "";
+}
+
+function readableBlocker(value: string) {
+  const v = String(value || "").toLowerCase();
+  if (v.includes("vente")) return "ne pas savoir vendre ou avoir peur de vendre";
+  if (v.includes("confiance")) return "manquer de confiance ou de légitimité";
+  if (v.includes("temps")) return "manquer de temps";
+  if (v.includes("technique")) return "bloquer sur la technique";
+  if (v.includes("dispersion")) return "se disperser et manquer de focus";
+  return value || "";
+}
+
+function extractCoachV2Profile(profileOut: CoachProfileSnapshot | null) {
+  const root = profileOut?.profile && typeof profileOut.profile === "object" ? profileOut.profile : {};
+  const coachV2 =
+    (root as any)?.coach_v2 ||
+    (root as any)?.coachV2 ||
+    (root as any)?.coachV2Snapshot ||
+    null;
+
+  const context =
+    coachV2?.context && typeof coachV2.context === "object"
+      ? coachV2.context
+      : root;
+
+  const today =
+    coachV2?.today && typeof coachV2.today === "object"
+      ? coachV2.today
+      : null;
+
+  const mission =
+    today?.mission && typeof today.mission === "object"
+      ? today.mission
+      : null;
+
+  const roadmap =
+    coachV2?.roadmap && typeof coachV2.roadmap === "object"
+      ? coachV2.roadmap
+      : null;
+
+  return { root, coachV2, context, today, mission, roadmap };
+}
+
+function compactCoachProfile(profile: Record<string, any>, mission?: Record<string, any> | null) {
   const entries = [
-    ["Objectif", firstProfileString(profile, "goal", "businessGoal", "objective", "intent")],
-    ["Offre", firstProfileString(profile, "offer", "offerName", "product", "service")],
-    ["Niche", firstProfileString(profile, "niche", "market", "sector")],
-    ["Audience", firstProfileString(profile, "audience", "target", "targetAudience")],
+    ["Objectif", readableBusinessGoal(firstProfileString(profile, "businessGoal", "goal", "objective", "intent"))],
+    ["Offre", firstProfileString(profile, "offerDescription", "offer", "offerName", "product", "service")],
+    ["Client idéal", firstProfileString(profile, "targetAudienceDescription", "audience", "target", "targetAudience")],
+    ["Canal", firstProfileString(profile, "primaryChannel", "channelNotes", "preferredChannel")],
     ["Modèle", firstProfileString(profile, "businessModel", "model")],
     ["Niveau", firstProfileString(profile, "level", "stage")],
     ["Temps disponible", firstProfileString(profile, "timePerDay", "time_per_day")],
-    ["Blocage", firstProfileString(profile, "mainBlocker", "blocker", "obstacle")],
+    ["Blocage", readableBlocker(firstProfileString(profile, "mainBlocker", "blocker", "obstacle"))],
+    ["Mission Alex du jour", firstProfileString(mission || {}, "title")],
+    ["Objectif mission Alex", firstProfileString(mission || {}, "objective")],
   ].filter(([, value]) => value);
 
   if (!entries.length) return "Profil Coach Alex encore incomplet.";
@@ -300,23 +354,32 @@ async function fetchCmoDashboardStrategy(): Promise<CmoDashboardResult> {
   }
 
   const coachProfile = await fetchCoachProfileSnapshot(base, token);
-  const profile = coachProfile?.profile && typeof coachProfile.profile === "object" ? coachProfile.profile : {};
+  const { context, mission } = extractCoachV2Profile(coachProfile);
 
-  const objective = firstProfileString(
-    profile,
-    "goal",
-    "businessGoal",
-    "objective",
-    "intent"
-  ) || coachProfile?.intent || "Choisir l'action la plus utile à exécuter aujourd'hui selon l'objectif actif du Coach Alex.";
+  const offer = firstProfileString(context, "offerDescription", "offer", "offerName", "product", "service");
+  const audience = firstProfileString(context, "targetAudienceDescription", "audience", "target", "targetAudience");
+  const businessGoalRaw = firstProfileString(context, "businessGoal", "goal", "objective", "intent");
+  const objectiveLabel = readableBusinessGoal(businessGoalRaw);
+  const blocker = readableBlocker(firstProfileString(context, "mainBlocker", "blocker", "obstacle"));
+  const businessModel = firstProfileString(context, "businessModel", "model");
+  const channel = firstProfileString(context, "primaryChannel", "channelNotes", "preferredChannel") || "Instagram";
+  const stage = firstProfileString(context, "level", "stage") || coachProfile?.level || "intermediate";
+  const timePerDay = firstProfileString(context, "timePerDay", "time_per_day") || String(coachProfile?.time_per_day || "");
+  const alexMissionTitle = firstProfileString(mission || {}, "title");
+  const alexMissionObjective = firstProfileString(mission || {}, "objective");
 
-  const offer = firstProfileString(profile, "offer", "offerName", "product", "service");
-  const niche = firstProfileString(profile, "niche", "market", "sector");
-  const audience = firstProfileString(profile, "audience", "target", "targetAudience");
-  const blocker = firstProfileString(profile, "mainBlocker", "blocker", "obstacle");
-  const businessModel = firstProfileString(profile, "businessModel", "model");
-  const stage = firstProfileString(profile, "stage", "level") || coachProfile?.level || "intermediate";
-  const timePerDay = firstProfileString(profile, "timePerDay", "time_per_day") || String(coachProfile?.time_per_day || "");
+  const objective =
+    [
+      "Déterminer la Mission Cash du Jour la plus rentable à exécuter maintenant.",
+      objectiveLabel ? `Objectif Coach Alex : ${objectiveLabel}.` : "",
+      offer ? `Offre : ${offer}.` : "",
+      audience ? `Client idéal : ${audience}.` : "",
+      blocker ? `Blocage principal : ${blocker}.` : "",
+      channel ? `Canal prioritaire : ${channel}.` : "",
+    ]
+      .filter(Boolean)
+      .join("\n") ||
+    "Choisir l'action la plus utile à exécuter aujourd'hui selon l'objectif actif du Coach Alex.";
 
   const res = await fetch(`${base}/cmo-ai/strategy`, {
     method: "POST",
@@ -327,23 +390,30 @@ async function fetchCmoDashboardStrategy(): Promise<CmoDashboardResult> {
     },
     body: JSON.stringify({
       objective,
-      niche,
+      niche: businessModel || "business digital / offre à préciser",
       audience,
       offer,
       current_situation: [
-        "Contexte actif issu du questionnaire Coach Alex.",
-        compactCoachProfile({ ...profile, level: stage, timePerDay }),
-      ].join("\n"),
+        "Contexte actif issu du questionnaire Coach Alex V3.",
+        compactCoachProfile(context, mission),
+        alexMissionTitle ? `Titre mission Alex : ${alexMissionTitle}` : "",
+        alexMissionObjective ? `Objectif mission Alex : ${alexMissionObjective}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n"),
       constraints: [
-        "Réponse courte, actionnable, non technique, orientée exécution.",
-        "Une seule priorité claire pour aujourd'hui.",
-        blocker ? `Blocage principal : ${blocker}` : "Blocage principal non renseigné.",
-        businessModel ? `Modèle économique : ${businessModel}` : "Modèle économique non renseigné.",
-        timePerDay ? `Temps disponible par jour : ${timePerDay}` : "Temps disponible non renseigné.",
+        "Tu dois t'inspirer du cerveau Coach Alex, pas générer une idée marketing générique.",
+        "La Mission Cash doit être directement reliée à l'offre, au client idéal, au blocage, au canal et à la mission Alex du jour.",
+        "Propose UNE action rapide orientée vente, réponse, DM, email, relance, post ou conversion.",
+        "Évite les conseils vagues comme créer un questionnaire ou créer un post engageant si le contexte permet une action plus précise.",
+        "Réponse courte, actionnable, non technique, orientée exécution et résultat mesurable aujourd'hui.",
+        blocker ? `Blocage principal à traiter : ${blocker}.` : "Blocage principal non renseigné.",
+        businessModel ? `Modèle économique : ${businessModel}.` : "Modèle économique non renseigné.",
+        timePerDay ? `Temps disponible par jour : ${timePerDay}.` : "Temps disponible non renseigné.",
         "Ne jamais citer LGD, Le Générateur Digital, MRR ou l'affiliation LGD sauf si ces éléments sont explicitement présents dans le profil Coach ou dans l'objectif actif.",
       ].join("\n"),
-      preferred_channel: "Choisir automatiquement le meilleur module entre Coach Alex, Emailing IA, Éditeur intelligent ou Lead Engine selon le profil actif.",
-      tone: "premium, humain, direct, motivant",
+      preferred_channel: channel || "Choisir automatiquement le meilleur module entre Coach Alex, Emailing IA, Éditeur intelligent ou Lead Engine selon le profil actif.",
+      tone: "premium, humain, direct, motivant, orienté cash",
       user_level: stage || "intermediate",
     }),
     cache: "no-store",
@@ -354,7 +424,7 @@ async function fetchCmoDashboardStrategy(): Promise<CmoDashboardResult> {
   }
 
   const data = (await res.json()) as any;
-  return (data?.result || data || {}) as CmoDashboardResult;
+  return { ...((data?.result || data || {}) as CmoDashboardResult), source: "live" };
 }
 
 
@@ -742,7 +812,7 @@ const LOCAL_CMO_ACTIONS: CmoDashboardResult[] = [
 function getRandomLocalCmoAction() {
   const storageKey = "lgd_dashboard_last_local_cmo_action_index";
   const total = LOCAL_CMO_ACTIONS.length;
-  if (total <= 1) return LOCAL_CMO_ACTIONS[0];
+  if (total <= 1) return { ...LOCAL_CMO_ACTIONS[0], source: "local" as const };
 
   let previousIndex = -1;
 
@@ -760,7 +830,7 @@ function getRandomLocalCmoAction() {
     window.sessionStorage.setItem(storageKey, String(nextIndex));
   }
 
-  return LOCAL_CMO_ACTIONS[nextIndex] || LOCAL_CMO_ACTIONS[0];
+  return { ...(LOCAL_CMO_ACTIONS[nextIndex] || LOCAL_CMO_ACTIONS[0]), source: "local" as const };
 }
 
 
@@ -888,6 +958,11 @@ export default function DashboardPage() {
     try {
       const result = await fetchCmoDashboardStrategy();
       setCmoResult(result);
+
+      try {
+        const quota = await fetchAiQuotaSnapshot();
+        if (quota) setAiQuota(quota);
+      } catch {}
     } catch (error) {
       console.error(error);
       setCmoError("Stratège IA Live indisponible pour le moment. Tu peux continuer avec Coach Alex.");
@@ -1008,8 +1083,8 @@ export default function DashboardPage() {
               <div className="mx-auto w-full max-w-none">
                 <div className="flex flex-col items-center text-center">
                   <div className="inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-4 py-1 text-[12px] text-white/75">
-                    <span className="h-2.5 w-2.5 rounded-full bg-green-400 animate-pulse" />
-                    IA LIVE
+                    <span className={["h-2.5 w-2.5 rounded-full", cmoLoading ? "bg-yellow-300 animate-pulse" : cmoResult?.source === "live" ? "bg-green-400" : "bg-yellow-400"].join(" ")} />
+                    {cmoLoading ? "IA LIVE EN COURS" : cmoResult?.source === "live" ? "IA LIVE" : "Fallback premium"}
                   </div>
 
                   <h2 className="mt-4 text-2xl sm:text-4xl font-extrabold text-[#ffb800]">
@@ -1055,7 +1130,7 @@ export default function DashboardPage() {
                       >
                         <span className="inline-flex items-center gap-2">
                           {cmoLoading ? <FaSyncAlt className="animate-spin" /> : null}
-                          Autre proposition
+                          Autre proposition locale
                         </span>
                       </button>
                     </div>
