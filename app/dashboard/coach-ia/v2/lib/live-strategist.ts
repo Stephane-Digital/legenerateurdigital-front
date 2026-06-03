@@ -9,6 +9,8 @@ export type AlexLiveStrategistPayload = {
   today: AlexToday | null;
   currentMission: AlexToday["mission"] | null;
   generatedAtISO: string;
+  regenerationId?: string;
+  regenerationInstruction?: string;
 };
 
 export type AlexLiveStrategistResult = {
@@ -218,12 +220,16 @@ export function buildAlexLiveStrategistPayload(args: {
   context: AlexContext;
   today?: AlexToday | null;
   currentMission?: AlexToday["mission"] | null;
+  regenerationId?: string;
+  regenerationInstruction?: string;
 }): AlexLiveStrategistPayload {
   return {
     context: args.context,
     today: args.today || null,
     currentMission: args.currentMission || null,
     generatedAtISO: nowISO(),
+    regenerationId: args.regenerationId,
+    regenerationInstruction: args.regenerationInstruction,
   };
 }
 
@@ -232,6 +238,8 @@ export async function generateAlexLiveStrategy(args: {
   today?: AlexToday | null;
   currentMission?: AlexToday["mission"] | null;
   signal?: AbortSignal;
+  regenerationId?: string;
+  regenerationInstruction?: string;
 }): Promise<AlexLiveStrategistResult> {
   const payload = buildAlexLiveStrategistPayload(args);
   const fallback = fallbackLiveStrategy(payload);
@@ -263,6 +271,8 @@ export function buildAlexLiveFallback(args: {
   context: AlexContext;
   today?: AlexToday | null;
   currentMission?: AlexToday["mission"] | null;
+  regenerationId?: string;
+  regenerationInstruction?: string;
 }): AlexLiveStrategistResult {
   return fallbackLiveStrategy(buildAlexLiveStrategistPayload(args));
 }
