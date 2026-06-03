@@ -75,7 +75,28 @@ type CmoModuleTarget = {
   path: string;
 };
 
+type MissionCashActionStatus = "generated" | "started" | "completed";
+
+type MissionCashActionRecord = {
+  id: string;
+  date: string;
+  createdAt: string;
+  updatedAt: string;
+  source: "live" | "local";
+  status: MissionCashActionStatus;
+  module: CmoModuleTarget["key"];
+  moduleLabel: string;
+  missionTitle: string;
+  diagnostic: string;
+  opportunity: string;
+  expectedResult: string;
+  mistakeToAvoid: string;
+  immediateAction: string;
+  cta: string;
+};
+
 const CMO_AUTO_PAYLOAD_KEY = "lgd_cmo_module_auto_payload";
+const LGD_MISSION_CASH_HISTORY_KEY = "lgd_mission_cash_action_history";
 
 
 const SYSTEMEIO_PLANS_URL =
@@ -367,6 +388,8 @@ async function fetchCmoDashboardStrategy(): Promise<CmoDashboardResult> {
   const timePerDay = firstProfileString(context, "timePerDay", "time_per_day") || String(coachProfile?.time_per_day || "");
   const alexMissionTitle = firstProfileString(mission || {}, "title");
   const alexMissionObjective = firstProfileString(mission || {}, "objective");
+  const missionCashHistory = readMissionCashHistory();
+  const missionCashHistorySummary = summarizeMissionCashHistory(missionCashHistory);
 
   const objective =
     [
@@ -398,12 +421,15 @@ async function fetchCmoDashboardStrategy(): Promise<CmoDashboardResult> {
         compactCoachProfile(context, mission),
         alexMissionTitle ? `Titre mission Alex : ${alexMissionTitle}` : "",
         alexMissionObjective ? `Objectif mission Alex : ${alexMissionObjective}` : "",
+        "Historique Mission Cash récent :",
+        missionCashHistorySummary,
       ]
         .filter(Boolean)
         .join("\n"),
       constraints: [
         "Tu dois t'inspirer du cerveau Coach Alex, pas générer une idée marketing générique.",
         "La Mission Cash doit être directement reliée à l'offre, au client idéal, au blocage, au canal et à la mission Alex du jour.",
+        "Tiens compte de l'historique Mission Cash récent : si une action similaire vient d'être démarrée, propose l'étape logique suivante.",
         "Propose UNE action rapide orientée vente, réponse, DM, email, relance, post ou conversion.",
         "Évite les conseils vagues comme créer un questionnaire ou créer un post engageant si le contexte permet une action plus précise.",
         "Réponse courte, actionnable, non technique, orientée exécution et résultat mesurable aujourd'hui.",
@@ -880,6 +906,148 @@ function missionCashCta(result: CmoDashboardResult | null) {
   );
 }
 
+function todayISODate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function createMissionCashActionId() {
+  return `mc_${Date.now()}_${Math.random().toString(16).slice(2, 10)}`;
+}
+
+function readMissionCashHistory(): MissionCashActionRecord[] {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const raw = window.localStorage.getItem(LGD_MISSION_CASH_HISTORY_KEY);
+    if (!raw) return [];
+
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed
+      .filter((item) => item && typeof item === "object")
+      .map((item) => ({
+        id: String(item.id || createMissionCashActionId()),
+        date: String(item.date || todayISODate()),
+        createdAt: String(item.createdAt || new Date().toISOString()),
+        updatedAt: String(item.updatedAt || new Date().toISOString()),
+        source: item.source === "live" ? "live" : "local",
+        status: ["generated", "started", "completed"].includes(String(item.status))
+          ? (String(item.status) as MissionCashActionStatus)
+          : "generated",
+        module: ["coach", "emailing", "editor", "lead_engine"].includes(String(item.module))
+          ? (String(item.module) as CmoModuleTarget["key"])
+          : "coach",
+        moduleLabel: String(item.moduleLabel || "Coach Alex"),
+        missionTitle: String(item.missionTitle || "Mission Cash"),
+        diagnostic: String(item.diagnostic || ""),
+        opportunity: String(item.opportunity || ""),
+        expectedResult: String(item.expectedResult || ""),
+        mistakeToAvoid: String(item.mistakeToAvoid || ""),
+        immediateAction: String(item.immediateAction || ""),
+        cta: String(item.cta || ""),
+      }))
+      .slice(0, 20);
+  } catch {
+    return [];
+  }
+}
+
+function writeMissionCashHistory(history: MissionCashActionRecord[]) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(LGD_MISSION_CASH_HISTORY_KEY, JSON.stringify(history.slice(0, 20)));
+}
+
+function summarizeMissionCashHistory(history: MissionCashActionRecord[]) {
+  const recent = history.slice(0, 6);
+  if (!recent.length) {
+    return "Aucune Mission Cash exécutée récemment.";
+  }
+
+  return recent
+    .map((item) => {
+      const status =
+        item.status === "completed"
+          ? "terminée"
+          : item.status === "started"
+            ? "démarrée"
+            : "générée";
+
+      return [
+        `${item.date} — ${item.missionTitle}`,
+        `Module : ${item.moduleLabel}`,
+        `Statut : ${status}`,
+        item.immediateAction ? `Action suivante : ${item.immediateAction}` : "",
+      ]
+        .filter(Boolean)
+        .join(" | ");
+    })
+    .join("\n");
+}
+
+function buildMissionCashRecord(
+  result: CmoDashboardResult | null,
+  target: CmoModuleTarget,
+  status: MissionCashActionStatus
+): MissionCashActionRecord {
+  const now = new Date().toISOString();
+
+  return {
+    id: createMissionCashActionId(),
+    date: todayISODate(),
+    createdAt: now,
+    updatedAt: now,
+    source: result?.source === "live" ? "live" : "local",
+    status,
+    module: target.key,
+    moduleLabel: target.label,
+    missionTitle: cleanMissionCashText(
+      result?.priority_action,
+      "Lancer Coach Alex pour clarifier ton action la plus rentable."
+    ),
+    diagnostic: missionCashDiagnostic(result),
+    opportunity: missionCashOpportunity(result),
+    expectedResult: missionCashExpectedResult(result),
+    mistakeToAvoid: missionCashMistake(result),
+    immediateAction: cleanMissionCashText(result?.next_best_action, target.label),
+    cta: missionCashCta(result),
+  };
+}
+
+function addMissionCashHistoryRecord(record: MissionCashActionRecord) {
+  const history = readMissionCashHistory();
+  const next = [record, ...history.filter((item) => item.id !== record.id)].slice(0, 20);
+  writeMissionCashHistory(next);
+  return next;
+}
+
+async function patchCoachProfileMissionCashHistory(history: MissionCashActionRecord[]) {
+  const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
+  const token = getStoredToken();
+  if (!token) return;
+
+  try {
+    await fetch(`${base}/coach-profile`, {
+      method: "PATCH",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        profile: {
+          mission_cash_history: history.slice(0, 12),
+          mission_cash_last_action: history[0] || null,
+          mission_cash_last_sync_at: new Date().toISOString(),
+        },
+      }),
+      cache: "no-store",
+    });
+  } catch (error) {
+    console.warn("Mission Cash history sync skipped", error);
+  }
+}
+
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -1020,6 +1188,9 @@ export default function DashboardPage() {
 
   function executeCmoModuleAuto() {
     const target = getCmoModuleTarget(cmoResult, dailyProgress);
+    const actionRecord = buildMissionCashRecord(cmoResult, target, "started");
+    const updatedHistory = addMissionCashHistoryRecord(actionRecord);
+    void patchCoachProfileMissionCashHistory(updatedHistory);
 
     if (typeof window !== "undefined") {
       window.localStorage.setItem(
@@ -1036,6 +1207,7 @@ export default function DashboardPage() {
           why_this_action: cmoResult?.why_this_action || "",
           next_best_action: cmoResult?.next_best_action || "",
           generated_content: cmoResult?.generated_content || {},
+          mission_cash_action: actionRecord,
         })
       );
     }
@@ -1047,6 +1219,22 @@ export default function DashboardPage() {
     if (target.key === "emailing") {
       setDailyProgress((prev) => {
         const updated = { ...prev, email: true };
+        writeDailyProgress(updated);
+        return updated;
+      });
+    }
+
+    if (target.key === "lead_engine") {
+      setDailyProgress((prev) => {
+        const updated = { ...prev, idea: true, offer: true };
+        writeDailyProgress(updated);
+        return updated;
+      });
+    }
+
+    if (target.key === "coach") {
+      setDailyProgress((prev) => {
+        const updated = { ...prev, idea: true };
         writeDailyProgress(updated);
         return updated;
       });
