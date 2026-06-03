@@ -649,11 +649,17 @@ useEffect(() => {
     }
 
     try {
+      const regenerationId = args?.force ? `regen_${Date.now()}_${Math.random().toString(36).slice(2)}` : undefined;
+
       const result = await generateAlexLiveStrategy({
         context,
         today,
         currentMission: today.mission,
         signal: args?.signal,
+        regenerationId,
+        regenerationInstruction: args?.force
+          ? "Régénération manuelle demandée par l'utilisateur : produire une nouvelle lecture stratégique, avec un angle différent, des formulations différentes et des actions renouvelées, sans changer l'objectif business."
+          : undefined,
       });
 
       setLiveStrategy(result);
