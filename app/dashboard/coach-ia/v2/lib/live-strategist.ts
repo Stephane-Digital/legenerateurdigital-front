@@ -122,6 +122,16 @@ function dmKeyword(ctx: AlexContext): string {
   return "PLAN";
 }
 
+
+function variantIndex(seed: string | undefined, total: number): number {
+  if (!seed || total <= 1) return 0;
+  let hash = 0;
+  for (let i = 0; i < seed.length; i += 1) {
+    hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+  }
+  return hash % total;
+}
+
 function fallbackLiveStrategy(payload: AlexLiveStrategistPayload): AlexLiveStrategistResult {
   const ctx = payload.context;
   const mission = payload.currentMission;
@@ -131,22 +141,86 @@ function fallbackLiveStrategy(payload: AlexLiveStrategistPayload): AlexLiveStrat
   const keyword = dmKeyword(ctx);
   const durationMin = mission?.durationMin || (ctx.timePerDay === 30 ? 25 : ctx.timePerDay === 60 ? 45 : 60);
 
-  const title = "Diagnostic stratégique Alex";
-  const diagnostic = `Tu ne dois pas chercher à convaincre tout le monde aujourd’hui. Ta priorité est d’aider une seule personne précise à se reconnaître dans son blocage, puis à voir ${offer} comme une étape simple pour avancer.`;
-  const realBlocker = `Le vrai blocage n’est probablement pas le manque d’informations. Le problème est que ${blockerLabel(ctx)} pendant que ton audience veut ${goalLabel(ctx)}.`;
-  const premiumMission = mission?.objective
-    ? cleanText(mission.objective)
-    : `Créer un message sur ${channel} qui parle à ${audience}, nomme son blocage, puis ouvre une conversation naturelle autour de ${offer}.`;
+  const variant = variantIndex(payload.regenerationId, 4);
 
-  const mistakeToAvoid = "Ne transforme pas cette mission en discours commercial. Ne cherche pas à tout expliquer. Fais simplement ressentir à la bonne personne qu’elle est comprise.";
-  const expectedResult = `Ce soir, tu dois avoir au minimum un message, un post ou une story capable de déclencher une réponse du type : “c’est exactement mon cas”.`;
-
-  const actionSteps = [
-    `Écris une phrase qui commence par : “Tu as déjà essayé, mais...”`,
-    `Ajoute une phrase qui montre que le problème n’est pas la personne, mais l’absence d’un chemin clair.`,
-    `Relie naturellement cette situation à ${offer}, sans promettre de miracle.`,
-    `Termine avec un CTA simple : “DM ${keyword}” ou “commente ${keyword}”.`,
+  const titles = [
+    "Diagnostic stratégique Alex",
+    "Nouvel angle stratégique Alex",
+    "Analyse alternative Alex",
+    "Variation stratégique du jour",
   ];
+
+  const diagnostics = [
+    `Tu ne dois pas chercher à convaincre tout le monde aujourd’hui. Ta priorité est d’aider une seule personne précise à se reconnaître dans son blocage, puis à voir ${offer} comme une étape simple pour avancer.`,
+    `Aujourd’hui, ne pars pas de ton offre. Pars de la tension vécue par ${audience}. Si la personne se sent comprise avant de se sentir vendue, elle sera beaucoup plus ouverte à la conversation.`,
+    `Le bon angle n’est pas de montrer que ${offer} est intéressant. Le bon angle est de montrer à ${audience} qu’il existe une prochaine étape plus simple que ce qu’elle a déjà essayé.`,
+    `Ta priorité n’est pas de produire plus de contenu. Ta priorité est de créer un message assez précis pour que la bonne personne se dise : “il parle de moi”.`,
+  ];
+
+  const blockers = [
+    `Le vrai blocage n’est probablement pas le manque d’informations. Le problème est que ${blockerLabel(ctx)} pendant que ton audience veut ${goalLabel(ctx)}.`,
+    `Le vrai frein est la confusion entre informer et déclencher une décision. Ton audience ne veut pas plus d’explications : elle veut comprendre quelle action simple faire maintenant.`,
+    `Le blocage vient souvent du fait que la personne a déjà essayé, mais sans obtenir de preuve qu’elle avance. Elle a donc besoin d’un signal rassurant avant une proposition.`,
+    `Ce qui bloque n’est pas forcément l’offre. C’est le niveau de confiance avant l’offre : la personne doit d’abord sentir qu’elle n’est pas seule dans son problème.`,
+  ];
+
+  const missions = [
+    mission?.objective
+      ? cleanText(mission.objective)
+      : `Créer un message sur ${channel} qui parle à ${audience}, nomme son blocage, puis ouvre une conversation naturelle autour de ${offer}.`,
+    `Créer un contenu court sur ${channel} qui commence par le vécu réel de ${audience}, puis propose ${offer} comme une étape simple, sans pression.`,
+    `Transformer la mission du jour en message de réassurance : montrer à ${audience} que son manque de résultat ne signifie pas qu’elle est incapable.`,
+    `Faire émerger une conversation qualifiée avec une personne précise, en utilisant ${offer} comme solution possible seulement après avoir nommé son problème.`,
+  ];
+
+  const mistakes = [
+    "Ne transforme pas cette mission en discours commercial. Ne cherche pas à tout expliquer. Fais simplement ressentir à la bonne personne qu’elle est comprise.",
+    "Ne commence pas par les caractéristiques de ton offre. Commence par la situation que ton prospect vit réellement aujourd’hui.",
+    "Ne cherche pas à convaincre avec trop d’arguments. Un message précis et humain vaut mieux qu’une longue démonstration.",
+    "Ne parle pas à tout le monde. Plus ton message est large, moins la bonne personne se sent concernée.",
+  ];
+
+  const expectedResults = [
+    `Ce soir, tu dois avoir au minimum un message, un post ou une story capable de déclencher une réponse du type : “c’est exactement mon cas”.`,
+    `Ce soir, tu dois avoir une accroche claire et une conversation potentielle ouverte avec au moins une personne concernée.`,
+    `Ce soir, ton objectif n’est pas forcément de vendre : c’est d’obtenir un signal d’intérêt clair, commentaire, DM ou réponse story.`,
+    `Ce soir, tu dois avoir créé une passerelle entre le problème de ton audience et ${offer}, sans forcer la vente.`,
+  ];
+
+  const actionVariants = [
+    [
+      `Écris une phrase qui commence par : “Tu as déjà essayé, mais...”`,
+      `Ajoute une phrase qui montre que le problème n’est pas la personne, mais l’absence d’un chemin clair.`,
+      `Relie naturellement cette situation à ${offer}, sans promettre de miracle.`,
+      `Termine avec un CTA simple : “DM ${keyword}” ou “commente ${keyword}”.`,
+    ],
+    [
+      `Note 3 phrases que ${audience} pourrait se dire quand rien ne fonctionne.`,
+      `Transforme la meilleure phrase en accroche de post ou de story.`,
+      `Ajoute une micro-solution liée à ${offer}.`,
+      `Termine par : “tu veux que je te montre l’étape suivante ? DM ${keyword}”.`,
+    ],
+    [
+      `Choisis un problème précis que ${audience} vit aujourd’hui.`,
+      `Écris un message qui rassure avant de proposer quoi que ce soit.`,
+      `Ajoute une preuve simple ou une logique claire, même sans gros résultat.`,
+      `Invite à répondre avec le mot ${keyword}, sans lien direct ni pression.`,
+    ],
+    [
+      `Identifie une personne ou un profil qui ressemble à ton client idéal.`,
+      `Écris un contenu comme si tu lui parlais directement.`,
+      `Supprime toute phrase générique qui pourrait s’adresser à tout le monde.`,
+      `Garde une seule action finale : répondre, commenter ou DM ${keyword}.`,
+    ],
+  ];
+
+  const title = titles[variant];
+  const diagnostic = diagnostics[variant];
+  const realBlocker = blockers[variant];
+  const premiumMission = missions[variant];
+  const mistakeToAvoid = mistakes[variant];
+  const expectedResult = expectedResults[variant];
+  const actionSteps = actionVariants[variant];
 
   return {
     mode: "fallback",
