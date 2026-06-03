@@ -834,6 +834,53 @@ function getRandomLocalCmoAction() {
 }
 
 
+function cleanMissionCashText(value?: string, fallback = "") {
+  const text = String(value || "")
+    .replace(/\*\*/g, "")
+    .replace(/\s+\n/g, "\n")
+    .replace(/\n\s+/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  return text || fallback;
+}
+
+function missionCashDiagnostic(result: CmoDashboardResult | null) {
+  return cleanMissionCashText(
+    result?.diagnostic,
+    "Alex n’a pas encore assez de contexte pour poser un diagnostic précis. Lance une analyse IA Live ou complète Coach Alex pour obtenir une Mission Cash vraiment personnalisée."
+  );
+}
+
+function missionCashOpportunity(result: CmoDashboardResult | null) {
+  return cleanMissionCashText(
+    result?.why_this_action,
+    "L’opportunité du jour est de transformer une intention en action visible : un message, un contenu, un email ou une relance capable de créer une réponse concrète."
+  );
+}
+
+function missionCashExpectedResult(result: CmoDashboardResult | null) {
+  return cleanMissionCashText(
+    result?.next_best_action,
+    "Obtenir au moins un signal mesurable aujourd’hui : réponse, commentaire, DM, clic, email préparé ou prospect relancé."
+  );
+}
+
+function missionCashMistake(result: CmoDashboardResult | null) {
+  return cleanMissionCashText(
+    result?.risk_to_avoid,
+    "Ne transforme pas cette action en grand chantier. Une Mission Cash doit rester courte, concrète et exécutable aujourd’hui."
+  );
+}
+
+function missionCashCta(result: CmoDashboardResult | null) {
+  return cleanMissionCashText(
+    result?.generated_content?.cta,
+    "Passer à l’action maintenant"
+  );
+}
+
+
 export default function DashboardPage() {
   const router = useRouter();
 
@@ -1130,7 +1177,7 @@ export default function DashboardPage() {
                       >
                         <span className="inline-flex items-center gap-2">
                           {cmoLoading ? <FaSyncAlt className="animate-spin" /> : null}
-                          Autre proposition locale
+                          Nouvelle mission locale
                         </span>
                       </button>
                     </div>
@@ -1139,25 +1186,32 @@ export default function DashboardPage() {
                       <div className="mt-5 rounded-2xl border border-yellow-400/20 bg-yellow-400/10 px-4 py-3 text-sm font-semibold text-yellow-100">
                         <span className="inline-flex items-center gap-3">
                           <FaSyncAlt className="animate-spin text-yellow-300" />
-                          Le Stratège IA Live analyse ton activité et prépare une nouvelle recommandation personnalisée...
+                          Le Stratège IA Live analyse ton activité et prépare une Mission Cash plus rentable et plus contextualisée...
                         </span>
                       </div>
-                    ) : cmoResult?.diagnostic ? (
-                      <p className="mt-5 text-sm leading-7 text-white/72">
-                        {cmoResult.diagnostic}
-                      </p>
                     ) : (
-                      <p className="mt-5 text-sm leading-7 text-white/60">
-                        Une Mission Cash du Jour est proposée automatiquement à chaque chargement.
-                      </p>
-                    )}
+                      <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <div className="rounded-2xl border border-yellow-600/15 bg-[#0b0b0b] px-4 py-3">
+                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-yellow-300/80">Diagnostic rapide</p>
+                          <p className="mt-2 text-sm leading-6 text-white/72">{missionCashDiagnostic(cmoResult)}</p>
+                        </div>
 
-                    {cmoResult?.why_this_action ? (
-                      <div className="mt-5 rounded-2xl border border-yellow-600/15 bg-[#0b0b0b] px-4 py-3">
-                        <p className="text-xs uppercase tracking-[0.18em] text-white/45">Pourquoi cette action</p>
-                        <p className="mt-2 text-sm leading-6 text-white/70">{cmoResult.why_this_action}</p>
+                        <div className="rounded-2xl border border-yellow-600/15 bg-[#0b0b0b] px-4 py-3">
+                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-yellow-300/80">Opportunité du jour</p>
+                          <p className="mt-2 text-sm leading-6 text-white/72">{missionCashOpportunity(cmoResult)}</p>
+                        </div>
+
+                        <div className="rounded-2xl border border-yellow-600/15 bg-[#0b0b0b] px-4 py-3">
+                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-yellow-300/80">Résultat attendu</p>
+                          <p className="mt-2 text-sm leading-6 text-white/72">{missionCashExpectedResult(cmoResult)}</p>
+                        </div>
+
+                        <div className="rounded-2xl border border-yellow-600/15 bg-[#0b0b0b] px-4 py-3">
+                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-yellow-300/80">Erreur à éviter</p>
+                          <p className="mt-2 text-sm leading-6 text-white/72">{missionCashMistake(cmoResult)}</p>
+                        </div>
                       </div>
-                    ) : null}
+                    )}
 
                     {cmoError ? (
                       <p className="mt-4 text-sm text-red-300">{cmoError}</p>
@@ -1171,7 +1225,7 @@ export default function DashboardPage() {
 
                     {cmoResult?.next_best_action ? (
                       <div className="mt-4 rounded-2xl border border-yellow-600/15 bg-black/35 px-4 py-3">
-                        <p className="text-xs uppercase tracking-[0.18em] text-white/45">Prochaine meilleure action</p>
+                        <p className="text-xs uppercase tracking-[0.18em] text-white/45">Action immédiate</p>
                         <p className="mt-2 text-sm font-semibold leading-6 text-yellow-100">{cmoResult.next_best_action}</p>
                       </div>
                     ) : (
@@ -1191,7 +1245,7 @@ export default function DashboardPage() {
                         disabled={cmoLoading}
                         className="w-full rounded-2xl px-5 py-3 text-center font-semibold border border-yellow-600/25 bg-[#0b0b0b] text-white/85 hover:bg-yellow-500/10 transition-all disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        {cmoLoading ? "Analyse IA Live en cours..." : "🟢 Nouvelle analyse IA Live"}
+                        {cmoLoading ? "Analyse IA Live en cours..." : "🧠 Analyse stratégique IA Live"}
                       </button>
 
                     </div>
@@ -1204,12 +1258,10 @@ export default function DashboardPage() {
                     </p>
 
 
-                    {cmoResult?.generated_content?.cta ? (
-                      <div className="mt-5 rounded-2xl border border-yellow-600/15 bg-black/35 px-4 py-3">
-                        <p className="text-xs uppercase tracking-[0.18em] text-white/45">CTA conseillé</p>
-                        <p className="mt-2 text-sm font-semibold text-yellow-100">{cmoResult.generated_content.cta}</p>
-                      </div>
-                    ) : null}
+                    <div className="mt-5 rounded-2xl border border-yellow-600/15 bg-black/35 px-4 py-3">
+                      <p className="text-xs uppercase tracking-[0.18em] text-white/45">CTA conseillé</p>
+                      <p className="mt-2 text-sm font-semibold text-yellow-100">{missionCashCta(cmoResult)}</p>
+                    </div>
                   </div>
                 </div>
 
