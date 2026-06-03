@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import CardLuxe from "@/components/ui/CardLuxe";
-import LeadEngineBlock from "./components/LeadEngineBlock";
 
 // Icons (react-icons/fa)
 import {
@@ -1145,172 +1144,6 @@ function syncDailyProgressFromRealActions(progress: DailyProgress): DailyProgres
   };
 }
 
-type BusinessJournalSummary = {
-  totalActions: number;
-  contentCreated: number;
-  emailsGenerated: number;
-  leadMagnetsCreated: number;
-  missionsCompleted: number;
-  recentActions: RealActionRecord[];
-  insightTitle: string;
-  insightText: string;
-  nextPriority: string;
-};
-
-function getCurrentWeekStartISO() {
-  const now = new Date();
-  const day = now.getDay() || 7;
-  const monday = new Date(now);
-  monday.setHours(0, 0, 0, 0);
-  monday.setDate(now.getDate() - day + 1);
-  return monday.toISOString().slice(0, 10);
-}
-
-function isSameOrAfterISO(date: string, minDate: string) {
-  return String(date || "") >= minDate;
-}
-
-function buildBusinessJournalSummary(
-  actions: RealActionRecord[],
-  missions: MissionCashActionRecord[]
-): BusinessJournalSummary {
-  const weekStart = getCurrentWeekStartISO();
-  const weekActions = actions.filter((item) => isSameOrAfterISO(item.date, weekStart));
-  const weekMissions = missions.filter((item) => isSameOrAfterISO(item.date, weekStart));
-
-  const contentCreated = weekActions.filter((item) => item.module === "editor").length;
-  const emailsGenerated = weekActions.filter((item) => item.module === "emailing").length;
-  const leadMagnetsCreated = weekActions.filter((item) => item.module === "lead_engine").length;
-  const missionsCompleted =
-    weekMissions.filter((item) => item.status === "completed").length ||
-    weekActions.filter((item) => item.missionCashActionId).length;
-
-  let insightTitle = "Premiers signaux détectés";
-  let insightText =
-    "LGD commence à mémoriser tes actions réelles. Plus tu exécutes dans les modules, plus Mission Cash pourra proposer l’étape utile au bon moment.";
-  let nextPriority = "Exécuter une première action complète dans un module LGD.";
-
-  if (contentCreated >= 3 && emailsGenerated === 0) {
-    insightTitle = "Tu crées, maintenant il faut convertir";
-    insightText =
-      "Cette semaine, tu as surtout avancé côté contenu. Le prochain levier n’est pas de produire encore plus, mais de transformer cette attention en conversation ou en relance.";
-    nextPriority = "Créer une relance email ou un DM de suivi pour les personnes intéressées.";
-  } else if (emailsGenerated >= 2 && contentCreated === 0) {
-    insightTitle = "Bonne dynamique email";
-    insightText =
-      "Tu as déjà travaillé la relance et la conversion. Il manque maintenant une source d’attention régulière pour alimenter ces campagnes.";
-    nextPriority = "Créer un post ou carrousel qui amène vers cette campagne.";
-  } else if (leadMagnetsCreated >= 1 && emailsGenerated === 0) {
-    insightTitle = "Actif de capture créé";
-    insightText =
-      "Tu as posé une base de conversion avec un lead magnet. Le prochain mouvement logique est de préparer la séquence qui transforme ces contacts en prospects chauds.";
-    nextPriority = "Créer la séquence email associée au lead magnet.";
-  } else if (contentCreated > 0 && emailsGenerated > 0 && leadMagnetsCreated > 0) {
-    insightTitle = "Système business en construction";
-    insightText =
-      "Tu as touché les trois leviers : attraction, capture et relance. La priorité devient maintenant le suivi commercial et l’optimisation de ce qui fonctionne.";
-    nextPriority = "Analyser les réponses, commentaires ou clics puis relancer les prospects les plus chauds.";
-  } else if (weekActions.length > 0) {
-    insightTitle = "Momentum en cours";
-    insightText =
-      "LGD détecte déjà des actions réelles cette semaine. Continue à enchaîner une action courte par jour pour créer un vrai rythme d’exécution.";
-    nextPriority = "Lancer une nouvelle Mission Cash IA pour choisir l’étape suivante.";
-  }
-
-  return {
-    totalActions: weekActions.length,
-    contentCreated,
-    emailsGenerated,
-    leadMagnetsCreated,
-    missionsCompleted,
-    recentActions: actions.slice(0, 4),
-    insightTitle,
-    insightText,
-    nextPriority,
-  };
-}
-
-function BusinessJournalMetric({
-  value,
-  label,
-}: {
-  value: number;
-  label: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-yellow-600/15 bg-[#0b0b0b] px-4 py-4 text-center">
-      <div className="text-2xl font-extrabold text-yellow-300">{value}</div>
-      <div className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-white/50">{label}</div>
-    </div>
-  );
-}
-
-function BusinessJournalCard({ summary }: { summary: BusinessJournalSummary }) {
-  return (
-    <div className="mt-7 w-full border-t border-yellow-600/15 pt-6">
-      <div className="rounded-[28px] border border-yellow-600/20 bg-gradient-to-br from-[#101010] via-[#090909] to-[#15110a] p-5 text-left shadow-[0_0_42px_rgba(255,184,0,0.07)]">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-4 py-1 text-[12px] text-white/75">
-              <FaBolt className="text-yellow-300" />
-              Journal Business IA
-            </div>
-            <h3 className="mt-4 text-2xl font-extrabold text-[#ffb800]">
-              📈 Tes vraies actions de la semaine
-            </h3>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">
-              LGD ne se contente plus de générer des idées : il mémorise ce que tu exécutes réellement pour orienter les prochaines missions.
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-yellow-600/15 bg-black/35 px-4 py-3 text-sm text-yellow-100">
-            <span className="font-bold">{summary.totalActions}</span> action{summary.totalActions > 1 ? "s" : ""} détectée{summary.totalActions > 1 ? "s" : ""} cette semaine
-          </div>
-        </div>
-
-        <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <BusinessJournalMetric value={summary.contentCreated} label="Contenus" />
-          <BusinessJournalMetric value={summary.emailsGenerated} label="Emails" />
-          <BusinessJournalMetric value={summary.leadMagnetsCreated} label="Lead magnets" />
-          <BusinessJournalMetric value={summary.missionsCompleted} label="Missions finies" />
-        </div>
-
-        <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_0.9fr]">
-          <div className="rounded-2xl border border-yellow-600/15 bg-black/35 px-4 py-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-yellow-300/80">Analyse IA locale</p>
-            <p className="mt-2 text-base font-bold text-yellow-100">{summary.insightTitle}</p>
-            <p className="mt-2 text-sm leading-6 text-white/70">{summary.insightText}</p>
-            <div className="mt-4 rounded-2xl border border-yellow-600/15 bg-[#0b0b0b] px-4 py-3">
-              <p className="text-xs uppercase tracking-[0.18em] text-white/45">Priorité conseillée</p>
-              <p className="mt-2 text-sm font-semibold leading-6 text-yellow-100">{summary.nextPriority}</p>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-yellow-600/15 bg-black/35 px-4 py-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-yellow-300/80">Dernières actions détectées</p>
-            {summary.recentActions.length ? (
-              <div className="mt-3 space-y-3">
-                {summary.recentActions.map((action) => (
-                  <div key={action.id} className="rounded-2xl border border-yellow-600/10 bg-[#0b0b0b] px-4 py-3">
-                    <p className="text-sm font-semibold text-white/85">{action.label || action.title}</p>
-                    <p className="mt-1 text-xs text-white/45">
-                      {action.date} • {action.module === "lead_engine" ? "Lead Engine" : action.module === "emailing" ? "Emailing IA" : action.module === "editor" ? "Éditeur" : action.module}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="mt-3 text-sm leading-6 text-white/55">
-                Aucune action réelle détectée pour le moment. Lance une Mission Cash, exécute-la dans un module, puis reviens ici.
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function buildMissionCashRecord(
   result: CmoDashboardResult | null,
   target: CmoModuleTarget,
@@ -1446,13 +1279,7 @@ export default function DashboardPage() {
 
   const cmoModuleTarget = useMemo(() => getCmoModuleTarget(cmoResult, dailyProgress), [cmoResult, dailyProgress]);
 
-  const businessJournalSummary = useMemo(
-    () => buildBusinessJournalSummary(readRealActionsHistory(), readMissionCashHistory()),
-    [dailyProgress, cmoResult]
-  );
 
-  const iconGlow =
-    "text-4xl text-[#ffb800] drop-shadow-[0_0_12px_rgba(255,184,0,0.35)]";
 
   function openModal(key: ModalKey) {
     setActiveModal(key);
@@ -1601,9 +1428,16 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-[#050505] text-white">
+      <style jsx global>{`
+        body > header,
+        body > nav,
+        #__next > header {
+          display: none !important;
+        }
+      `}</style>
       <div className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(circle_at_top_right,rgba(255,184,0,0.10),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(255,184,0,0.07),transparent_32%)]" />
 
-      <aside className="fixed left-4 top-[96px] z-30 hidden h-[calc(100vh-112px)] w-[280px] flex-col rounded-[30px] border border-yellow-600/20 bg-[#070707]/95 p-5 shadow-[0_0_55px_rgba(255,184,0,0.08)] backdrop-blur-xl lg:flex">
+      <aside className="fixed left-4 top-4 z-30 hidden h-[calc(100vh-32px)] w-[280px] flex-col rounded-[30px] border border-yellow-600/20 bg-[#070707]/95 p-5 shadow-[0_0_55px_rgba(255,184,0,0.08)] backdrop-blur-xl lg:flex">
         <div className="rounded-3xl border border-yellow-600/20 bg-gradient-to-br from-[#111] to-[#070707] p-4">
           <div className="text-xs font-semibold uppercase tracking-[0.25em] text-white/45">Le Générateur Digital</div>
           <div className="mt-2 text-3xl font-black tracking-tight text-yellow-400">LGD</div>
@@ -1669,61 +1503,77 @@ export default function DashboardPage() {
         ) : null}
       </div>
 
-      <main className="relative z-10 px-4 pb-16 pt-[120px] sm:px-6 lg:pl-[320px] lg:pr-8">
+      <main className="relative z-10 px-4 pb-16 pt-6 sm:px-6 lg:pl-[320px] lg:pr-8">
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35 }}
           className="mx-auto max-w-[1200px] text-center"
         >
-          <div className="rounded-[34px] border border-yellow-600/20 bg-gradient-to-br from-[#101010] via-[#070707] to-[#15110a] px-5 py-8 shadow-[0_0_70px_rgba(255,184,0,0.10)] sm:px-8 sm:py-10">
-            <div className="inline-flex items-center gap-2 rounded-full border border-green-400/20 bg-green-400/10 px-4 py-1 text-[12px] font-semibold text-green-200">
-              <span className="h-2 w-2 rounded-full bg-green-400 shadow-[0_0_12px_rgba(74,222,128,0.8)]" />
-              IA Business Active
-            </div>
+          <div className="overflow-hidden rounded-[34px] border border-yellow-600/20 bg-gradient-to-br from-[#101010] via-[#070707] to-[#15110a] px-5 py-6 text-left shadow-[0_0_70px_rgba(255,184,0,0.10)] sm:px-8 sm:py-8">
+            <div className="grid grid-cols-1 gap-7 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
+              <div className="text-center lg:text-left">
+                <div className="inline-flex items-center gap-2 rounded-full border border-green-400/20 bg-green-400/10 px-4 py-1 text-[12px] font-semibold text-green-200">
+                  <span className="h-2 w-2 rounded-full bg-green-400 shadow-[0_0_12px_rgba(74,222,128,0.8)]" />
+                  IA Business Active
+                </div>
 
-            <h1 className="mt-5 text-3xl font-black tracking-tight text-yellow-400 sm:text-5xl">
-              Le Générateur Digital
-            </h1>
-            <p className="mx-auto mt-3 max-w-3xl text-base leading-7 text-white/72 sm:text-lg">
-              Ton IA Business analyse ton activité, détecte la prochaine action rentable et t'oriente vers le bon module pour passer à l'exécution.
-            </p>
+                <h1 className="mt-5 text-3xl font-black tracking-tight text-yellow-400 sm:text-5xl">
+                  Le Générateur Digital
+                </h1>
 
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-              <Pill>
-                <FaBolt className="text-yellow-300" />
-                Mission du jour prête
-              </Pill>
-              <Pill>
-                <FaRobot className="text-yellow-300" />
-                Actions réelles mémorisées
-              </Pill>
-              <button
-                type="button"
-                onClick={openAffiliationProgram}
-                className="inline-flex items-center gap-2 rounded-full border border-yellow-500/25 bg-yellow-500/10 px-4 py-1 text-[12px] font-semibold text-yellow-100 transition hover:bg-yellow-500/15"
-              >
-                💰 Programme Ambassadeur LGD
-              </button>
-            </div>
+                <p className="mt-4 max-w-2xl text-base leading-7 text-white/76 sm:text-lg lg:mx-0">
+                  LGD ne t'apprend pas seulement le marketing digital. Il analyse ton activité,
+                  détecte la prochaine action rentable et t'oriente vers le bon module pour passer à l'exécution.
+                </p>
 
-            {isLoggedIn ? (
-              <div className="mt-5 text-[14px] text-white/80">
-                {loadingPlan ? (
-                  <span className="inline-flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full bg-yellow-400 animate-pulse" />
-                    Vérification du plan…
-                  </span>
-                ) : (
-                  <span>
-                    Plan actuel :{" "}
-                    <span className="font-semibold text-yellow-200">
-                      {planLabel(plan)}
-                    </span>
-                  </span>
-                )}
+                <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3 lg:max-w-2xl">
+                  <div className="rounded-2xl border border-yellow-600/15 bg-black/35 px-4 py-3 text-center lg:text-left">
+                    <p className="text-xs uppercase tracking-[0.18em] text-white/45">Analyse</p>
+                    <p className="mt-1 text-sm font-semibold text-yellow-100">Activité suivie</p>
+                  </div>
+                  <div className="rounded-2xl border border-yellow-600/15 bg-black/35 px-4 py-3 text-center lg:text-left">
+                    <p className="text-xs uppercase tracking-[0.18em] text-white/45">Action</p>
+                    <p className="mt-1 text-sm font-semibold text-yellow-100">Mission prête</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={openAffiliationProgram}
+                    className="rounded-2xl border border-yellow-500/25 bg-yellow-500/10 px-4 py-3 text-center transition hover:bg-yellow-500/15 lg:text-left"
+                  >
+                    <p className="text-xs uppercase tracking-[0.18em] text-white/45">Affiliation</p>
+                    <p className="mt-1 text-sm font-semibold text-yellow-100">Ambassadeur LGD</p>
+                  </button>
+                </div>
+
+                {isLoggedIn ? (
+                  <div className="mt-5 text-[14px] text-white/80">
+                    {loadingPlan ? (
+                      <span className="inline-flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-yellow-400 animate-pulse" />
+                        Vérification du plan…
+                      </span>
+                    ) : (
+                      <span>
+                        Plan actuel :{" "}
+                        <span className="font-semibold text-yellow-200">
+                          {planLabel(plan)}
+                        </span>
+                      </span>
+                    )}
+                  </div>
+                ) : null}
               </div>
-            ) : null}
+
+              <div className="relative mx-auto w-full max-w-[520px]">
+                <div className="absolute -inset-5 rounded-[34px] bg-yellow-500/10 blur-3xl" />
+                <img
+                  src="/lgd-hero-business-active.svg"
+                  alt="Illustration premium LGD IA Business Active"
+                  className="relative w-full rounded-[30px] border border-yellow-600/20 bg-black/35 shadow-[0_0_48px_rgba(255,184,0,0.12)]"
+                />
+              </div>
+            </div>
           </div>
         </motion.div>
 
@@ -1894,8 +1744,6 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 </div>
-
-                <BusinessJournalCard summary={businessJournalSummary} />
               </div>
             </div>
           </motion.div>
@@ -1990,80 +1838,6 @@ export default function DashboardPage() {
             </div>
           </motion.div>
         )}
-
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.1, duration: 0.3 }}
-          className="max-w-6xl mx-auto mt-12"
-        >
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-<CardLuxe className="min-h-[230px] flex flex-col items-center justify-between px-6 py-6 text-center">
-              <div className="flex flex-col items-center">
-                <FaUserAstronaut className={iconGlow} />
-                <h3 className="mt-3 text-xl font-bold text-[#ffb800]">
-                  Coach Alex V2
-                </h3>
-                <p className="mt-2 text-white/70 max-w-[420px]">
-                  Ton plan d’action quotidien pour générer ta première vente puis scaler. L’IA te guide, tu exécutes.
-                </p>
-                {!hasPaidAccess ? <div className="mt-3"><LockBadge /></div> : null}
-              </div>
-
-              <div className="w-full mt-6">
-                <SecondaryButton onClick={() => accessOrExplain("coach")}>
-                  {hasPaidAccess ? "Accéder" : "Découvrir"}
-                </SecondaryButton>
-              </div>
-            </CardLuxe>
-
-            <CardLuxe className="min-h-[230px] flex flex-col items-center justify-between px-6 py-6 text-center">
-              <div className="flex flex-col items-center">
-                <FaRobot className={iconGlow} />
-                <h3 className="mt-3 text-xl font-bold text-[#ffb800]">
-                  Éditeur Intelligent
-                </h3>
-                <p className="mt-2 text-white/70 max-w-[420px]">
-                  Transforme une idée en contenu qui attire, engage et vend. Post + Carrousel optimisés conversion.
-                </p>
-                {!hasPaidAccess ? <div className="mt-3"><LockBadge /></div> : null}
-              </div>
-
-              <div className="w-full mt-6">
-                <SecondaryButton
-                  onClick={() => accessOrExplain("editor")}
-                >
-                  {hasPaidAccess ? "Accéder" : "Découvrir"}
-                </SecondaryButton>
-              </div>
-            </CardLuxe>
-
-            <CardLuxe className="min-h-[230px] flex flex-col items-center justify-between px-6 py-6 text-center">
-              <div className="flex flex-col items-center">
-                <FaEnvelope className={iconGlow} />
-                <h3 className="mt-3 text-xl font-bold text-[#ffb800]">
-                  Campagnes E-mailing IA
-                </h3>
-                <p className="mt-2 text-white/70 max-w-[420px]">
-                  Transforme ton audience en prospects puis en clients avec des séquences email prêtes à vendre.
-                </p>
-                {!hasPaidAccess ? (
-                  <div className="mt-3">
-                    <LockBadge />
-                  </div>
-                ) : null}
-              </div>
-
-              <div className="w-full mt-6">
-                <SecondaryButton onClick={() => accessOrExplain("emailing")}>
-                  {hasPaidAccess ? "Accéder" : "Découvrir"}
-                </SecondaryButton>
-              </div>
-            </CardLuxe>
-
-            <LeadEngineBlock onDiscover={() => (hasPaidAccess ? go("/dashboard/lead-engine") : openModal("lead_engine"))} />
-          </div>
-        </motion.div>
 
       </main>
 
