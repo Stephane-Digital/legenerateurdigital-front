@@ -35,6 +35,8 @@ type ModalKey =
   | "funnel"
   | "lead_engine";
 
+type DashboardWorkspace = "home" | "activity";
+
 type DailyProgress = {
   idea: boolean;
   content: boolean;
@@ -738,7 +740,7 @@ function ProgressItem({
       type="button"
       onClick={onClick}
       className={[
-        "flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-all",
+        "flex items-center gap-3 rounded-2xl border px-4 py-2.5 text-left transition-all",
         "hover:-translate-y-0.5",
         done
           ? "border-yellow-500/30 bg-yellow-500/10 text-white"
@@ -1373,6 +1375,173 @@ async function patchCoachProfileMissionCashHistory(history: MissionCashActionRec
 }
 
 
+
+function ActivityProgressWorkspace({
+  dailyProgress,
+  summary,
+  missions,
+  onOpenCoach,
+}: {
+  dailyProgress: DailyProgress;
+  summary: BusinessJournalSummary;
+  missions: MissionCashActionRecord[];
+  onOpenCoach: () => void;
+}) {
+  const completedToday = [
+    dailyProgress.idea,
+    dailyProgress.content,
+    dailyProgress.email,
+    dailyProgress.offer,
+  ].filter(Boolean).length;
+
+  const coachDays = Array.from({ length: 7 }, (_, index) => {
+    const mission = missions[index];
+    const done = Boolean(mission?.status === "completed" || index < Math.min(summary.missionsCompleted, 7));
+    return {
+      day: index + 1,
+      label: mission?.missionTitle || `Mission Coach Alex J${index + 1}`,
+      done,
+    };
+  });
+
+  const productivity = Math.min(100, Math.round(((summary.totalActions + completedToday) / 8) * 100));
+  const assiduity = Math.min(100, Math.round((coachDays.filter((item) => item.done).length / 7) * 100));
+  const execution = Math.min(100, Math.round((completedToday / 4) * 100));
+
+  const bars = [
+    { label: "Productivité", value: productivity, color: "from-green-400 to-emerald-500" },
+    { label: "Assiduité", value: assiduity, color: "from-yellow-300 to-yellow-500" },
+    { label: "Exécution du jour", value: execution, color: "from-blue-400 to-cyan-400" },
+  ];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.06, duration: 0.32 }}
+      className="mx-auto mt-10 w-full max-w-[1200px] px-4"
+    >
+      <div className="rounded-[32px] border border-yellow-600/25 bg-gradient-to-br from-[#101010] via-[#090909] to-[#15110a] p-6 shadow-[0_0_70px_rgba(255,184,0,0.10)] sm:p-10">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-4 py-1 text-[12px] font-semibold text-yellow-100">
+              📊 Activité Progression
+            </div>
+            <h2 className="mt-4 text-3xl font-black text-[#ffb800] sm:text-4xl">
+              Tableau de progression Business IA
+            </h2>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-white/65 sm:text-base">
+              Suis tes missions Coach Alex, ton rythme d’exécution Mission Cash et ta dynamique business sur 7 jours.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onOpenCoach}
+            className="rounded-2xl border border-yellow-500/25 bg-yellow-500/10 px-5 py-3 text-sm font-black text-yellow-100 transition hover:-translate-y-0.5 hover:bg-yellow-500/15"
+          >
+            Ouvrir Coach Alex
+          </button>
+        </div>
+
+        <div className="mt-8 grid grid-cols-1 gap-5 lg:grid-cols-[1fr_0.85fr]">
+          <div className="rounded-[28px] border border-yellow-600/20 bg-black/35 p-5">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-yellow-300/80">
+                  Coach Alex IA
+                </p>
+                <h3 className="mt-2 text-xl font-black text-white">
+                  Progression 7 jours
+                </h3>
+              </div>
+              <div className="rounded-full border border-green-400/20 bg-green-400/10 px-4 py-2 text-sm font-bold text-green-100">
+                {coachDays.filter((item) => item.done).length}/7 missions
+              </div>
+            </div>
+
+            <div className="mt-5 grid gap-3">
+              {coachDays.map((item) => (
+                <div
+                  key={item.day}
+                  className={[
+                    "flex items-center gap-3 rounded-2xl border px-4 py-3",
+                    item.done
+                      ? "border-green-400/25 bg-green-400/10"
+                      : "border-yellow-600/12 bg-[#080808]",
+                  ].join(" ")}
+                >
+                  <div
+                    className={[
+                      "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-black",
+                      item.done ? "bg-green-400 text-black" : "bg-white/10 text-white/45",
+                    ].join(" ")}
+                  >
+                    {item.day}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-white/90">{item.label}</p>
+                    <p className={["mt-0.5 text-xs", item.done ? "text-green-200" : "text-white/40"].join(" ")}>
+                      {item.done ? "Mission accomplie" : "À compléter"}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-[28px] border border-yellow-600/20 bg-black/35 p-5">
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-yellow-300/80">
+              Mission Cash IA
+            </p>
+            <h3 className="mt-2 text-xl font-black text-white">
+              Activité & productivité
+            </h3>
+
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <div className="rounded-2xl border border-yellow-600/15 bg-[#080808] p-4 text-center">
+                <div className="text-3xl font-black text-yellow-300">{summary.totalActions}</div>
+                <div className="mt-1 text-xs uppercase tracking-[0.15em] text-white/45">actions</div>
+              </div>
+              <div className="rounded-2xl border border-yellow-600/15 bg-[#080808] p-4 text-center">
+                <div className="text-3xl font-black text-green-300">{completedToday}/4</div>
+                <div className="mt-1 text-xs uppercase tracking-[0.15em] text-white/45">jour</div>
+              </div>
+            </div>
+
+            <div className="mt-6 space-y-5">
+              {bars.map((bar) => (
+                <div key={bar.label}>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-bold text-white/80">{bar.label}</span>
+                    <span className="font-black text-yellow-100">{bar.value}%</span>
+                  </div>
+                  <div className="mt-2 h-3 overflow-hidden rounded-full bg-white/8">
+                    <div
+                      className={`h-full rounded-full bg-gradient-to-r ${bar.color}`}
+                      style={{ width: `${bar.value}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-6 rounded-2xl border border-yellow-600/15 bg-[#080808] p-4">
+              <p className="text-xs uppercase tracking-[0.18em] text-white/45">Analyse IA</p>
+              <p className="mt-2 text-sm font-semibold leading-6 text-yellow-100">
+                {summary.insightTitle}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-white/60">
+                {summary.nextPriority}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 export default function DashboardPage() {
   const router = useRouter();
 
@@ -1387,6 +1556,7 @@ export default function DashboardPage() {
   const [cmoError, setCmoError] = useState<string | null>(null);
   const [aiQuota, setAiQuota] = useState<AiQuotaSnapshot | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [activeWorkspace, setActiveWorkspace] = useState<DashboardWorkspace>("home");
 
   useEffect(() => {
     let cancelled = false;
@@ -1629,53 +1799,44 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-[#050505] text-white">
       <div className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(circle_at_top_right,rgba(255,184,0,0.10),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(255,184,0,0.07),transparent_32%)]" />
 
-      <div className="fixed left-0 right-0 top-0 z-[2147483645] h-[62px] bg-[#050505]" />
-
-      <aside className="fixed left-4 top-4 z-[2147483646] hidden h-[calc(100vh-32px)] w-[280px] flex-col overflow-y-auto rounded-[30px] border border-yellow-600/20 bg-[#070707]/95 p-5 shadow-[0_0_55px_rgba(255,184,0,0.08)] backdrop-blur-xl lg:flex">
-        <nav className="grid gap-2 text-sm">
-          <button type="button" onClick={() => go('/dashboard')} className="rounded-2xl border border-yellow-600/15 bg-yellow-500/10 px-4 py-3 text-left font-semibold text-yellow-100 transition hover:bg-yellow-500/15">🏠 Accueil</button>
-          <button type="button" onClick={() => go('/dashboard')} className="rounded-2xl px-4 py-3 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">🎯 Mission Cash IA</button>
-          <button type="button" onClick={() => accessOrExplain('coach')} className="rounded-2xl px-4 py-3 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">🧠 Coach Alex IA</button>
+      <aside className="fixed left-4 top-4 z-[2147483646] hidden h-[calc(100vh-32px)] w-[280px] flex-col overflow-hidden rounded-[30px] border border-yellow-600/20 bg-[#070707]/95 p-4 shadow-[0_0_55px_rgba(255,184,0,0.08)] backdrop-blur-xl lg:flex">
+        <nav className="grid gap-1.5 text-sm">
+          <button type="button" onClick={() => { setActiveWorkspace('home'); go('/dashboard'); }} className="rounded-2xl border border-yellow-600/15 bg-yellow-500/10 px-4 py-2.5 text-left font-semibold text-yellow-100 transition hover:bg-yellow-500/15">🏠 Accueil</button>
+          <button type="button" onClick={() => setActiveWorkspace('home')} className="rounded-2xl px-4 py-2.5 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">🎯 Mission Cash IA</button>
+          <button type="button" onClick={() => accessOrExplain('coach')} className="rounded-2xl px-4 py-2.5 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">🧠 Coach Alex IA</button>
 
           <div className="my-2 border-t border-yellow-600/15" />
 
-          <button type="button" onClick={() => accessOrExplain('editor')} className="rounded-2xl px-4 py-3 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">✍️ Éditeur Intelligent</button>
-          <button type="button" onClick={() => accessOrExplain('emailing')} className="rounded-2xl px-4 py-3 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">📧 Emailing IA</button>
-          <button type="button" onClick={() => accessOrExplain('lead_engine')} className="rounded-2xl px-4 py-3 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">🧲 Lead Engine IA</button>
-          <button type="button" onClick={() => go('/dashboard/automatisations/reseaux_sociaux/planner')} className="rounded-2xl px-4 py-3 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">📅 Planner IA</button>
-          <button type="button" onClick={() => go('/dashboard/library')} className="rounded-2xl px-4 py-3 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">📚 Bibliothèque</button>
+          <button type="button" onClick={() => accessOrExplain('editor')} className="rounded-2xl px-4 py-2.5 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">✍️ Éditeur Intelligent</button>
+          <button type="button" onClick={() => accessOrExplain('emailing')} className="rounded-2xl px-4 py-2.5 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">📧 Emailing IA</button>
+          <button type="button" onClick={() => accessOrExplain('lead_engine')} className="rounded-2xl px-4 py-2.5 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">🧲 Lead Engine IA</button>
+          <button type="button" onClick={() => go('/dashboard/automatisations/reseaux_sociaux/planner')} className="rounded-2xl px-4 py-2.5 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">📅 Planner IA</button>
+          <button type="button" onClick={() => go('/dashboard/library')} className="rounded-2xl px-4 py-2.5 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">📚 Bibliothèque</button>
         </nav>
 
         <div className="mt-4 grid gap-2 border-t border-yellow-600/15 pt-4 text-sm">
-          <button type="button" onClick={openPlans} className="rounded-2xl px-4 py-3 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">👑 Plans</button>
-          <button type="button" onClick={openSettings} className="rounded-2xl px-4 py-3 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">⚙️ Paramètres</button>
-          <button type="button" onClick={handleLogout} className="rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-left font-semibold text-red-100 transition hover:bg-red-500/10">🚪 Se déconnecter</button>
+          <button type="button" onClick={openPlans} className="rounded-2xl px-4 py-2.5 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">👑 Plans</button>
+          <button type="button" onClick={openSettings} className="rounded-2xl px-4 py-2.5 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">⚙️ Paramètres</button>
+          <button type="button" onClick={handleLogout} className="rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-2.5 text-left font-semibold text-red-100 transition hover:bg-red-500/10">🚪 Se déconnecter</button>
         </div>
 
 
-        <div className="mt-4 rounded-3xl border border-yellow-600/20 bg-black/35 p-4">
-          <div className="text-sm font-extrabold text-yellow-200">📈 Activité</div>
-          <div className="mt-3 grid grid-cols-2 gap-2 text-center text-[11px]">
-            <div className="rounded-2xl border border-yellow-600/10 bg-[#090909] px-2 py-2">
-              <div className="text-base font-black text-yellow-300">{businessJournalSummary.totalActions}</div>
-              <div className="mt-0.5 text-white/45">actions</div>
-            </div>
-            <div className="rounded-2xl border border-yellow-600/10 bg-[#090909] px-2 py-2">
-              <div className="text-base font-black text-yellow-300">{businessJournalSummary.missionsCompleted}</div>
-              <div className="mt-0.5 text-white/45">missions</div>
-            </div>
-          </div>
-          <p className="mt-3 text-xs leading-5 text-white/55">{businessJournalSummary.insightTitle}</p>
+        <div className="mt-4 grid gap-2 border-t border-yellow-600/15 pt-4 text-sm">
+          <button
+            type="button"
+            onClick={() => setActiveWorkspace("activity")}
+            className="rounded-2xl border border-yellow-600/15 bg-yellow-500/5 px-4 py-2.5 text-left font-semibold text-yellow-100 transition hover:bg-yellow-500/10"
+          >
+            📈 Activité Progression
+          </button>
+          <button
+            type="button"
+            onClick={openAffiliationProgram}
+            className="rounded-2xl border border-yellow-500/20 bg-yellow-500/5 px-4 py-2.5 text-left font-semibold text-yellow-100 transition hover:bg-yellow-500/10"
+          >
+            💰 Programme affiliation
+          </button>
         </div>
-
-        <button
-          type="button"
-          onClick={openAffiliationProgram}
-          className="mt-4 rounded-3xl border border-yellow-500/25 bg-gradient-to-br from-yellow-500/15 to-yellow-500/5 p-4 text-left transition hover:-translate-y-0.5 hover:bg-yellow-500/15"
-        >
-          <div className="text-sm font-extrabold text-yellow-200">💰 Programme Ambassadeur</div>
-          <div className="mt-1 text-xs leading-5 text-white/60">Recommande LGD et développe tes revenus récurrents.</div>
-        </button>
 
       </aside>
 
@@ -1694,21 +1855,20 @@ export default function DashboardPage() {
             className="rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-4 py-2 text-sm font-semibold text-yellow-100"
           >
             {mobileMenuOpen ? "Fermer" : "Modules"}
-            
           </button>
         </div>
 
         {mobileMenuOpen ? (
           <div className="mt-4 grid gap-2 rounded-3xl border border-yellow-600/20 bg-[#080808] p-3 text-sm shadow-[0_0_45px_rgba(255,184,0,0.12)]">
-            <button type="button" onClick={() => go('/dashboard')} className="rounded-2xl bg-yellow-500/10 px-4 py-3 text-left font-semibold text-yellow-100">🏠 Accueil</button>
-            <button type="button" onClick={() => accessOrExplain('coach')} className="rounded-2xl px-4 py-3 text-left text-white/75 hover:bg-yellow-500/10">🧠 Coach Alex IA</button>
-            <button type="button" onClick={() => accessOrExplain('editor')} className="rounded-2xl px-4 py-3 text-left text-white/75 hover:bg-yellow-500/10">✍️ Éditeur Intelligent</button>
-            <button type="button" onClick={() => accessOrExplain('emailing')} className="rounded-2xl px-4 py-3 text-left text-white/75 hover:bg-yellow-500/10">📧 Emailing IA</button>
-            <button type="button" onClick={() => accessOrExplain('lead_engine')} className="rounded-2xl px-4 py-3 text-left text-white/75 hover:bg-yellow-500/10">🧲 Lead Engine IA</button>
-            <button type="button" onClick={() => go('/dashboard/automatisations/reseaux_sociaux/planner')} className="rounded-2xl px-4 py-3 text-left text-white/75 hover:bg-yellow-500/10">📅 Planner IA</button>
-            <button type="button" onClick={() => go('/dashboard/library')} className="rounded-2xl px-4 py-3 text-left text-white/75 hover:bg-yellow-500/10">📚 Bibliothèque</button>
-            <div className="rounded-2xl border border-yellow-600/15 bg-black/35 px-4 py-3 text-left text-white/75">📈 Activité : {businessJournalSummary.totalActions} action{businessJournalSummary.totalActions > 1 ? "s" : ""} cette semaine</div>
-            <button type="button" onClick={openAffiliationProgram} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-left font-semibold text-yellow-100">💰 Programme Ambassadeur LGD</button>
+            <button type="button" onClick={() => { setActiveWorkspace('home'); go('/dashboard'); }} className="rounded-2xl bg-yellow-500/10 px-4 py-2.5 text-left font-semibold text-yellow-100">🏠 Accueil</button>
+            <button type="button" onClick={() => accessOrExplain('coach')} className="rounded-2xl px-4 py-2.5 text-left text-white/75 hover:bg-yellow-500/10">🧠 Coach Alex IA</button>
+            <button type="button" onClick={() => accessOrExplain('editor')} className="rounded-2xl px-4 py-2.5 text-left text-white/75 hover:bg-yellow-500/10">✍️ Éditeur Intelligent</button>
+            <button type="button" onClick={() => accessOrExplain('emailing')} className="rounded-2xl px-4 py-2.5 text-left text-white/75 hover:bg-yellow-500/10">📧 Emailing IA</button>
+            <button type="button" onClick={() => accessOrExplain('lead_engine')} className="rounded-2xl px-4 py-2.5 text-left text-white/75 hover:bg-yellow-500/10">🧲 Lead Engine IA</button>
+            <button type="button" onClick={() => go('/dashboard/automatisations/reseaux_sociaux/planner')} className="rounded-2xl px-4 py-2.5 text-left text-white/75 hover:bg-yellow-500/10">📅 Planner IA</button>
+            <button type="button" onClick={() => go('/dashboard/library')} className="rounded-2xl px-4 py-2.5 text-left text-white/75 hover:bg-yellow-500/10">📚 Bibliothèque</button>
+            <div className="rounded-2xl border border-yellow-600/15 bg-black/35 px-4 py-2.5 text-left text-white/75">📈 Activité : {businessJournalSummary.totalActions} action{businessJournalSummary.totalActions > 1 ? "s" : ""} cette semaine</div>
+            <button type="button" onClick={openAffiliationProgram} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-2.5 text-left font-semibold text-yellow-100">💰 Programme Ambassadeur LGD</button>
             <button type="button" onClick={openPlans} className="rounded-2xl px-4 py-3 text-left text-white/75 hover:bg-yellow-500/10">👑 Plans</button>
             <button type="button" onClick={openSettings} className="rounded-2xl px-4 py-3 text-left text-white/75 hover:bg-yellow-500/10">⚙️ Paramètres</button>
             <button type="button" onClick={handleLogout} className="rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-left font-semibold text-red-100 hover:bg-red-500/10">🚪 Se déconnecter</button>
@@ -1767,7 +1927,14 @@ export default function DashboardPage() {
         </motion.div>
 
 
-        {isLoggedIn ? (
+        {isLoggedIn && activeWorkspace === "activity" ? (
+          <ActivityProgressWorkspace
+            dailyProgress={dailyProgress}
+            summary={businessJournalSummary}
+            missions={readMissionCashHistory()}
+            onOpenCoach={() => accessOrExplain("coach")}
+          />
+        ) : isLoggedIn ? (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
