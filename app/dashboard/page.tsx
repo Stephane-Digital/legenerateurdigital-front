@@ -1694,6 +1694,7 @@ export default function DashboardPage() {
             className="rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-4 py-2 text-sm font-semibold text-yellow-100"
           >
             {mobileMenuOpen ? "Fermer" : "Modules"}
+            
           </button>
         </div>
 
