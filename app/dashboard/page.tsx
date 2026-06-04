@@ -2156,7 +2156,7 @@ export default function DashboardPage() {
 
                   <p className="mt-4 text-sm leading-7 text-white/80 sm:text-base">
                     Découvre LGD gratuitement pendant 7 jours, sans carte bancaire. Teste les fonctionnalités clés
-                    et lance ton business avec l’IA.
+                    et lance ton business avec l’IA en live.
                   </p>
 
                   <div className="mt-6 space-y-3 text-sm font-semibold text-white/90">
