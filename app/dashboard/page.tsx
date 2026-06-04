@@ -36,7 +36,8 @@ type ModalKey =
   | "funnel"
   | "lead_engine"
   | "planner"
-  | "library";
+  | "library"
+  | "settings";
 
 type DashboardWorkspace = "home" | "activity";
 
@@ -1660,6 +1661,12 @@ export default function DashboardPage() {
 
   function openSettings() {
     setMobileMenuOpen(false);
+
+    if (!isLoggedIn) {
+      openModal("settings");
+      return;
+    }
+
     go("/dashboard/settings");
   }
 
@@ -2455,6 +2462,28 @@ export default function DashboardPage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <PrimaryButton onClick={goToLogin}>Se connecter</PrimaryButton>
+            <SecondaryButton onClick={closeModal}>Fermer</SecondaryButton>
+          </div>
+        </div>
+      </ModalShell>
+
+      <ModalShell
+        open={activeModal === "settings"}
+        title="Paramètres du compte"
+        subtitle="Connecte-toi pour gérer ton abonnement, ton plan et les informations de ton compte."
+        icon={<FaLock />}
+        onClose={closeModal}
+      >
+        <div className="grid gap-4">
+          <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4 text-sm text-white/75">
+            <div className="font-semibold text-yellow-200">Accès réservé aux utilisateurs connectés</div>
+            <p className="mt-2">
+              Les paramètres contiennent les informations de compte, le plan actif et la gestion d’abonnement.
+              Connecte-toi pour y accéder en toute sécurité.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <PrimaryButton onClick={goToLogin}>Se connecter</PrimaryButton>
             <SecondaryButton onClick={closeModal}>Fermer</SecondaryButton>
           </div>
