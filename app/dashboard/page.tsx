@@ -1887,7 +1887,7 @@ export default function DashboardPage() {
             onClick={openAffiliationProgram}
             className="rounded-2xl border border-yellow-500/20 bg-yellow-500/5 px-4 py-2.5 text-left font-semibold text-yellow-100 transition hover:bg-yellow-500/10"
           >
-            💰 Programme affiliation
+            💰 Programme d'affiliation LGD
           </button>
         </div>
 
