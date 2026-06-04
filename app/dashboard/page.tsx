@@ -1660,7 +1660,7 @@ export default function DashboardPage() {
 
   function openSettings() {
     setMobileMenuOpen(false);
-    go("/dashboard/parametres");
+    go("/dashboard/settings");
   }
 
   function handleLogout() {
