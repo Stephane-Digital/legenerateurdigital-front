@@ -2,8 +2,8 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import CardLuxe from "@/components/ui/CardLuxe";
 
@@ -35,7 +35,8 @@ type ModalKey =
   | "offer"
   | "funnel"
   | "lead_engine"
-  | "planner";
+  | "planner"
+  | "library";
 
 type DashboardWorkspace = "home" | "activity";
 
@@ -1719,6 +1720,15 @@ export default function DashboardPage() {
     go("/dashboard/automatisations/reseaux_sociaux/planner");
   }
 
+  function accessLibrary() {
+    if (!isLoggedIn) {
+      openModal("library");
+      return;
+    }
+
+    go("/dashboard/library");
+  }
+
   function refreshLocalCmoAction() {
     setCmoError(null);
     setCmoResult(getRandomLocalCmoAction());
@@ -1847,7 +1857,7 @@ export default function DashboardPage() {
           <button type="button" onClick={() => accessOrExplain('emailing')} className="rounded-2xl px-4 py-2.5 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">📧 Emailing IA</button>
           <button type="button" onClick={() => accessOrExplain('lead_engine')} className="rounded-2xl px-4 py-2.5 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">🧲 Lead Engine IA</button>
           <button type="button" onClick={accessPlanner} className="rounded-2xl px-4 py-2.5 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">📅 Planner IA</button>
-          <button type="button" onClick={() => go('/dashboard/library')} className="rounded-2xl px-4 py-2.5 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">📚 Bibliothèque</button>
+          <button type="button" onClick={accessLibrary} className="rounded-2xl px-4 py-2.5 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">📚 Bibliothèque</button>
         </nav>
 
         <div className="mt-4 grid gap-2 border-t border-yellow-600/15 pt-4 text-sm">
@@ -1902,7 +1912,7 @@ export default function DashboardPage() {
             <button type="button" onClick={() => accessOrExplain('emailing')} className="rounded-2xl px-4 py-2.5 text-left text-white/75 hover:bg-yellow-500/10">📧 Emailing IA</button>
             <button type="button" onClick={() => accessOrExplain('lead_engine')} className="rounded-2xl px-4 py-2.5 text-left text-white/75 hover:bg-yellow-500/10">🧲 Lead Engine IA</button>
             <button type="button" onClick={accessPlanner} className="rounded-2xl px-4 py-2.5 text-left text-white/75 hover:bg-yellow-500/10">📅 Planner IA</button>
-            <button type="button" onClick={() => go('/dashboard/library')} className="rounded-2xl px-4 py-2.5 text-left text-white/75 hover:bg-yellow-500/10">📚 Bibliothèque</button>
+            <button type="button" onClick={accessLibrary} className="rounded-2xl px-4 py-2.5 text-left text-white/75 hover:bg-yellow-500/10">📚 Bibliothèque</button>
             <div className="rounded-2xl border border-yellow-600/15 bg-black/35 px-4 py-2.5 text-left text-white/75">📈 Activité : {businessJournalSummary.totalActions} action{businessJournalSummary.totalActions > 1 ? "s" : ""} cette semaine</div>
             <button type="button" onClick={openAffiliationProgram} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-2.5 text-left font-semibold text-yellow-100">💰 Programme Ambassadeur LGD</button>
             <button type="button" onClick={openPlans} className="rounded-2xl px-4 py-3 text-left text-white/75 hover:bg-yellow-500/10">👑 Plans</button>
@@ -2419,6 +2429,28 @@ export default function DashboardPage() {
             <div className="text-yellow-200 font-semibold">Accès réservé aux utilisateurs connectés</div>
             <p className="mt-2">
               Connecte-toi pour accéder au Planner IA, retrouver tes publications et organiser ton calendrier de contenu.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <PrimaryButton onClick={goToLogin}>Se connecter</PrimaryButton>
+            <SecondaryButton onClick={closeModal}>Fermer</SecondaryButton>
+          </div>
+        </div>
+      </ModalShell>
+
+      <ModalShell
+        open={activeModal === "library"}
+        title="Bibliothèque LGD"
+        subtitle="Retrouve tes créations, archives et contenus sauvegardés."
+        icon={<FaBook />}
+        onClose={closeModal}
+      >
+        <div className="grid gap-4">
+          <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4 text-sm text-white/75">
+            <div className="text-yellow-200 font-semibold">Accès réservé aux utilisateurs connectés</div>
+            <p className="mt-2">
+              Connecte-toi pour accéder à ta Bibliothèque LGD, retrouver tes créations sauvegardées et réutiliser tes contenus dans les modules.
             </p>
           </div>
 
