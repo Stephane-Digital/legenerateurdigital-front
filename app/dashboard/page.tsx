@@ -1,6 +1,5 @@
 "use client";
 
-
 import { AnimatePresence, motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -35,7 +34,8 @@ type ModalKey =
   | "multiplier"
   | "offer"
   | "funnel"
-  | "lead_engine";
+  | "lead_engine"
+  | "planner";
 
 type DashboardWorkspace = "home" | "activity";
 
@@ -1708,6 +1708,17 @@ export default function DashboardPage() {
     }
   }
 
+
+
+  function accessPlanner() {
+    if (!isLoggedIn) {
+      openModal("planner");
+      return;
+    }
+
+    go("/dashboard/automatisations/reseaux_sociaux/planner");
+  }
+
   function refreshLocalCmoAction() {
     setCmoError(null);
     setCmoResult(getRandomLocalCmoAction());
@@ -1835,7 +1846,7 @@ export default function DashboardPage() {
           <button type="button" onClick={() => accessOrExplain('editor')} className="rounded-2xl px-4 py-2.5 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">✍️ Éditeur Intelligent</button>
           <button type="button" onClick={() => accessOrExplain('emailing')} className="rounded-2xl px-4 py-2.5 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">📧 Emailing IA</button>
           <button type="button" onClick={() => accessOrExplain('lead_engine')} className="rounded-2xl px-4 py-2.5 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">🧲 Lead Engine IA</button>
-          <button type="button" onClick={() => go('/dashboard/automatisations/reseaux_sociaux/planner')} className="rounded-2xl px-4 py-2.5 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">📅 Planner IA</button>
+          <button type="button" onClick={accessPlanner} className="rounded-2xl px-4 py-2.5 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">📅 Planner IA</button>
           <button type="button" onClick={() => go('/dashboard/library')} className="rounded-2xl px-4 py-2.5 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">📚 Bibliothèque</button>
         </nav>
 
@@ -1890,7 +1901,7 @@ export default function DashboardPage() {
             <button type="button" onClick={() => accessOrExplain('editor')} className="rounded-2xl px-4 py-2.5 text-left text-white/75 hover:bg-yellow-500/10">✍️ Éditeur Intelligent</button>
             <button type="button" onClick={() => accessOrExplain('emailing')} className="rounded-2xl px-4 py-2.5 text-left text-white/75 hover:bg-yellow-500/10">📧 Emailing IA</button>
             <button type="button" onClick={() => accessOrExplain('lead_engine')} className="rounded-2xl px-4 py-2.5 text-left text-white/75 hover:bg-yellow-500/10">🧲 Lead Engine IA</button>
-            <button type="button" onClick={() => go('/dashboard/automatisations/reseaux_sociaux/planner')} className="rounded-2xl px-4 py-2.5 text-left text-white/75 hover:bg-yellow-500/10">📅 Planner IA</button>
+            <button type="button" onClick={accessPlanner} className="rounded-2xl px-4 py-2.5 text-left text-white/75 hover:bg-yellow-500/10">📅 Planner IA</button>
             <button type="button" onClick={() => go('/dashboard/library')} className="rounded-2xl px-4 py-2.5 text-left text-white/75 hover:bg-yellow-500/10">📚 Bibliothèque</button>
             <div className="rounded-2xl border border-yellow-600/15 bg-black/35 px-4 py-2.5 text-left text-white/75">📈 Activité : {businessJournalSummary.totalActions} action{businessJournalSummary.totalActions > 1 ? "s" : ""} cette semaine</div>
             <button type="button" onClick={openAffiliationProgram} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-2.5 text-left font-semibold text-yellow-100">💰 Programme Ambassadeur LGD</button>
@@ -1910,7 +1921,7 @@ export default function DashboardPage() {
         >
           <div className="relative overflow-hidden rounded-[34px] border border-yellow-600/20 bg-[#050505] shadow-[0_0_70px_rgba(255,184,0,0.10)]">
             <img
-              src="/images/herolegenerateurdigital.jpg"
+              src="/images/hero-le-generateur-digital.png"
               alt="Cerveau Collectif IA LGD - Le Générateur Digital"
               className="block h-auto w-full select-none object-cover"
               draggable={false}
@@ -2156,7 +2167,7 @@ export default function DashboardPage() {
 
                   <p className="mt-4 text-sm leading-7 text-white/80 sm:text-base">
                     Découvre LGD gratuitement pendant 7 jours, sans carte bancaire. Teste les fonctionnalités clés
-                    et lance ton business avec l’IA en live.
+                    et lance ton business avec l’IA.
                   </p>
 
                   <div className="mt-6 space-y-3 text-sm font-semibold text-white/90">
@@ -2391,6 +2402,28 @@ export default function DashboardPage() {
                 Génère ton premier aimant à prospects en quelques clics
               </p>
             </div>
+            <SecondaryButton onClick={closeModal}>Fermer</SecondaryButton>
+          </div>
+        </div>
+      </ModalShell>
+
+      <ModalShell
+        open={activeModal === "planner"}
+        title="Planner IA"
+        subtitle="Planifie et retrouve tes publications programmées."
+        icon={<FaBolt />}
+        onClose={closeModal}
+      >
+        <div className="grid gap-4">
+          <div className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4 text-sm text-white/75">
+            <div className="text-yellow-200 font-semibold">Accès réservé aux utilisateurs connectés</div>
+            <p className="mt-2">
+              Connecte-toi pour accéder au Planner IA, retrouver tes publications et organiser ton calendrier de contenu.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <PrimaryButton onClick={goToLogin}>Se connecter</PrimaryButton>
             <SecondaryButton onClick={closeModal}>Fermer</SecondaryButton>
           </div>
         </div>
