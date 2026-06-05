@@ -853,7 +853,7 @@ const LOCAL_CMO_ACTIONS: CmoDashboardResult[] = [
     priority_action: "Créer un post clair qui montre le problème puis la solution.",
     diagnostic: "Ton audience doit comprendre en quelques secondes pourquoi ton offre l’aide concrètement.",
     why_this_action: "Un contenu simple et visuel crée de la confiance avant de demander une action commerciale.",
-    next_best_action: "Ouvre l’Éditeur intelligent et transforme ton idée en publication prête à poster.",
+    next_best_action: "Ouvre l’Éditeur intelligent et transforme cette mission en publication prête à poster.",
     generated_content: { cta: "Créer mon post" },
   },
   {
