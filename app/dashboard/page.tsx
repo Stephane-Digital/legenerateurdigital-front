@@ -1569,8 +1569,18 @@ export default function DashboardPage() {
   const [cmoLoading, setCmoLoading] = useState(false);
   const [cmoError, setCmoError] = useState<string | null>(null);
   const [aiQuota, setAiQuota] = useState<AiQuotaSnapshot | null>(null);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [, setMobileMenuOpen] = useState(false);
   const [activeWorkspace, setActiveWorkspace] = useState<DashboardWorkspace>("home");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("workspace") === "activity") {
+      setActiveWorkspace("activity");
+    } else {
+      setActiveWorkspace("home");
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -1852,84 +1862,9 @@ export default function DashboardPage() {
 
       <div className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(circle_at_top_right,rgba(255,184,0,0.10),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(255,184,0,0.07),transparent_32%)]" />
 
-      <aside className="fixed left-4 top-4 z-[2147483646] hidden h-[calc(100vh-32px)] w-[280px] flex-col overflow-hidden rounded-[30px] border border-yellow-600/20 bg-[#070707]/95 p-4 shadow-[0_0_55px_rgba(255,184,0,0.08)] backdrop-blur-xl lg:flex">
-        <nav className="grid gap-1.5 text-sm">
-          <button type="button" onClick={() => { setActiveWorkspace('home'); go('/dashboard'); }} className="rounded-2xl border border-yellow-600/15 bg-yellow-500/10 px-4 py-2.5 text-left font-semibold text-yellow-100 transition hover:bg-yellow-500/15">🏠 Accueil</button>
-          <button type="button" onClick={() => setActiveWorkspace('home')} className="rounded-2xl px-4 py-2.5 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">🎯 Mission Cash IA</button>
-          <button type="button" onClick={() => accessOrExplain('coach')} className="rounded-2xl px-4 py-2.5 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">🧠 Coach Alex IA</button>
-
-          <div className="my-2 border-t border-yellow-600/15" />
-
-          <button type="button" onClick={() => accessOrExplain('editor')} className="rounded-2xl px-4 py-2.5 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">✍️ Éditeur Intelligent</button>
-          <button type="button" onClick={() => accessOrExplain('emailing')} className="rounded-2xl px-4 py-2.5 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">📧 Emailing IA</button>
-          <button type="button" onClick={() => accessOrExplain('lead_engine')} className="rounded-2xl px-4 py-2.5 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">🧲 Lead Engine IA</button>
-          <button type="button" onClick={accessPlanner} className="rounded-2xl px-4 py-2.5 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">📅 Planner IA</button>
-          <button type="button" onClick={accessLibrary} className="rounded-2xl px-4 py-2.5 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">📚 Bibliothèque</button>
-        </nav>
-
-        <div className="mt-4 grid gap-2 border-t border-yellow-600/15 pt-4 text-sm">
-          <button type="button" onClick={openPlans} className="rounded-2xl px-4 py-2.5 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">👑 Plans</button>
-          <button type="button" onClick={openSettings} className="rounded-2xl px-4 py-2.5 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100">⚙️ Paramètres</button>
-          <button type="button" onClick={handleLogout} className="rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-2.5 text-left font-semibold text-red-100 transition hover:bg-red-500/10">🚪 Se déconnecter</button>
-        </div>
 
 
-        <div className="mt-4 grid gap-2 border-t border-yellow-600/15 pt-4 text-sm">
-          <button
-            type="button"
-            onClick={() => setActiveWorkspace("activity")}
-            className="rounded-2xl border border-yellow-600/15 bg-yellow-500/5 px-4 py-2.5 text-left font-semibold text-yellow-100 transition hover:bg-yellow-500/10"
-          >
-            📈 Activité Progression
-          </button>
-          <button
-            type="button"
-            onClick={openAffiliationProgram}
-            className="rounded-2xl border border-yellow-500/20 bg-yellow-500/5 px-4 py-2.5 text-left font-semibold text-yellow-100 transition hover:bg-yellow-500/10"
-          >
-            💰 Programme d'affiliation LGD
-          </button>
-        </div>
-
-      </aside>
-
-      <div className="sticky top-0 z-[2147483646] border-b border-yellow-600/15 bg-[#050505]/92 px-4 py-3 backdrop-blur-xl lg:hidden">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <div className="text-lg font-black text-yellow-400">LGD 3.0</div>
-            <div className="mt-1 inline-flex items-center gap-2 text-[11px] font-semibold text-green-200">
-              <span className="h-2 w-2 rounded-full bg-green-400" />
-              IA Business Active
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => setMobileMenuOpen((value) => !value)}
-            className="rounded-2xl border border-yellow-600/25 bg-[#0b0b0b] px-4 py-2 text-sm font-semibold text-yellow-100"
-          >
-            {mobileMenuOpen ? "Fermer" : "Modules"}
-          </button>
-        </div>
-
-        {mobileMenuOpen ? (
-          <div className="mt-4 grid gap-2 rounded-3xl border border-yellow-600/20 bg-[#080808] p-3 text-sm shadow-[0_0_45px_rgba(255,184,0,0.12)]">
-            <button type="button" onClick={() => { setActiveWorkspace('home'); go('/dashboard'); }} className="rounded-2xl bg-yellow-500/10 px-4 py-2.5 text-left font-semibold text-yellow-100">🏠 Accueil</button>
-            <button type="button" onClick={() => accessOrExplain('coach')} className="rounded-2xl px-4 py-2.5 text-left text-white/75 hover:bg-yellow-500/10">🧠 Coach Alex IA</button>
-            <button type="button" onClick={() => accessOrExplain('editor')} className="rounded-2xl px-4 py-2.5 text-left text-white/75 hover:bg-yellow-500/10">✍️ Éditeur Intelligent</button>
-            <button type="button" onClick={() => accessOrExplain('emailing')} className="rounded-2xl px-4 py-2.5 text-left text-white/75 hover:bg-yellow-500/10">📧 Emailing IA</button>
-            <button type="button" onClick={() => accessOrExplain('lead_engine')} className="rounded-2xl px-4 py-2.5 text-left text-white/75 hover:bg-yellow-500/10">🧲 Lead Engine IA</button>
-            <button type="button" onClick={accessPlanner} className="rounded-2xl px-4 py-2.5 text-left text-white/75 hover:bg-yellow-500/10">📅 Planner IA</button>
-            <button type="button" onClick={accessLibrary} className="rounded-2xl px-4 py-2.5 text-left text-white/75 hover:bg-yellow-500/10">📚 Bibliothèque</button>
-            <div className="rounded-2xl border border-yellow-600/15 bg-black/35 px-4 py-2.5 text-left text-white/75">📈 Activité : {businessJournalSummary.totalActions} action{businessJournalSummary.totalActions > 1 ? "s" : ""} cette semaine</div>
-            <button type="button" onClick={openAffiliationProgram} className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-2.5 text-left font-semibold text-yellow-100">💰 Programme Ambassadeur LGD</button>
-            <button type="button" onClick={openPlans} className="rounded-2xl px-4 py-3 text-left text-white/75 hover:bg-yellow-500/10">👑 Plans</button>
-            <button type="button" onClick={openSettings} className="rounded-2xl px-4 py-3 text-left text-white/75 hover:bg-yellow-500/10">⚙️ Paramètres</button>
-            <button type="button" onClick={handleLogout} className="rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-left font-semibold text-red-100 hover:bg-red-500/10">🚪 Se déconnecter</button>
-          </div>
-        ) : null}
-      </div>
-
-      <main className="relative z-[2147483645] px-4 pb-16 pt-4 sm:px-6 lg:pl-[320px] lg:pr-8 lg:pt-4">
+      <main className="relative z-[2147483645] px-4 pb-16 pt-4 sm:px-6 lg:pr-8 lg:pt-4">
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -1938,7 +1873,7 @@ export default function DashboardPage() {
         >
           <div className="relative overflow-hidden rounded-[34px] border border-yellow-600/20 bg-[#050505] shadow-[0_0_70px_rgba(255,184,0,0.10)]">
             <img
-              src="/images/herolegenerateurdigital2.jpg"
+              src="/images/herolegenerateurdigital.jpg"
               alt="Cerveau Collectif IA LGD - Le Générateur Digital"
               className="block h-auto w-full select-none object-cover"
               draggable={false}
