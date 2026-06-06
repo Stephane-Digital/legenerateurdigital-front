@@ -1,7 +1,7 @@
 "use client";
 
-import Header from "@/components/dashboard/Header";
 import React from "react";
+import LGDWorkspaceSidebar from "./components/LGDWorkspaceSidebar";
 
 export default function DashboardLayout({
   children,
@@ -9,10 +9,9 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen w-full bg-[#0a0a0a] text-white">
-      <Header />
-      {/* ESPACE LGD → 40px pour ne pas coller au header */}
-      <main className="pt-[40px] px-6">
+    <div className="min-h-screen w-full bg-[#050505] text-white">
+      <LGDWorkspaceSidebar />
+      <main className="min-h-screen px-4 pb-16 pt-4 sm:px-6 lg:pl-[320px] lg:pr-8 lg:pt-4">
         {children}
       </main>
     </div>
