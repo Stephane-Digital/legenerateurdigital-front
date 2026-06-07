@@ -4,7 +4,7 @@ import Image from "next/image";
 
 export default function LGDModuleFixedBanner() {
   return (
-    <div className="mx-auto mb-6 w-full max-w-[1280px] px-0 sm:px-2">
+    <div className="sticky top-4 z-[50] mx-auto mb-[60px] w-full max-w-[1280px] px-0 sm:px-2">
       <div className="overflow-hidden rounded-[22px] border border-yellow-500/55 bg-[#060606] shadow-[0_0_42px_rgba(255,184,0,0.13)]">
         <Image
           src="/images/bannière-fixe-lgd2.png"
