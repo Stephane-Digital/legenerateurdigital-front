@@ -4,7 +4,7 @@ import Image from "next/image";
 
 export default function LGDModuleFixedBanner() {
   return (
-<div className="fixed left-[312px] right-10 top-10 z-[2147483645] hidden lg:block">
+<div className="fixed left-[312px] right-2 top-2 z-[2147483645] hidden lg:block">
   <div className="overflow-hidden rounded-[22px] border border-yellow-500/55 bg-[#060606] shadow-[0_0_42px_rgba(255,184,0,0.13)]">
     <Image
       src="/images/bannière-fixe-lgd2.png"
