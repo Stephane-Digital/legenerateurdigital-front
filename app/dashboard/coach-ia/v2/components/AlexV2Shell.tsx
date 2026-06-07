@@ -360,6 +360,7 @@ export default function AlexV2Shell() {
   const [liveLoading, setLiveLoading] = useState(false);
   const [liveError, setLiveError] = useState<string>("");
   const [liveLastRefreshAtISO, setLiveLastRefreshAtISO] = useState<string>("");
+  const [liveStrategyOpen, setLiveStrategyOpen] = useState(false);
 
   // ===== quota
   const [quotaLoading, setQuotaLoading] = useState(false);
@@ -594,6 +595,23 @@ useEffect(() => {
     void refreshQuota();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    try {
+      const saved = window.sessionStorage.getItem("lgd_alex_live_strategy_open");
+      setLiveStrategyOpen(saved === "true");
+    } catch {}
+  }, []);
+
+  function toggleLiveStrategyOpen() {
+    setLiveStrategyOpen((current) => {
+      const next = !current;
+      try {
+        window.sessionStorage.setItem("lgd_alex_live_strategy_open", String(next));
+      } catch {}
+      return next;
+    });
+  }
 
   async function refreshQuota() {
     if (quotaRefreshInFlightRef.current) return;
@@ -1108,13 +1126,25 @@ useEffect(() => {
       {context && today?.mission && (
         <div className="mb-6 rounded-3xl border border-yellow-500/25 bg-gradient-to-br from-[#111827] via-[#080b10] to-[#050607] p-5 shadow-[0_0_35px_rgba(234,179,8,0.08)]">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="max-w-3xl">
-              <div className="text-xs font-black uppercase tracking-[0.24em] text-yellow-300/80">Alex Stratège IA Live Premium</div>
-              <h2 className="mt-2 text-2xl font-black text-yellow-400">Analyse stratégique du jour</h2>
+            <button
+              type="button"
+              onClick={toggleLiveStrategyOpen}
+              className="group max-w-3xl text-left"
+              aria-expanded={liveStrategyOpen}
+            >
+              <div className="flex items-center gap-3">
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-yellow-500/25 bg-black/25 text-sm font-black text-yellow-300 transition group-hover:bg-yellow-500/10">
+                  {liveStrategyOpen ? "▼" : "▶"}
+                </span>
+                <div>
+                  <div className="text-xs font-black uppercase tracking-[0.24em] text-yellow-300/80">Alex Stratège IA Live Premium</div>
+                  <h2 className="mt-2 text-2xl font-black text-yellow-400">Analyse stratégique du jour</h2>
+                </div>
+              </div>
               <p className="mt-2 text-sm leading-6 text-white/65">
-                Alex enrichit la mission du moteur 98% avec une lecture stratégique : diagnostic, blocage réel, erreur à éviter et résultat attendu ce soir.
+                Diagnostic, blocage réel, erreur à éviter et résultat attendu ce soir. Clique pour {liveStrategyOpen ? "rétracter" : "déployer"} l’analyse.
               </p>
-            </div>
+            </button>
 
             <div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
               <div className="rounded-2xl border border-yellow-500/20 bg-black/25 px-4 py-2 text-xs font-bold text-yellow-100">
@@ -1136,58 +1166,67 @@ useEffect(() => {
             </div>
           </div>
 
-          {liveError && (
-            <div className="mt-4 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-100">
-              {liveError}
-            </div>
-          )}
-
-          {liveLoading && !liveStrategy ? (
-            <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
-              <div className="h-28 rounded-2xl border border-white/5 bg-white/5" />
-              <div className="h-28 rounded-2xl border border-white/5 bg-white/5" />
-              <div className="h-28 rounded-2xl border border-white/5 bg-white/5" />
-            </div>
-          ) : liveStrategy ? (
-            <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-12">
-              <div className="rounded-2xl border border-yellow-500/15 bg-black/25 p-4 lg:col-span-4">
-                <div className="text-xs font-black uppercase tracking-[0.18em] text-yellow-300/70">Diagnostic</div>
-                <p className="mt-2 text-sm leading-6 text-white/78">{liveStrategy.diagnostic}</p>
-              </div>
-
-              <div className="rounded-2xl border border-yellow-500/15 bg-black/25 p-4 lg:col-span-4">
-                <div className="text-xs font-black uppercase tracking-[0.18em] text-yellow-300/70">Blocage réel</div>
-                <p className="mt-2 text-sm leading-6 text-white/78">{liveStrategy.realBlocker}</p>
-              </div>
-
-              <div className="rounded-2xl border border-yellow-500/15 bg-black/25 p-4 lg:col-span-4">
-                <div className="text-xs font-black uppercase tracking-[0.18em] text-yellow-300/70">Résultat attendu</div>
-                <p className="mt-2 text-sm leading-6 text-white/78">{liveStrategy.expectedResult}</p>
-              </div>
-
-              <div className="rounded-2xl border border-yellow-500/15 bg-black/25 p-4 lg:col-span-7">
-                <div className="text-xs font-black uppercase tracking-[0.18em] text-yellow-300/70">Mission premium</div>
-                <h3 className="mt-2 text-lg font-black text-yellow-300">{liveStrategy.title}</h3>
-                <p className="mt-3 text-sm leading-6 text-white/80">{liveStrategy.premiumMission}</p>
-              </div>
-
-              <div className="rounded-2xl border border-yellow-500/15 bg-black/25 p-4 lg:col-span-5">
-                <div className="text-xs font-black uppercase tracking-[0.18em] text-yellow-300/70">Erreur à éviter</div>
-                <p className="mt-2 text-sm leading-6 text-white/80">{liveStrategy.mistakeToAvoid}</p>
-              </div>
-
-              <div className="rounded-2xl border border-yellow-500/15 bg-black/25 p-4 lg:col-span-12">
-                <div className="text-xs font-black uppercase tracking-[0.18em] text-yellow-300/70">Actions à exécuter</div>
-                <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
-                  {liveStrategy.actionSteps.map((step, index) => (
-                    <div key={`${index}-${step}`} className="rounded-2xl border border-white/5 bg-white/[0.03] px-4 py-3 text-sm leading-6 text-white/78">
-                      <span className="font-black text-yellow-300">{index + 1}.</span> {step}
-                    </div>
-                  ))}
+          <div
+            className={[
+              "grid transition-all duration-300 ease-out",
+              liveStrategyOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
+            ].join(" ")}
+          >
+            <div className="overflow-hidden">
+              {liveError && (
+                <div className="mt-4 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+                  {liveError}
                 </div>
-              </div>
+              )}
+
+              {liveLoading && !liveStrategy ? (
+                <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
+                  <div className="h-28 rounded-2xl border border-white/5 bg-white/5" />
+                  <div className="h-28 rounded-2xl border border-white/5 bg-white/5" />
+                  <div className="h-28 rounded-2xl border border-white/5 bg-white/5" />
+                </div>
+              ) : liveStrategy ? (
+                <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-12">
+                  <div className="rounded-2xl border border-yellow-500/15 bg-black/25 p-4 lg:col-span-4">
+                    <div className="text-xs font-black uppercase tracking-[0.18em] text-yellow-300/70">Diagnostic</div>
+                    <p className="mt-2 text-sm leading-6 text-white/78">{liveStrategy.diagnostic}</p>
+                  </div>
+
+                  <div className="rounded-2xl border border-yellow-500/15 bg-black/25 p-4 lg:col-span-4">
+                    <div className="text-xs font-black uppercase tracking-[0.18em] text-yellow-300/70">Blocage réel</div>
+                    <p className="mt-2 text-sm leading-6 text-white/78">{liveStrategy.realBlocker}</p>
+                  </div>
+
+                  <div className="rounded-2xl border border-yellow-500/15 bg-black/25 p-4 lg:col-span-4">
+                    <div className="text-xs font-black uppercase tracking-[0.18em] text-yellow-300/70">Résultat attendu</div>
+                    <p className="mt-2 text-sm leading-6 text-white/78">{liveStrategy.expectedResult}</p>
+                  </div>
+
+                  <div className="rounded-2xl border border-yellow-500/15 bg-black/25 p-4 lg:col-span-7">
+                    <div className="text-xs font-black uppercase tracking-[0.18em] text-yellow-300/70">Mission premium</div>
+                    <h3 className="mt-2 text-lg font-black text-yellow-300">{liveStrategy.title}</h3>
+                    <p className="mt-3 text-sm leading-6 text-white/80">{liveStrategy.premiumMission}</p>
+                  </div>
+
+                  <div className="rounded-2xl border border-yellow-500/15 bg-black/25 p-4 lg:col-span-5">
+                    <div className="text-xs font-black uppercase tracking-[0.18em] text-yellow-300/70">Erreur à éviter</div>
+                    <p className="mt-2 text-sm leading-6 text-white/80">{liveStrategy.mistakeToAvoid}</p>
+                  </div>
+
+                  <div className="rounded-2xl border border-yellow-500/15 bg-black/25 p-4 lg:col-span-12">
+                    <div className="text-xs font-black uppercase tracking-[0.18em] text-yellow-300/70">Actions à exécuter</div>
+                    <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+                      {liveStrategy.actionSteps.map((step, index) => (
+                        <div key={`${index}-${step}`} className="rounded-2xl border border-white/5 bg-white/[0.03] px-4 py-3 text-sm leading-6 text-white/78">
+                          <span className="font-black text-yellow-300">{index + 1}.</span> {step}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
             </div>
-          ) : null}
+          </div>
         </div>
       )}
 
