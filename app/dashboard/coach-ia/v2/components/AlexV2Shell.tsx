@@ -986,7 +986,7 @@ useEffect(() => {
   // ✅ Anti-flash: render a neutral skeleton until booted.
   if (!booted) {
     return (
-      <div className="mx-auto mt-20 max-w-6xl px-4">
+    <div className="mx-auto mt-[60px] max-w-6xl px-4">
         <div className="mb-6 rounded-3xl border border-[#2a2416] bg-gradient-to-r from-[#0b0f16] to-[#0b1220] px-6 py-4">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div>
@@ -1056,7 +1056,7 @@ useEffect(() => {
   }
 
   return (
-    <div className="mx-auto mt-20 max-w-6xl px-4">
+   <div className="mx-auto mt-[60px] max-w-6xl px-4">
       {/* Header */}
       <div className="mb-6 rounded-3xl border border-[#2a2416] bg-gradient-to-r from-[#0b0f16] to-[#0b1220] px-6 py-4">
         <div className="flex items-center justify-between gap-4 flex-wrap">
