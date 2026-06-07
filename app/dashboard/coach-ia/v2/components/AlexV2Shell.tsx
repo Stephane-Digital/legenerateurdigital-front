@@ -1126,25 +1126,25 @@ useEffect(() => {
       {context && today?.mission && (
         <div className="mb-6 rounded-3xl border border-yellow-500/25 bg-gradient-to-br from-[#111827] via-[#080b10] to-[#050607] p-5 shadow-[0_0_35px_rgba(234,179,8,0.08)]">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <button
-              type="button"
-              onClick={toggleLiveStrategyOpen}
-              className="group max-w-3xl text-left"
-              aria-expanded={liveStrategyOpen}
-            >
-              <div className="flex items-center gap-3">
-                <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-yellow-500/25 bg-black/25 text-sm font-black text-yellow-300 transition group-hover:bg-yellow-500/10">
-                  {liveStrategyOpen ? "▼" : "▶"}
-                </span>
-                <div>
-                  <div className="text-xs font-black uppercase tracking-[0.24em] text-yellow-300/80">Alex Stratège IA Live Premium</div>
-                  <h2 className="mt-2 text-2xl font-black text-yellow-400">Analyse stratégique du jour</h2>
-                </div>
-              </div>
+            <div className="max-w-3xl">
+              <div className="text-xs font-black uppercase tracking-[0.24em] text-yellow-300/80">Alex Stratège IA Live Premium</div>
+              <h2 className="mt-2 text-2xl font-black text-yellow-400">Analyse stratégique du jour</h2>
               <p className="mt-2 text-sm leading-6 text-white/65">
-                Diagnostic, blocage réel, erreur à éviter et résultat attendu ce soir. Clique pour {liveStrategyOpen ? "rétracter" : "déployer"} l’analyse.
+                Diagnostic, blocage réel, erreur à éviter et résultat attendu ce soir.
               </p>
-            </button>
+
+              <div className="mt-4 flex justify-center">
+                <button
+                  type="button"
+                  onClick={toggleLiveStrategyOpen}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-yellow-500/30 bg-yellow-500/10 px-5 py-2 text-sm font-black text-yellow-100 transition hover:-translate-y-0.5 hover:bg-yellow-500/15 hover:text-yellow-200"
+                  aria-expanded={liveStrategyOpen}
+                >
+                  <span className="text-base leading-none">{liveStrategyOpen ? "▲" : "▼"}</span>
+                  <span>{liveStrategyOpen ? "Fermer Stratège" : "Ouvrir Stratège"}</span>
+                </button>
+              </div>
+            </div>
 
             <div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
               <div className="rounded-2xl border border-yellow-500/20 bg-black/25 px-4 py-2 text-xs font-bold text-yellow-100">
