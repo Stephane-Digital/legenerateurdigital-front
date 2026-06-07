@@ -13,12 +13,12 @@ export default function LGDModuleFixedBanner() {
             width={1920}
             height={240}
             priority
-            className="h-[118px] w-full object-cover"
+            className="h-[150px] w-full object-cover"
           />
         </div>
       </div>
 
-      <div className="hidden h-[202px] lg:block" />
+      <div className="hidden h-[102px] lg:block" />
     </>
   );
 }
