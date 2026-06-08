@@ -144,7 +144,7 @@ export default function LGDWorkspaceSidebar() {
 
         <div className="mt-4 grid gap-2 border-t border-yellow-600/15 pt-4 text-sm">
           <button type="button" onClick={openPlans} className={navButton}>
-            👑 Plans
+            👑 Voir les Plans
           </button>
 
           <button type="button" onClick={() => requireLogin("/dashboard/settings")} className={navButton}>
