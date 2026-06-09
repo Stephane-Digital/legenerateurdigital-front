@@ -248,7 +248,204 @@ const DIGITAL_PRODUCT_OPPORTUNITIES: DigitalProductOpportunity[] = [
     targetAudienceDescription:
       "Avatar : Nadia, 44 ans. Elle veut respirer financièrement, mais ne sait pas quelle piste choisir. Elle a peur des arnaques, manque de confiance et veut une méthode réaliste, prudente et concrète pour commencer.",
   },
+  {
+    id: "bien_etre_femmes_40_plus",
+    title: "Bien-être et équilibre femmes 40+",
+    badge: "Audience très engagée",
+    demand: "Femmes actives, mères, entrepreneures, reconversion douce",
+    score: 92,
+    why: "Forte demande pour reprendre énergie, confiance et clarté sans approche médicale ni promesses extrêmes.",
+    product: "Programme 21 jours + workbook + routines guidées",
+    price: "47€ à 197€",
+    offerDescription:
+      "Un programme digital de bien-être et d’organisation personnelle pour aider les femmes de 40 ans et plus à retrouver de l’énergie, clarifier leurs priorités et reconstruire une routine simple compatible avec leur vie réelle.",
+    problemSolved:
+      "Aider des femmes actives à sortir de la fatigue, de la charge mentale et de l’impression de s’oublier, grâce à une méthode douce, concrète et progressive.",
+    transformationPromise:
+      "Passer d’un quotidien subi à une routine plus claire, plus légère et plus alignée, avec des actions simples pour retrouver confiance, énergie et direction.",
+    targetAudienceDescription:
+      "Avatar : Isabelle, 46 ans. Elle donne beaucoup aux autres, manque de temps pour elle et veut retrouver de l’énergie sans méthode culpabilisante. Elle cherche une solution simple, humaine et rassurante.",
+  },
+  {
+    id: "notion_templates_freelances",
+    title: "Templates Notion pour freelances",
+    badge: "Produit rapide à créer",
+    demand: "Freelances, créateurs, consultants, micro-entrepreneurs",
+    score: 88,
+    why: "Les freelances veulent mieux piloter clients, contenus, facturation et objectifs sans outil complexe.",
+    product: "Pack templates + tutoriels courts + système d’organisation",
+    price: "27€ à 97€",
+    offerDescription:
+      "Un pack de templates Notion destiné aux freelances pour organiser leurs clients, leurs missions, leur contenu, leurs finances simples et leurs objectifs hebdomadaires dans un seul espace clair.",
+    problemSolved:
+      "Aider les freelances désorganisés à reprendre le contrôle de leur activité sans multiplier les outils ni perdre du temps dans des systèmes trop complexes.",
+    transformationPromise:
+      "Passer d’une gestion dispersée à un espace de pilotage simple pour suivre ses clients, ses revenus, ses priorités et ses actions de croissance.",
+    targetAudienceDescription:
+      "Avatar : Thomas, 32 ans. Il est freelance, travaille bien, mais gère tout dans sa tête. Il veut une organisation simple, professionnelle et rapide à mettre en place.",
+  },
+  {
+    id: "canva_business_templates",
+    title: "Templates Canva business premium",
+    badge: "Très visuel · facile à vendre",
+    demand: "Créateurs, coachs, infopreneurs, petites marques",
+    score: 87,
+    why: "Les entrepreneurs veulent publier vite avec un rendu professionnel sans designer.",
+    product: "Pack templates Canva + prompts + calendrier de contenu",
+    price: "27€ à 147€",
+    offerDescription:
+      "Un pack de templates Canva premium pour aider les entrepreneurs, coachs et créateurs à publier du contenu professionnel rapidement, avec des visuels cohérents et des messages orientés conversion.",
+    problemSolved:
+      "Aider les créateurs à arrêter de perdre du temps sur le design et à publier des contenus plus professionnels sans partir d’une page blanche.",
+    transformationPromise:
+      "Passer d’une communication irrégulière et amateur à une présence visuelle claire, premium et plus facile à maintenir chaque semaine.",
+    targetAudienceDescription:
+      "Avatar : Emma, 36 ans. Elle vend une offre en ligne mais perd trop de temps à créer ses visuels. Elle veut un rendu professionnel, rapide et cohérent avec son positionnement.",
+  },
+  {
+    id: "micro_formation_chatgpt_seniors",
+    title: "ChatGPT simple pour 50+",
+    badge: "Marché sous-servi",
+    demand: "50+, salariés, indépendants, retraités actifs",
+    score: 91,
+    why: "Beaucoup veulent comprendre l’IA sans jargon, avec des usages concrets et rassurants.",
+    product: "Micro-formation vidéo + fiches pratiques + prompts simples",
+    price: "47€ à 197€",
+    offerDescription:
+      "Une micro-formation qui explique ChatGPT et l’IA aux personnes de 50 ans et plus avec des exemples simples pour gagner du temps, écrire, organiser ses idées et mieux comprendre les outils numériques.",
+    problemSolved:
+      "Aider les personnes qui se sentent dépassées par l’IA à l’utiliser simplement, sans jargon technique ni peur de mal faire.",
+    transformationPromise:
+      "Passer d’une impression d’être largué à une utilisation confiante et pratique de l’IA dans le quotidien, le travail ou les projets personnels.",
+    targetAudienceDescription:
+      "Avatar : Patrick, 56 ans. Il entend parler d’IA partout, mais se sent en retard. Il veut apprendre calmement, avec des exemples concrets et une méthode très accessible.",
+  },
+  {
+    id: "email_marketing_independants",
+    title: "Email marketing simple pour indépendants",
+    badge: "Forte valeur business",
+    demand: "Solopreneurs, coachs, formateurs, affiliés",
+    score: 93,
+    why: "L’email reste un levier direct de conversion, mais beaucoup ne savent pas quoi écrire ni quand envoyer.",
+    product: "Séquences email prêtes à adapter + formation courte",
+    price: "97€ à 297€",
+    offerDescription:
+      "Une formation courte qui aide les indépendants à créer une première séquence email simple pour présenter leur offre, créer de la confiance et convertir sans écrire comme un copywriter expert.",
+    problemSolved:
+      "Aider les indépendants à arrêter de dépendre uniquement des réseaux sociaux et à transformer leurs prospects en clients grâce à des emails simples et humains.",
+    transformationPromise:
+      "Passer d’une audience dispersée à une séquence email claire qui nourrit la relation, explique l’offre et mène naturellement vers la vente.",
+    targetAudienceDescription:
+      "Avatar : Céline, 39 ans. Elle a une petite audience, mais ne sait pas relancer ni vendre par email. Elle veut des modèles simples, humains et adaptés à son activité.",
+  },
+  {
+    id: "faceless_content_ia",
+    title: "Contenu faceless avec IA",
+    badge: "Très forte tendance créateur",
+    demand: "Débutants, créateurs discrets, affiliés, MRR",
+    score: 95,
+    why: "Beaucoup veulent créer du contenu sans montrer leur visage, tout en construisant une audience monétisable.",
+    product: "Méthode faceless + prompts + scripts reels + calendrier",
+    price: "47€ à 197€",
+    offerDescription:
+      "Une méthode digitale pour créer du contenu faceless avec l’IA, structurer des scripts courts, produire des visuels simples et publier régulièrement sans se montrer à l’écran.",
+    problemSolved:
+      "Aider les personnes qui n’osent pas se montrer à publier quand même du contenu utile, régulier et monétisable grâce à une méthode faceless claire.",
+    transformationPromise:
+      "Passer de la peur de s’exposer à une stratégie de contenu discrète, structurée et capable d’attirer une audience ciblée.",
+    targetAudienceDescription:
+      "Avatar : Manon, 29 ans. Elle veut lancer un projet en ligne mais ne veut pas se filmer. Elle cherche une méthode rassurante, simple et compatible avec l’IA.",
+  },
+  {
+    id: "business_local_ia",
+    title: "IA pour commerces locaux",
+    badge: "Besoin concret terrain",
+    demand: "Restaurants, instituts, artisans, commerces de proximité",
+    score: 90,
+    why: "Les commerces veulent plus de visibilité mais manquent de temps et de méthode pour communiquer.",
+    product: "Kit IA local + prompts posts + calendrier mensuel",
+    price: "97€ à 297€",
+    offerDescription:
+      "Un kit digital pour aider les commerces locaux à utiliser l’IA afin de créer des idées de posts, promotions, messages clients et contenus simples pour gagner en visibilité chaque semaine.",
+    problemSolved:
+      "Aider les commerces locaux à communiquer régulièrement sans agence, sans complexité et sans perdre du temps à chercher quoi publier.",
+    transformationPromise:
+      "Passer d’une communication irrégulière à un système simple pour publier, promouvoir ses offres et rester présent dans l’esprit des clients locaux.",
+    targetAudienceDescription:
+      "Avatar : Karim, 43 ans. Il gère un commerce local, connaît son métier, mais n’a jamais le temps de communiquer. Il veut des idées simples et prêtes à utiliser.",
+  },
+  {
+    id: "ebooks_pratiques_ia",
+    title: "Créer et vendre des ebooks pratiques avec IA",
+    badge: "Low ticket scalable",
+    demand: "Créateurs, experts débutants, freelances, coachs",
+    score: 89,
+    why: "Les ebooks restent simples à produire et à vendre quand ils répondent à un problème précis.",
+    product: "Formation création ebook + prompts + page de vente simple",
+    price: "47€ à 197€",
+    offerDescription:
+      "Une formation pratique pour créer un ebook utile avec l’aide de l’IA, le structurer autour d’un problème précis et le vendre avec une page simple et une séquence courte.",
+    problemSolved:
+      "Aider les personnes qui ont une expertise ou une méthode à la transformer en ebook clair, utile et vendable sans passer des mois à écrire.",
+    transformationPromise:
+      "Passer d’une idée floue à un ebook structuré, positionné et prêt à être vendu à une audience ciblée.",
+    targetAudienceDescription:
+      "Avatar : Lucas, 35 ans. Il a des connaissances utiles mais ne sait pas comment les transformer en produit. Il veut créer vite quelque chose de propre et vendable.",
+  },
+  {
+    id: "parentalite_organisation",
+    title: "Organisation familiale et charge mentale",
+    badge: "Douleur quotidienne forte",
+    demand: "Parents actifs, familles débordées, mères entrepreneures",
+    score: 88,
+    why: "Problème quotidien, émotionnel et récurrent, avec forte recherche de solutions simples.",
+    product: "Workbook + routines familiales + planning imprimable",
+    price: "27€ à 97€",
+    offerDescription:
+      "Un produit digital qui aide les parents actifs à organiser la semaine familiale, répartir les priorités, réduire la charge mentale et retrouver plus de calme dans le quotidien.",
+    problemSolved:
+      "Aider les parents débordés à sortir de l’improvisation permanente et à mettre en place une organisation familiale simple et apaisante.",
+    transformationPromise:
+      "Passer d’un quotidien saturé et stressant à une semaine mieux organisée, plus lisible et plus sereine pour toute la famille.",
+    targetAudienceDescription:
+      "Avatar : Aurélie, 40 ans. Elle travaille, gère beaucoup de choses à la maison et a l’impression de porter toute l’organisation. Elle veut des outils simples et concrets.",
+  },
+  {
+    id: "personal_branding_ia",
+    title: "Marque personnelle avec IA",
+    badge: "Demande créateurs forte",
+    demand: "Indépendants, cadres en reconversion, coachs, consultants",
+    score: 92,
+    why: "De plus en plus de personnes veulent devenir visibles mais ne savent pas formuler leur expertise.",
+    product: "Méthode positionnement + prompts bio + calendrier contenu",
+    price: "97€ à 297€",
+    offerDescription:
+      "Une méthode digitale pour aider les indépendants et cadres en reconversion à clarifier leur marque personnelle, formuler leur expertise et créer du contenu avec l’IA pour devenir visibles sans se disperser.",
+    problemSolved:
+      "Aider les personnes compétentes mais peu visibles à transformer leur expérience en positionnement clair et en contenus réguliers qui attirent les bonnes opportunités.",
+    transformationPromise:
+      "Passer d’une expertise invisible à une marque personnelle claire, crédible et capable d’attirer clients, opportunités ou partenaires.",
+    targetAudienceDescription:
+      "Avatar : Sandrine, 45 ans. Elle a de l’expérience mais ne sait pas comment se positionner en ligne. Elle veut devenir visible sans jouer un rôle artificiel.",
+  },
 ];
+
+function getDigitalProductOpportunityBatch(batchIndex: number) {
+  const size = 5;
+  const total = Math.max(1, Math.ceil(DIGITAL_PRODUCT_OPPORTUNITIES.length / size));
+  const safeIndex = ((batchIndex % total) + total) % total;
+  const start = safeIndex * size;
+  const batch = DIGITAL_PRODUCT_OPPORTUNITIES.slice(start, start + size);
+
+  if (batch.length === size) return batch;
+  return [...batch, ...DIGITAL_PRODUCT_OPPORTUNITIES.slice(0, size - batch.length)];
+}
+
+function findDigitalProductOpportunityByOffer(offerDescription: string) {
+  return DIGITAL_PRODUCT_OPPORTUNITIES.find(
+    (opportunity) => opportunity.offerDescription === offerDescription,
+  );
+}
 
 function inferProblemSolved(
   offerDescription: string,
@@ -1346,6 +1543,18 @@ function OnboardingCard(props: {
   const promiseEditedRef = useRef(
     Boolean(businessProject?.transformationPromise),
   );
+  const [opportunityBatchIndex, setOpportunityBatchIndex] = useState(0);
+  const [opportunitiesOpen, setOpportunitiesOpen] = useState(true);
+
+  const visibleDigitalProductOpportunities = useMemo(
+    () => getDigitalProductOpportunityBatch(opportunityBatchIndex),
+    [opportunityBatchIndex],
+  );
+
+  const selectedDigitalProductOpportunity = useMemo(
+    () => findDigitalProductOpportunityByOffer(offerDescription),
+    [offerDescription],
+  );
 
   useEffect(() => {
     if (problemEditedRef.current) return;
@@ -1620,7 +1829,7 @@ function OnboardingCard(props: {
 
 {parcoursChoice === "creation_produit_digital" ? (
   <div className="mt-5 rounded-3xl border border-yellow-500/20 bg-yellow-400/5 p-4">
-    <div className="flex items-start justify-between gap-3">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
       <div>
         <div className="text-sm font-black text-yellow-200">
           🧠 Alex peut te proposer 5 niches rentables
@@ -1629,31 +1838,59 @@ function OnboardingCard(props: {
           Choisis une opportunité pour préremplir ton idée de produit, ou écris librement ton propre projet.
         </div>
       </div>
-      <div className="hidden rounded-2xl border border-yellow-400/20 bg-black/25 px-3 py-2 text-center text-[10px] font-black uppercase tracking-[0.18em] text-yellow-200/70 sm:block">
-        Opportunités
+      <div className="flex shrink-0 flex-col gap-2 sm:items-end">
+        <button
+          type="button"
+          onClick={() => {
+            setOpportunityBatchIndex((current) => current + 1);
+            setOpportunitiesOpen(true);
+          }}
+          className="rounded-2xl border border-yellow-400/30 bg-yellow-400/10 px-4 py-2 text-xs font-black text-yellow-200 transition hover:bg-yellow-400/15"
+        >
+          Régénérer 5 niches rentables
+        </button>
+        {selectedDigitalProductOpportunity ? (
+          <button
+            type="button"
+            onClick={() => setOpportunitiesOpen((current) => !current)}
+            className="rounded-2xl border border-[#2a2416] bg-black/25 px-4 py-2 text-xs font-semibold text-white/65 transition hover:border-yellow-400/30 hover:text-yellow-200"
+          >
+            {opportunitiesOpen ? "Rétracter les propositions" : "Voir les 5 propositions"}
+          </button>
+        ) : null}
       </div>
     </div>
 
-    <div className="mt-4 grid grid-cols-1 gap-3">
-      {DIGITAL_PRODUCT_OPPORTUNITIES.map((opportunity) => (
-        <OpportunityPickCard
-          key={opportunity.id}
-          opportunity={opportunity}
-          selected={offerDescription === opportunity.offerDescription}
-          onPick={() => {
-            problemEditedRef.current = true;
-            promiseEditedRef.current = true;
-            targetEditedRef.current = true;
-            setOfferDescription(opportunity.offerDescription);
-            setProblemSolved(opportunity.problemSolved);
-            setTransformationPromise(opportunity.transformationPromise);
-            setTargetAudienceDescription(opportunity.targetAudienceDescription);
-            setPrimaryChannel("instagram");
-            setPositioning("mentor");
-          }}
-        />
-      ))}
-    </div>
+    {selectedDigitalProductOpportunity && !opportunitiesOpen ? (
+      <SelectedOpportunitySummary
+        opportunity={selectedDigitalProductOpportunity}
+        onOpen={() => setOpportunitiesOpen(true)}
+      />
+    ) : null}
+
+    {opportunitiesOpen ? (
+      <div className="mt-4 grid grid-cols-1 gap-3">
+        {visibleDigitalProductOpportunities.map((opportunity) => (
+          <OpportunityPickCard
+            key={opportunity.id}
+            opportunity={opportunity}
+            selected={selectedDigitalProductOpportunity?.id === opportunity.id}
+            onPick={() => {
+              problemEditedRef.current = true;
+              promiseEditedRef.current = true;
+              targetEditedRef.current = true;
+              setOfferDescription(opportunity.offerDescription);
+              setProblemSolved(opportunity.problemSolved);
+              setTransformationPromise(opportunity.transformationPromise);
+              setTargetAudienceDescription(opportunity.targetAudienceDescription);
+              setPrimaryChannel("instagram");
+              setPositioning("mentor");
+              setOpportunitiesOpen(false);
+            }}
+          />
+        ))}
+      </div>
+    ) : null}
   </div>
 ) : null}
 
@@ -2142,6 +2379,56 @@ function TimelineStep(props: { number: string; title: string; body: ReactNode })
   );
 }
 
+
+function SelectedOpportunitySummary(props: {
+  opportunity: DigitalProductOpportunity;
+  onOpen: () => void;
+}) {
+  const { opportunity, onOpen } = props;
+
+  return (
+    <div className="mt-4 rounded-3xl border border-yellow-400/35 bg-yellow-400/10 p-4 shadow-[0_0_24px_rgba(250,204,21,0.08)]">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-[11px] font-black uppercase tracking-[0.18em] text-yellow-300/70">
+            Opportunité sélectionnée
+          </div>
+          <div className="mt-1 text-base font-black text-white">
+            {opportunity.title}
+          </div>
+          <div className="mt-2 text-xs leading-5 text-white/60">
+            {opportunity.why}
+          </div>
+        </div>
+        <div className="shrink-0 rounded-2xl border border-yellow-400/25 bg-black/25 px-3 py-2 text-center">
+          <div className="text-[10px] text-yellow-200/70">Score</div>
+          <div className="text-lg font-black text-yellow-300">
+            {opportunity.score}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <div className="rounded-2xl border border-white/5 bg-black/20 p-3 text-xs leading-5 text-white/60">
+          <span className="font-semibold text-yellow-200">Produit :</span>{" "}
+          {opportunity.product}
+        </div>
+        <div className="rounded-2xl border border-white/5 bg-black/20 p-3 text-xs leading-5 text-white/60">
+          <span className="font-semibold text-yellow-200">Prix :</span>{" "}
+          {opportunity.price}
+        </div>
+      </div>
+
+      <button
+        type="button"
+        onClick={onOpen}
+        className="mt-3 w-full rounded-2xl border border-yellow-400/30 bg-black/25 px-4 py-2 text-xs font-black text-yellow-200 transition hover:bg-yellow-400/10"
+      >
+        Changer de niche ou voir les propositions
+      </button>
+    </div>
+  );
+}
 
 function OpportunityPickCard(props: {
   opportunity: DigitalProductOpportunity;
