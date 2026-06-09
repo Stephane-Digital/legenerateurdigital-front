@@ -1023,10 +1023,10 @@ export default function StageRenderer(props: {
     const pct = Math.min(100, Math.round((doneCount / 7) * 100));
 
     return (
-      <div className="rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-6">
+      <div className="rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-4 sm:p-6">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <div className="text-3xl font-semibold text-yellow-400">
+            <div className="text-2xl font-semibold text-yellow-400 sm:text-3xl">
               Alex V4 · Business Director IA
             </div>
             <div className="mt-1 text-sm text-white/55">
@@ -1171,7 +1171,7 @@ export default function StageRenderer(props: {
 
   // EXECUTION / COMMIT_REQUIRED are handled by Shell (modal + redirect)
   return (
-    <div className="rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-6">
+    <div className="rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-4 sm:p-6">
       <div className="text-white/80">Chargement…</div>
     </div>
   );
@@ -1350,8 +1350,8 @@ function OnboardingCard(props: {
   }
 
   return (
-    <div className="rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-6">
-      <div className="text-3xl font-semibold text-yellow-400">
+    <div className="rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-4 sm:p-4 sm:p-6">
+      <div className="text-2xl font-semibold text-yellow-400 sm:text-3xl">
         Coach Alex V3 · FormAction Premium
       </div>
       <div className="mt-1 text-sm text-white/55">
@@ -1967,7 +1967,7 @@ function SummaryLine({ label, value }: { label: string; value: ReactNode }) {
       <div className="text-xs uppercase tracking-[0.18em] text-white/35">
         {label}
       </div>
-      <div className="mt-1 text-sm text-white/75">{value}</div>
+      <div className="mt-1 break-words text-sm text-white/75">{value}</div>
     </div>
   );
 }
@@ -2020,8 +2020,8 @@ function PlanOverview(props: {
   );
 
   return (
-    <div className="rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-6">
-      <div className="text-3xl font-semibold text-yellow-400">
+    <div className="rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-4 sm:p-4 sm:p-6">
+      <div className="text-2xl font-semibold text-yellow-400 sm:text-3xl">
         Ton plan global
       </div>
       <div className="mt-1 text-sm text-white/55">
@@ -2122,7 +2122,7 @@ function MissionCard(props: {
   } = props;
 
   return (
-    <div className="rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-6">
+    <div className="rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-4 sm:p-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <div className="text-2xl font-semibold text-yellow-400">
@@ -2221,8 +2221,8 @@ function FeedbackCard(props: {
   const [blocker, setBlocker] = useState<DailyLog["blocker"] | null>(null);
 
   return (
-    <div className="rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-6">
-      <div className="text-3xl font-semibold text-yellow-400">Feedback</div>
+    <div className="rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-4 sm:p-4 sm:p-6">
+      <div className="text-2xl font-semibold text-yellow-400 sm:text-3xl">Feedback</div>
       <div className="mt-1 text-sm text-white/55">
         30 secondes. On mesure. On optimise.
       </div>
@@ -2467,8 +2467,8 @@ function OptimizeCard(props: {
 
   if (!hasBlocker) {
     return (
-      <div className="rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-6">
-        <div className="text-3xl font-semibold text-yellow-400">
+      <div className="rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-4 sm:p-6">
+        <div className="text-2xl font-semibold text-yellow-400 sm:text-3xl">
           Optimisation
         </div>
         <div className="mt-1 text-sm text-white/55">
@@ -2502,8 +2502,8 @@ function OptimizeCard(props: {
   }
 
   return (
-    <div className="rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-6">
-      <div className="text-3xl font-semibold text-yellow-400">Optimisation</div>
+    <div className="rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-4 sm:p-4 sm:p-6">
+      <div className="text-2xl font-semibold text-yellow-400 sm:text-3xl">Optimisation</div>
       <div className="mt-1 text-sm text-white/55">
         Alex ajuste ton focus. Réseau : Instagram. Modèles : MMR/MLR/Contenu.
       </div>
