@@ -839,7 +839,7 @@ function OnboardingCard(props: {
               <PickRow
                 checked={businessModel === "affiliation"}
                 onClick={() => setBusinessModel("affiliation")}
-                label="Développer une activité d’affiliation"
+                label="Vendre une formation en MRR ou en affiliation"
               />
               <PickRow
                 checked={businessModel === "coaching"}
