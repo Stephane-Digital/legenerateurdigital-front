@@ -589,41 +589,39 @@ async function fetchLiveDigitalProductOpportunities(args: {
     throw new Error("NEXT_PUBLIC_API_URL manquant");
   }
 
-  const prompt = `Tu es Alex, Directeur Business IA de LGD. Analyse le marché actuel et propose exactement 5 niches rentables pour créer un produit digital. Réponds uniquement en JSON valide, sans markdown, au format {"opportunities":[{"title":"","badge":"","demand":"","score":95,"why":"","product":"","price":"","offerDescription":"","problemSolved":"","transformationPromise":"","targetAudienceDescription":""}]}. Contexte utilisateur: objectif=${args.businessGoal}, niveau=${args.level}, audience=${args.audienceSize}, blocage=${args.mainBlocker}, canal=${args.primaryChannel}. Les niches doivent avoir une forte demande, être monétisables rapidement, compatibles avec LGD, et adaptées à un utilisateur qui veut créer son propre produit digital.`;
-
   const headers = {
     "Content-Type": "application/json",
     ...getCoachAuthHeaders(),
   };
 
+  const liveMarketPayload = {
+    businessModel: "offre_digitale",
+    parcours: "creation_produit_digital",
+    objective: args.businessGoal,
+    level: args.level,
+    audienceSize: args.audienceSize,
+    mainBlocker: args.mainBlocker,
+    primaryChannel: args.primaryChannel,
+    existingOffer: "",
+    context: {
+      businessGoal: args.businessGoal,
+      level: args.level,
+      audienceSize: args.audienceSize,
+      mainBlocker: args.mainBlocker,
+      primaryChannel: args.primaryChannel,
+      expectedCount: 5,
+      source: "coach_alex_formaction_opportunity_button",
+    },
+  };
+
   const requests = [
     {
-      url: `${base}/coach-profile/market-opportunities`,
-      body: {
-        business_model: "offre_digitale",
-        request_type: "digital_product_opportunities",
-        count: 5,
-        context: args,
-        prompt,
-      },
-    },
-    {
       url: `${base}/coach/market-opportunities`,
-      body: {
-        business_model: "offre_digitale",
-        request_type: "digital_product_opportunities",
-        count: 5,
-        context: args,
-        prompt,
-      },
+      body: liveMarketPayload,
     },
     {
-      url: `${base}/coach/chat`,
-      body: {
-        message: prompt,
-        mode: "market_opportunities",
-        context: args,
-      },
+      url: `${base}/market-opportunities`,
+      body: liveMarketPayload,
     },
   ];
 
