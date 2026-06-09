@@ -54,6 +54,21 @@ type CoachV2Snapshot = {
   updatedAtISO: string;
 };
 
+type FormActionBusinessProject = {
+  offerDescription?: string;
+  targetAudienceDescription?: string;
+  businessModel?: AlexBusinessModel;
+  parcours?:
+    | "creation_produit_digital"
+    | "affiliation"
+    | "code_liberte"
+    | "non_defini";
+  recommendedPlatform?: string;
+  estimatedTimeBeforeSale?: string;
+  nextMission?: string;
+  updatedAtISO?: string;
+};
+
 function apiBase() {
   return (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
 }
@@ -84,6 +99,60 @@ async function readCoachProfile(): Promise<any | null> {
   return await res.json().catch(() => null);
 }
 
+async function readBusinessProject(): Promise<FormActionBusinessProject | null> {
+  const base = apiBase();
+  if (!base) return null;
+
+  const res = await fetch(`${base}/coach-profile/business-project`, {
+    method: "GET",
+    headers: {
+      ...getAuthHeaders(),
+    },
+    credentials: "include",
+    cache: "no-store",
+  });
+
+  if (!res.ok) return null;
+  const data = await res.json().catch(() => null);
+  return (data?.business_project ||
+    data?.businessProject ||
+    data?.project ||
+    data ||
+    null) as FormActionBusinessProject | null;
+}
+
+async function patchBusinessProject(
+  project: FormActionBusinessProject,
+): Promise<void> {
+  const base = apiBase();
+  if (!base) return;
+
+  const headers = {
+    "Content-Type": "application/json",
+    ...getAuthHeaders(),
+  };
+
+  const direct = await fetch(`${base}/coach-profile/business-project`, {
+    method: "PATCH",
+    headers,
+    credentials: "include",
+    body: JSON.stringify(project),
+  }).catch(() => null);
+
+  if (direct?.ok) return;
+
+  await fetch(`${base}/coach-profile/business-project`, {
+    method: "PATCH",
+    headers,
+    credentials: "include",
+    body: JSON.stringify({
+      business_project: project,
+      businessProject: project,
+      project,
+    }),
+  }).catch(() => {});
+}
+
 function extractServerSnapshot(profileOut: any): CoachV2Snapshot | null {
   const p = profileOut?.profile || {};
   const s = p?.coach_v2 || p?.coachV2 || p?.coachV2Snapshot || null;
@@ -94,7 +163,9 @@ function extractServerSnapshot(profileOut: any): CoachV2Snapshot | null {
   return s as CoachV2Snapshot;
 }
 
-async function pushCoachV2SnapshotToServer(snapshot: CoachV2Snapshot): Promise<void> {
+async function pushCoachV2SnapshotToServer(
+  snapshot: CoachV2Snapshot,
+): Promise<void> {
   const base = apiBase();
   if (!base) return;
 
@@ -149,11 +220,7 @@ async function readCurrentAccountKey(): Promise<string> {
       if (res.ok) {
         const data = await res.json().catch(() => null);
         const raw =
-          data?.email ||
-          data?.user?.email ||
-          data?.id ||
-          data?.user?.id ||
-          "";
+          data?.email || data?.user?.email || data?.id || data?.user?.id || "";
 
         if (raw) return String(raw).trim().toLowerCase();
       }
@@ -223,7 +290,10 @@ async function syncCoachV2AtBoot(args: { local: CoachV2Snapshot | null }) {
 }
 
 import { writeEditorBrief } from "../lib/bridgeEditor";
-import { buildAlexLiveFallback, generateAlexLiveStrategy } from "../lib/live-strategist";
+import {
+  buildAlexLiveFallback,
+  generateAlexLiveStrategy,
+} from "../lib/live-strategist";
 import type { AlexLiveStrategistResult } from "../lib/live-strategist";
 import {
   buildTodayFromRoadmap,
@@ -270,11 +340,17 @@ function linearDayIndex(weekIndex: number, dayIndex: number) {
 /**
  * OPTION C — Ensure progression depends ONLY on real daily logs, and cannot "jump ahead".
  */
-function clampLogsToToday(logs: DailyLog[], today: AlexToday | null): DailyLog[] {
+function clampLogsToToday(
+  logs: DailyLog[],
+  today: AlexToday | null,
+): DailyLog[] {
   if (!logs?.length) return [];
   if (!today) return logs;
 
-  const maxAllowedDoneIndex = Math.max(0, linearDayIndex(today.weekIndex, today.dayIndex) - 1);
+  const maxAllowedDoneIndex = Math.max(
+    0,
+    linearDayIndex(today.weekIndex, today.dayIndex) - 1,
+  );
 
   const doneSet = new Set<number>();
   for (const l of logs) {
@@ -344,8 +420,13 @@ export default function AlexV2Shell() {
   const [roadmap, setRoadmapState] = useState<AlexRoadmap | null>(null);
   const [today, setTodayState] = useState<AlexToday | null>(null);
   const [logs, setLogsState] = useState<DailyLog[]>([]);
+  const [businessProject, setBusinessProject] =
+    useState<FormActionBusinessProject | null>(null);
 
-  const effectiveLogs = useMemo(() => clampLogsToToday(logs, today), [logs, today]);
+  const effectiveLogs = useMemo(
+    () => clampLogsToToday(logs, today),
+    [logs, today],
+  );
 
   // ===== UI
   const [commitOpen, setCommitOpen] = useState(false);
@@ -353,10 +434,14 @@ export default function AlexV2Shell() {
 
   // ✅ CMO AUTO — lecture douce du payload sans toucher au moteur Alex V2
   const [cmoCoachBrief, setCmoCoachBrief] = useState<string>("");
-  const [cmoCoachPayload, setCmoCoachPayload] = useState<Record<string, any> | null>(null);
+  const [cmoCoachPayload, setCmoCoachPayload] = useState<Record<
+    string,
+    any
+  > | null>(null);
 
   // ✅ Alex Stratège IA Live Premium — couche d'enrichissement, sans remplacer engine.ts
-  const [liveStrategy, setLiveStrategy] = useState<AlexLiveStrategistResult | null>(null);
+  const [liveStrategy, setLiveStrategy] =
+    useState<AlexLiveStrategistResult | null>(null);
   const [liveLoading, setLiveLoading] = useState(false);
   const [liveError, setLiveError] = useState<string>("");
   const [liveLastRefreshAtISO, setLiveLastRefreshAtISO] = useState<string>("");
@@ -367,10 +452,14 @@ export default function AlexV2Shell() {
   const [used, setUsed] = useState(0);
   const [limit, setLimit] = useState(0);
   const [planLabel, setPlanLabel] = useState<string>("");
-  const remaining = useMemo(() => Math.max((limit || 0) - (used || 0), 0), [limit, used]);
+  const remaining = useMemo(
+    () => Math.max((limit || 0) - (used || 0), 0),
+    [limit, used],
+  );
 
   const systemePlansUrl =
-    process.env.NEXT_PUBLIC_SYSTEME_PLANS_URL || "https://legenerateurdigital.systeme.io/plans";
+    process.env.NEXT_PUBLIC_SYSTEME_PLANS_URL ||
+    "https://legenerateurdigital.systeme.io/plans";
 
   const planMonthlyLimit = useMemo(() => {
     const p = (planLabel || "").toLowerCase();
@@ -429,17 +518,44 @@ export default function AlexV2Shell() {
       if (!raw) return;
 
       const payload = JSON.parse(raw);
-      const moduleTarget = String(payload?.module || payload?.targetModule || payload?.destination || "").toLowerCase();
+      const moduleTarget = String(
+        payload?.module || payload?.targetModule || payload?.destination || "",
+      ).toLowerCase();
 
-      if (moduleTarget && moduleTarget !== "coach" && moduleTarget !== "coach-ia" && moduleTarget !== "coach_ia") {
+      if (
+        moduleTarget &&
+        moduleTarget !== "coach" &&
+        moduleTarget !== "coach-ia" &&
+        moduleTarget !== "coach_ia"
+      ) {
         return;
       }
 
-      const offer = String(payload?.offer || payload?.offer_name || payload?.product || payload?.title || "ton offre");
-      const audience = String(payload?.audience || payload?.target || payload?.cible || "ton audience");
-      const objective = String(payload?.objective || payload?.goal || payload?.objectif || "structurer une stratégie de conversion");
-      const channel = String(payload?.channel || payload?.canal || payload?.sourceModule || "CMO IA");
-      const cta = String(payload?.cta || payload?.callToAction || "passer à l'action");
+      const offer = String(
+        payload?.offer ||
+          payload?.offer_name ||
+          payload?.product ||
+          payload?.title ||
+          "ton offre",
+      );
+      const audience = String(
+        payload?.audience ||
+          payload?.target ||
+          payload?.cible ||
+          "ton audience",
+      );
+      const objective = String(
+        payload?.objective ||
+          payload?.goal ||
+          payload?.objectif ||
+          "structurer une stratégie de conversion",
+      );
+      const channel = String(
+        payload?.channel || payload?.canal || payload?.sourceModule || "CMO IA",
+      );
+      const cta = String(
+        payload?.cta || payload?.callToAction || "passer à l'action",
+      );
 
       setCmoCoachPayload({
         offer,
@@ -450,7 +566,7 @@ export default function AlexV2Shell() {
       });
 
       setCmoCoachBrief(
-        `CMO IA a préparé un brief stratégique : offre = ${offer}, cible = ${audience}, objectif = ${objective}, canal = ${channel}, CTA = ${cta}.`
+        `CMO IA a préparé un brief stratégique : offre = ${offer}, cible = ${audience}, objectif = ${objective}, canal = ${channel}, CTA = ${cta}.`,
       );
 
       window.localStorage.removeItem("lgd_cmo_module_auto_payload");
@@ -458,7 +574,7 @@ export default function AlexV2Shell() {
       console.error("CMO Coach payload error", error);
     }
   }, []);
-useEffect(() => {
+  useEffect(() => {
     let cancelled = false;
 
     (async () => {
@@ -468,13 +584,21 @@ useEffect(() => {
       setAccountKey(currentAccountKey);
 
       try {
-        const previousOwner = window.localStorage.getItem("lgd_alex_v2_owner") || "";
+        const previousOwner =
+          window.localStorage.getItem("lgd_alex_v2_owner") || "";
         if (previousOwner && previousOwner !== currentAccountKey) {
           resetAlexLocalStateForAccount(currentAccountKey);
         } else if (!previousOwner) {
           window.localStorage.setItem("lgd_alex_v2_owner", currentAccountKey);
         }
       } catch {}
+
+      const serverBusinessProject = await readBusinessProject().catch(
+        () => null,
+      );
+      if (!cancelled && serverBusinessProject) {
+        setBusinessProject(serverBusinessProject);
+      }
 
       const ctx = getV2Context();
       const rm = getV2Roadmap();
@@ -524,10 +648,19 @@ useEffect(() => {
 
     (async () => {
       try {
-        const localSnap = buildSnapshotFromState({ stage, context, roadmap, today, logs });
+        const localSnap = buildSnapshotFromState({
+          stage,
+          context,
+          roadmap,
+          today,
+          logs,
+        });
         const res = await syncCoachV2AtBoot({ local: localSnap });
 
-        if ((res as any)?.mode === "server->local" && (res as any)?.serverSnap) {
+        if (
+          (res as any)?.mode === "server->local" &&
+          (res as any)?.serverSnap
+        ) {
           const s = (res as any).serverSnap as CoachV2Snapshot;
           setV2Stage(s.stage);
           setV2Context(s.context);
@@ -536,7 +669,10 @@ useEffect(() => {
 
           try {
             if (typeof window !== "undefined") {
-              window.localStorage.setItem("lgd_alex_v2_logs", JSON.stringify(s.logs || []));
+              window.localStorage.setItem(
+                "lgd_alex_v2_logs",
+                JSON.stringify(s.logs || []),
+              );
             }
           } catch {}
         }
@@ -568,7 +704,13 @@ useEffect(() => {
     if (!serverSynced) return;
     if (!accountKey) return;
 
-    const snapshot = buildSnapshotFromState({ stage, context, roadmap, today, logs });
+    const snapshot = buildSnapshotFromState({
+      stage,
+      context,
+      roadmap,
+      today,
+      logs,
+    });
     if (!snapshot) return;
 
     const sig = JSON.stringify({
@@ -598,7 +740,9 @@ useEffect(() => {
 
   useEffect(() => {
     try {
-      const saved = window.sessionStorage.getItem("lgd_alex_live_strategy_open");
+      const saved = window.sessionStorage.getItem(
+        "lgd_alex_live_strategy_open",
+      );
       setLiveStrategyOpen(saved === "true");
     } catch {}
   }, []);
@@ -607,7 +751,10 @@ useEffect(() => {
     setLiveStrategyOpen((current) => {
       const next = !current;
       try {
-        window.sessionStorage.setItem("lgd_alex_live_strategy_open", String(next));
+        window.sessionStorage.setItem(
+          "lgd_alex_live_strategy_open",
+          String(next),
+        );
       } catch {}
       return next;
     });
@@ -623,7 +770,12 @@ useEffect(() => {
       const q = await coachQuota();
       setUsed(Number(q.tokens_used || 0));
       setLimit(Number(q.tokens_limit || 0));
-      setPlanLabel(planLabelFrom(String(q.display_plan || q.plan_key || q.plan || ""), Number(q.tokens_limit || 0)));
+      setPlanLabel(
+        planLabelFrom(
+          String(q.display_plan || q.plan_key || q.plan || ""),
+          Number(q.tokens_limit || 0),
+        ),
+      );
     } catch (e: any) {
       const msg = String(e?.message || e || "");
       if (msg.includes("UNAUTH") || msg.includes("401")) {
@@ -636,7 +788,10 @@ useEffect(() => {
     }
   }
 
-  async function refreshLiveStrategist(args?: { force?: boolean; signal?: AbortSignal }) {
+  async function refreshLiveStrategist(args?: {
+    force?: boolean;
+    signal?: AbortSignal;
+  }) {
     if (!context || !today?.mission) {
       setLiveStrategy(null);
       setLiveError("");
@@ -667,7 +822,9 @@ useEffect(() => {
     }
 
     try {
-      const regenerationId = args?.force ? `regen_${Date.now()}_${Math.random().toString(36).slice(2)}` : undefined;
+      const regenerationId = args?.force
+        ? `regen_${Date.now()}_${Math.random().toString(36).slice(2)}`
+        : undefined;
 
       const previousStrategy = liveStrategy;
       const regenerationInstruction = args?.force
@@ -726,7 +883,9 @@ useEffect(() => {
       }
     } catch (error: any) {
       if (String(error?.name || "") === "AbortError") return;
-      setLiveError("Alex Stratège IA Live est indisponible pour le moment. Le socle Alex 98% reste actif.");
+      setLiveError(
+        "Alex Stratège IA Live est indisponible pour le moment. Le socle Alex 98% reste actif.",
+      );
     } finally {
       setLiveLoading(false);
     }
@@ -759,7 +918,10 @@ useEffect(() => {
     if (today?.startedAtISO) set.add("execution");
     if (today?.completedAtISO) set.add("feedback");
     const hasTodayLog =
-      !!today && effectiveLogs.some((l) => l.weekIndex === today.weekIndex && l.dayIndex === today.dayIndex);
+      !!today &&
+      effectiveLogs.some(
+        (l) => l.weekIndex === today.weekIndex && l.dayIndex === today.dayIndex,
+      );
     if (today?.completedAtISO && hasTodayLog) set.add("optim");
     return set;
   }, [context, roadmap, today, effectiveLogs]);
@@ -769,10 +931,40 @@ useEffect(() => {
     goStage("ONBOARDING");
   }
 
-  function onSubmitOnboarding(data: { intent: AlexIntent; level: AlexLevel; timePerDay: TimePerDay; businessGoal?: AlexBusinessGoal; businessModel?: AlexBusinessModel; audienceSize?: AlexAudienceSize; mainBlocker?: AlexMainBlocker; offerDescription?: string; targetAudienceDescription?: string; primaryChannel?: string; channelNotes?: string }) {
-    const ctx = createInitialContext({ intent: data.intent, level: data.level, timePerDay: data.timePerDay, businessGoal: data.businessGoal, businessModel: data.businessModel, audienceSize: data.audienceSize, mainBlocker: data.mainBlocker, offerDescription: data.offerDescription, targetAudienceDescription: data.targetAudienceDescription, primaryChannel: data.primaryChannel, channelNotes: data.channelNotes });
+  function onSubmitOnboarding(data: {
+    intent: AlexIntent;
+    level: AlexLevel;
+    timePerDay: TimePerDay;
+    businessGoal?: AlexBusinessGoal;
+    businessModel?: AlexBusinessModel;
+    audienceSize?: AlexAudienceSize;
+    mainBlocker?: AlexMainBlocker;
+    offerDescription?: string;
+    targetAudienceDescription?: string;
+    primaryChannel?: string;
+    channelNotes?: string;
+    formActionProject?: FormActionBusinessProject;
+  }) {
+    const ctx = createInitialContext({
+      intent: data.intent,
+      level: data.level,
+      timePerDay: data.timePerDay,
+      businessGoal: data.businessGoal,
+      businessModel: data.businessModel,
+      audienceSize: data.audienceSize,
+      mainBlocker: data.mainBlocker,
+      offerDescription: data.offerDescription,
+      targetAudienceDescription: data.targetAudienceDescription,
+      primaryChannel: data.primaryChannel,
+      channelNotes: data.channelNotes,
+    });
     const rm = createInitialRoadmap(ctx);
-    const td = buildTodayFromRoadmap({ ctx, roadmap: rm, weekIndex: 1, dayIndex: 1 });
+    const td = buildTodayFromRoadmap({
+      ctx,
+      roadmap: rm,
+      weekIndex: 1,
+      dayIndex: 1,
+    });
 
     setContextState(ctx);
     setRoadmapState(rm);
@@ -783,6 +975,11 @@ useEffect(() => {
     setV2Roadmap(rm);
     setV2Today(td);
 
+    if (data.formActionProject) {
+      setBusinessProject(data.formActionProject);
+      void patchBusinessProject(data.formActionProject);
+    }
+
     goStage("PLAN_OVERVIEW");
   }
 
@@ -792,13 +989,24 @@ useEffect(() => {
 
   function onSmartResume() {
     if (cmoCoachBrief) {
-      const ctx = context || createInitialContext({ intent: "argent_vite", level: "sans_resultat", timePerDay: 60 });
+      const ctx =
+        context ||
+        createInitialContext({
+          intent: "argent_vite",
+          level: "sans_resultat",
+          timePerDay: 60,
+        });
       const rm = roadmap || createInitialRoadmap(ctx);
-      const baseToday = today || buildTodayFromRoadmap({ ctx, roadmap: rm, weekIndex: 1, dayIndex: 1 });
+      const baseToday =
+        today ||
+        buildTodayFromRoadmap({ ctx, roadmap: rm, weekIndex: 1, dayIndex: 1 });
 
       const offer = String(cmoCoachPayload?.offer || "ton offre");
       const audience = String(cmoCoachPayload?.audience || "ton audience");
-      const objective = String(cmoCoachPayload?.objective || "transformer l’action CMO en stratégie claire");
+      const objective = String(
+        cmoCoachPayload?.objective ||
+          "transformer l’action CMO en stratégie claire",
+      );
       const cta = String(cmoCoachPayload?.cta || "passer à l’action");
 
       const nextToday: AlexToday = {
@@ -887,7 +1095,9 @@ useEffect(() => {
     // Move stage to FEEDBACK for when user returns
     goStage("FEEDBACK");
 
-    router.push("/dashboard/automatisations/reseaux_sociaux/editor-intelligent");
+    router.push(
+      "/dashboard/automatisations/reseaux_sociaux/editor-intelligent",
+    );
   }
 
   function onFeedbackDone() {}
@@ -896,7 +1106,11 @@ useEffect(() => {
     goStage("MISSION_TODAY");
   }
 
-  function onSubmitFeedback(data: { done: boolean; kpiValue: number; blocker: DailyLog["blocker"] }) {
+  function onSubmitFeedback(data: {
+    done: boolean;
+    kpiValue: number;
+    blocker: DailyLog["blocker"];
+  }) {
     if (!today) return;
 
     const ts = new Date().toISOString();
@@ -942,7 +1156,8 @@ useEffect(() => {
     }
 
     const nextDayIndex = today.dayIndex < 7 ? today.dayIndex + 1 : 1;
-    const nextWeekIndex = today.dayIndex < 7 ? today.weekIndex : Math.min(9, today.weekIndex + 1);
+    const nextWeekIndex =
+      today.dayIndex < 7 ? today.weekIndex : Math.min(9, today.weekIndex + 1);
 
     const td = buildTodayFromRoadmap({
       ctx: context,
@@ -986,13 +1201,16 @@ useEffect(() => {
   // ✅ Anti-flash: render a neutral skeleton until booted.
   if (!booted) {
     return (
-    <div className="mx-auto mt-[60px] max-w-6xl px-4">
+      <div className="mx-auto mt-[60px] max-w-6xl px-4">
         <div className="mb-6 rounded-3xl border border-[#2a2416] bg-gradient-to-r from-[#0b0f16] to-[#0b1220] px-6 py-4">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div>
-              <div className="text-4xl font-semibold text-yellow-400">Alex IA 🤖 Digital Coach</div>
+              <div className="text-4xl font-semibold text-yellow-400">
+                Alex IA 🤖 Digital Coach
+              </div>
               <div className="text-sm text-white/55">
-                Workflow guidé · Instagram → Facebook → Pinterest · Objectif : ventes MMR/MLR.
+                Workflow guidé · Instagram → Facebook → Pinterest · Objectif :
+                ventes MMR/MLR.
               </div>
             </div>
 
@@ -1056,14 +1274,17 @@ useEffect(() => {
   }
 
   return (
-   <div className="mx-auto mt-[60px] max-w-6xl px-4">
+    <div className="mx-auto mt-[60px] max-w-6xl px-4">
       {/* Header */}
       <div className="mb-6 rounded-3xl border border-[#2a2416] bg-gradient-to-r from-[#0b0f16] to-[#0b1220] px-6 py-4">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
-            <div className="text-4xl font-semibold text-yellow-400">Alex IA 🤖 Digital Coach</div>
+            <div className="text-4xl font-semibold text-yellow-400">
+              Alex IA 🤖 Digital Coach
+            </div>
             <div className="text-sm text-white/55">
-              Workflow guidé · Instagram → Facebook → Pinterest · Objectif : ventes MMR/MLR.
+              Workflow guidé · Instagram → Facebook → Pinterest · Objectif :
+              ventes MMR/MLR.
             </div>
           </div>
 
@@ -1072,18 +1293,24 @@ useEffect(() => {
               <div className="text-xs text-white/50 mb-2">IA-Quotas</div>
 
               <div className="text-sm text-white/80">
-                Plan : <span className="text-yellow-200 font-semibold">{planLabel || "—"}</span>{" "}
+                Plan :{" "}
+                <span className="text-yellow-200 font-semibold">
+                  {planLabel || "—"}
+                </span>{" "}
                 <span className="text-white/55">
-                  ({new Intl.NumberFormat("fr-FR").format(planMonthlyLimit)}/mois)
+                  ({new Intl.NumberFormat("fr-FR").format(planMonthlyLimit)}
+                  /mois)
                 </span>
               </div>
 
               <div className="mt-1 text-xs text-white/55">
-                Quota / jour : {new Intl.NumberFormat("fr-FR").format(planDailySoft)}
+                Quota / jour :{" "}
+                {new Intl.NumberFormat("fr-FR").format(planDailySoft)}
               </div>
 
               <div className="mt-1 text-xs text-white/55">
-                Restant : {new Intl.NumberFormat("fr-FR").format(remainingValue)}
+                Restant :{" "}
+                {new Intl.NumberFormat("fr-FR").format(remainingValue)}
               </div>
 
               <div className="mt-3">
@@ -1105,8 +1332,12 @@ useEffect(() => {
         <div className="mb-6 rounded-3xl border border-yellow-500/25 bg-gradient-to-r from-yellow-500/10 via-[#0b0f16] to-yellow-500/10 p-5 shadow-[0_0_35px_rgba(234,179,8,0.08)]">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
-              <div className="text-xs font-semibold uppercase tracking-[0.22em] text-yellow-300/80">Mode CMO IA actif</div>
-              <div className="mt-2 text-sm leading-6 text-white/75">{cmoCoachBrief}</div>
+              <div className="text-xs font-semibold uppercase tracking-[0.22em] text-yellow-300/80">
+                Mode CMO IA actif
+              </div>
+              <div className="mt-2 text-sm leading-6 text-white/75">
+                {cmoCoachBrief}
+              </div>
             </div>
 
             <button
@@ -1127,10 +1358,15 @@ useEffect(() => {
         <div className="mb-6 rounded-3xl border border-yellow-500/25 bg-gradient-to-br from-[#111827] via-[#080b10] to-[#050607] p-5 shadow-[0_0_35px_rgba(234,179,8,0.08)]">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="max-w-3xl">
-              <div className="text-xs font-black uppercase tracking-[0.24em] text-yellow-300/80">Alex Stratège IA Live Premium</div>
-              <h2 className="mt-2 text-2xl font-black text-yellow-400">Analyse stratégique du jour</h2>
+              <div className="text-xs font-black uppercase tracking-[0.24em] text-yellow-300/80">
+                Alex Stratège IA Live Premium
+              </div>
+              <h2 className="mt-2 text-2xl font-black text-yellow-400">
+                Analyse stratégique du jour
+              </h2>
               <p className="mt-2 text-sm leading-6 text-white/65">
-                Diagnostic, blocage réel, erreur à éviter et résultat attendu ce soir.
+                Diagnostic, blocage réel, erreur à éviter et résultat attendu ce
+                soir.
               </p>
 
               <div className="mt-4 flex justify-center">
@@ -1140,15 +1376,23 @@ useEffect(() => {
                   className="inline-flex items-center justify-center gap-2 rounded-2xl border border-yellow-500/30 bg-yellow-500/10 px-5 py-2 text-sm font-black text-yellow-100 transition hover:-translate-y-0.5 hover:bg-yellow-500/15 hover:text-yellow-200"
                   aria-expanded={liveStrategyOpen}
                 >
-                  <span className="text-base leading-none">{liveStrategyOpen ? "▲" : "▼"}</span>
-                  <span>{liveStrategyOpen ? "Fermer Stratège" : "Ouvrir Stratège"}</span>
+                  <span className="text-base leading-none">
+                    {liveStrategyOpen ? "▲" : "▼"}
+                  </span>
+                  <span>
+                    {liveStrategyOpen ? "Fermer Stratège" : "Ouvrir Stratège"}
+                  </span>
                 </button>
               </div>
             </div>
 
             <div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
               <div className="rounded-2xl border border-yellow-500/20 bg-black/25 px-4 py-2 text-xs font-bold text-yellow-100">
-                {liveLoading ? "Analyse en cours…" : liveStrategy?.mode === "live" ? "Mode IA Live" : "Mode fallback premium"}
+                {liveLoading
+                  ? "Analyse en cours…"
+                  : liveStrategy?.mode === "live"
+                    ? "Mode IA Live"
+                    : "Mode fallback premium"}
               </div>
               <button
                 type="button"
@@ -1160,7 +1404,12 @@ useEffect(() => {
               </button>
               {liveLastRefreshAtISO ? (
                 <div className="rounded-2xl border border-yellow-500/10 bg-black/15 px-4 py-2 text-[11px] font-semibold text-white/45">
-                  Mise à jour : {new Date(liveLastRefreshAtISO).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                  Mise à jour :{" "}
+                  {new Date(liveLastRefreshAtISO).toLocaleTimeString("fr-FR", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit",
+                  })}
                 </div>
               ) : null}
             </div>
@@ -1169,7 +1418,9 @@ useEffect(() => {
           <div
             className={[
               "grid transition-all duration-300 ease-out",
-              liveStrategyOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
+              liveStrategyOpen
+                ? "grid-rows-[1fr] opacity-100"
+                : "grid-rows-[0fr] opacity-0",
             ].join(" ")}
           >
             <div className="overflow-hidden">
@@ -1188,37 +1439,67 @@ useEffect(() => {
               ) : liveStrategy ? (
                 <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-12">
                   <div className="rounded-2xl border border-yellow-500/15 bg-black/25 p-4 lg:col-span-4">
-                    <div className="text-xs font-black uppercase tracking-[0.18em] text-yellow-300/70">Diagnostic</div>
-                    <p className="mt-2 text-sm leading-6 text-white/78">{liveStrategy.diagnostic}</p>
+                    <div className="text-xs font-black uppercase tracking-[0.18em] text-yellow-300/70">
+                      Diagnostic
+                    </div>
+                    <p className="mt-2 text-sm leading-6 text-white/78">
+                      {liveStrategy.diagnostic}
+                    </p>
                   </div>
 
                   <div className="rounded-2xl border border-yellow-500/15 bg-black/25 p-4 lg:col-span-4">
-                    <div className="text-xs font-black uppercase tracking-[0.18em] text-yellow-300/70">Blocage réel</div>
-                    <p className="mt-2 text-sm leading-6 text-white/78">{liveStrategy.realBlocker}</p>
+                    <div className="text-xs font-black uppercase tracking-[0.18em] text-yellow-300/70">
+                      Blocage réel
+                    </div>
+                    <p className="mt-2 text-sm leading-6 text-white/78">
+                      {liveStrategy.realBlocker}
+                    </p>
                   </div>
 
                   <div className="rounded-2xl border border-yellow-500/15 bg-black/25 p-4 lg:col-span-4">
-                    <div className="text-xs font-black uppercase tracking-[0.18em] text-yellow-300/70">Résultat attendu</div>
-                    <p className="mt-2 text-sm leading-6 text-white/78">{liveStrategy.expectedResult}</p>
+                    <div className="text-xs font-black uppercase tracking-[0.18em] text-yellow-300/70">
+                      Résultat attendu
+                    </div>
+                    <p className="mt-2 text-sm leading-6 text-white/78">
+                      {liveStrategy.expectedResult}
+                    </p>
                   </div>
 
                   <div className="rounded-2xl border border-yellow-500/15 bg-black/25 p-4 lg:col-span-7">
-                    <div className="text-xs font-black uppercase tracking-[0.18em] text-yellow-300/70">Mission premium</div>
-                    <h3 className="mt-2 text-lg font-black text-yellow-300">{liveStrategy.title}</h3>
-                    <p className="mt-3 text-sm leading-6 text-white/80">{liveStrategy.premiumMission}</p>
+                    <div className="text-xs font-black uppercase tracking-[0.18em] text-yellow-300/70">
+                      Mission premium
+                    </div>
+                    <h3 className="mt-2 text-lg font-black text-yellow-300">
+                      {liveStrategy.title}
+                    </h3>
+                    <p className="mt-3 text-sm leading-6 text-white/80">
+                      {liveStrategy.premiumMission}
+                    </p>
                   </div>
 
                   <div className="rounded-2xl border border-yellow-500/15 bg-black/25 p-4 lg:col-span-5">
-                    <div className="text-xs font-black uppercase tracking-[0.18em] text-yellow-300/70">Erreur à éviter</div>
-                    <p className="mt-2 text-sm leading-6 text-white/80">{liveStrategy.mistakeToAvoid}</p>
+                    <div className="text-xs font-black uppercase tracking-[0.18em] text-yellow-300/70">
+                      Erreur à éviter
+                    </div>
+                    <p className="mt-2 text-sm leading-6 text-white/80">
+                      {liveStrategy.mistakeToAvoid}
+                    </p>
                   </div>
 
                   <div className="rounded-2xl border border-yellow-500/15 bg-black/25 p-4 lg:col-span-12">
-                    <div className="text-xs font-black uppercase tracking-[0.18em] text-yellow-300/70">Actions à exécuter</div>
+                    <div className="text-xs font-black uppercase tracking-[0.18em] text-yellow-300/70">
+                      Actions à exécuter
+                    </div>
                     <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
                       {liveStrategy.actionSteps.map((step, index) => (
-                        <div key={`${index}-${step}`} className="rounded-2xl border border-white/5 bg-white/[0.03] px-4 py-3 text-sm leading-6 text-white/78">
-                          <span className="font-black text-yellow-300">{index + 1}.</span> {step}
+                        <div
+                          key={`${index}-${step}`}
+                          className="rounded-2xl border border-white/5 bg-white/[0.03] px-4 py-3 text-sm leading-6 text-white/78"
+                        >
+                          <span className="font-black text-yellow-300">
+                            {index + 1}.
+                          </span>{" "}
+                          {step}
                         </div>
                       ))}
                     </div>
@@ -1233,7 +1514,11 @@ useEffect(() => {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         {/* LEFT */}
         <div className="lg:col-span-4">
-          <Stepper currentStage={stage} completedKeys={completedKeys} onGoStage={(s) => goStage(s)} />
+          <Stepper
+            currentStage={stage}
+            completedKeys={completedKeys}
+            onGoStage={(s) => goStage(s)}
+          />
         </div>
 
         {/* CENTER */}
@@ -1244,6 +1529,7 @@ useEffect(() => {
             roadmap={roadmap}
             today={today}
             logs={effectiveLogs}
+            businessProject={businessProject}
             onStartOnboarding={onStartOnboarding}
             onSubmitOnboarding={onSubmitOnboarding}
             onOpenPlan={onOpenPlan}
