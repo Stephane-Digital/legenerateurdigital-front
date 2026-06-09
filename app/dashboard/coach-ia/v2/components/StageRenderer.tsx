@@ -447,6 +447,215 @@ function findDigitalProductOpportunityByOffer(offerDescription: string) {
   );
 }
 
+
+function getCoachApiBase() {
+  return (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
+}
+
+function getCoachAuthHeaders() {
+  if (typeof window === "undefined") return {};
+  const token =
+    window.localStorage.getItem("access_token") ||
+    window.localStorage.getItem("token") ||
+    window.localStorage.getItem("jwt") ||
+    "";
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+function extractJsonObjectFromText(text: string): any | null {
+  const raw = String(text || "").trim();
+  if (!raw) return null;
+
+  try {
+    return JSON.parse(raw);
+  } catch {}
+
+  const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenced?.[1]) {
+    try {
+      return JSON.parse(fenced[1].trim());
+    } catch {}
+  }
+
+  const firstBrace = raw.indexOf("{");
+  const lastBrace = raw.lastIndexOf("}");
+  if (firstBrace >= 0 && lastBrace > firstBrace) {
+    try {
+      return JSON.parse(raw.slice(firstBrace, lastBrace + 1));
+    } catch {}
+  }
+
+  const firstBracket = raw.indexOf("[");
+  const lastBracket = raw.lastIndexOf("]");
+  if (firstBracket >= 0 && lastBracket > firstBracket) {
+    try {
+      return { opportunities: JSON.parse(raw.slice(firstBracket, lastBracket + 1)) };
+    } catch {}
+  }
+
+  return null;
+}
+
+function normalizeLiveOpportunity(value: any, index: number): DigitalProductOpportunity | null {
+  if (!value || typeof value !== "object") return null;
+
+  const title = normalizeText(value.title || value.niche || value.name || value.nom);
+  if (!title) return null;
+
+  const score = Math.max(
+    70,
+    Math.min(99, Number(value.score || value.opportunityScore || value.businessScore || 88)),
+  );
+
+  const problemSolved = normalizeText(
+    value.problemSolved ||
+      value.problem ||
+      value.probleme ||
+      `Aider une audience ciblée à résoudre un problème urgent dans la niche ${title}.`,
+  );
+  const transformationPromise = normalizeText(
+    value.transformationPromise ||
+      value.promise ||
+      value.promesse ||
+      `Passer d’une situation bloquée à un résultat clair grâce à un produit digital simple et actionnable sur ${title}.`,
+  );
+  const offerDescription = normalizeText(
+    value.offerDescription ||
+      value.offer ||
+      value.offre ||
+      `Un produit digital autour de ${title}, conçu pour répondre à une demande forte avec une méthode simple, concrète et facile à appliquer.`,
+  );
+  const targetAudienceDescription = normalizeText(
+    value.targetAudienceDescription ||
+      value.avatar ||
+      value.audience ||
+      `Avatar prioritaire : personne motivée par ${title}, avec un problème clair, une urgence émotionnelle et le besoin d’une solution simple, rassurante et guidée.`,
+  );
+
+  return {
+    id: `live_${Date.now()}_${index}`,
+    title,
+    badge: normalizeText(value.badge || value.tag || "Analyse IA Live"),
+    demand: normalizeText(value.demand || value.demande || value.market || "Demande actuelle détectée par Alex IA Live"),
+    score,
+    why: normalizeText(value.why || value.reason || value.pourquoi || "Opportunité détectée par l’analyse IA Live selon la demande, la facilité de création et le potentiel commercial."),
+    product: normalizeText(value.product || value.produit || "Formation courte, ebook premium ou mini-programme guidé"),
+    price: normalizeText(value.price || value.prix || "97€ à 297€"),
+    offerDescription,
+    problemSolved,
+    transformationPromise,
+    targetAudienceDescription,
+  };
+}
+
+function extractLiveOpportunities(payload: any): DigitalProductOpportunity[] {
+  const direct =
+    payload?.opportunities ||
+    payload?.niches ||
+    payload?.items ||
+    payload?.data?.opportunities ||
+    payload?.data?.niches;
+
+  if (Array.isArray(direct)) {
+    return direct
+      .map((item, index) => normalizeLiveOpportunity(item, index))
+      .filter(Boolean)
+      .slice(0, 5) as DigitalProductOpportunity[];
+  }
+
+  const text =
+    payload?.response ||
+    payload?.reply ||
+    payload?.message ||
+    payload?.content ||
+    payload?.data?.response ||
+    payload?.data?.message ||
+    "";
+
+  const parsed = extractJsonObjectFromText(text);
+  if (!parsed) return [];
+  return extractLiveOpportunities(parsed);
+}
+
+async function fetchLiveDigitalProductOpportunities(args: {
+  businessGoal: AlexBusinessGoal;
+  level: AlexLevel;
+  audienceSize: AlexAudienceSize;
+  mainBlocker: AlexMainBlocker;
+  primaryChannel: string;
+}): Promise<DigitalProductOpportunity[]> {
+  const base = getCoachApiBase();
+  if (!base) {
+    throw new Error("NEXT_PUBLIC_API_URL manquant");
+  }
+
+  const prompt = `Tu es Alex, Directeur Business IA de LGD. Analyse le marché actuel et propose exactement 5 niches rentables pour créer un produit digital. Réponds uniquement en JSON valide, sans markdown, au format {"opportunities":[{"title":"","badge":"","demand":"","score":95,"why":"","product":"","price":"","offerDescription":"","problemSolved":"","transformationPromise":"","targetAudienceDescription":""}]}. Contexte utilisateur: objectif=${args.businessGoal}, niveau=${args.level}, audience=${args.audienceSize}, blocage=${args.mainBlocker}, canal=${args.primaryChannel}. Les niches doivent avoir une forte demande, être monétisables rapidement, compatibles avec LGD, et adaptées à un utilisateur qui veut créer son propre produit digital.`;
+
+  const headers = {
+    "Content-Type": "application/json",
+    ...getCoachAuthHeaders(),
+  };
+
+  const requests = [
+    {
+      url: `${base}/coach-profile/market-opportunities`,
+      body: {
+        business_model: "offre_digitale",
+        request_type: "digital_product_opportunities",
+        count: 5,
+        context: args,
+        prompt,
+      },
+    },
+    {
+      url: `${base}/coach/market-opportunities`,
+      body: {
+        business_model: "offre_digitale",
+        request_type: "digital_product_opportunities",
+        count: 5,
+        context: args,
+        prompt,
+      },
+    },
+    {
+      url: `${base}/coach/chat`,
+      body: {
+        message: prompt,
+        mode: "market_opportunities",
+        context: args,
+      },
+    },
+  ];
+
+  let lastError = "Analyse IA Live indisponible.";
+
+  for (const req of requests) {
+    try {
+      const res = await fetch(req.url, {
+        method: "POST",
+        headers,
+        credentials: "include",
+        body: JSON.stringify(req.body),
+      });
+
+      if (!res.ok) {
+        lastError = `Endpoint ${req.url} indisponible (${res.status})`;
+        continue;
+      }
+
+      const payload = await res.json().catch(() => null);
+      const opportunities = extractLiveOpportunities(payload);
+      if (opportunities.length >= 5) return opportunities.slice(0, 5);
+
+      lastError = "Réponse IA Live reçue, mais format des niches incomplet.";
+    } catch (error: any) {
+      lastError = String(error?.message || error || lastError);
+    }
+  }
+
+  throw new Error(lastError);
+}
+
 function inferProblemSolved(
   offerDescription: string,
   businessModel: AlexBusinessModel,
@@ -1299,6 +1508,7 @@ export default function StageRenderer(props: {
   }) => void;
   onGenerateNext: () => void;
   onOpenParcours: () => void;
+  onAfterLiveMarketAnalysis?: () => void | Promise<void>;
 }) {
   const {
     stage,
@@ -1318,6 +1528,7 @@ export default function StageRenderer(props: {
     onSubmitFeedback,
     onGenerateNext,
     onOpenParcours,
+    onAfterLiveMarketAnalysis,
   } = props;
 
   const planTier: PlanTier = tierFromPlanLabel(planLabel);
@@ -1416,6 +1627,7 @@ export default function StageRenderer(props: {
       <OnboardingCard
         onSubmit={onSubmitOnboarding}
         businessProject={businessProject || null}
+        onAfterLiveMarketAnalysis={onAfterLiveMarketAnalysis}
       />
     );
   }
@@ -1485,6 +1697,7 @@ export default function StageRenderer(props: {
 
 function OnboardingCard(props: {
   businessProject: FormActionBusinessProject | null;
+  onAfterLiveMarketAnalysis?: () => void | Promise<void>;
   onSubmit: (data: {
     intent: AlexIntent;
     level: AlexLevel;
@@ -1500,7 +1713,7 @@ function OnboardingCard(props: {
     formActionProject: FormActionBusinessProject;
   }) => void;
 }) {
-  const { businessProject, onSubmit } = props;
+  const { businessProject, onSubmit, onAfterLiveMarketAnalysis } = props;
   const [step, setStep] = useState(0);
   const [intent, setIntent] = useState<AlexIntent>("argent_vite");
   const [level, setLevel] = useState<AlexLevel>("debutant");
@@ -1545,11 +1758,14 @@ function OnboardingCard(props: {
   );
   const [opportunityBatchIndex, setOpportunityBatchIndex] = useState(0);
   const [opportunitiesOpen, setOpportunitiesOpen] = useState(true);
-  const [opportunityLiveHintOpen, setOpportunityLiveHintOpen] = useState(false);
+  const [liveOpportunities, setLiveOpportunities] = useState<DigitalProductOpportunity[] | null>(null);
+  const [liveOpportunitiesLoading, setLiveOpportunitiesLoading] = useState(false);
+  const [liveOpportunitiesError, setLiveOpportunitiesError] = useState("");
+  const [liveOpportunitiesNotice, setLiveOpportunitiesNotice] = useState("");
 
   const visibleDigitalProductOpportunities = useMemo(
-    () => getDigitalProductOpportunityBatch(opportunityBatchIndex),
-    [opportunityBatchIndex],
+    () => liveOpportunities || getDigitalProductOpportunityBatch(opportunityBatchIndex),
+    [liveOpportunities, opportunityBatchIndex],
   );
 
   const selectedDigitalProductOpportunity = useMemo(
@@ -1649,6 +1865,50 @@ function OnboardingCard(props: {
         problemSolved,
       ),
     );
+  }
+
+  function applyDigitalProductOpportunity(opportunity: DigitalProductOpportunity) {
+    problemEditedRef.current = true;
+    promiseEditedRef.current = true;
+    targetEditedRef.current = true;
+    setOfferDescription(opportunity.offerDescription);
+    setProblemSolved(opportunity.problemSolved);
+    setTransformationPromise(opportunity.transformationPromise);
+    setTargetAudienceDescription(opportunity.targetAudienceDescription);
+    setPrimaryChannel("instagram");
+    setPositioning("mentor");
+    setOpportunitiesOpen(false);
+  }
+
+  async function runLiveMarketAnalysis() {
+    if (liveOpportunitiesLoading) return;
+
+    setLiveOpportunitiesLoading(true);
+    setLiveOpportunitiesError("");
+    setLiveOpportunitiesNotice("");
+
+    try {
+      const opportunities = await fetchLiveDigitalProductOpportunities({
+        businessGoal,
+        level,
+        audienceSize,
+        mainBlocker,
+        primaryChannel,
+      });
+
+      setLiveOpportunities(opportunities);
+      setOpportunitiesOpen(true);
+      setLiveOpportunitiesNotice(
+        "Analyse IA Live terminée : ces opportunités ont consommé des jetons et sont personnalisées par Alex.",
+      );
+      await onAfterLiveMarketAnalysis?.();
+    } catch (error: any) {
+      setLiveOpportunitiesError(
+        String(error?.message || error || "Analyse IA Live indisponible. Le fallback premium reste actif."),
+      );
+    } finally {
+      setLiveOpportunitiesLoading(false);
+    }
   }
 
   function submitOnboarding() {
@@ -1836,27 +2096,30 @@ function OnboardingCard(props: {
           🧠 Alex peut te proposer 5 niches rentables
         </div>
         <div className="mt-1 text-xs leading-5 text-white/55">
-          Fallback premium instantané : 5 opportunités rentables, 0 jeton consommé.
+          Choisis une opportunité pour préremplir ton idée de produit, ou écris librement ton propre projet.
         </div>
       </div>
       <div className="flex shrink-0 flex-col gap-2 sm:items-end">
         <button
           type="button"
           onClick={() => {
+            setLiveOpportunities(null);
+            setLiveOpportunitiesError("");
+            setLiveOpportunitiesNotice("Fallback premium régénéré : 0 jeton consommé.");
             setOpportunityBatchIndex((current) => current + 1);
             setOpportunitiesOpen(true);
-            setOpportunityLiveHintOpen(false);
           }}
           className="rounded-2xl border border-yellow-400/30 bg-yellow-400/10 px-4 py-2 text-xs font-black text-yellow-200 transition hover:bg-yellow-400/15"
         >
-          Régénérer 5 niches rentables · 0 jeton
+          Régénérer 5 niches rentables
         </button>
         <button
           type="button"
-          onClick={() => setOpportunityLiveHintOpen((current) => !current)}
-          className="rounded-2xl border border-blue-400/25 bg-blue-400/10 px-4 py-2 text-xs font-black text-blue-100 transition hover:bg-blue-400/15"
+          onClick={runLiveMarketAnalysis}
+          disabled={liveOpportunitiesLoading}
+          className="rounded-2xl border border-yellow-400/40 bg-yellow-400 px-4 py-2 text-xs font-black text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          🧠 Analyse marché IA Live
+          {liveOpportunitiesLoading ? "Analyse IA en cours…" : "🧠 Analyse marché IA Live"}
         </button>
         {selectedDigitalProductOpportunity ? (
           <button
@@ -1870,20 +2133,21 @@ function OnboardingCard(props: {
       </div>
     </div>
 
-    {opportunityLiveHintOpen ? (
-      <div className="mt-4 rounded-3xl border border-blue-400/20 bg-blue-400/10 p-4">
-        <div className="text-sm font-black text-blue-100">
-          🧠 IA Live Premium
-        </div>
-        <div className="mt-2 text-xs leading-5 text-white/65">
-          Le bouton est prêt pour la version connectée : Alex analysera le marché
-          avec l’IA, la mémoire utilisateur, son objectif et son profil. Cette
-          action devra consommer des jetons et faire bouger le compteur IA.
-        </div>
-        <div className="mt-3 rounded-2xl border border-blue-400/15 bg-black/25 p-3 text-xs leading-5 text-white/55">
-          Pour l’instant, les niches affichées restent le fallback premium :
-          rapide, fiable, gratuit et sans appel OpenAI.
-        </div>
+    <div className="mt-3 rounded-2xl border border-[#2a2416] bg-black/20 p-3 text-xs leading-5 text-white/55">
+      {liveOpportunities
+        ? "Mode IA Live : les niches affichées viennent d’une analyse IA et consomment des jetons."
+        : "Mode fallback premium : niches préchargées, instantanées, 0 jeton consommé."}
+    </div>
+
+    {liveOpportunitiesNotice ? (
+      <div className="mt-3 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-3 text-xs leading-5 text-emerald-100">
+        {liveOpportunitiesNotice}
+      </div>
+    ) : null}
+
+    {liveOpportunitiesError ? (
+      <div className="mt-3 rounded-2xl border border-red-400/20 bg-red-400/10 p-3 text-xs leading-5 text-red-100">
+        {liveOpportunitiesError}
       </div>
     ) : null}
 
@@ -1901,18 +2165,7 @@ function OnboardingCard(props: {
             key={opportunity.id}
             opportunity={opportunity}
             selected={selectedDigitalProductOpportunity?.id === opportunity.id}
-            onPick={() => {
-              problemEditedRef.current = true;
-              promiseEditedRef.current = true;
-              targetEditedRef.current = true;
-              setOfferDescription(opportunity.offerDescription);
-              setProblemSolved(opportunity.problemSolved);
-              setTransformationPromise(opportunity.transformationPromise);
-              setTargetAudienceDescription(opportunity.targetAudienceDescription);
-              setPrimaryChannel("instagram");
-              setPositioning("mentor");
-              setOpportunitiesOpen(false);
-            }}
+            onPick={() => applyDigitalProductOpportunity(opportunity)}
           />
         ))}
       </div>
