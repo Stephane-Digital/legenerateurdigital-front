@@ -39,6 +39,7 @@ function Pill({ children }: { children: ReactNode }) {
 
 type FormActionParcours =
   | "creation_produit_digital"
+  | "mrr"
   | "affiliation"
   | "code_liberte"
   | "non_defini";
@@ -70,12 +71,45 @@ function normalizeText(value: unknown) {
     .trim();
 }
 
+function detectMrrFromText(value: unknown) {
+  const lower = normalizeText(value).toLowerCase();
+  return (
+    lower.includes("mrr") ||
+    lower.includes("master resell rights") ||
+    lower.includes("droits de revente") ||
+    lower.includes("droit de revente") ||
+    lower.includes("licence de revente") ||
+    lower.includes("revente")
+  );
+}
+
+function detectLidFromText(value: unknown) {
+  const lower = normalizeText(value).toLowerCase();
+  return (
+    lower.includes("l'indépendance digital") ||
+    lower.includes("l’indépendance digital") ||
+    lower.includes("indépendance digital") ||
+    lower.includes("independance digital") ||
+    lower.includes("lid")
+  );
+}
+
 function labelBusinessModel(model: AlexBusinessModel) {
   if (model === "affiliation") return "Affiliation";
   if (model === "offre_digitale") return "Création de produit digital";
   if (model === "coaching") return "Coaching / accompagnement";
   if (model === "contenu") return "Contenu + audience";
   return "Modèle à confirmer";
+}
+
+function labelBusinessModelForProject(
+  project?: FormActionBusinessProject | null,
+  model?: AlexBusinessModel,
+) {
+  if (project?.parcours === "mrr" || detectMrrFromText(project?.offerDescription)) {
+    return "Formation MRR";
+  }
+  return labelBusinessModel((project?.businessModel || model || "pas_encore") as AlexBusinessModel);
 }
 
 function labelBusinessGoal(goal: AlexBusinessGoal) {
@@ -149,6 +183,10 @@ function inferTransformationPromise(args: {
 }) {
   const goal = labelBusinessGoal(args.businessGoal);
   const model = labelBusinessModel(args.businessModel).toLowerCase();
+
+  if (detectMrrFromText(args.offerDescription)) {
+    return `Passer d’une personne qui consomme des formations sans résultat à un entrepreneur capable de vendre une formation MRR, développer son audience et viser ${goal} avec une méthode claire, duplicable et orientée action.`;
+  }
 
   if (args.businessModel === "affiliation") {
     return `Passer d’une audience tiède qui hésite à une stratégie d’affiliation claire capable de générer ${goal}, avec une offre comprise, un message simple et une action quotidienne orientée vente.`;
@@ -313,6 +351,14 @@ function inferPlatform(args: {
         ? "TikTok"
         : "Instagram";
 
+  if (args.businessModel === "offre_digitale" && raw.includes("mrr")) {
+    return {
+      recommendedPlatform: `${channel} d’abord, Facebook ensuite`,
+      platformReason:
+        "Une offre MRR se vend mieux quand l’utilisateur comprend la valeur de la licence, la simplicité du système et le chemin concret vers ses premières ventes.",
+    };
+  }
+
   if (args.businessModel === "affiliation") {
     return {
       recommendedPlatform: `${channel} d’abord, Facebook ensuite`,
@@ -349,39 +395,57 @@ function inferFormActionProject(args: {
   primaryChannel: string;
   positioning: string;
   firstRevenueGoal: string;
+  parcoursChoice?: FormActionParcours;
 }): FormActionBusinessProject {
   const offer = normalizeText(args.offerDescription);
   const audience = normalizeText(args.targetAudienceDescription);
   const lower = `${offer} ${audience} ${args.problemSolved}`.toLowerCase();
 
-  const parcours: FormActionParcours =
-    args.businessModel === "affiliation" || lower.includes("affiliation")
-      ? "affiliation"
-      : args.businessModel === "offre_digitale"
-        ? "creation_produit_digital"
-        : lower.includes("liberté") ||
-            lower.includes("liberte") ||
-            lower.includes("salariat")
-          ? "code_liberte"
-          : "non_defini";
+  const isMrr = args.parcoursChoice === "mrr" || detectMrrFromText(offer);
 
-  const platform = inferPlatform({
-    businessModel: args.businessModel,
-    primaryChannel: args.primaryChannel,
-    audienceSize: args.audienceSize,
-    mainBlocker: args.mainBlocker,
-  });
+  const parcours: FormActionParcours =
+    isMrr
+      ? "mrr"
+      : args.parcoursChoice && args.parcoursChoice !== "non_defini"
+        ? args.parcoursChoice
+        : args.businessModel === "affiliation" || lower.includes("affiliation")
+          ? "affiliation"
+          : args.businessModel === "offre_digitale"
+            ? "creation_produit_digital"
+            : lower.includes("liberté") ||
+                lower.includes("liberte") ||
+                lower.includes("salariat")
+              ? "code_liberte"
+              : "non_defini";
+
+  const platform =
+    parcours === "mrr"
+      ? {
+          recommendedPlatform: `${normalizeText(args.primaryChannel) || "Instagram"} d’abord, Facebook ensuite`,
+          platformReason:
+            "Une formation MRR se vend mieux quand l’audience comprend la valeur des droits de revente, la simplicité du système et le chemin vers les premières ventes.",
+        }
+      : inferPlatform({
+          businessModel: args.businessModel,
+          primaryChannel: args.primaryChannel,
+          audienceSize: args.audienceSize,
+          mainBlocker: args.mainBlocker,
+        });
 
   const estimatedTimeBeforeSale =
-    parcours === "creation_produit_digital"
-      ? args.level === "quelques_ventes"
-        ? "5 à 10 jours"
-        : "7 à 14 jours"
-      : parcours === "affiliation"
-        ? args.audienceSize === "zero"
-          ? "7 à 10 jours"
-          : "3 à 7 jours"
-        : "7 jours";
+    parcours === "mrr"
+      ? args.audienceSize === "zero"
+        ? "7 à 10 jours"
+        : "3 à 7 jours"
+      : parcours === "creation_produit_digital"
+        ? args.level === "quelques_ventes"
+          ? "5 à 10 jours"
+          : "7 à 14 jours"
+        : parcours === "affiliation"
+          ? args.audienceSize === "zero"
+            ? "7 à 10 jours"
+            : "3 à 7 jours"
+          : "7 jours";
 
   const offerReadinessScore = Math.min(
     100,
@@ -396,28 +460,36 @@ function inferFormActionProject(args: {
   );
 
   const nextMission =
-    parcours === "affiliation"
-      ? "Écrire l’angle de recommandation affiliée en 3 phrases : problème, solution, raison de faire confiance."
-      : parcours === "creation_produit_digital"
-        ? "Transformer l’idée en promesse vendable : résultat concret, cible précise, première étape livrable."
-        : "Clarifier le positionnement et choisir une première action de vente simple.";
+    parcours === "mrr"
+      ? "Clarifier la promesse de la formation MRR en une phrase : résultat, simplicité, droits de revente."
+      : parcours === "affiliation"
+        ? "Écrire l’angle de recommandation affiliée en 3 phrases : problème, solution, raison de faire confiance."
+        : parcours === "creation_produit_digital"
+          ? "Transformer l’idée en promesse vendable : résultat concret, cible précise, première étape livrable."
+          : "Clarifier le positionnement et choisir une première action de vente simple.";
 
   const missionFollowing =
-    parcours === "affiliation"
-      ? "Créer le premier contenu de conversion puis ouvrir 3 conversations qualifiées."
-      : parcours === "creation_produit_digital"
-        ? "Construire la page simple de prévente puis préparer une séquence email courte."
-        : "Tester l’angle sur Instagram avec un post problème → solution.";
+    parcours === "mrr"
+      ? "Créer le premier contenu qui explique pourquoi la licence MRR évite de créer un produit de zéro."
+      : parcours === "affiliation"
+        ? "Créer le premier contenu de conversion puis ouvrir 3 conversations qualifiées."
+        : parcours === "creation_produit_digital"
+          ? "Construire la page simple de prévente puis préparer une séquence email courte."
+          : "Tester l’angle sur Instagram avec un post problème → solution.";
 
   const contentAngle =
-    parcours === "affiliation"
-      ? "Raconter le blocage vécu par la cible, puis montrer pourquoi cette solution évite de repartir de zéro."
-      : "Montrer la transformation promise avec une situation avant/après très concrète.";
+    parcours === "mrr"
+      ? "Montrer le déclic : arrêter de collectionner des formations et utiliser une licence MRR comme point de départ concret."
+      : parcours === "affiliation"
+        ? "Raconter le blocage vécu par la cible, puis montrer pourquoi cette solution évite de repartir de zéro."
+        : "Montrer la transformation promise avec une situation avant/après très concrète.";
 
   const salesAngle =
-    parcours === "affiliation"
-      ? "Ne pas vendre la formation : vendre le raccourci, la clarté et le passage à l’action."
-      : "Ne pas vendre un produit : vendre le résultat mesurable et le soulagement immédiat.";
+    parcours === "mrr"
+      ? "Ne pas vendre une formation : vendre une activité prête à lancer avec droits de revente, méthode et passage à l’action."
+      : parcours === "affiliation"
+        ? "Ne pas vendre la formation : vendre le raccourci, la clarté et le passage à l’action."
+        : "Ne pas vendre un produit : vendre le résultat mesurable et le soulagement immédiat.";
 
   return {
     offerDescription: offer,
@@ -441,6 +513,7 @@ function inferFormActionProject(args: {
 }
 
 function parcoursLabel(parcours?: FormActionParcours) {
+  if (parcours === "mrr") return "MRR · Droits de revente";
   if (parcours === "affiliation") return "Affiliation";
   if (parcours === "creation_produit_digital")
     return "Création produit digital";
@@ -475,6 +548,9 @@ function extractProjectName(
   if (!source) return "Projet à clarifier";
 
   const known = [
+    "L'Indépendance Digital",
+    "L’Indépendance Digital",
+    "Indépendance Digital",
     "Code Liberté",
     "Le Générateur Digital",
     "LGD",
@@ -664,62 +740,71 @@ function BusinessDirectorPanelV4(props: {
 }) {
   const { businessProject, context, logs = [], today, compact } = props;
   const hasBusinessMemory = Boolean(
-    normalizeText(businessProject?.offerDescription || context?.offerDescription || ""),
+    normalizeText(
+      businessProject?.offerDescription || context?.offerDescription || "",
+    ),
   );
 
   if (!hasBusinessMemory) {
     return (
-      <div className="rounded-3xl border border-yellow-500/20 bg-gradient-to-br from-yellow-400/10 via-black/20 to-[#0b0f16]/80 p-5">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <div className="text-xs font-semibold uppercase tracking-[0.22em] text-yellow-300/75">
-              Coach Alex V4 · Business Director IA
-            </div>
-            <div className="mt-1 text-2xl font-semibold text-yellow-400">
-              🧠 Mon Business
-            </div>
-            <div className="mt-1 text-sm text-white/55">
-              Alex attend ton diagnostic avant de construire une stratégie.
-            </div>
+      <div className="overflow-hidden rounded-[28px] border border-yellow-500/20 bg-[#070b11] shadow-[0_0_60px_rgba(250,204,21,0.06)]">
+        <div className="border-b border-yellow-500/10 bg-gradient-to-r from-yellow-400/10 via-black/20 to-transparent p-5">
+          <div className="text-xs font-semibold uppercase tracking-[0.24em] text-yellow-300/70">
+            Coach Alex V5 · Cockpit Business IA
           </div>
-          <div className="rounded-2xl border border-yellow-400/30 bg-yellow-400/10 px-4 py-3 text-center">
-            <div className="text-xs text-yellow-200/70">Business Score</div>
-            <div className="mt-1 text-3xl font-semibold text-yellow-300">
-              --
+          <div className="mt-2 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <div className="text-3xl font-semibold text-yellow-400">
+                🧠 Centre de commande Alex
+              </div>
+              <div className="mt-2 max-w-2xl text-sm leading-6 text-white/60">
+                Alex ne suppose rien. Il attend ton diagnostic pour construire
+                une stratégie fidèle à ton projet réel.
+              </div>
             </div>
-            <div className="text-xs text-white/45">/100</div>
+            <div className="rounded-3xl border border-yellow-400/30 bg-yellow-400/10 px-6 py-4 text-center">
+              <div className="text-xs text-yellow-200/70">Business Score</div>
+              <div className="mt-1 text-4xl font-semibold text-yellow-300">
+                --
+              </div>
+              <div className="text-xs text-white/45">/100</div>
+            </div>
           </div>
         </div>
 
-        <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-3">
-          <SummaryLine label="Projet" value="À définir" />
-          <SummaryLine label="Modèle" value="À définir" />
-          <SummaryLine label="Objectif" value="À définir" />
-          <SummaryLine label="Plateforme" value="Après analyse" />
-          <SummaryLine label="Mise en vente" value="Après diagnostic" />
-          <SummaryLine label="Parcours" value="En construction" />
+        <div className="grid grid-cols-2 gap-px bg-yellow-500/10 md:grid-cols-6">
+          <CommandMetric label="Projet" value="À définir" />
+          <CommandMetric label="Modèle" value="À définir" />
+          <CommandMetric label="Objectif" value="À définir" />
+          <CommandMetric label="Plateforme" value="Après analyse" />
+          <CommandMetric label="Mise en vente" value="Après diagnostic" />
+          <CommandMetric label="Parcours" value="En construction" />
         </div>
 
         {!compact ? (
-          <div className="mt-5 rounded-2xl border border-yellow-500/20 bg-yellow-400/5 p-4">
-            <div className="text-sm font-semibold text-yellow-200">
-              🧠 Ce qu’Alex attend
-            </div>
-            <div className="mt-3 text-sm leading-6 text-white/70">
-              Choisis ton projet, décris ton offre et précise ton client. Alex
-              construira ensuite une mémoire business adaptée à ton cas, sans
-              supposer que tu fais de l’affiliation, du MRR ou un autre modèle.
+          <div className="p-5">
+            <div className="rounded-3xl border border-yellow-500/15 bg-yellow-400/5 p-5">
+              <div className="text-sm font-semibold text-yellow-200">
+                🧠 Ce qu’Alex attend
+              </div>
+              <div className="mt-3 text-sm leading-6 text-white/70">
+                Choisis ton modèle, décris ton offre et précise ton client.
+                Ensuite, Alex construira ton cockpit business sans confondre MRR,
+                affiliation, produit digital ou accompagnement.
+              </div>
             </div>
           </div>
         ) : null}
 
-        <div className="mt-5 rounded-2xl border border-yellow-400/20 bg-black/25 p-4">
-          <div className="text-sm font-semibold text-yellow-200">
-            🤝 Action unique du jour
-          </div>
-          <div className="mt-2 text-sm leading-6 text-white/70">
-            Termine le diagnostic Alex. Plus tu donnes d’informations, plus il
-            pourra construire une stratégie fidèle à ton projet réel.
+        <div className="border-t border-yellow-500/10 p-5">
+          <div className="rounded-3xl border border-yellow-400/20 bg-black/30 p-5">
+            <div className="text-sm font-semibold text-yellow-200">
+              🤝 Action unique du jour
+            </div>
+            <div className="mt-2 text-sm leading-6 text-white/70">
+              Termine le diagnostic Alex. Plus tu donnes d’informations, plus il
+              pourra construire une stratégie fidèle à ton projet réel.
+            </div>
           </div>
         </div>
       </div>
@@ -764,54 +849,72 @@ function BusinessDirectorPanelV4(props: {
     ["Exécution", score.execution],
   ];
 
+  const scoreAverageTop = Math.round(
+    (score.vision + score.offre + score.avatar + score.positionnement) / 4,
+  );
+  const scoreAverageGrowth = Math.round(
+    (score.acquisition + score.conversion + score.discipline + score.execution) / 4,
+  );
+
   return (
-    <div className="rounded-3xl border border-yellow-500/20 bg-gradient-to-br from-yellow-400/10 via-black/20 to-[#0b0f16]/80 p-5">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <div className="text-xs font-semibold uppercase tracking-[0.22em] text-yellow-300/75">
-            Coach Alex V4 · Business Director IA
-          </div>
-          <div className="mt-1 text-2xl font-semibold text-yellow-400">
-            🧠 Mon Business
-          </div>
-          <div className="mt-1 text-sm text-white/55">
-            Alex pense. Les modules exécutent. Ton business avance.
-          </div>
+    <div className="overflow-hidden rounded-[28px] border border-yellow-500/20 bg-[#070b11] shadow-[0_0_60px_rgba(250,204,21,0.06)]">
+      <div className="border-b border-yellow-500/10 bg-gradient-to-r from-yellow-400/10 via-black/20 to-transparent p-5">
+        <div className="text-xs font-semibold uppercase tracking-[0.24em] text-yellow-300/70">
+          Coach Alex V5 · Cockpit Business IA
         </div>
-        <div className="rounded-2xl border border-yellow-400/30 bg-yellow-400/10 px-4 py-3 text-center">
-          <div className="text-xs text-yellow-200/70">Business Score</div>
-          <div className="mt-1 text-3xl font-semibold text-yellow-300">
-            {score.global}
+        <div className="mt-2 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <div className="text-3xl font-semibold text-yellow-400">
+              🧠 Centre de commande
+            </div>
+            <div className="mt-2 max-w-2xl text-sm leading-6 text-white/60">
+              Alex pense. Les modules exécutent. Ton business avance.
+            </div>
           </div>
-          <div className="text-xs text-white/45">/100</div>
+          <div className="rounded-3xl border border-yellow-400/30 bg-yellow-400/10 px-6 py-4 text-center">
+            <div className="text-xs text-yellow-200/70">Business Score</div>
+            <div className="mt-1 text-4xl font-semibold text-yellow-300">
+              {score.global}
+            </div>
+            <div className="text-xs text-white/45">/100</div>
+          </div>
         </div>
       </div>
 
-      <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-3">
-        <SummaryLine label="Projet" value={projectName} />
-        <SummaryLine
+      <div className="grid grid-cols-2 gap-px bg-yellow-500/10 md:grid-cols-6">
+        <CommandMetric label="Projet" value={projectName} />
+        <CommandMetric
           label="Modèle"
-          value={labelBusinessModel(model as AlexBusinessModel)}
+          value={labelBusinessModelForProject(
+            businessProject,
+            model as AlexBusinessModel,
+          )}
         />
-        <SummaryLine label="Objectif" value={objective} />
-        <SummaryLine label="Plateforme" value={platform} />
-        <SummaryLine
+        <CommandMetric label="Objectif" value={objective} />
+        <CommandMetric label="Plateforme" value={platform} />
+        <CommandMetric
           label="Mise en vente"
           value={businessProject?.estimatedTimeBeforeSale || "À estimer"}
         />
-        <SummaryLine
+        <CommandMetric
           label="Parcours"
           value={parcoursLabel(businessProject?.parcours)}
         />
       </div>
 
       {!compact ? (
-        <>
-          <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <div className="rounded-2xl border border-[#2a2416] bg-black/20 p-4">
+        <div className="grid grid-cols-1 gap-px bg-yellow-500/10 lg:grid-cols-[1fr_1.15fr]">
+          <div className="bg-[#070b11] p-5">
+            <div className="rounded-3xl border border-[#2a2416] bg-black/25 p-5">
               <div className="text-sm font-semibold text-yellow-200">
-                📈 Business Score IA
+                📈 Score stratégique
               </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <ScoreBadge label="Fondation" value={scoreAverageTop} />
+                <ScoreBadge label="Croissance" value={scoreAverageGrowth} />
+              </div>
+
               <div className="mt-4 space-y-3">
                 {scoreRows.map(([label, value]) => (
                   <div key={label}>
@@ -829,78 +932,75 @@ function BusinessDirectorPanelV4(props: {
                 ))}
               </div>
             </div>
+          </div>
 
-            <div className="rounded-2xl border border-[#2a2416] bg-black/20 p-4">
-              <div className="text-sm font-semibold text-yellow-200">
-                🧠 Diagnostic Business
+          <div className="bg-[#070b11] p-5">
+            <div className="grid h-full grid-cols-1 gap-4">
+              <div className="rounded-3xl border border-yellow-500/15 bg-yellow-400/5 p-5">
+                <div className="text-sm font-semibold text-yellow-200">
+                  🧠 Ce qu’Alex a compris
+                </div>
+                <div className="mt-3 space-y-3 text-sm leading-6 text-white/70">
+                  <p>
+                    Tu veux développer{" "}
+                    <span className="text-white">{projectName}</span> avec un
+                    modèle{" "}
+                    <span className="text-white">
+                      {labelBusinessModelForProject(
+                        businessProject,
+                        model as AlexBusinessModel,
+                      )}
+                    </span>
+                    .
+                  </p>
+                  <p>
+                    Ton offre doit aider ton client à résoudre :{" "}
+                    <span className="text-white">
+                      {businessPreviewText(businessProject?.problemSolved, 220)}
+                    </span>
+                  </p>
+                  <p>
+                    La stratégie recommandée est de concentrer l’énergie sur{" "}
+                    <span className="text-white">{platform}</span>, puis de
+                    transformer l’attention en conversations, confiance et
+                    ventes.
+                  </p>
+                </div>
               </div>
-              <div className="mt-4 space-y-3 text-sm leading-6 text-white/70">
-                <p>
-                  <span className="text-white/45">Profil :</span>{" "}
-                  <span className="text-white">{diagnosis.profile}</span>
-                </p>
-                <p>
-                  <span className="text-white/45">Force :</span>{" "}
-                  {diagnosis.force}
-                </p>
-                <p>
-                  <span className="text-white/45">Risque :</span>{" "}
-                  {diagnosis.risk}
-                </p>
-                <p>
-                  <span className="text-white/45">Point à renforcer :</span>{" "}
-                  {diagnosis.weakest}
-                </p>
-                <p>
-                  <span className="text-white/45">Levier :</span>{" "}
-                  {diagnosis.leverage}
-                </p>
+
+              <div className="rounded-3xl border border-[#2a2416] bg-black/25 p-5">
+                <div className="text-sm font-semibold text-yellow-200">
+                  🧩 Diagnostic Business
+                </div>
+                <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <CommandMetric label="Profil" value={diagnosis.profile} />
+                  <CommandMetric label="Point à renforcer" value={diagnosis.weakest} />
+                  <CommandMetric label="Force" value={diagnosis.force} />
+                  <CommandMetric label="Risque" value={diagnosis.risk} />
+                </div>
               </div>
             </div>
           </div>
-
-          <div className="mt-5 rounded-2xl border border-yellow-500/20 bg-yellow-400/5 p-4">
-            <div className="text-sm font-semibold text-yellow-200">
-              🧠 Ce qu’Alex a compris
-            </div>
-            <div className="mt-3 space-y-3 text-sm leading-6 text-white/70">
-              <p>
-                Tu veux développer{" "}
-                <span className="text-white">{projectName}</span> avec un modèle{" "}
-                <span className="text-white">
-                  {labelBusinessModel(model as AlexBusinessModel)}
-                </span>
-                .
-              </p>
-              <p>
-                Ton offre doit aider ton client à résoudre :{" "}
-                <span className="text-white">
-                  {businessPreviewText(businessProject?.problemSolved, 220)}
-                </span>
-              </p>
-              <p>
-                La stratégie recommandée est de concentrer l’énergie sur{" "}
-                <span className="text-white">{platform}</span>, puis de
-                transformer l’attention en conversations et en ventes.
-              </p>
-              <p>
-                Ton risque principal est de{" "}
-                <span className="text-white">{diagnosis.risk}</span>. Alex doit
-                donc te ramener chaque jour vers une action simple et rentable.
-              </p>
-            </div>
-          </div>
-        </>
+        </div>
       ) : null}
 
-      <div className="mt-5 rounded-2xl border border-yellow-400/20 bg-black/25 p-4">
-        <div className="text-sm font-semibold text-yellow-200">
-          🤝 Action unique du jour
-        </div>
-        <div className="mt-2 text-sm leading-6 text-white/70">
-          Il existe une seule action qui aura le plus d’impact aujourd’hui :{" "}
-          <span className="text-white">{nextAction}</span>. Alex l’a préparée
-          pour éviter la dispersion.
+      <div className="border-t border-yellow-500/10 p-5">
+        <div className="rounded-3xl border border-yellow-400/20 bg-gradient-to-r from-yellow-400/10 via-black/30 to-black/20 p-5">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <div className="text-sm font-semibold text-yellow-200">
+                🤝 Action unique du jour
+              </div>
+              <div className="mt-2 text-sm leading-6 text-white/75">
+                Il existe une seule action qui aura le plus d’impact aujourd’hui
+                : <span className="text-white">{nextAction}</span>.
+              </div>
+            </div>
+            <div className="rounded-2xl border border-yellow-400/20 bg-black/30 px-4 py-3 text-xs leading-5 text-white/55 md:max-w-[220px]">
+              Alex l’a préparée pour éviter la dispersion et rapprocher le
+              projet de la vente.
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -1153,6 +1253,9 @@ function OnboardingCard(props: {
   const [businessModel, setBusinessModel] = useState<AlexBusinessModel>(
     (businessProject?.businessModel as AlexBusinessModel) || "pas_encore",
   );
+  const [parcoursChoice, setParcoursChoice] = useState<FormActionParcours>(
+    businessProject?.parcours || "non_defini",
+  );
   const [audienceSize, setAudienceSize] =
     useState<AlexAudienceSize>("moins_500");
   const [mainBlocker, setMainBlocker] = useState<AlexMainBlocker>("dispersion");
@@ -1242,6 +1345,7 @@ function OnboardingCard(props: {
         primaryChannel,
         positioning,
         firstRevenueGoal,
+        parcoursChoice,
       }),
     [
       offerDescription,
@@ -1256,6 +1360,7 @@ function OnboardingCard(props: {
       primaryChannel,
       positioning,
       firstRevenueGoal,
+      parcoursChoice,
     ],
   );
 
@@ -1336,28 +1441,51 @@ function OnboardingCard(props: {
             </div>
             <div className="mt-3 grid grid-cols-1 gap-2">
               <PickRow
-                checked={businessModel === "offre_digitale"}
-                onClick={() => setBusinessModel("offre_digitale")}
+                checked={businessModel === "offre_digitale" && parcoursChoice === "creation_produit_digital"}
+                onClick={() => {
+                  setBusinessModel("offre_digitale");
+                  setParcoursChoice("creation_produit_digital");
+                }}
                 label="Créer mon propre produit digital"
               />
               <PickRow
-                checked={businessModel === "affiliation"}
-                onClick={() => setBusinessModel("affiliation")}
-                label="Vendre une formation en MRR ou en affiliation"
+                checked={parcoursChoice === "mrr"}
+                onClick={() => {
+                  setBusinessModel("offre_digitale");
+                  setParcoursChoice("mrr");
+                }}
+                label="Vendre une formation MRR avec droits de revente"
+              />
+              <PickRow
+                checked={businessModel === "affiliation" && parcoursChoice === "affiliation"}
+                onClick={() => {
+                  setBusinessModel("affiliation");
+                  setParcoursChoice("affiliation");
+                }}
+                label="Développer une activité d’affiliation"
               />
               <PickRow
                 checked={businessModel === "coaching"}
-                onClick={() => setBusinessModel("coaching")}
+                onClick={() => {
+                  setBusinessModel("coaching");
+                  setParcoursChoice("non_defini");
+                }}
                 label="Vendre du coaching ou de l’accompagnement"
               />
               <PickRow
                 checked={businessModel === "contenu"}
-                onClick={() => setBusinessModel("contenu")}
+                onClick={() => {
+                  setBusinessModel("contenu");
+                  setParcoursChoice("non_defini");
+                }}
                 label="Construire une audience puis monétiser"
               />
               <PickRow
                 checked={businessModel === "pas_encore"}
-                onClick={() => setBusinessModel("pas_encore")}
+                onClick={() => {
+                  setBusinessModel("pas_encore");
+                  setParcoursChoice("non_defini");
+                }}
                 label="Je ne sais pas encore"
               />
             </div>
@@ -1422,7 +1550,7 @@ function OnboardingCard(props: {
             <textarea
               value={offerDescription}
               onChange={(e) => setOfferDescription(e.target.value)}
-              placeholder="Exemple : une formation en affiliation autour de Code Liberté pour aider des débutants bloqués avec les formations MRR à obtenir leurs premières ventes..."
+              placeholder="Exemple : une formation MRR comme L’Indépendance Digital, avec droits de revente, pour aider des débutants à construire une activité digitale sans créer leur propre produit..."
               className="mt-3 w-full rounded-2xl border border-[#2a2416] bg-black/20 p-4 text-sm leading-6 text-white outline-none focus:border-yellow-400/40"
               rows={7}
             />
@@ -1669,7 +1797,7 @@ function OnboardingCard(props: {
               />
               <SummaryLine
                 label="Modèle"
-                value={labelBusinessModel(businessModel)}
+                value={labelBusinessModelForProject(formActionProject, businessModel)}
               />
               <SummaryLine
                 label="Objectif"
@@ -1812,6 +1940,31 @@ function OnboardingCard(props: {
           exploitable par tout LGD.
         </div>
       </div>
+    </div>
+  );
+}
+
+function CommandMetric({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="bg-[#070b11] p-4">
+      <div className="text-[10px] uppercase tracking-[0.22em] text-white/35">
+        {label}
+      </div>
+      <div className="mt-2 text-sm font-semibold leading-5 text-white/80">
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function ScoreBadge({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-4 text-center">
+      <div className="text-xs text-yellow-200/70">{label}</div>
+      <div className="mt-1 text-2xl font-semibold text-yellow-300">
+        {value}
+      </div>
+      <div className="text-[10px] text-white/40">/100</div>
     </div>
   );
 }
