@@ -118,7 +118,11 @@ function inferProblemSolved(
     return "Aider des personnes motivées à arrêter d’acheter des formations sans résultat et à transformer une offre digitale existante en vraie première vente.";
   }
 
-  if (lower.includes("salariat") || lower.includes("liberté") || lower.includes("liberte")) {
+  if (
+    lower.includes("salariat") ||
+    lower.includes("liberté") ||
+    lower.includes("liberte")
+  ) {
     return "Aider des salariés ou personnes en transition à construire progressivement une activité digitale sans tout quitter du jour au lendemain.";
   }
 
@@ -171,10 +175,20 @@ function buildPremiumAvatar(args: {
 
   const lower = offer.toLowerCase();
   const isMrr = lower.includes("mrr") || lower.includes("revente");
-  const isAffiliation = args.businessModel === "affiliation" || lower.includes("affiliation");
-  const isSalary = lower.includes("salariat") || lower.includes("reconversion") || lower.includes("liberté") || lower.includes("liberte");
+  const isAffiliation =
+    args.businessModel === "affiliation" || lower.includes("affiliation");
+  const isSalary =
+    lower.includes("salariat") ||
+    lower.includes("reconversion") ||
+    lower.includes("liberté") ||
+    lower.includes("liberte");
 
-  const personaName = isMrr || isAffiliation ? "Avatar : Sophie, 42 ans" : isSalary ? "Avatar : Marc, 47 ans" : "Avatar : Client idéal prioritaire";
+  const personaName =
+    isMrr || isAffiliation
+      ? "Avatar : Sophie, 42 ans"
+      : isSalary
+        ? "Avatar : Marc, 47 ans"
+        : "Avatar : Client idéal prioritaire";
 
   const situation = isMrr
     ? "A déjà acheté une ou plusieurs formations MRR, suit beaucoup de contenus business, mais n’arrive pas à transformer ses connaissances en ventes réelles."
@@ -215,13 +229,14 @@ function buildPremiumAvatar(args: {
     ? "A déjà testé des formations, des prompts, des tunnels copiés, des posts isolés ou des méthodes vues sur les réseaux."
     : "A déjà consommé du contenu gratuit, commencé plusieurs idées ou essayé d’appliquer des conseils sans structure.";
 
-  const whyBlocked = args.mainBlocker === "vente"
-    ? "Il ne manque pas forcément d’envie : il lui manque un message de vente simple, humain et rassurant."
-    : args.mainBlocker === "technique"
-      ? "Il bloque parce que la technique prend toute la place avant même que l’offre soit claire."
-      : args.mainBlocker === "temps"
-        ? "Il échoue parce qu’il essaye d’en faire trop au lieu d’avoir une seule action rentable par jour."
-        : "Il échoue parce qu’il consomme plus qu’il n’exécute et change trop vite de direction.";
+  const whyBlocked =
+    args.mainBlocker === "vente"
+      ? "Il ne manque pas forcément d’envie : il lui manque un message de vente simple, humain et rassurant."
+      : args.mainBlocker === "technique"
+        ? "Il bloque parce que la technique prend toute la place avant même que l’offre soit claire."
+        : args.mainBlocker === "temps"
+          ? "Il échoue parce qu’il essaye d’en faire trop au lieu d’avoir une seule action rentable par jour."
+          : "Il échoue parce qu’il consomme plus qu’il n’exécute et change trop vite de direction.";
 
   return `${personaName}
 
@@ -427,9 +442,406 @@ function inferFormActionProject(args: {
 
 function parcoursLabel(parcours?: FormActionParcours) {
   if (parcours === "affiliation") return "Affiliation";
-  if (parcours === "creation_produit_digital") return "Création produit digital";
+  if (parcours === "creation_produit_digital")
+    return "Création produit digital";
   if (parcours === "code_liberte") return "Code Liberté";
   return "À confirmer";
+}
+
+type BusinessScoreV4 = {
+  vision: number;
+  offre: number;
+  avatar: number;
+  positionnement: number;
+  acquisition: number;
+  conversion: number;
+  discipline: number;
+  execution: number;
+  global: number;
+};
+
+function clampScore(value: number) {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function extractProjectName(
+  project?: FormActionBusinessProject | null,
+  ctx?: AlexContext | null,
+) {
+  const source = normalizeText(
+    project?.offerDescription || ctx?.offerDescription || "",
+  );
+  if (!source) return "Projet à clarifier";
+
+  const known = [
+    "Code Liberté",
+    "Le Générateur Digital",
+    "LGD",
+    "Digital Freedom Academy",
+  ];
+  const lower = source.toLowerCase();
+  const found = known.find((item) => lower.includes(item.toLowerCase()));
+  if (found) return found;
+
+  return source.length > 42 ? `${source.slice(0, 42)}…` : source;
+}
+
+function computeBusinessScoreV4(args: {
+  project?: FormActionBusinessProject | null;
+  ctx?: AlexContext | null;
+  logs?: DailyLog[];
+}): BusinessScoreV4 {
+  const { project, ctx, logs = [] } = args;
+  const offer = normalizeText(
+    project?.offerDescription || ctx?.offerDescription || "",
+  );
+  const problem = normalizeText(project?.problemSolved || "");
+  const promise = normalizeText(project?.transformationPromise || "");
+  const avatar = normalizeText(
+    project?.targetAudienceDescription || ctx?.targetAudienceDescription || "",
+  );
+  const positioning = normalizeText(project?.positioning || "");
+  const platform = normalizeText(
+    project?.recommendedPlatform || ctx?.primaryChannel || "",
+  );
+  const sales = normalizeText(project?.salesAngle || "");
+  const content = normalizeText(project?.contentAngle || "");
+  const doneCount = logs.filter((log) => log.done).length;
+
+  const vision = clampScore(
+    35 +
+      (project?.parcours && project.parcours !== "non_defini" ? 20 : 0) +
+      (project?.firstRevenueGoal || ctx?.businessGoal ? 20 : 0) +
+      (project?.estimatedTimeBeforeSale ? 15 : 0) +
+      (project?.nextMission ? 10 : 0),
+  );
+  const offre = clampScore(
+    30 +
+      (offer.length > 80 ? 20 : offer.length > 20 ? 10 : 0) +
+      (problem.length > 70 ? 20 : problem.length > 20 ? 10 : 0) +
+      (promise.length > 70 ? 20 : promise.length > 20 ? 10 : 0) +
+      (project?.offerReadinessScore
+        ? Math.min(10, project.offerReadinessScore / 10)
+        : 0),
+  );
+  const avatarScore = clampScore(
+    30 +
+      (avatar.length > 600
+        ? 35
+        : avatar.length > 250
+          ? 25
+          : avatar.length > 80
+            ? 12
+            : 0) +
+      (avatar.includes("Frustrations") ? 15 : 0) +
+      (avatar.includes("Ce qui le fera acheter") ? 20 : 0),
+  );
+  const positionnement = clampScore(
+    35 +
+      (positioning ? 20 : 0) +
+      (sales ? 20 : 0) +
+      (project?.businessModel || ctx?.businessModel ? 15 : 0) +
+      (project?.parcours ? 10 : 0),
+  );
+  const acquisition = clampScore(
+    35 +
+      (platform ? 25 : 0) +
+      (content ? 20 : 0) +
+      (ctx?.audienceSize && ctx.audienceSize !== "zero" ? 10 : 0) +
+      (doneCount > 0 ? 10 : 0),
+  );
+  const conversion = clampScore(
+    30 +
+      (sales ? 25 : 0) +
+      (project?.nextMission ? 20 : 0) +
+      (project?.missionFollowing ? 15 : 0) +
+      (doneCount > 1 ? 10 : 0),
+  );
+  const discipline = clampScore(
+    45 + Math.min(35, doneCount * 8) + (ctx?.timePerDay ? 10 : 0),
+  );
+  const execution = clampScore(
+    35 +
+      Math.min(45, doneCount * 10) +
+      (project?.nextMission ? 10 : 0) +
+      (project?.missionFollowing ? 10 : 0),
+  );
+  const global = clampScore(
+    (vision +
+      offre +
+      avatarScore +
+      positionnement +
+      acquisition +
+      conversion +
+      discipline +
+      execution) /
+      8,
+  );
+
+  return {
+    vision,
+    offre,
+    avatar: avatarScore,
+    positionnement,
+    acquisition,
+    conversion,
+    discipline,
+    execution,
+    global,
+  };
+}
+
+function getBusinessDiagnosisV4(args: {
+  project?: FormActionBusinessProject | null;
+  ctx?: AlexContext | null;
+  score: BusinessScoreV4;
+}) {
+  const blocker = args.ctx?.mainBlocker;
+  const project = args.project;
+  const weakest = [
+    ["Vision", args.score.vision],
+    ["Offre", args.score.offre],
+    ["Avatar", args.score.avatar],
+    ["Positionnement", args.score.positionnement],
+    ["Acquisition", args.score.acquisition],
+    ["Conversion", args.score.conversion],
+    ["Discipline", args.score.discipline],
+    ["Exécution", args.score.execution],
+  ].sort((a, b) => Number(a[1]) - Number(b[1]))[0]?.[0];
+
+  const risk =
+    blocker === "temps"
+      ? "vouloir tout faire avec trop peu de temps"
+      : blocker === "technique"
+        ? "laisser la technique ralentir la vente"
+        : blocker === "vente"
+          ? "préparer beaucoup sans oser vendre simplement"
+          : blocker === "confiance"
+            ? "attendre d’être parfaitement légitime avant de publier"
+            : "te disperser sur trop d’idées au lieu de pousser un seul angle";
+
+  const force = project?.targetAudienceDescription
+    ? "tu as déjà une base d’avatar exploitable"
+    : project?.offerDescription
+      ? "ton offre commence à être suffisamment claire pour créer une première action"
+      : "tu acceptes de clarifier ton projet avant d’exécuter";
+
+  const leverage =
+    project?.salesAngle ||
+    project?.contentAngle ||
+    project?.nextMission ||
+    "clarifier un angle simple : problème, solution, raison de passer à l’action";
+
+  return {
+    profile:
+      blocker === "technique"
+        ? "Constructeur prudent"
+        : blocker === "vente"
+          ? "Créateur à convertir"
+          : blocker === "temps"
+            ? "Exécutant contraint"
+            : "Bâtisseur stratégique",
+    force,
+    risk,
+    weakest: String(weakest || "Exécution"),
+    leverage,
+  };
+}
+
+function businessPreviewText(value?: string, max = 140) {
+  const text = normalizeText(value || "");
+  if (!text) return "À compléter";
+  return text.length > max ? `${text.slice(0, max)}…` : text;
+}
+
+function BusinessDirectorPanelV4(props: {
+  businessProject?: FormActionBusinessProject | null;
+  context?: AlexContext | null;
+  logs?: DailyLog[];
+  today?: AlexToday | null;
+  compact?: boolean;
+}) {
+  const { businessProject, context, logs = [], today, compact } = props;
+  const score = computeBusinessScoreV4({
+    project: businessProject,
+    ctx: context,
+    logs,
+  });
+  const diagnosis = getBusinessDiagnosisV4({
+    project: businessProject,
+    ctx: context,
+    score,
+  });
+  const projectName = extractProjectName(businessProject, context);
+  const model =
+    businessProject?.businessModel || context?.businessModel || "pas_encore";
+  const platform =
+    businessProject?.recommendedPlatform ||
+    context?.primaryChannel ||
+    "Instagram";
+  const objective =
+    businessProject?.firstRevenueGoal ||
+    (context?.businessGoal
+      ? labelBusinessGoal(context.businessGoal)
+      : "Première vente");
+  const nextAction =
+    today?.mission?.title ||
+    businessProject?.nextMission ||
+    "clarifier l’action la plus rentable du jour";
+
+  const scoreRows: Array<[string, number]> = [
+    ["Vision", score.vision],
+    ["Offre", score.offre],
+    ["Avatar", score.avatar],
+    ["Positionnement", score.positionnement],
+    ["Acquisition", score.acquisition],
+    ["Conversion", score.conversion],
+    ["Discipline", score.discipline],
+    ["Exécution", score.execution],
+  ];
+
+  return (
+    <div className="rounded-3xl border border-yellow-500/20 bg-gradient-to-br from-yellow-400/10 via-black/20 to-[#0b0f16]/80 p-5">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-[0.22em] text-yellow-300/75">
+            Coach Alex V4 · Business Director IA
+          </div>
+          <div className="mt-1 text-2xl font-semibold text-yellow-400">
+            🧠 Mon Business
+          </div>
+          <div className="mt-1 text-sm text-white/55">
+            Alex pense. Les modules exécutent. Ton business avance.
+          </div>
+        </div>
+        <div className="rounded-2xl border border-yellow-400/30 bg-yellow-400/10 px-4 py-3 text-center">
+          <div className="text-xs text-yellow-200/70">Business Score</div>
+          <div className="mt-1 text-3xl font-semibold text-yellow-300">
+            {score.global}
+          </div>
+          <div className="text-xs text-white/45">/100</div>
+        </div>
+      </div>
+
+      <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-3">
+        <SummaryLine label="Projet" value={projectName} />
+        <SummaryLine
+          label="Modèle"
+          value={labelBusinessModel(model as AlexBusinessModel)}
+        />
+        <SummaryLine label="Objectif" value={objective} />
+        <SummaryLine label="Plateforme" value={platform} />
+        <SummaryLine
+          label="Mise en vente"
+          value={businessProject?.estimatedTimeBeforeSale || "À estimer"}
+        />
+        <SummaryLine
+          label="Parcours"
+          value={parcoursLabel(businessProject?.parcours)}
+        />
+      </div>
+
+      {!compact ? (
+        <>
+          <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div className="rounded-2xl border border-[#2a2416] bg-black/20 p-4">
+              <div className="text-sm font-semibold text-yellow-200">
+                📈 Business Score IA
+              </div>
+              <div className="mt-4 space-y-3">
+                {scoreRows.map(([label, value]) => (
+                  <div key={label}>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-white/55">{label}</span>
+                      <span className="text-white/75">{value}/100</span>
+                    </div>
+                    <div className="mt-1 h-2 overflow-hidden rounded-full bg-white/10">
+                      <div
+                        className="h-full rounded-full bg-yellow-400"
+                        style={{ width: `${value}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-[#2a2416] bg-black/20 p-4">
+              <div className="text-sm font-semibold text-yellow-200">
+                🧠 Diagnostic Business
+              </div>
+              <div className="mt-4 space-y-3 text-sm leading-6 text-white/70">
+                <p>
+                  <span className="text-white/45">Profil :</span>{" "}
+                  <span className="text-white">{diagnosis.profile}</span>
+                </p>
+                <p>
+                  <span className="text-white/45">Force :</span>{" "}
+                  {diagnosis.force}
+                </p>
+                <p>
+                  <span className="text-white/45">Risque :</span>{" "}
+                  {diagnosis.risk}
+                </p>
+                <p>
+                  <span className="text-white/45">Point à renforcer :</span>{" "}
+                  {diagnosis.weakest}
+                </p>
+                <p>
+                  <span className="text-white/45">Levier :</span>{" "}
+                  {diagnosis.leverage}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-5 rounded-2xl border border-yellow-500/20 bg-yellow-400/5 p-4">
+            <div className="text-sm font-semibold text-yellow-200">
+              🧠 Ce qu’Alex a compris
+            </div>
+            <div className="mt-3 space-y-3 text-sm leading-6 text-white/70">
+              <p>
+                Tu veux développer{" "}
+                <span className="text-white">{projectName}</span> avec un modèle{" "}
+                <span className="text-white">
+                  {labelBusinessModel(model as AlexBusinessModel)}
+                </span>
+                .
+              </p>
+              <p>
+                Ton offre doit aider ton client à résoudre :{" "}
+                <span className="text-white">
+                  {businessPreviewText(businessProject?.problemSolved, 220)}
+                </span>
+              </p>
+              <p>
+                La stratégie recommandée est de concentrer l’énergie sur{" "}
+                <span className="text-white">{platform}</span>, puis de
+                transformer l’attention en conversations et en ventes.
+              </p>
+              <p>
+                Ton risque principal est de{" "}
+                <span className="text-white">{diagnosis.risk}</span>. Alex doit
+                donc te ramener chaque jour vers une action simple et rentable.
+              </p>
+            </div>
+          </div>
+        </>
+      ) : null}
+
+      <div className="mt-5 rounded-2xl border border-yellow-400/20 bg-black/25 p-4">
+        <div className="text-sm font-semibold text-yellow-200">
+          🤝 Action unique du jour
+        </div>
+        <div className="mt-2 text-sm leading-6 text-white/70">
+          Il existe une seule action qui aura le plus d’impact aujourd’hui :{" "}
+          <span className="text-white">{nextAction}</span>. Alex l’a préparée
+          pour éviter la dispersion.
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function StageRenderer(props: {
@@ -501,7 +913,7 @@ export default function StageRenderer(props: {
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <div className="text-3xl font-semibold text-yellow-400">
-              Alex V2 · Coach IA
+              Alex V4 · Business Director IA
             </div>
             <div className="mt-1 text-sm text-white/55">
               MMR · MLR · Contenu — Focus Instagram. Résultats mesurés.
@@ -512,6 +924,16 @@ export default function StageRenderer(props: {
             <Pill>Ventes</Pill>
             <Pill>Workflow</Pill>
           </div>
+        </div>
+
+        <div className="mt-6">
+          <BusinessDirectorPanelV4
+            businessProject={businessProject || null}
+            context={context}
+            logs={logs}
+            today={today}
+            compact={!businessProject && !context}
+          />
         </div>
 
         <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -587,6 +1009,9 @@ export default function StageRenderer(props: {
         planLimits={planLimits}
         onStart={onGoMission}
         onRegen={onStartOnboarding}
+        businessProject={businessProject || null}
+        context={context}
+        logs={logs}
       />
     );
   }
@@ -598,6 +1023,9 @@ export default function StageRenderer(props: {
         today={today}
         onAskCommit={onAskCommit}
         onOpenParcours={onOpenParcours}
+        businessProject={businessProject || null}
+        context={context}
+        logs={logs}
       />
     );
   }
@@ -689,7 +1117,9 @@ function OnboardingCard(props: {
     Boolean(businessProject?.targetAudienceDescription),
   );
   const problemEditedRef = useRef(Boolean(businessProject?.problemSolved));
-  const promiseEditedRef = useRef(Boolean(businessProject?.transformationPromise));
+  const promiseEditedRef = useRef(
+    Boolean(businessProject?.transformationPromise),
+  );
 
   useEffect(() => {
     if (problemEditedRef.current) return;
@@ -703,7 +1133,8 @@ function OnboardingCard(props: {
     if (!offerDescription) return;
     const inferred = inferTransformationPromise({
       offerDescription,
-      problemSolved: problemSolved || inferProblemSolved(offerDescription, businessModel),
+      problemSolved:
+        problemSolved || inferProblemSolved(offerDescription, businessModel),
       businessGoal,
       businessModel,
     });
@@ -819,6 +1250,16 @@ function OnboardingCard(props: {
             style={{ width: `${Math.round(((step + 1) / totalSteps) * 100)}%` }}
           />
         </div>
+      </div>
+
+      <div className="mt-6">
+        <BusinessDirectorPanelV4
+          businessProject={formActionProject}
+          context={null}
+          logs={[]}
+          today={null}
+          compact={true}
+        />
       </div>
 
       <div className="mt-6 rounded-2xl border border-[#2a2416] bg-black/20 p-5">
@@ -962,9 +1403,7 @@ function OnboardingCard(props: {
           </>
         ) : step === 5 ? (
           <>
-            <div className="text-white/85 font-semibold">
-              Ton niveau actuel
-            </div>
+            <div className="text-white/85 font-semibold">Ton niveau actuel</div>
             <div className="mt-3 grid grid-cols-1 gap-2">
               <PickRow
                 checked={level === "debutant"}
@@ -1076,8 +1515,8 @@ function OnboardingCard(props: {
                   Avatar marketing premium
                 </div>
                 <div className="mt-2 text-sm text-white/50">
-                  Alex préremplit le client idéal avec un vrai avatar exploitable
-                  par tout LGD.
+                  Alex préremplit le client idéal avec un vrai avatar
+                  exploitable par tout LGD.
                 </div>
               </div>
               <button
@@ -1098,8 +1537,9 @@ function OnboardingCard(props: {
               rows={18}
             />
             <div className="mt-3 rounded-2xl border border-yellow-500/15 bg-yellow-400/5 p-3 text-xs leading-5 text-white/60">
-              Ce bloc devient la mémoire marketing centrale : Coach Alex, CMO IA,
-              Lead Engine, posts, emailing et pages de vente pourront l’exploiter.
+              Ce bloc devient la mémoire marketing centrale : Coach Alex, CMO
+              IA, Lead Engine, posts, emailing et pages de vente pourront
+              l’exploiter.
             </div>
           </>
         ) : step === 8 ? (
@@ -1116,7 +1556,14 @@ function OnboardingCard(props: {
               Tu veux être perçu comme
             </div>
             <div className="mt-3 grid grid-cols-1 gap-2">
-              {["expert", "mentor", "coach", "créateur", "entrepreneur", "marque personnelle"].map((item) => (
+              {[
+                "expert",
+                "mentor",
+                "coach",
+                "créateur",
+                "entrepreneur",
+                "marque personnelle",
+              ].map((item) => (
                 <PickRow
                   key={item}
                   checked={positioning === item}
@@ -1153,43 +1600,89 @@ function OnboardingCard(props: {
             </div>
 
             <div className="mt-5 grid grid-cols-1 gap-3">
-              <SummaryLine label="Parcours" value={parcoursLabel(formActionProject.parcours)} />
-              <SummaryLine label="Modèle" value={labelBusinessModel(businessModel)} />
-              <SummaryLine label="Objectif" value={firstRevenueGoal || labelBusinessGoal(businessGoal)} />
+              <SummaryLine
+                label="Parcours"
+                value={parcoursLabel(formActionProject.parcours)}
+              />
+              <SummaryLine
+                label="Modèle"
+                value={labelBusinessModel(businessModel)}
+              />
+              <SummaryLine
+                label="Objectif"
+                value={firstRevenueGoal || labelBusinessGoal(businessGoal)}
+              />
               <SummaryLine label="Niveau" value={labelLevel(level)} />
-              <SummaryLine label="Audience" value={labelAudienceSize(audienceSize)} />
-              <SummaryLine label="Blocage prioritaire" value={labelBlocker(mainBlocker)} />
-              <SummaryLine label="Plateforme recommandée" value={formActionProject.recommendedPlatform || "Instagram"} />
-              <SummaryLine label="Temps estimé avant mise en vente" value={formActionProject.estimatedTimeBeforeSale || "7 jours"} />
-              <SummaryLine label="Score de clarté offre" value={`${formActionProject.offerReadinessScore || 0}/100`} />
+              <SummaryLine
+                label="Audience"
+                value={labelAudienceSize(audienceSize)}
+              />
+              <SummaryLine
+                label="Blocage prioritaire"
+                value={labelBlocker(mainBlocker)}
+              />
+              <SummaryLine
+                label="Plateforme recommandée"
+                value={formActionProject.recommendedPlatform || "Instagram"}
+              />
+              <SummaryLine
+                label="Temps estimé avant mise en vente"
+                value={formActionProject.estimatedTimeBeforeSale || "7 jours"}
+              />
+              <SummaryLine
+                label="Score de clarté offre"
+                value={`${formActionProject.offerReadinessScore || 0}/100`}
+              />
+            </div>
+
+            <div className="mt-5">
+              <BusinessDirectorPanelV4
+                businessProject={formActionProject}
+                context={null}
+                logs={[]}
+                today={null}
+              />
             </div>
 
             <div className="mt-5 rounded-2xl border border-yellow-500/20 bg-yellow-400/5 p-4">
               <div className="text-sm font-semibold text-yellow-200">
-                🧠 Ce qu’Alex a compris
+                🧠 Ce qu’Alex a compris · Synthèse opérationnelle
               </div>
               <div className="mt-3 space-y-3 text-sm leading-6 text-white/70">
                 <p>
                   Ton projet prioritaire est :{" "}
-                  <span className="text-white">{parcoursLabel(formActionProject.parcours)}</span>.
-                  Alex doit concentrer tes actions sur{" "}
-                  <span className="text-white">{formActionProject.recommendedPlatform}</span>.
+                  <span className="text-white">
+                    {parcoursLabel(formActionProject.parcours)}
+                  </span>
+                  . Alex doit concentrer tes actions sur{" "}
+                  <span className="text-white">
+                    {formActionProject.recommendedPlatform}
+                  </span>
+                  .
                 </p>
                 <p>
                   Ton offre doit résoudre :{" "}
-                  <span className="text-white">{problemSolved || "un problème clair à préciser"}</span>
+                  <span className="text-white">
+                    {problemSolved || "un problème clair à préciser"}
+                  </span>
                 </p>
                 <p>
                   Ton angle de contenu :{" "}
-                  <span className="text-white">{formActionProject.contentAngle}</span>
+                  <span className="text-white">
+                    {formActionProject.contentAngle}
+                  </span>
                 </p>
                 <p>
                   Ton angle de vente :{" "}
-                  <span className="text-white">{formActionProject.salesAngle}</span>
+                  <span className="text-white">
+                    {formActionProject.salesAngle}
+                  </span>
                 </p>
                 <p>
                   Mission suivante préparée :{" "}
-                  <span className="text-white">{formActionProject.nextMission}</span>
+                  <span className="text-white">
+                    {formActionProject.nextMission}
+                  </span>
                 </p>
               </div>
             </div>
@@ -1298,8 +1791,20 @@ function PlanOverview(props: {
   planLimits: ReturnType<typeof getCoachPlanLimits>;
   onStart: () => void;
   onRegen: () => void;
+  businessProject?: FormActionBusinessProject | null;
+  context?: AlexContext | null;
+  logs?: DailyLog[];
 }) {
-  const { roadmap, planTier, planLimits, onStart, onRegen } = props;
+  const {
+    roadmap,
+    planTier,
+    planLimits,
+    onStart,
+    onRegen,
+    businessProject,
+    context,
+    logs = [],
+  } = props;
   const regenCheck = useMemo(() => canRegenPlan(planLimits), [planLimits]);
   const upgradeHint = useMemo(
     () => getUpgradeHintForPlanRegen(planTier),
@@ -1313,6 +1818,16 @@ function PlanOverview(props: {
       </div>
       <div className="mt-1 text-sm text-white/55">
         Non éditable. Tu exécutes, tu mesures, tu avances.
+      </div>
+
+      <div className="mt-6">
+        <BusinessDirectorPanelV4
+          businessProject={businessProject || null}
+          context={context || null}
+          logs={logs}
+          today={null}
+          compact={false}
+        />
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -1385,18 +1900,28 @@ function MissionCard(props: {
   today: AlexToday | null;
   onAskCommit: () => void;
   onOpenParcours: () => void;
+  businessProject?: FormActionBusinessProject | null;
+  context?: AlexContext | null;
+  logs?: DailyLog[];
 }) {
-  const { today, onAskCommit, onOpenParcours } = props;
+  const {
+    today,
+    onAskCommit,
+    onOpenParcours,
+    businessProject,
+    context,
+    logs = [],
+  } = props;
 
   return (
     <div className="rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <div className="text-2xl font-semibold text-yellow-400">
-            🎯 Ce que tu dois faire aujourd’hui
+            🤝 Action unique du jour
           </div>
           <div className="mt-1 text-sm text-white/55">
-            Objectif business. Pas de bavardage.
+            Une seule action. Celle qui fait réellement avancer ton business.
           </div>
         </div>
         <button
@@ -1405,6 +1930,16 @@ function MissionCard(props: {
         >
           Mon parcours
         </button>
+      </div>
+
+      <div className="mt-6">
+        <BusinessDirectorPanelV4
+          businessProject={businessProject || null}
+          context={context || null}
+          logs={logs}
+          today={today}
+          compact={true}
+        />
       </div>
 
       <div className="mt-6 rounded-2xl border border-[#2a2416] bg-black/20 p-5">
@@ -1451,7 +1986,7 @@ function MissionCard(props: {
           onClick={onAskCommit}
           className="mt-5 w-full rounded-2xl bg-yellow-400 px-5 py-3 text-sm font-semibold text-black hover:bg-yellow-300 transition"
         >
-          🚀 Exécuter maintenant.
+          🚀 Exécuter maintenant
         </button>
 
         <div className="mt-3 text-xs text-white/45">
