@@ -663,6 +663,69 @@ function BusinessDirectorPanelV4(props: {
   compact?: boolean;
 }) {
   const { businessProject, context, logs = [], today, compact } = props;
+  const hasBusinessMemory = Boolean(
+    normalizeText(businessProject?.offerDescription || context?.offerDescription || ""),
+  );
+
+  if (!hasBusinessMemory) {
+    return (
+      <div className="rounded-3xl border border-yellow-500/20 bg-gradient-to-br from-yellow-400/10 via-black/20 to-[#0b0f16]/80 p-5">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-[0.22em] text-yellow-300/75">
+              Coach Alex V4 · Business Director IA
+            </div>
+            <div className="mt-1 text-2xl font-semibold text-yellow-400">
+              🧠 Mon Business
+            </div>
+            <div className="mt-1 text-sm text-white/55">
+              Alex attend ton diagnostic avant de construire une stratégie.
+            </div>
+          </div>
+          <div className="rounded-2xl border border-yellow-400/30 bg-yellow-400/10 px-4 py-3 text-center">
+            <div className="text-xs text-yellow-200/70">Business Score</div>
+            <div className="mt-1 text-3xl font-semibold text-yellow-300">
+              --
+            </div>
+            <div className="text-xs text-white/45">/100</div>
+          </div>
+        </div>
+
+        <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-3">
+          <SummaryLine label="Projet" value="À définir" />
+          <SummaryLine label="Modèle" value="À définir" />
+          <SummaryLine label="Objectif" value="À définir" />
+          <SummaryLine label="Plateforme" value="Après analyse" />
+          <SummaryLine label="Mise en vente" value="Après diagnostic" />
+          <SummaryLine label="Parcours" value="En construction" />
+        </div>
+
+        {!compact ? (
+          <div className="mt-5 rounded-2xl border border-yellow-500/20 bg-yellow-400/5 p-4">
+            <div className="text-sm font-semibold text-yellow-200">
+              🧠 Ce qu’Alex attend
+            </div>
+            <div className="mt-3 text-sm leading-6 text-white/70">
+              Choisis ton projet, décris ton offre et précise ton client. Alex
+              construira ensuite une mémoire business adaptée à ton cas, sans
+              supposer que tu fais de l’affiliation, du MRR ou un autre modèle.
+            </div>
+          </div>
+        ) : null}
+
+        <div className="mt-5 rounded-2xl border border-yellow-400/20 bg-black/25 p-4">
+          <div className="text-sm font-semibold text-yellow-200">
+            🤝 Action unique du jour
+          </div>
+          <div className="mt-2 text-sm leading-6 text-white/70">
+            Termine le diagnostic Alex. Plus tu donnes d’informations, plus il
+            pourra construire une stratégie fidèle à ton projet réel.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const score = computeBusinessScoreV4({
     project: businessProject,
     ctx: context,
@@ -1088,7 +1151,7 @@ function OnboardingCard(props: {
   const [businessGoal, setBusinessGoal] =
     useState<AlexBusinessGoal>("premiers_revenus");
   const [businessModel, setBusinessModel] = useState<AlexBusinessModel>(
-    (businessProject?.businessModel as AlexBusinessModel) || "affiliation",
+    (businessProject?.businessModel as AlexBusinessModel) || "pas_encore",
   );
   const [audienceSize, setAudienceSize] =
     useState<AlexAudienceSize>("moins_500");
