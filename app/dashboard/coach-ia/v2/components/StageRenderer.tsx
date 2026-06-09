@@ -1481,20 +1481,53 @@ function OnboardingCard(props: {
           </>
         ) : step === 2 ? (
           <>
-            <div className="text-white/85 font-semibold">
-              Description de l’offre
-            </div>
-            <div className="mt-2 text-sm text-white/50">
-              Décris ce que tu veux vendre, promouvoir ou construire. Plus tu es
-              précis, plus Alex devient puissant.
-            </div>
-            <textarea
-              value={offerDescription}
-              onChange={(e) => setOfferDescription(e.target.value)}
-              placeholder="Exemple : une formation MRR comme L’Indépendance Digital, avec droits de revente, pour aider des débutants à construire une activité digitale sans créer leur propre produit..."
-              className="mt-3 w-full rounded-2xl border border-[#2a2416] bg-black/20 p-4 text-sm leading-6 text-white outline-none focus:border-yellow-400/40"
-              rows={7}
-            />
+           <div className="text-white/85 font-semibold">
+  {parcoursChoice === "creation_produit_digital"
+    ? "Décris le produit digital que tu souhaites créer"
+    : parcoursChoice === "mrr"
+      ? "Décris la formation MRR que tu souhaites développer"
+      : parcoursChoice === "affiliation"
+        ? "Décris les produits ou services que tu souhaites recommander"
+        : businessModel === "coaching"
+          ? "Décris l'accompagnement que tu souhaites proposer"
+          : businessModel === "contenu"
+            ? "Décris l'univers que tu souhaites développer"
+            : "Description de l'offre"}
+</div>
+
+<div className="mt-2 text-sm text-white/50">
+  {parcoursChoice === "creation_produit_digital"
+    ? "Alex va construire toute ta stratégie autour de ce produit."
+    : parcoursChoice === "mrr"
+      ? "Alex utilisera cette description pour bâtir tout ton système MRR."
+      : parcoursChoice === "affiliation"
+        ? "Alex utilisera cette description pour construire ton système d'affiliation."
+        : businessModel === "coaching"
+          ? "Alex préparera ton positionnement et ton offre d'accompagnement."
+          : businessModel === "contenu"
+            ? "Alex préparera une stratégie de croissance et de monétisation."
+            : "Plus tu es précis, plus Alex devient puissant."}
+</div>
+
+<textarea
+  value={offerDescription}
+  onChange={(e) => setOfferDescription(e.target.value)}
+  placeholder={
+    parcoursChoice === "creation_produit_digital"
+      ? "Exemple : une formation, un ebook ou une méthode que tu as créé pour aider une audience précise à résoudre un problème concret..."
+      : parcoursChoice === "mrr"
+        ? "Exemple : une formation MRR comme L'Indépendance Digital avec droits de revente pour aider des débutants à construire une activité digitale..."
+        : parcoursChoice === "affiliation"
+          ? "Exemple : recommander des outils ou des formations que tu apprécies et toucher une commission sur chaque vente..."
+          : businessModel === "coaching"
+            ? "Exemple : accompagner des entrepreneurs à atteindre un objectif précis grâce à ton expertise..."
+            : businessModel === "contenu"
+              ? "Exemple : développer une audience sur une thématique puis la monétiser progressivement..."
+              : "Décris ton projet..."
+  }
+  className="mt-3 w-full rounded-2xl border border-[#2a2416] bg-black/20 p-4 text-sm leading-6 text-white outline-none focus:border-yellow-400/40"
+  rows={7}
+/>
           </>
         ) : step === 3 ? (
           <>
