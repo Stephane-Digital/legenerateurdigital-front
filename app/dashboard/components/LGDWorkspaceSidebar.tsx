@@ -89,7 +89,7 @@ export default function LGDWorkspaceSidebar() {
           <img
             src="/images/logo-side-bar2.png"
             alt="Le Générateur Digital"
-            className="h-auto w-[205px] select-none object-contain"
+            className="h-auto w-[180px] select-none object-contain"
             draggable={false}
           />
         </div>
