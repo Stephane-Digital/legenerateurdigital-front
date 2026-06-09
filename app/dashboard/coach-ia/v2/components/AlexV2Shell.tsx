@@ -56,6 +56,7 @@ type CoachV2Snapshot = {
 
 type FormActionParcours =
   | "creation_produit_digital"
+  | "mrr"
   | "affiliation"
   | "code_liberte"
   | "non_defini";
