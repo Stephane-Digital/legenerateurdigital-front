@@ -1214,7 +1214,7 @@ export default function AlexV2Shell() {
   // ✅ Anti-flash: render a neutral skeleton until booted.
   if (!booted) {
     return (
-      <div className="mx-auto mt-[60px] max-w-7xl px-4">
+      <div className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] mt-6 w-screen max-w-none px-3 sm:px-4 lg:left-auto lg:right-auto lg:mx-auto lg:ml-auto lg:mr-auto lg:mt-[60px] lg:w-full lg:max-w-7xl">
         <div className="mb-6 rounded-3xl border border-[#2a2416] bg-gradient-to-r from-[#0b0f16] to-[#0b1220] px-6 py-4">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div>
@@ -1247,7 +1247,7 @@ export default function AlexV2Shell() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-12">
           <div className="lg:col-span-3">
             <div className="rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-5">
               <div className="h-6 w-40 rounded bg-white/5" />
@@ -1287,7 +1287,7 @@ export default function AlexV2Shell() {
   }
 
   return (
-    <div className="mx-auto mt-[60px] max-w-7xl px-4">
+    <div className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] mt-6 w-screen max-w-none px-3 sm:px-4 lg:left-auto lg:right-auto lg:mx-auto lg:ml-auto lg:mr-auto lg:mt-[60px] lg:w-full lg:max-w-7xl">
       {/* Header */}
       <div className="mb-6 rounded-3xl border border-[#2a2416] bg-gradient-to-r from-[#0b0f16] to-[#0b1220] px-6 py-4">
         <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -1524,7 +1524,7 @@ export default function AlexV2Shell() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+      <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-12">
         {/* LEFT */}
         <div className="order-3 lg:order-1 lg:col-span-3">
           <Stepper
