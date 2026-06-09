@@ -739,6 +739,7 @@ function BusinessDirectorPanelV4(props: {
   compact?: boolean;
 }) {
   const { businessProject, context, logs = [], today, compact } = props;
+  const [activeTab, setActiveTab] = useState<"business" | "avatar" | "plan" | "score">("business");
   const hasBusinessMemory = Boolean(
     normalizeText(
       businessProject?.offerDescription || context?.offerDescription || "",
@@ -747,65 +748,43 @@ function BusinessDirectorPanelV4(props: {
 
   if (!hasBusinessMemory) {
     return (
-      <div className="overflow-hidden rounded-[28px] border border-yellow-500/20 bg-[#070b11] shadow-[0_0_60px_rgba(250,204,21,0.06)]">
-        <div className="border-b border-yellow-500/10 bg-gradient-to-r from-yellow-400/10 via-black/20 to-transparent p-5">
-          <div className="text-xs font-semibold uppercase tracking-[0.24em] text-yellow-300/70">
-            Coach Alex V5 · Cockpit Business IA
+      <div className="rounded-[30px] border border-yellow-500/20 bg-gradient-to-br from-[#10151f] via-[#070b11] to-black p-5 shadow-[0_0_45px_rgba(250,204,21,0.07)]">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <div className="text-[11px] font-black uppercase tracking-[0.24em] text-yellow-300/70">
+              Alex Mobile Command
+            </div>
+            <h2 className="mt-2 text-2xl font-black leading-tight text-yellow-400">
+              🧠 Diagnostic en attente
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-white/65">
+              Alex ne suppose rien. Il construit la stratégie seulement après ton diagnostic.
+            </p>
           </div>
-          <div className="mt-2 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <div className="text-3xl font-semibold text-yellow-400">
-                🧠 Centre de commande Alex
-              </div>
-              <div className="mt-2 max-w-2xl text-sm leading-6 text-white/60">
-                Alex ne suppose rien. Il attend ton diagnostic pour construire
-                une stratégie fidèle à ton projet réel.
-              </div>
-            </div>
-            <div className="rounded-3xl border border-yellow-400/30 bg-yellow-400/10 px-6 py-4 text-center">
-              <div className="text-xs text-yellow-200/70">Business Score</div>
-              <div className="mt-1 text-4xl font-semibold text-yellow-300">
-                --
-              </div>
-              <div className="text-xs text-white/45">/100</div>
-            </div>
+          <div className="shrink-0 rounded-3xl border border-yellow-400/25 bg-yellow-400/10 px-4 py-3 text-center">
+            <div className="text-[10px] font-bold text-yellow-200/70">Score</div>
+            <div className="mt-1 text-2xl font-black text-yellow-300">--</div>
+            <div className="text-[10px] text-white/45">/100</div>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-px bg-yellow-500/10 md:grid-cols-6">
-          <CommandMetric label="Projet" value="À définir" />
-          <CommandMetric label="Modèle" value="À définir" />
-          <CommandMetric label="Objectif" value="À définir" />
-          <CommandMetric label="Plateforme" value="Après analyse" />
-          <CommandMetric label="Mise en vente" value="Après diagnostic" />
-          <CommandMetric label="Parcours" value="En construction" />
+        <div className="mt-5 rounded-3xl border border-yellow-400/20 bg-black/35 p-5">
+          <div className="text-sm font-black text-yellow-200">
+            🤝 Action unique maintenant
+          </div>
+          <p className="mt-2 text-base font-semibold leading-7 text-white">
+            Termine le diagnostic Alex.
+          </p>
+          <p className="mt-2 text-sm leading-6 text-white/60">
+            Ensuite, Alex définira ton modèle, ta promesse, ton client idéal et la première action à exécuter.
+          </p>
         </div>
 
-        {!compact ? (
-          <div className="p-5">
-            <div className="rounded-3xl border border-yellow-500/15 bg-yellow-400/5 p-5">
-              <div className="text-sm font-semibold text-yellow-200">
-                🧠 Ce qu’Alex attend
-              </div>
-              <div className="mt-3 text-sm leading-6 text-white/70">
-                Choisis ton modèle, décris ton offre et précise ton client.
-                Ensuite, Alex construira ton cockpit business sans confondre MRR,
-                affiliation, produit digital ou accompagnement.
-              </div>
-            </div>
-          </div>
-        ) : null}
-
-        <div className="border-t border-yellow-500/10 p-5">
-          <div className="rounded-3xl border border-yellow-400/20 bg-black/30 p-5">
-            <div className="text-sm font-semibold text-yellow-200">
-              🤝 Action unique du jour
-            </div>
-            <div className="mt-2 text-sm leading-6 text-white/70">
-              Termine le diagnostic Alex. Plus tu donnes d’informations, plus il
-              pourra construire une stratégie fidèle à ton projet réel.
-            </div>
-          </div>
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <MobileInfoPill label="Projet" value="À définir" />
+          <MobileInfoPill label="Modèle" value="Après choix" />
+          <MobileInfoPill label="Vente" value="Après diagnostic" />
+          <MobileInfoPill label="Parcours" value="En construction" />
         </div>
       </div>
     );
@@ -838,6 +817,16 @@ function BusinessDirectorPanelV4(props: {
     businessProject?.nextMission ||
     "clarifier l’action la plus rentable du jour";
 
+  const isMrrProject = businessProject?.parcours === "mrr" || detectMrrFromText(businessProject?.offerDescription);
+  const businessModelLabel = labelBusinessModelForProject(
+    businessProject,
+    model as AlexBusinessModel,
+  );
+  const platformShort = businessPreviewText(platform, 52);
+  const problemShort = businessPreviewText(businessProject?.problemSolved, 155);
+  const promiseShort = businessPreviewText(businessProject?.transformationPromise, 155);
+  const avatarShort = businessPreviewText(businessProject?.targetAudienceDescription, 230);
+
   const scoreRows: Array<[string, number]> = [
     ["Vision", score.vision],
     ["Offre", score.offre],
@@ -849,164 +838,126 @@ function BusinessDirectorPanelV4(props: {
     ["Exécution", score.execution],
   ];
 
-  const scoreAverageTop = Math.round(
-    (score.vision + score.offre + score.avatar + score.positionnement) / 4,
-  );
-  const scoreAverageGrowth = Math.round(
-    (score.acquisition + score.conversion + score.discipline + score.execution) / 4,
-  );
-
   return (
-    <div className="overflow-hidden rounded-[28px] border border-yellow-500/20 bg-[#070b11] shadow-[0_0_60px_rgba(250,204,21,0.06)]">
-      <div className="border-b border-yellow-500/10 bg-gradient-to-r from-yellow-400/10 via-black/20 to-transparent p-5">
-        <div className="text-xs font-semibold uppercase tracking-[0.24em] text-yellow-300/70">
-          Coach Alex V5 · Cockpit Business IA
+    <div className="rounded-[30px] border border-yellow-500/20 bg-gradient-to-br from-[#10151f] via-[#070b11] to-black p-5 shadow-[0_0_45px_rgba(250,204,21,0.07)]">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="text-[11px] font-black uppercase tracking-[0.24em] text-yellow-300/70">
+            Alex Mobile Command
+          </div>
+          <h2 className="mt-2 text-2xl font-black leading-tight text-yellow-400">
+            🧠 {projectName}
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-white/65">
+            {isMrrProject
+              ? "Alex a identifié une formation MRR avec droits de revente. Il pilote la stratégie vers la première vente."
+              : "Alex synthétise ton business et prépare uniquement l’action la plus utile."}
+          </p>
         </div>
-        <div className="mt-2 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <div className="text-3xl font-semibold text-yellow-400">
-              🧠 Centre de commande
-            </div>
-            <div className="mt-2 max-w-2xl text-sm leading-6 text-white/60">
-              Alex pense. Les modules exécutent. Ton business avance.
-            </div>
-          </div>
-          <div className="rounded-3xl border border-yellow-400/30 bg-yellow-400/10 px-6 py-4 text-center">
-            <div className="text-xs text-yellow-200/70">Business Score</div>
-            <div className="mt-1 text-4xl font-semibold text-yellow-300">
-              {score.global}
-            </div>
-            <div className="text-xs text-white/45">/100</div>
-          </div>
+        <div className="shrink-0 rounded-3xl border border-yellow-400/25 bg-yellow-400/10 px-4 py-3 text-center">
+          <div className="text-[10px] font-bold text-yellow-200/70">Score</div>
+          <div className="mt-1 text-2xl font-black text-yellow-300">{score.global}</div>
+          <div className="text-[10px] text-white/45">/100</div>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-px bg-yellow-500/10 md:grid-cols-6">
-        <CommandMetric label="Projet" value={projectName} />
-        <CommandMetric
-          label="Modèle"
-          value={labelBusinessModelForProject(
-            businessProject,
-            model as AlexBusinessModel,
-          )}
-        />
-        <CommandMetric label="Objectif" value={objective} />
-        <CommandMetric label="Plateforme" value={platform} />
-        <CommandMetric
-          label="Mise en vente"
-          value={businessProject?.estimatedTimeBeforeSale || "À estimer"}
-        />
-        <CommandMetric
-          label="Parcours"
-          value={parcoursLabel(businessProject?.parcours)}
-        />
+      <div className="mt-5 rounded-3xl border border-yellow-400/25 bg-yellow-400/10 p-5">
+        <div className="text-sm font-black text-yellow-200">
+          🤝 Aujourd’hui, fais uniquement ça
+        </div>
+        <p className="mt-3 text-lg font-black leading-7 text-white">
+          {nextAction}
+        </p>
+        <p className="mt-3 text-sm leading-6 text-white/65">
+          Pourquoi ? Parce que cette action rapproche directement ton projet de la prochaine vente, sans t’éparpiller.
+        </p>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <MobileInfoPill label="Modèle" value={businessModelLabel} />
+        <MobileInfoPill label="Objectif" value={objective} />
+        <MobileInfoPill label="Canal" value={platformShort} />
+        <MobileInfoPill label="Vente" value={businessProject?.estimatedTimeBeforeSale || "À estimer"} />
       </div>
 
       {!compact ? (
-        <div className="grid grid-cols-1 gap-px bg-yellow-500/10 lg:grid-cols-[1fr_1.15fr]">
-          <div className="bg-[#070b11] p-5">
-            <div className="rounded-3xl border border-[#2a2416] bg-black/25 p-5">
-              <div className="text-sm font-semibold text-yellow-200">
-                📈 Score stratégique
-              </div>
-
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                <ScoreBadge label="Fondation" value={scoreAverageTop} />
-                <ScoreBadge label="Croissance" value={scoreAverageGrowth} />
-              </div>
-
-              <div className="mt-4 space-y-3">
-                {scoreRows.map(([label, value]) => (
-                  <div key={label}>
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-white/55">{label}</span>
-                      <span className="text-white/75">{value}/100</span>
-                    </div>
-                    <div className="mt-1 h-2 overflow-hidden rounded-full bg-white/10">
-                      <div
-                        className="h-full rounded-full bg-yellow-400"
-                        style={{ width: `${value}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+        <>
+          <div className="mt-5 flex gap-2 overflow-x-auto pb-1">
+            <MobileTabButton active={activeTab === "business"} onClick={() => setActiveTab("business")}>Business</MobileTabButton>
+            <MobileTabButton active={activeTab === "avatar"} onClick={() => setActiveTab("avatar")}>Avatar</MobileTabButton>
+            <MobileTabButton active={activeTab === "plan"} onClick={() => setActiveTab("plan")}>Plan</MobileTabButton>
+            <MobileTabButton active={activeTab === "score"} onClick={() => setActiveTab("score")}>Score</MobileTabButton>
           </div>
 
-          <div className="bg-[#070b11] p-5">
-            <div className="grid h-full grid-cols-1 gap-4">
-              <div className="rounded-3xl border border-yellow-500/15 bg-yellow-400/5 p-5">
-                <div className="text-sm font-semibold text-yellow-200">
-                  🧠 Ce qu’Alex a compris
-                </div>
+          <div className="mt-4 rounded-3xl border border-[#2a2416] bg-black/30 p-5">
+            {activeTab === "business" ? (
+              <div>
+                <div className="text-sm font-black text-yellow-200">🧠 Ce qu’Alex a compris</div>
                 <div className="mt-3 space-y-3 text-sm leading-6 text-white/70">
                   <p>
-                    Tu veux développer{" "}
-                    <span className="text-white">{projectName}</span> avec un
-                    modèle{" "}
-                    <span className="text-white">
-                      {labelBusinessModelForProject(
-                        businessProject,
-                        model as AlexBusinessModel,
-                      )}
-                    </span>
-                    .
+                    Tu veux développer <span className="font-semibold text-white">{projectName}</span> avec le modèle <span className="font-semibold text-white">{businessModelLabel}</span>.
                   </p>
                   <p>
-                    Ton offre doit aider ton client à résoudre :{" "}
-                    <span className="text-white">
-                      {businessPreviewText(businessProject?.problemSolved, 220)}
-                    </span>
+                    Problème résolu : <span className="text-white">{problemShort}</span>
                   </p>
                   <p>
-                    La stratégie recommandée est de concentrer l’énergie sur{" "}
-                    <span className="text-white">{platform}</span>, puis de
-                    transformer l’attention en conversations, confiance et
-                    ventes.
+                    Promesse : <span className="text-white">{promiseShort}</span>
+                  </p>
+                  <p>
+                    Canal prioritaire : <span className="text-white">{platform}</span>
                   </p>
                 </div>
               </div>
+            ) : null}
 
-              <div className="rounded-3xl border border-[#2a2416] bg-black/25 p-5">
-                <div className="text-sm font-semibold text-yellow-200">
-                  🧩 Diagnostic Business
-                </div>
-                <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
-                  <CommandMetric label="Profil" value={diagnosis.profile} />
-                  <CommandMetric label="Point à renforcer" value={diagnosis.weakest} />
-                  <CommandMetric label="Force" value={diagnosis.force} />
-                  <CommandMetric label="Risque" value={diagnosis.risk} />
+            {activeTab === "avatar" ? (
+              <div>
+                <div className="text-sm font-black text-yellow-200">👤 Avatar premium</div>
+                <p className="mt-3 text-sm leading-6 text-white/70">{avatarShort}</p>
+                <div className="mt-4 rounded-2xl border border-yellow-500/15 bg-yellow-400/5 p-4 text-xs leading-5 text-white/55">
+                  Le profil complet reste éditable dans le questionnaire. Ici, Alex affiche seulement l’essentiel pour décider quoi faire aujourd’hui.
                 </div>
               </div>
-            </div>
+            ) : null}
+
+            {activeTab === "plan" ? (
+              <div>
+                <div className="text-sm font-black text-yellow-200">🗺️ Prochaines étapes</div>
+                <div className="mt-4 space-y-3">
+                  <TimelineStep number="1" title="Action du jour" body={nextAction} />
+                  <TimelineStep number="2" title="Mission suivante" body={businessProject?.missionFollowing || "Créer le premier contenu de conversion."} />
+                  <TimelineStep number="3" title="Angle de vente" body={businessProject?.salesAngle || "Clarifier pourquoi l’offre est simple, crédible et utile maintenant."} />
+                </div>
+              </div>
+            ) : null}
+
+            {activeTab === "score" ? (
+              <div>
+                <div className="text-sm font-black text-yellow-200">📈 Business Score</div>
+                <div className="mt-4 grid grid-cols-1 gap-3">
+                  {scoreRows.map(([label, value]) => (
+                    <div key={label}>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-white/55">{label}</span>
+                        <span className="font-semibold text-white/75">{value}/100</span>
+                      </div>
+                      <div className="mt-1 h-2 overflow-hidden rounded-full bg-white/10">
+                        <div className="h-full rounded-full bg-yellow-400" style={{ width: `${value}%` }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 rounded-2xl border border-yellow-500/15 bg-yellow-400/5 p-4 text-xs leading-5 text-white/60">
+                  Point à renforcer : <span className="text-white">{diagnosis.weakest}</span>. Risque principal : <span className="text-white">{diagnosis.risk}</span>.
+                </div>
+              </div>
+            ) : null}
           </div>
-        </div>
+        </>
       ) : null}
-
-      <div className="border-t border-yellow-500/10 p-5">
-        <div className="rounded-3xl border border-yellow-400/20 bg-gradient-to-r from-yellow-400/10 via-black/30 to-black/20 p-5">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <div className="text-sm font-semibold text-yellow-200">
-                🤝 Action unique du jour
-              </div>
-              <div className="mt-2 text-sm leading-6 text-white/75">
-                Il existe une seule action qui aura le plus d’impact aujourd’hui
-                : <span className="text-white">{nextAction}</span>.
-              </div>
-            </div>
-            <div className="rounded-2xl border border-yellow-400/20 bg-black/30 px-4 py-3 text-xs leading-5 text-white/55 md:max-w-[220px]">
-              Alex l’a préparée pour éviter la dispersion et rapprocher le
-              projet de la vente.
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
-
 export default function StageRenderer(props: {
   stage: AlexStage;
   planLabel?: string;
@@ -1418,16 +1369,6 @@ function OnboardingCard(props: {
             style={{ width: `${Math.round(((step + 1) / totalSteps) * 100)}%` }}
           />
         </div>
-      </div>
-
-      <div className="mt-6">
-        <BusinessDirectorPanelV4
-          businessProject={formActionProject}
-          context={null}
-          logs={[]}
-          today={null}
-          compact={true}
-        />
       </div>
 
       <div className="mt-6 rounded-2xl border border-[#2a2416] bg-black/20 p-5">
@@ -1969,6 +1910,57 @@ function ScoreBadge({ label, value }: { label: string; value: number }) {
   );
 }
 
+
+function MobileInfoPill({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-[#2a2416] bg-black/25 p-4">
+      <div className="text-[10px] font-black uppercase tracking-[0.18em] text-white/35">
+        {label}
+      </div>
+      <div className="mt-1 text-sm font-semibold leading-5 text-white/80">
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function MobileTabButton(props: {
+  active: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  const { active, onClick, children } = props;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={
+        "shrink-0 rounded-full border px-4 py-2 text-xs font-black transition " +
+        (active
+          ? "border-yellow-400/50 bg-yellow-400 text-black"
+          : "border-[#2a2416] bg-black/25 text-white/65 hover:border-yellow-400/30 hover:text-yellow-200")
+      }
+    >
+      {children}
+    </button>
+  );
+}
+
+function TimelineStep(props: { number: string; title: string; body: ReactNode }) {
+  const { number, title, body } = props;
+  return (
+    <div className="flex gap-3 rounded-2xl border border-[#2a2416] bg-black/20 p-4">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-yellow-400/30 bg-yellow-400/10 text-xs font-black text-yellow-200">
+        {number}
+      </div>
+      <div>
+        <div className="text-sm font-black text-white/85">{title}</div>
+        <div className="mt-1 text-sm leading-6 text-white/60">{body}</div>
+      </div>
+    </div>
+  );
+}
+
 function SummaryLine({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="rounded-2xl border border-[#2a2416] bg-black/20 p-4">
@@ -2042,7 +2034,7 @@ function PlanOverview(props: {
           context={context || null}
           logs={logs}
           today={null}
-          compact={false}
+          compact={true}
         />
       </div>
 
