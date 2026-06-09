@@ -26,13 +26,13 @@ import {
 } from "../lib/storage";
 
 import type {
-  AlexContext,
+  AlexAudienceSize,
   AlexBusinessGoal,
   AlexBusinessModel,
-  AlexAudienceSize,
-  AlexMainBlocker,
+  AlexContext,
   AlexIntent,
   AlexLevel,
+  AlexMainBlocker,
   AlexRoadmap,
   AlexStage,
   AlexToday,
@@ -54,18 +54,30 @@ type CoachV2Snapshot = {
   updatedAtISO: string;
 };
 
+type FormActionParcours =
+  | "creation_produit_digital"
+  | "affiliation"
+  | "code_liberte"
+  | "non_defini";
+
 type FormActionBusinessProject = {
   offerDescription?: string;
+  problemSolved?: string;
+  transformationPromise?: string;
   targetAudienceDescription?: string;
+  personaName?: string;
+  positioning?: string;
   businessModel?: AlexBusinessModel;
-  parcours?:
-    | "creation_produit_digital"
-    | "affiliation"
-    | "code_liberte"
-    | "non_defini";
+  parcours?: FormActionParcours;
   recommendedPlatform?: string;
+  platformReason?: string;
   estimatedTimeBeforeSale?: string;
+  firstRevenueGoal?: string;
   nextMission?: string;
+  missionFollowing?: string;
+  contentAngle?: string;
+  salesAngle?: string;
+  offerReadinessScore?: number;
   updatedAtISO?: string;
 };
 
@@ -291,16 +303,16 @@ async function syncCoachV2AtBoot(args: { local: CoachV2Snapshot | null }) {
 
 import { writeEditorBrief } from "../lib/bridgeEditor";
 import {
-  buildAlexLiveFallback,
-  generateAlexLiveStrategy,
-} from "../lib/live-strategist";
-import type { AlexLiveStrategistResult } from "../lib/live-strategist";
-import {
   buildTodayFromRoadmap,
   createInitialContext,
   createInitialRoadmap,
   evolveContextAfterLog,
 } from "../lib/engine";
+import type { AlexLiveStrategistResult } from "../lib/live-strategist";
+import {
+  buildAlexLiveFallback,
+  generateAlexLiveStrategy,
+} from "../lib/live-strategist";
 
 function planLabelFrom(plan?: string, limit?: number) {
   // ✅ Priorité absolue au plan réel renvoyé par IA-Quotas.
