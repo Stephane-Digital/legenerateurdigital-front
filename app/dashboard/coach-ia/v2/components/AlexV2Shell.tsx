@@ -1214,7 +1214,7 @@ export default function AlexV2Shell() {
   // ✅ Anti-flash: render a neutral skeleton until booted.
   if (!booted) {
     return (
-      <div className="mx-auto mt-[60px] max-w-6xl px-4">
+      <div className="mx-auto mt-[60px] max-w-7xl px-4">
         <div className="mb-6 rounded-3xl border border-[#2a2416] bg-gradient-to-r from-[#0b0f16] to-[#0b1220] px-6 py-4">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div>
@@ -1248,7 +1248,7 @@ export default function AlexV2Shell() {
         </div>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-          <div className="lg:col-span-4">
+          <div className="lg:col-span-3">
             <div className="rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-5">
               <div className="h-6 w-40 rounded bg-white/5" />
               <div className="mt-4 space-y-3">
@@ -1260,7 +1260,7 @@ export default function AlexV2Shell() {
             </div>
           </div>
 
-          <div className="lg:col-span-5">
+          <div className="lg:col-span-6">
             <div className="rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-5">
               <div className="h-8 w-56 rounded bg-white/5" />
               <div className="mt-3 h-4 w-72 rounded bg-white/5" />
@@ -1287,7 +1287,7 @@ export default function AlexV2Shell() {
   }
 
   return (
-    <div className="mx-auto mt-[60px] max-w-6xl px-4">
+    <div className="mx-auto mt-[60px] max-w-7xl px-4">
       {/* Header */}
       <div className="mb-6 rounded-3xl border border-[#2a2416] bg-gradient-to-r from-[#0b0f16] to-[#0b1220] px-6 py-4">
         <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -1526,7 +1526,7 @@ export default function AlexV2Shell() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         {/* LEFT */}
-        <div className="lg:col-span-4">
+        <div className="order-3 lg:order-1 lg:col-span-3">
           <Stepper
             currentStage={stage}
             completedKeys={completedKeys}
@@ -1535,7 +1535,7 @@ export default function AlexV2Shell() {
         </div>
 
         {/* CENTER */}
-        <div className="lg:col-span-5">
+        <div className="order-1 lg:order-2 lg:col-span-6">
           <StageRenderer
             stage={stage}
             context={context}
@@ -1557,7 +1557,7 @@ export default function AlexV2Shell() {
         </div>
 
         {/* RIGHT */}
-        <div className="lg:col-span-3">
+        <div className="order-2 lg:order-3 lg:col-span-3">
           <ActionPanel
             today={today}
             quota={{
