@@ -141,6 +141,115 @@ function labelBlocker(blocker: AlexMainBlocker) {
   return "se disperse trop";
 }
 
+
+type DigitalProductOpportunity = {
+  id: string;
+  title: string;
+  badge: string;
+  demand: string;
+  score: number;
+  why: string;
+  product: string;
+  price: string;
+  offerDescription: string;
+  problemSolved: string;
+  transformationPromise: string;
+  targetAudienceDescription: string;
+};
+
+const DIGITAL_PRODUCT_OPPORTUNITIES: DigitalProductOpportunity[] = [
+  {
+    id: "reconversion_45_plus",
+    title: "Reconversion professionnelle 45+",
+    badge: "Demande très forte",
+    demand: "Salariés, indépendants fragilisés, personnes en transition",
+    score: 96,
+    why: "Marché émotionnel, besoin urgent de sécurité, envie de créer un revenu complémentaire sans repartir de zéro.",
+    product: "Formation courte + plan 30 jours + templates d’action",
+    price: "197€ à 497€",
+    offerDescription:
+      "Un programme digital destiné aux salariés et personnes en transition professionnelle de 45 ans et plus, pour construire progressivement une activité en ligne simple, réaliste et compatible avec leur temps disponible.",
+    problemSolved:
+      "Aider des personnes expérimentées mais bloquées à transformer leur vécu, leurs compétences ou leur besoin de changement en projet digital concret, sans prendre de risque brutal.",
+    transformationPromise:
+      "Passer d’une inquiétude professionnelle et d’une impression d’être dépassé à un plan clair pour créer une première offre digitale, attirer une audience ciblée et préparer un revenu complémentaire.",
+    targetAudienceDescription:
+      "Avatar : Sophie, 49 ans. Elle travaille encore, sent que son avenir professionnel est fragile et veut construire une alternative. Elle a peur de la technique, manque de temps et veut une méthode rassurante, simple, guidée et adaptée à son âge.",
+  },
+  {
+    id: "ia_solopreneurs",
+    title: "IA pour indépendants et petites entreprises",
+    badge: "Potentiel IA énorme",
+    demand: "Freelances, artisans, consultants, TPE",
+    score: 94,
+    why: "Forte demande pour gagner du temps, produire du contenu, mieux vendre et automatiser sans recruter.",
+    product: "Mini-formation IA + prompts prêts à l’emploi + cas pratiques",
+    price: "97€ à 297€",
+    offerDescription:
+      "Une formation pratique qui aide les indépendants, freelances et petites entreprises à utiliser l’IA pour créer du contenu, gagner du temps, mieux structurer leurs offres et améliorer leur communication commerciale.",
+    problemSolved:
+      "Aider les professionnels seuls ou débordés à utiliser l’IA de façon concrète, sans jargon, pour produire plus vite et mieux vendre sans passer leurs journées devant les outils.",
+    transformationPromise:
+      "Passer d’un usage confus de l’IA à un système simple de prompts, contenus et actions commerciales utilisables chaque semaine pour développer son activité.",
+    targetAudienceDescription:
+      "Avatar : Julien, 38 ans. Il est indépendant, compétent dans son métier, mais débordé par la communication, les réseaux sociaux et la création de contenu. Il veut utiliser l’IA, mais ne sait pas par où commencer ni comment l’appliquer à son activité réelle.",
+  },
+  {
+    id: "marketing_digital_debutants",
+    title: "Marketing digital simplifié pour débutants",
+    badge: "Compatible LGD à 100%",
+    demand: "Débutants, MRR, affiliés, créateurs de contenu",
+    score: 93,
+    why: "Audience massive, forte douleur : trop d’informations, pas de méthode, pas de premières ventes.",
+    product: "Méthode simple + calendrier de contenu + tunnel de vente basique",
+    price: "97€ à 397€",
+    offerDescription:
+      "Une méthode digitale simple pour aider les débutants à comprendre le marketing digital, choisir une offre, créer du contenu utile et mettre en place un premier système de vente sans se disperser.",
+    problemSolved:
+      "Aider les débutants à arrêter de consommer des formations dans tous les sens et à suivre une méthode claire pour obtenir leurs premières actions visibles et leurs premières ventes.",
+    transformationPromise:
+      "Passer d’un débutant perdu dans les conseils contradictoires à une personne capable de publier, expliquer son offre, créer une page simple et ouvrir ses premières conversations de vente.",
+    targetAudienceDescription:
+      "Avatar : Laura, 34 ans. Elle veut gagner de l’argent en ligne, a déjà regardé beaucoup de contenus sur le marketing digital, mais ne sait pas quoi faire dans quel ordre. Elle veut une méthode claire, simple, sans jargon et orientée résultats.",
+  },
+  {
+    id: "productivite_ia",
+    title: "Productivité personnelle avec IA",
+    badge: "Facile à créer",
+    demand: "Salariés, entrepreneurs, parents débordés, étudiants adultes",
+    score: 90,
+    why: "Besoin universel : mieux s’organiser, gagner du temps, réduire la charge mentale et reprendre le contrôle.",
+    product: "Ebook premium + templates Notion/IA + routines 7 jours",
+    price: "27€ à 147€",
+    offerDescription:
+      "Un produit digital qui aide les personnes débordées à utiliser l’IA, des routines simples et des templates pour mieux organiser leurs journées, prioriser leurs actions et réduire la charge mentale.",
+    problemSolved:
+      "Aider les personnes qui se sentent débordées à reprendre le contrôle de leur temps avec une méthode simple, guidée et applicable en quelques minutes par jour.",
+    transformationPromise:
+      "Passer d’une journée subie, dispersée et stressante à une organisation claire avec des priorités, des routines et des outils IA simples pour avancer avec plus de sérénité.",
+    targetAudienceDescription:
+      "Avatar : Claire, 41 ans. Elle jongle entre travail, famille et projets personnels. Elle manque de temps, culpabilise de ne pas avancer et cherche une méthode simple pour retrouver de la clarté sans devenir experte en productivité.",
+  },
+  {
+    id: "revenu_complementaire_budget",
+    title: "Revenu complémentaire et budget personnel",
+    badge: "Douleur marché forte",
+    demand: "Salariés, familles, personnes en tension financière",
+    score: 89,
+    why: "Pouvoir d’achat, peur de l’avenir et besoin d’options concrètes créent une demande durable.",
+    product: "Guide pratique + plan 30 jours + idées de revenus digitaux",
+    price: "47€ à 197€",
+    offerDescription:
+      "Un guide digital pratique pour aider les personnes qui veulent créer un complément de revenu à clarifier leur situation, choisir une piste simple et construire un premier plan d’action réaliste sur 30 jours.",
+    problemSolved:
+      "Aider les personnes sous pression financière à sortir de la confusion et à identifier une première piste de revenu complémentaire adaptée à leur temps, leurs compétences et leur niveau.",
+    transformationPromise:
+      "Passer d’un sentiment d’urgence financière et de flou à un plan concret pour tester une première source de revenu complémentaire sans promesse irréaliste.",
+    targetAudienceDescription:
+      "Avatar : Nadia, 44 ans. Elle veut respirer financièrement, mais ne sait pas quelle piste choisir. Elle a peur des arnaques, manque de confiance et veut une méthode réaliste, prudente et concrète pour commencer.",
+  },
+];
+
 function inferProblemSolved(
   offerDescription: string,
   businessModel: AlexBusinessModel,
@@ -1509,6 +1618,45 @@ function OnboardingCard(props: {
             : "Plus tu es précis, plus Alex devient puissant."}
 </div>
 
+{parcoursChoice === "creation_produit_digital" ? (
+  <div className="mt-5 rounded-3xl border border-yellow-500/20 bg-yellow-400/5 p-4">
+    <div className="flex items-start justify-between gap-3">
+      <div>
+        <div className="text-sm font-black text-yellow-200">
+          🧠 Alex peut te proposer 5 niches rentables
+        </div>
+        <div className="mt-1 text-xs leading-5 text-white/55">
+          Choisis une opportunité pour préremplir ton idée de produit, ou écris librement ton propre projet.
+        </div>
+      </div>
+      <div className="hidden rounded-2xl border border-yellow-400/20 bg-black/25 px-3 py-2 text-center text-[10px] font-black uppercase tracking-[0.18em] text-yellow-200/70 sm:block">
+        Opportunités
+      </div>
+    </div>
+
+    <div className="mt-4 grid grid-cols-1 gap-3">
+      {DIGITAL_PRODUCT_OPPORTUNITIES.map((opportunity) => (
+        <OpportunityPickCard
+          key={opportunity.id}
+          opportunity={opportunity}
+          selected={offerDescription === opportunity.offerDescription}
+          onPick={() => {
+            problemEditedRef.current = true;
+            promiseEditedRef.current = true;
+            targetEditedRef.current = true;
+            setOfferDescription(opportunity.offerDescription);
+            setProblemSolved(opportunity.problemSolved);
+            setTransformationPromise(opportunity.transformationPromise);
+            setTargetAudienceDescription(opportunity.targetAudienceDescription);
+            setPrimaryChannel("instagram");
+            setPositioning("mentor");
+          }}
+        />
+      ))}
+    </div>
+  </div>
+) : null}
+
 <textarea
   value={offerDescription}
   onChange={(e) => setOfferDescription(e.target.value)}
@@ -1525,7 +1673,7 @@ function OnboardingCard(props: {
               ? "Exemple : développer une audience sur une thématique puis la monétiser progressivement..."
               : "Décris ton projet..."
   }
-  className="mt-3 w-full rounded-2xl border border-[#2a2416] bg-black/20 p-4 text-sm leading-6 text-white outline-none focus:border-yellow-400/40"
+  className="mt-5 w-full rounded-2xl border border-[#2a2416] bg-black/20 p-4 text-sm leading-6 text-white outline-none focus:border-yellow-400/40"
   rows={7}
 />
           </>
@@ -1991,6 +2139,69 @@ function TimelineStep(props: { number: string; title: string; body: ReactNode })
         <div className="mt-1 text-sm leading-6 text-white/60">{body}</div>
       </div>
     </div>
+  );
+}
+
+
+function OpportunityPickCard(props: {
+  opportunity: DigitalProductOpportunity;
+  selected: boolean;
+  onPick: () => void;
+}) {
+  const { opportunity, selected, onPick } = props;
+
+  return (
+    <button
+      type="button"
+      onClick={onPick}
+      className={
+        "w-full rounded-3xl border p-4 text-left transition " +
+        (selected
+          ? "border-yellow-400/60 bg-yellow-400/15 shadow-[0_0_24px_rgba(250,204,21,0.10)]"
+          : "border-[#2a2416] bg-black/25 hover:border-yellow-400/35 hover:bg-yellow-400/5")
+      }
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-sm font-black text-white">
+            {opportunity.title}
+          </div>
+          <div className="mt-1 text-[11px] font-bold uppercase tracking-[0.16em] text-yellow-300/70">
+            {opportunity.badge}
+          </div>
+        </div>
+        <div className="shrink-0 rounded-2xl border border-yellow-400/25 bg-yellow-400/10 px-3 py-2 text-center">
+          <div className="text-[10px] text-yellow-200/70">Score</div>
+          <div className="text-lg font-black text-yellow-300">
+            {opportunity.score}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-3 text-xs leading-5 text-white/60">
+        <span className="font-semibold text-white/80">Demande :</span>{" "}
+        {opportunity.demand}
+      </div>
+      <div className="mt-2 text-xs leading-5 text-white/60">
+        <span className="font-semibold text-white/80">Pourquoi :</span>{" "}
+        {opportunity.why}
+      </div>
+
+      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-3 text-xs leading-5 text-white/60">
+          <span className="font-semibold text-yellow-200">Produit :</span>{" "}
+          {opportunity.product}
+        </div>
+        <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-3 text-xs leading-5 text-white/60">
+          <span className="font-semibold text-yellow-200">Prix :</span>{" "}
+          {opportunity.price}
+        </div>
+      </div>
+
+      <div className="mt-3 text-xs font-black text-yellow-200">
+        {selected ? "✓ Opportunité sélectionnée" : "Utiliser cette opportunité"}
+      </div>
+    </button>
   );
 }
 
