@@ -245,7 +245,7 @@ export default function LoginContent() {
                 rel="noopener noreferrer"
                 className="mt-4 flex w-full items-center justify-center rounded-[18px] border border-[#7c3aed]/35 bg-[linear-gradient(90deg,rgba(124,58,237,0.28),rgba(245,191,33,0.16))] px-5 py-4 text-center text-sm font-black text-white transition hover:border-[#f5bf21]/45 hover:bg-[#f5bf21]/10"
               >
-                🚀 Tester LGD gratuitement pendant 7 jours
+                🚀 Tester LGD gratuitement pendant 7 jours sans carte bancaire et sans engement.
               </a>
 
               <div className="mt-7 grid grid-cols-3 gap-3 text-center text-[11px] text-white/52">
