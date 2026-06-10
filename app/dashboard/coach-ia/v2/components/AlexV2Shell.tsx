@@ -1214,8 +1214,8 @@ export default function AlexV2Shell() {
   // ✅ Anti-flash: render a neutral skeleton until booted.
   if (!booted) {
     return (
-      <div className="mx-auto mt-[60px] max-w-6xl px-4">
-        <div className="mb-6 rounded-3xl border border-[#2a2416] bg-gradient-to-r from-[#0b0f16] to-[#0b1220] px-6 py-4">
+      <div className="mx-auto mt-[60px] w-full max-w-6xl px-4 max-sm:max-w-none max-sm:px-0">
+        <div className="mb-6 w-full max-w-none rounded-3xl border border-[#2a2416] bg-gradient-to-r from-[#0b0f16] to-[#0b1220] px-6 py-4 max-sm:rounded-none max-sm:border-x-0 max-sm:px-4">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div>
               <div className="text-4xl font-semibold text-yellow-400">
@@ -1227,7 +1227,7 @@ export default function AlexV2Shell() {
               </div>
             </div>
 
-            <div className="w-[320px]">
+            <div className="w-[320px] max-sm:w-full">
               <div className="rounded-2xl border border-[#2a2416] bg-black/15 p-3">
                 <div className="text-xs text-white/50 mb-2">IA-Quotas</div>
                 <div className="text-sm text-white/70">Chargement…</div>
@@ -1247,9 +1247,9 @@ export default function AlexV2Shell() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-          <div className="lg:col-span-4">
-            <div className="rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-5">
+        <div className="grid w-full max-w-none grid-cols-1 gap-6 lg:grid-cols-12">
+          <div className="w-full max-w-none lg:col-span-4">
+            <div className="w-full max-w-none rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-5 max-sm:rounded-none max-sm:border-x-0">
               <div className="h-6 w-40 rounded bg-white/5" />
               <div className="mt-4 space-y-3">
                 <div className="h-16 rounded-2xl bg-white/5" />
@@ -1260,8 +1260,8 @@ export default function AlexV2Shell() {
             </div>
           </div>
 
-          <div className="lg:col-span-5">
-            <div className="rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-5">
+          <div className="w-full max-w-none lg:col-span-5">
+            <div className="w-full max-w-none rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-5 max-sm:rounded-none max-sm:border-x-0">
               <div className="h-8 w-56 rounded bg-white/5" />
               <div className="mt-3 h-4 w-72 rounded bg-white/5" />
               <div className="mt-6 grid grid-cols-2 gap-4">
@@ -1271,8 +1271,8 @@ export default function AlexV2Shell() {
             </div>
           </div>
 
-          <div className="lg:col-span-3">
-            <div className="rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-5">
+          <div className="w-full max-w-none lg:col-span-3">
+            <div className="w-full max-w-none rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-5 max-sm:rounded-none max-sm:border-x-0">
               <div className="h-6 w-36 rounded bg-white/5" />
               <div className="mt-4 space-y-3">
                 <div className="h-20 rounded-2xl bg-white/5" />
@@ -1287,9 +1287,9 @@ export default function AlexV2Shell() {
   }
 
   return (
-    <div className="mx-auto mt-[60px] max-w-6xl px-4">
+    <div className="mx-auto mt-[60px] w-full max-w-6xl px-4 max-sm:max-w-none max-sm:px-0">
       {/* Header */}
-      <div className="mb-6 rounded-3xl border border-[#2a2416] bg-gradient-to-r from-[#0b0f16] to-[#0b1220] px-6 py-4">
+      <div className="mb-6 w-full max-w-none rounded-3xl border border-[#2a2416] bg-gradient-to-r from-[#0b0f16] to-[#0b1220] px-6 py-4 max-sm:rounded-none max-sm:border-x-0 max-sm:px-4">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
             <div className="text-4xl font-semibold text-yellow-400">
@@ -1301,7 +1301,7 @@ export default function AlexV2Shell() {
             </div>
           </div>
 
-          <div className="w-[320px]">
+          <div className="w-[320px] max-sm:w-full">
             <div className="rounded-2xl border border-[#2a2416] bg-black/15 p-3">
               <div className="text-xs text-white/50 mb-2">IA-Quotas</div>
 
@@ -1342,7 +1342,7 @@ export default function AlexV2Shell() {
       </div>
 
       {cmoCoachBrief && (
-        <div className="mb-6 rounded-3xl border border-yellow-500/25 bg-gradient-to-r from-yellow-500/10 via-[#0b0f16] to-yellow-500/10 p-5 shadow-[0_0_35px_rgba(234,179,8,0.08)]">
+        <div className="mb-6 w-full max-w-none rounded-3xl border border-yellow-500/25 bg-gradient-to-r from-yellow-500/10 via-[#0b0f16] to-yellow-500/10 p-5 shadow-[0_0_35px_rgba(234,179,8,0.08)] max-sm:rounded-none max-sm:border-x-0 max-sm:px-4">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
               <div className="text-xs font-semibold uppercase tracking-[0.22em] text-yellow-300/80">
@@ -1368,7 +1368,7 @@ export default function AlexV2Shell() {
       )}
 
       {context && today?.mission && (
-        <div className="mb-6 rounded-3xl border border-yellow-500/25 bg-gradient-to-br from-[#111827] via-[#080b10] to-[#050607] p-5 shadow-[0_0_35px_rgba(234,179,8,0.08)]">
+        <div className="mb-6 w-full max-w-none rounded-3xl border border-yellow-500/25 bg-gradient-to-br from-[#111827] via-[#080b10] to-[#050607] p-5 shadow-[0_0_35px_rgba(234,179,8,0.08)] max-sm:rounded-none max-sm:border-x-0 max-sm:px-4">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="max-w-3xl">
               <div className="text-xs font-black uppercase tracking-[0.24em] text-yellow-300/80">
@@ -1524,9 +1524,9 @@ export default function AlexV2Shell() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+      <div className="grid w-full max-w-none grid-cols-1 gap-6 lg:grid-cols-12">
         {/* LEFT */}
-        <div className="lg:col-span-4">
+        <div className="w-full max-w-none lg:col-span-4">
           <Stepper
             currentStage={stage}
             completedKeys={completedKeys}
@@ -1535,7 +1535,7 @@ export default function AlexV2Shell() {
         </div>
 
         {/* CENTER */}
-        <div className="lg:col-span-5">
+        <div className="w-full max-w-none lg:col-span-5">
           <StageRenderer
             stage={stage}
             context={context}
@@ -1558,7 +1558,7 @@ export default function AlexV2Shell() {
         </div>
 
         {/* RIGHT */}
-        <div className="lg:col-span-3">
+        <div className="w-full max-w-none lg:col-span-3">
           <ActionPanel
             today={today}
             quota={{
