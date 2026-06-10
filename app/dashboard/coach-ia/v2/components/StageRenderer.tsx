@@ -1532,7 +1532,7 @@ export default function StageRenderer(props: {
     const pct = Math.min(100, Math.round((doneCount / 7) * 100));
 
     return (
-      <div className="rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-4 sm:p-6">
+      <div className="w-full max-w-none max-sm:relative max-sm:left-1/2 max-sm:w-screen max-sm:-translate-x-1/2 max-sm:rounded-none max-sm:border-x-0 max-sm:px-3 rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-4 sm:p-6">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <div className="text-2xl font-semibold text-yellow-400 sm:text-3xl">
@@ -1681,7 +1681,7 @@ export default function StageRenderer(props: {
 
   // EXECUTION / COMMIT_REQUIRED are handled by Shell (modal + redirect)
   return (
-    <div className="rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-4 sm:p-6">
+    <div className="w-full max-w-none max-sm:relative max-sm:left-1/2 max-sm:w-screen max-sm:-translate-x-1/2 max-sm:rounded-none max-sm:border-x-0 max-sm:px-3 rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-4 sm:p-6">
       <div className="text-white/80">Chargement…</div>
     </div>
   );
@@ -1921,7 +1921,7 @@ function OnboardingCard(props: {
   }
 
   return (
-    <div className="rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-4 sm:p-4 sm:p-6">
+    <div className="w-full max-w-none max-sm:relative max-sm:left-1/2 max-sm:w-screen max-sm:-translate-x-1/2 max-sm:rounded-none max-sm:border-x-0 max-sm:px-3 rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-4 sm:p-6">
       <div className="text-2xl font-semibold text-yellow-400 sm:text-3xl">
         Coach Alex V3 · FormAction Premium
       </div>
@@ -2944,7 +2944,7 @@ function PlanOverview(props: {
   );
 
   return (
-    <div className="rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-4 sm:p-4 sm:p-6">
+    <div className="w-full max-w-none max-sm:relative max-sm:left-1/2 max-sm:w-screen max-sm:-translate-x-1/2 max-sm:rounded-none max-sm:border-x-0 max-sm:px-3 rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-4 sm:p-6">
       <div className="text-2xl font-semibold text-yellow-400 sm:text-3xl">
         Ton plan global
       </div>
@@ -3045,8 +3045,12 @@ function MissionCard(props: {
     logs = [],
   } = props;
 
+  const missionHasStarted = Boolean(
+    today?.startedAtISO || today?.committedAtISO,
+  );
+
   return (
-    <div className="rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-4 sm:p-6">
+    <div className="w-full max-w-none max-sm:relative max-sm:left-1/2 max-sm:w-screen max-sm:-translate-x-1/2 max-sm:rounded-none max-sm:border-x-0 max-sm:px-3 rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-4 sm:p-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <div className="text-2xl font-semibold text-yellow-400">
@@ -3064,10 +3068,22 @@ function MissionCard(props: {
         </button>
       </div>
 
-      <div className="mt-6 rounded-2xl border border-yellow-500/20 bg-yellow-400/5 p-4 text-sm leading-6 text-white/60">
-        <span className="font-semibold text-yellow-200">Alex Mobile Command est rétracté.</span>{" "}
-        Alex laisse maintenant toute la place à l’action du jour.
-      </div>
+      {!missionHasStarted ? (
+        <div className="mt-6">
+          <BusinessDirectorPanelV4
+            businessProject={businessProject || null}
+            context={context || null}
+            logs={logs}
+            today={today}
+            compact={true}
+          />
+        </div>
+      ) : (
+        <div className="mt-6 rounded-2xl border border-yellow-500/20 bg-yellow-400/5 p-4 text-sm leading-6 text-white/60">
+          <span className="font-semibold text-yellow-200">Alex Mobile Command est rétracté.</span>{" "}
+          La mission est commencée : Alex laisse maintenant toute la place à l’action du jour.
+        </div>
+      )}
 
       <div className="mt-6 rounded-2xl border border-[#2a2416] bg-black/20 p-5">
         <div className="text-yellow-200 text-lg font-semibold">
@@ -3140,7 +3156,7 @@ function FeedbackCard(props: {
   const [blocker, setBlocker] = useState<DailyLog["blocker"] | null>(null);
 
   return (
-    <div className="rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-4 sm:p-4 sm:p-6">
+    <div className="w-full max-w-none max-sm:relative max-sm:left-1/2 max-sm:w-screen max-sm:-translate-x-1/2 max-sm:rounded-none max-sm:border-x-0 max-sm:px-3 rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-4 sm:p-6">
       <div className="text-2xl font-semibold text-yellow-400 sm:text-3xl">Feedback</div>
       <div className="mt-1 text-sm text-white/55">
         30 secondes. On mesure. On optimise.
@@ -3386,7 +3402,7 @@ function OptimizeCard(props: {
 
   if (!hasBlocker) {
     return (
-      <div className="rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-4 sm:p-6">
+      <div className="w-full max-w-none max-sm:relative max-sm:left-1/2 max-sm:w-screen max-sm:-translate-x-1/2 max-sm:rounded-none max-sm:border-x-0 max-sm:px-3 rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-4 sm:p-6">
         <div className="text-2xl font-semibold text-yellow-400 sm:text-3xl">
           Optimisation
         </div>
@@ -3421,7 +3437,7 @@ function OptimizeCard(props: {
   }
 
   return (
-    <div className="rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-4 sm:p-4 sm:p-6">
+    <div className="w-full max-w-none max-sm:relative max-sm:left-1/2 max-sm:w-screen max-sm:-translate-x-1/2 max-sm:rounded-none max-sm:border-x-0 max-sm:px-3 rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-4 sm:p-6">
       <div className="text-2xl font-semibold text-yellow-400 sm:text-3xl">Optimisation</div>
       <div className="mt-1 text-sm text-white/55">
         Alex ajuste ton focus. Réseau : Instagram. Modèles : MMR/MLR/Contenu.
