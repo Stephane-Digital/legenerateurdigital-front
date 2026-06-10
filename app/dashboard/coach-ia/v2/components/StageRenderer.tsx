@@ -589,39 +589,41 @@ async function fetchLiveDigitalProductOpportunities(args: {
     throw new Error("NEXT_PUBLIC_API_URL manquant");
   }
 
+  const prompt = `Tu es Alex, Directeur Business IA de LGD. Analyse le marché actuel et propose exactement 5 niches rentables pour créer un produit digital. Réponds uniquement en JSON valide, sans markdown, au format {"opportunities":[{"title":"","badge":"","demand":"","score":95,"why":"","product":"","price":"","offerDescription":"","problemSolved":"","transformationPromise":"","targetAudienceDescription":""}]}. Contexte utilisateur: objectif=${args.businessGoal}, niveau=${args.level}, audience=${args.audienceSize}, blocage=${args.mainBlocker}, canal=${args.primaryChannel}. Les niches doivent avoir une forte demande, être monétisables rapidement, compatibles avec LGD, et adaptées à un utilisateur qui veut créer son propre produit digital.`;
+
   const headers = {
     "Content-Type": "application/json",
     ...getCoachAuthHeaders(),
   };
 
-  const liveMarketPayload = {
-    businessModel: "offre_digitale",
-    parcours: "creation_produit_digital",
-    objective: args.businessGoal,
-    level: args.level,
-    audienceSize: args.audienceSize,
-    mainBlocker: args.mainBlocker,
-    primaryChannel: args.primaryChannel,
-    existingOffer: "",
-    context: {
-      businessGoal: args.businessGoal,
-      level: args.level,
-      audienceSize: args.audienceSize,
-      mainBlocker: args.mainBlocker,
-      primaryChannel: args.primaryChannel,
-      expectedCount: 5,
-      source: "coach_alex_formaction_opportunity_button",
-    },
-  };
-
   const requests = [
     {
-      url: `${base}/coach/market-opportunities`,
-      body: liveMarketPayload,
+      url: `${base}/coach-profile/market-opportunities`,
+      body: {
+        business_model: "offre_digitale",
+        request_type: "digital_product_opportunities",
+        count: 5,
+        context: args,
+        prompt,
+      },
     },
     {
-      url: `${base}/market-opportunities`,
-      body: liveMarketPayload,
+      url: `${base}/coach/market-opportunities`,
+      body: {
+        business_model: "offre_digitale",
+        request_type: "digital_product_opportunities",
+        count: 5,
+        context: args,
+        prompt,
+      },
+    },
+    {
+      url: `${base}/coach/chat`,
+      body: {
+        message: prompt,
+        mode: "market_opportunities",
+        context: args,
+      },
     },
   ];
 
@@ -2657,6 +2659,62 @@ function TimelineStep(props: { number: string; title: string; body: ReactNode })
 }
 
 
+function opportunityDemandScore(opportunity: DigitalProductOpportunity) {
+  return Math.max(7.2, Math.min(9.8, Number((opportunity.score / 10).toFixed(1))));
+}
+
+function opportunityRevenueScore(opportunity: DigitalProductOpportunity) {
+  const score = Number(((opportunity.score - 5) / 10).toFixed(1));
+  return Math.max(7.0, Math.min(9.5, score));
+}
+
+function opportunityDifficultyScore(opportunity: DigitalProductOpportunity) {
+  const text = `${opportunity.product} ${opportunity.why} ${opportunity.price}`.toLowerCase();
+  if (text.includes("template") || text.includes("ebook") || text.includes("guide")) return "Faible";
+  if (text.includes("coaching") || text.includes("communauté") || text.includes("communaute")) return "Moyenne";
+  return opportunity.score >= 93 ? "Faible à moyenne" : "Moyenne";
+}
+
+function opportunityTimeToSale(opportunity: DigitalProductOpportunity) {
+  if (opportunity.score >= 94) return "7 jours";
+  if (opportunity.score >= 90) return "7 à 10 jours";
+  return "10 à 14 jours";
+}
+
+function opportunityChannel(opportunity: DigitalProductOpportunity) {
+  const text = `${opportunity.title} ${opportunity.demand} ${opportunity.targetAudienceDescription}`.toLowerCase();
+  if (text.includes("faceless") || text.includes("créateur") || text.includes("createur")) return "TikTok + Instagram";
+  if (text.includes("commerce") || text.includes("local")) return "Facebook local + Instagram";
+  if (text.includes("freelance") || text.includes("indépendant") || text.includes("independant")) return "LinkedIn + Instagram";
+  return "Instagram + TikTok";
+}
+
+function opportunityFirstContent(opportunity: DigitalProductOpportunity) {
+  const problem = businessPreviewText(opportunity.problemSolved, 78);
+  return `Post/Reel problème → solution : ${problem}`;
+}
+
+function opportunityAvatarShort(opportunity: DigitalProductOpportunity) {
+  return businessPreviewText(opportunity.targetAudienceDescription, 120);
+}
+
+function OpportunityMetric(props: {
+  icon: string;
+  label: string;
+  value: string | number;
+}) {
+  return (
+    <div className="rounded-2xl border border-yellow-500/15 bg-black/25 p-3">
+      <div className="text-[10px] font-black uppercase tracking-[0.14em] text-white/35">
+        {props.icon} {props.label}
+      </div>
+      <div className="mt-1 text-sm font-black text-yellow-200">
+        {props.value}
+      </div>
+    </div>
+  );
+}
+
 function SelectedOpportunitySummary(props: {
   opportunity: DigitalProductOpportunity;
   onOpen: () => void;
@@ -2664,42 +2722,48 @@ function SelectedOpportunitySummary(props: {
   const { opportunity, onOpen } = props;
 
   return (
-    <div className="mt-4 rounded-3xl border border-yellow-400/35 bg-yellow-400/10 p-4 shadow-[0_0_24px_rgba(250,204,21,0.08)]">
+    <div className="mt-4 rounded-3xl border border-yellow-400/35 bg-gradient-to-br from-yellow-400/15 via-yellow-400/7 to-black p-4 shadow-[0_0_28px_rgba(250,204,21,0.10)]">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="text-[11px] font-black uppercase tracking-[0.18em] text-yellow-300/70">
             Opportunité sélectionnée
           </div>
-          <div className="mt-1 text-base font-black text-white">
+          <div className="mt-1 text-lg font-black leading-tight text-white">
             {opportunity.title}
           </div>
-          <div className="mt-2 text-xs leading-5 text-white/60">
+          <div className="mt-2 text-xs leading-5 text-white/65">
             {opportunity.why}
           </div>
         </div>
-        <div className="shrink-0 rounded-2xl border border-yellow-400/25 bg-black/25 px-3 py-2 text-center">
+        <div className="shrink-0 rounded-2xl border border-yellow-400/25 bg-black/30 px-3 py-2 text-center">
           <div className="text-[10px] text-yellow-200/70">Score</div>
-          <div className="text-lg font-black text-yellow-300">
+          <div className="text-xl font-black text-yellow-300">
             {opportunity.score}
           </div>
+          <div className="text-[10px] text-white/35">/100</div>
         </div>
       </div>
 
-      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <div className="rounded-2xl border border-white/5 bg-black/20 p-3 text-xs leading-5 text-white/60">
-          <span className="font-semibold text-yellow-200">Produit :</span>{" "}
-          {opportunity.product}
-        </div>
-        <div className="rounded-2xl border border-white/5 bg-black/20 p-3 text-xs leading-5 text-white/60">
-          <span className="font-semibold text-yellow-200">Prix :</span>{" "}
-          {opportunity.price}
-        </div>
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <OpportunityMetric icon="🔥" label="Demande" value={`${opportunityDemandScore(opportunity)}/10`} />
+        <OpportunityMetric icon="💰" label="Revenus" value={`${opportunityRevenueScore(opportunity)}/10`} />
+        <OpportunityMetric icon="⚡" label="Difficulté" value={opportunityDifficultyScore(opportunity)} />
+        <OpportunityMetric icon="⏱" label="1ère vente" value={opportunityTimeToSale(opportunity)} />
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-white/5 bg-black/25 p-3 text-xs leading-5 text-white/65">
+        <span className="font-black text-yellow-200">Produit conseillé :</span>{" "}
+        {opportunity.product}
+      </div>
+      <div className="mt-2 rounded-2xl border border-white/5 bg-black/25 p-3 text-xs leading-5 text-white/65">
+        <span className="font-black text-yellow-200">Premier contenu :</span>{" "}
+        {opportunityFirstContent(opportunity)}
       </div>
 
       <button
         type="button"
         onClick={onOpen}
-        className="mt-3 w-full rounded-2xl border border-yellow-400/30 bg-black/25 px-4 py-2 text-xs font-black text-yellow-200 transition hover:bg-yellow-400/10"
+        className="mt-4 w-full rounded-2xl border border-yellow-400/30 bg-black/25 px-4 py-3 text-xs font-black text-yellow-200 transition hover:bg-yellow-400/10"
       >
         Changer de niche ou voir les propositions
       </button>
@@ -2727,7 +2791,10 @@ function OpportunityPickCard(props: {
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-sm font-black text-white">
+          <div className="text-[10px] font-black uppercase tracking-[0.18em] text-yellow-300/60">
+            🧠 Carte Business Premium
+          </div>
+          <div className="mt-1 text-base font-black leading-tight text-white">
             {opportunity.title}
           </div>
           <div className="mt-1 text-[11px] font-bold uppercase tracking-[0.16em] text-yellow-300/70">
@@ -2736,33 +2803,52 @@ function OpportunityPickCard(props: {
         </div>
         <div className="shrink-0 rounded-2xl border border-yellow-400/25 bg-yellow-400/10 px-3 py-2 text-center">
           <div className="text-[10px] text-yellow-200/70">Score</div>
-          <div className="text-lg font-black text-yellow-300">
+          <div className="text-xl font-black text-yellow-300">
             {opportunity.score}
           </div>
+          <div className="text-[10px] text-white/35">/100</div>
         </div>
       </div>
 
-      <div className="mt-3 text-xs leading-5 text-white/60">
-        <span className="font-semibold text-white/80">Demande :</span>{" "}
-        {opportunity.demand}
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <OpportunityMetric icon="🔥" label="Demande" value={`${opportunityDemandScore(opportunity)}/10`} />
+        <OpportunityMetric icon="💰" label="Revenus" value={`${opportunityRevenueScore(opportunity)}/10`} />
+        <OpportunityMetric icon="⚡" label="Difficulté" value={opportunityDifficultyScore(opportunity)} />
+        <OpportunityMetric icon="⏱" label="1ère vente" value={opportunityTimeToSale(opportunity)} />
       </div>
-      <div className="mt-2 text-xs leading-5 text-white/60">
-        <span className="font-semibold text-white/80">Pourquoi :</span>{" "}
-        {opportunity.why}
+
+      <div className="mt-4 space-y-2">
+        <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-3 text-xs leading-5 text-white/65">
+          <span className="font-black text-yellow-200">🎯 Avatar conseillé :</span>{" "}
+          {opportunityAvatarShort(opportunity)}
+        </div>
+        <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-3 text-xs leading-5 text-white/65">
+          <span className="font-black text-yellow-200">📱 Canal prioritaire :</span>{" "}
+          {opportunityChannel(opportunity)}
+        </div>
+        <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-3 text-xs leading-5 text-white/65">
+          <span className="font-black text-yellow-200">🎬 Premier contenu :</span>{" "}
+          {opportunityFirstContent(opportunity)}
+        </div>
       </div>
 
       <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-3 text-xs leading-5 text-white/60">
-          <span className="font-semibold text-yellow-200">Produit :</span>{" "}
+        <div className="rounded-2xl border border-white/5 bg-black/20 p-3 text-xs leading-5 text-white/65">
+          <span className="font-black text-yellow-200">📦 Produit :</span>{" "}
           {opportunity.product}
         </div>
-        <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-3 text-xs leading-5 text-white/60">
-          <span className="font-semibold text-yellow-200">Prix :</span>{" "}
+        <div className="rounded-2xl border border-white/5 bg-black/20 p-3 text-xs leading-5 text-white/65">
+          <span className="font-black text-yellow-200">💵 Prix :</span>{" "}
           {opportunity.price}
         </div>
       </div>
 
-      <div className="mt-3 text-xs font-black text-yellow-200">
+      <div className="mt-3 rounded-2xl border border-yellow-500/15 bg-yellow-400/5 p-3 text-xs leading-5 text-white/60">
+        <span className="font-black text-yellow-200">Pourquoi maintenant :</span>{" "}
+        {opportunity.why}
+      </div>
+
+      <div className="mt-4 flex w-full items-center justify-center rounded-2xl bg-yellow-400 px-4 py-3 text-xs font-black text-black transition hover:brightness-110">
         {selected ? "✓ Opportunité sélectionnée" : "Utiliser cette opportunité"}
       </div>
     </button>
