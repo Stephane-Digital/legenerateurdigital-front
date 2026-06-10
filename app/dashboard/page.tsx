@@ -1871,11 +1871,17 @@ export default function DashboardPage() {
           transition={{ duration: 0.35 }}
           className="mx-auto max-w-[1600px] text-center"
         >
-          <div className="relative overflow-hidden rounded-[34px] border border-yellow-600/20 bg-[#050505] shadow-[0_0_70px_rgba(255,184,0,0.10)]">
+          <div className="relative overflow-hidden rounded-[34px] border border-yellow-600/20 bg-[#050505] shadow-[0_0_70px_rgba(255,184,0,0.10)] max-sm:rounded-[26px]">
             <img
               src="/images/HerodesktopLGD.jpg"
               alt="Cerveau Collectif IA LGD - Le Générateur Digital"
-              className="block h-auto w-full select-none object-cover"
+              className="hidden h-auto w-full select-none object-cover sm:block"
+              draggable={false}
+            />
+            <img
+              src="/images/HeromobileLGD.jpg"
+              alt="LGD - Lance ton business dans le marketing digital avec TikTok et Instagram"
+              className="block h-auto w-full select-none object-cover sm:hidden"
               draggable={false}
             />
           </div>
