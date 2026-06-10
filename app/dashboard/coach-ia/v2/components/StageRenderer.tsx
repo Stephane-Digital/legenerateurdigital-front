@@ -596,34 +596,22 @@ async function fetchLiveDigitalProductOpportunities(args: {
     ...getCoachAuthHeaders(),
   };
 
+  const marketOpportunityPayload = {
+    business_model: "offre_digitale",
+    request_type: "digital_product_opportunities",
+    count: 5,
+    context: args,
+    prompt,
+  };
+
   const requests = [
     {
-      url: `${base}/coach-profile/market-opportunities`,
-      body: {
-        business_model: "offre_digitale",
-        request_type: "digital_product_opportunities",
-        count: 5,
-        context: args,
-        prompt,
-      },
-    },
-    {
       url: `${base}/coach/market-opportunities`,
-      body: {
-        business_model: "offre_digitale",
-        request_type: "digital_product_opportunities",
-        count: 5,
-        context: args,
-        prompt,
-      },
+      body: marketOpportunityPayload,
     },
     {
-      url: `${base}/coach/chat`,
-      body: {
-        message: prompt,
-        mode: "market_opportunities",
-        context: args,
-      },
+      url: `${base}/market-opportunities`,
+      body: marketOpportunityPayload,
     },
   ];
 
