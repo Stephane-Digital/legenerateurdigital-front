@@ -2139,6 +2139,10 @@ function OnboardingCard(props: {
         : "Mode fallback premium : niches préchargées, instantanées, 0 jeton consommé."}
     </div>
 
+    {liveOpportunitiesLoading ? (
+      <LiveMarketLoadingMoulinette />
+    ) : null}
+
     {liveOpportunitiesNotice ? (
       <div className="mt-3 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-3 text-xs leading-5 text-emerald-100">
         {liveOpportunitiesNotice}
@@ -2710,6 +2714,40 @@ function OpportunityMetric(props: {
       </div>
       <div className="mt-1 text-sm font-black text-yellow-200">
         {props.value}
+      </div>
+    </div>
+  );
+}
+
+
+function LiveMarketLoadingMoulinette() {
+  return (
+    <div className="mt-3 overflow-hidden rounded-2xl border border-yellow-400/25 bg-gradient-to-br from-yellow-400/15 via-black/30 to-black p-4 shadow-[0_0_30px_rgba(250,204,21,0.10)]">
+      <div className="flex items-start gap-3">
+        <div className="relative mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-yellow-400/30 bg-yellow-400/10">
+          <div className="absolute h-10 w-10 animate-spin rounded-full border-2 border-yellow-400/15 border-t-yellow-300" />
+          <div className="h-3 w-3 rounded-full bg-yellow-300 shadow-[0_0_18px_rgba(250,204,21,0.65)]" />
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-black text-yellow-200">
+            🧠 Alex analyse le marché en direct...
+          </div>
+          <div className="mt-1 text-xs leading-5 text-white/60">
+            Recherche des opportunités, scoring business, avatar, produit conseillé et angle de vente.
+          </div>
+
+          <div className="mt-3 space-y-2">
+            <div className="h-2 overflow-hidden rounded-full bg-white/10">
+              <div className="h-full w-1/2 animate-pulse rounded-full bg-yellow-400" />
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-[10px] font-semibold text-white/45">
+              <span>Demande</span>
+              <span>Rentabilité</span>
+              <span>Compatibilité LGD</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
