@@ -1425,9 +1425,9 @@ function ActivityProgressWorkspace({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.06, duration: 0.32 }}
-      className="mx-auto mt-10 w-full max-w-[1120px] px-2 sm:px-4"
+      className="mx-auto mt-10 w-full max-w-[1120px] px-2 max-sm:relative max-sm:left-1/2 max-sm:w-screen max-sm:max-w-none max-sm:-translate-x-1/2 max-sm:px-0 sm:px-4"
     >
-      <div className="rounded-[32px] border border-yellow-600/25 bg-gradient-to-br from-[#101010] via-[#090909] to-[#15110a] p-5 shadow-[0_0_70px_rgba(255,184,0,0.10)] sm:p-8">
+      <div className="rounded-[32px] border border-yellow-600/25 bg-gradient-to-br from-[#101010] via-[#090909] to-[#15110a] p-5 shadow-[0_0_70px_rgba(255,184,0,0.10)] max-sm:rounded-none max-sm:border-x-0 max-sm:px-3 sm:p-8">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-4 py-1 text-[12px] font-semibold text-yellow-100">
@@ -1894,9 +1894,9 @@ export default function DashboardPage() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.06, duration: 0.32 }}
-            className="mx-auto mt-10 w-full max-w-[1200px] px-4"
+            className="mx-auto mt-10 w-full max-w-[1200px] px-4 max-sm:relative max-sm:left-1/2 max-sm:w-screen max-sm:max-w-none max-sm:-translate-x-1/2 max-sm:px-0"
           >
-            <div className="w-full rounded-[32px] border border-yellow-600/25 bg-gradient-to-br from-[#101010] via-[#090909] to-[#15110a] px-6 py-8 shadow-[0_0_70px_rgba(255,184,0,0.10)] sm:px-10 sm:py-10">
+            <div className="w-full rounded-[32px] border border-yellow-600/25 bg-gradient-to-br from-[#101010] via-[#090909] to-[#15110a] px-6 py-8 shadow-[0_0_70px_rgba(255,184,0,0.10)] max-sm:rounded-none max-sm:border-x-0 max-sm:px-3 sm:px-10 sm:py-10">
               <div className="mx-auto w-full max-w-none">
                 <div className="flex flex-col items-center text-center">
                   <div className="inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-4 py-1 text-[12px] text-white/75">
