@@ -3053,6 +3053,10 @@ function MissionCard(props: {
     logs = [],
   } = props;
 
+  const missionHasStarted = Boolean(
+    today?.startedAtISO || today?.committedAtISO,
+  );
+
   return (
     <div className="rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-4 sm:p-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -3072,15 +3076,22 @@ function MissionCard(props: {
         </button>
       </div>
 
-      <div className="mt-6">
-        <BusinessDirectorPanelV4
-          businessProject={businessProject || null}
-          context={context || null}
-          logs={logs}
-          today={today}
-          compact={true}
-        />
-      </div>
+      {!missionHasStarted ? (
+        <div className="mt-6">
+          <BusinessDirectorPanelV4
+            businessProject={businessProject || null}
+            context={context || null}
+            logs={logs}
+            today={today}
+            compact={true}
+          />
+        </div>
+      ) : (
+        <div className="mt-6 rounded-2xl border border-yellow-500/20 bg-yellow-400/5 p-4 text-sm leading-6 text-white/60">
+          <span className="font-semibold text-yellow-200">Alex Mobile Command est rétracté.</span>{" "}
+          La mission est commencée : Alex laisse maintenant toute la place à l’action du jour.
+        </div>
+      )}
 
       <div className="mt-6 rounded-2xl border border-[#2a2416] bg-black/20 p-5">
         <div className="text-yellow-200 text-lg font-semibold">
