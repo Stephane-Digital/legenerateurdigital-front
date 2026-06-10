@@ -598,16 +598,6 @@ async function fetchLiveDigitalProductOpportunities(args: {
 
   const requests = [
     {
-      url: `${base}/coach-profile/market-opportunities`,
-      body: {
-        business_model: "offre_digitale",
-        request_type: "digital_product_opportunities",
-        count: 5,
-        context: args,
-        prompt,
-      },
-    },
-    {
       url: `${base}/coach/market-opportunities`,
       body: {
         business_model: "offre_digitale",
@@ -618,11 +608,13 @@ async function fetchLiveDigitalProductOpportunities(args: {
       },
     },
     {
-      url: `${base}/coach/chat`,
+      url: `${base}/market-opportunities`,
       body: {
-        message: prompt,
-        mode: "market_opportunities",
+        business_model: "offre_digitale",
+        request_type: "digital_product_opportunities",
+        count: 5,
         context: args,
+        prompt,
       },
     },
   ];
@@ -3048,6 +3040,9 @@ function MissionCard(props: {
     today,
     onAskCommit,
     onOpenParcours,
+    businessProject,
+    context,
+    logs = [],
   } = props;
 
   return (
@@ -3067,6 +3062,11 @@ function MissionCard(props: {
         >
           Mon parcours
         </button>
+      </div>
+
+      <div className="mt-6 rounded-2xl border border-yellow-500/20 bg-yellow-400/5 p-4 text-sm leading-6 text-white/60">
+        <span className="font-semibold text-yellow-200">Alex Mobile Command est rétracté.</span>{" "}
+        Alex laisse maintenant toute la place à l’action du jour.
       </div>
 
       <div className="mt-6 rounded-2xl border border-[#2a2416] bg-black/20 p-5">
