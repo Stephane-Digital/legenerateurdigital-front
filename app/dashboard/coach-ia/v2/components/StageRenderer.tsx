@@ -865,6 +865,69 @@ function inferTargetAudienceFromOffer(
   });
 }
 
+function regeneratePremiumAvatarFromOffer(args: {
+  offerDescription: string;
+  businessModel: AlexBusinessModel;
+  businessGoal: AlexBusinessGoal;
+  level: AlexLevel;
+  audienceSize: AlexAudienceSize;
+  mainBlocker: AlexMainBlocker;
+  problemSolved: string;
+  variantSeed: number;
+}) {
+  const baseAvatar = inferTargetAudienceFromOffer(
+    args.offerDescription,
+    args.businessModel,
+    args.businessGoal,
+    args.level,
+    args.audienceSize,
+    args.mainBlocker,
+    args.problemSolved,
+  );
+
+  if (!baseAvatar) return "";
+
+  const variants = [
+    {
+      title: "Angle prioritaire : douleur immédiate",
+      body:
+        "Commence par parler de ce que ton client ressent aujourd’hui : frustration, fatigue, impression d’avoir déjà essayé trop de choses et besoin d’une méthode simple qui le remet en action.",
+      trigger:
+        "Déclencheur d’achat : il doit sentir que tu comprends exactement son blocage actuel avant même de parler de solution.",
+    },
+    {
+      title: "Angle prioritaire : passage à l’action",
+      body:
+        "Mets l’accent sur la première action concrète que ton client peut faire rapidement, plutôt que sur une grande promesse lointaine. Il doit percevoir un chemin simple et exécutable.",
+      trigger:
+        "Déclencheur d’achat : il achète parce qu’il voit enfin quoi faire aujourd’hui, sans complexité.",
+    },
+    {
+      title: "Angle prioritaire : sécurité et confiance",
+      body:
+        "Rassure ton client sur le fait qu’il n’a pas besoin d’être expert, parfait ou déjà visible. Il doit comprendre qu’il peut avancer progressivement avec une méthode guidée.",
+      trigger:
+        "Déclencheur d’achat : il achète quand la peur de se tromper devient moins forte que l’envie d’avancer.",
+    },
+    {
+      title: "Angle prioritaire : résultat réaliste",
+      body:
+        "Formule la transformation avec une promesse crédible, mesurable et proche de sa réalité. Évite les promesses trop spectaculaires : ton client veut croire que c’est possible pour lui.",
+      trigger:
+        "Déclencheur d’achat : il achète parce que la promesse semble atteignable, concrète et adaptée à son niveau.",
+    },
+  ];
+
+  const variant = variants[Math.abs(args.variantSeed) % variants.length];
+
+  return `${baseAvatar}
+
+${variant.title}
+${variant.body}
+
+${variant.trigger}`;
+}
+
 function inferPlatform(args: {
   businessModel: AlexBusinessModel;
   primaryChannel: string;
@@ -1755,6 +1818,7 @@ function OnboardingCard(props: {
   const [targetAudienceDescription, setTargetAudienceDescription] = useState(
     cleanMarketingMemoryValue(businessProject?.targetAudienceDescription),
   );
+  const [avatarRegenerationIndex, setAvatarRegenerationIndex] = useState(0);
   const [positioning, setPositioning] = useState(
     businessProject?.positioning || "mentor",
   );
@@ -1903,17 +1967,24 @@ function OnboardingCard(props: {
   }
 
   function regenerateAvatar() {
+    const nextIndex = avatarRegenerationIndex + 1;
+    setAvatarRegenerationIndex(nextIndex);
     targetEditedRef.current = false;
-    const inferredAvatar = inferTargetAudienceFromOffer(
+
+    const inferredAvatar = regeneratePremiumAvatarFromOffer({
       offerDescription,
       businessModel,
       businessGoal,
       level,
       audienceSize,
       mainBlocker,
-      safeProblemSolved,
-    );
-    setTargetAudienceDescription(inferredAvatar);
+      problemSolved: safeProblemSolved,
+      variantSeed: nextIndex,
+    });
+
+    if (!isInvalidMarketingMemoryValue(inferredAvatar)) {
+      setTargetAudienceDescription(inferredAvatar);
+    }
   }
 
   function ensureMarketingMemoryGenerated() {
