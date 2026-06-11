@@ -71,6 +71,28 @@ function normalizeText(value: unknown) {
     .trim();
 }
 
+
+function isInvalidMarketingMemoryValue(value: unknown) {
+  const text = normalizeText(value);
+  if (!text) return true;
+  const lower = text.toLowerCase();
+  return (
+    text === "?" ||
+    text === "??" ||
+    text === "???" ||
+    lower === "à compléter" ||
+    lower === "a completer" ||
+    lower === "non défini" ||
+    lower === "non defini" ||
+    lower === "undefined" ||
+    lower === "null"
+  );
+}
+
+function cleanMarketingMemoryValue(value: unknown) {
+  return isInvalidMarketingMemoryValue(value) ? "" : String(value || "");
+}
+
 function detectMrrFromText(value: unknown) {
   const lower = normalizeText(value).toLowerCase();
   return (
@@ -1722,16 +1744,16 @@ function OnboardingCard(props: {
     useState<AlexAudienceSize>("moins_500");
   const [mainBlocker, setMainBlocker] = useState<AlexMainBlocker>("dispersion");
   const [offerDescription, setOfferDescription] = useState(
-    businessProject?.offerDescription || "",
+    cleanMarketingMemoryValue(businessProject?.offerDescription),
   );
   const [problemSolved, setProblemSolved] = useState(
-    businessProject?.problemSolved || "",
+    cleanMarketingMemoryValue(businessProject?.problemSolved),
   );
   const [transformationPromise, setTransformationPromise] = useState(
-    businessProject?.transformationPromise || "",
+    cleanMarketingMemoryValue(businessProject?.transformationPromise),
   );
   const [targetAudienceDescription, setTargetAudienceDescription] = useState(
-    businessProject?.targetAudienceDescription || "",
+    cleanMarketingMemoryValue(businessProject?.targetAudienceDescription),
   );
   const [positioning, setPositioning] = useState(
     businessProject?.positioning || "mentor",
@@ -1742,11 +1764,13 @@ function OnboardingCard(props: {
   );
   const [channelNotes, setChannelNotes] = useState("");
   const targetEditedRef = useRef(
-    Boolean(businessProject?.targetAudienceDescription),
+    !isInvalidMarketingMemoryValue(businessProject?.targetAudienceDescription),
   );
-  const problemEditedRef = useRef(Boolean(businessProject?.problemSolved));
+  const problemEditedRef = useRef(
+    !isInvalidMarketingMemoryValue(businessProject?.problemSolved),
+  );
   const promiseEditedRef = useRef(
-    Boolean(businessProject?.transformationPromise),
+    !isInvalidMarketingMemoryValue(businessProject?.transformationPromise),
   );
   const [opportunityBatchIndex, setOpportunityBatchIndex] = useState(0);
   const [opportunitiesOpen, setOpportunitiesOpen] = useState(true);
@@ -1766,14 +1790,14 @@ function OnboardingCard(props: {
   );
 
   useEffect(() => {
-    if (problemEditedRef.current) return;
+    if (problemEditedRef.current && !isInvalidMarketingMemoryValue(problemSolved)) return;
     const inferred = inferProblemSolved(offerDescription, businessModel);
     if (!offerDescription) return;
     setProblemSolved(inferred);
-  }, [offerDescription, businessModel]);
+  }, [offerDescription, businessModel, problemSolved]);
 
   useEffect(() => {
-    if (promiseEditedRef.current) return;
+    if (promiseEditedRef.current && !isInvalidMarketingMemoryValue(transformationPromise)) return;
     if (!offerDescription) return;
     const inferred = inferTransformationPromise({
       offerDescription,
@@ -1783,10 +1807,10 @@ function OnboardingCard(props: {
       businessModel,
     });
     setTransformationPromise(inferred);
-  }, [offerDescription, problemSolved, businessGoal, businessModel]);
+  }, [offerDescription, problemSolved, businessGoal, businessModel, transformationPromise]);
 
   useEffect(() => {
-    if (targetEditedRef.current) return;
+    if (targetEditedRef.current && !isInvalidMarketingMemoryValue(targetAudienceDescription)) return;
     const inferred = inferTargetAudienceFromOffer(
       offerDescription,
       businessModel,
@@ -1806,15 +1830,39 @@ function OnboardingCard(props: {
     audienceSize,
     mainBlocker,
     problemSolved,
+    targetAudienceDescription,
   ]);
+
+  const safeProblemSolved = isInvalidMarketingMemoryValue(problemSolved)
+    ? inferProblemSolved(offerDescription, businessModel)
+    : problemSolved;
+  const safeTransformationPromise = isInvalidMarketingMemoryValue(transformationPromise)
+    ? inferTransformationPromise({
+        offerDescription,
+        problemSolved: safeProblemSolved,
+        businessGoal,
+        businessModel,
+      })
+    : transformationPromise;
+  const safeTargetAudienceDescription = isInvalidMarketingMemoryValue(targetAudienceDescription)
+    ? inferTargetAudienceFromOffer(
+        offerDescription,
+        businessModel,
+        businessGoal,
+        level,
+        audienceSize,
+        mainBlocker,
+        safeProblemSolved,
+      )
+    : targetAudienceDescription;
 
   const formActionProject = useMemo(
     () =>
       inferFormActionProject({
         offerDescription,
-        problemSolved,
-        transformationPromise,
-        targetAudienceDescription,
+        problemSolved: safeProblemSolved,
+        transformationPromise: safeTransformationPromise,
+        targetAudienceDescription: safeTargetAudienceDescription,
         businessModel,
         businessGoal,
         level,
@@ -1827,9 +1875,9 @@ function OnboardingCard(props: {
       }),
     [
       offerDescription,
-      problemSolved,
-      transformationPromise,
-      targetAudienceDescription,
+      safeProblemSolved,
+      safeTransformationPromise,
+      safeTargetAudienceDescription,
       businessModel,
       businessGoal,
       level,
@@ -1843,6 +1891,16 @@ function OnboardingCard(props: {
   );
 
   const totalSteps = 10;
+
+  function handleOfferDescriptionChange(value: string) {
+    setOfferDescription(value);
+
+    // Sécurité live : si l’utilisateur change l’offre, Alex doit reconstruire
+    // les champs marketing tant qu’ils n’ont pas été corrigés manuellement.
+    if (isInvalidMarketingMemoryValue(problemSolved)) problemEditedRef.current = false;
+    if (isInvalidMarketingMemoryValue(transformationPromise)) promiseEditedRef.current = false;
+    if (isInvalidMarketingMemoryValue(targetAudienceDescription)) targetEditedRef.current = false;
+  }
 
   function regenerateAvatar() {
     targetEditedRef.current = false;
@@ -1913,7 +1971,7 @@ function OnboardingCard(props: {
       audienceSize,
       mainBlocker,
       offerDescription,
-      targetAudienceDescription,
+      targetAudienceDescription: safeTargetAudienceDescription,
       primaryChannel,
       channelNotes,
       formActionProject,
@@ -2171,7 +2229,7 @@ function OnboardingCard(props: {
 
 <textarea
   value={offerDescription}
-  onChange={(e) => setOfferDescription(e.target.value)}
+  onChange={(e) => handleOfferDescriptionChange(e.target.value)}
   placeholder={
     parcoursChoice === "creation_produit_digital"
       ? "Exemple : une formation, un ebook ou une méthode que tu as créé pour aider une audience précise à résoudre un problème concret..."
@@ -2199,6 +2257,7 @@ function OnboardingCard(props: {
             </div>
             <textarea
               value={problemSolved}
+              placeholder="Exemple : J'aide les personnes qui achètent des formations sans jamais passer à l'action à transformer une licence MRR en véritable activité digitale vendable, sans créer leur propre produit de zéro."
               onChange={(e) => {
                 problemEditedRef.current = true;
                 setProblemSolved(e.target.value);
@@ -2218,6 +2277,7 @@ function OnboardingCard(props: {
             </div>
             <textarea
               value={transformationPromise}
+              placeholder="Exemple : Passer d'une personne qui collectionne les formations sans résultat à un entrepreneur capable de générer ses premières ventes avec une offre prête à commercialiser et une méthode d'action concrète."
               onChange={(e) => {
                 promiseEditedRef.current = true;
                 setTransformationPromise(e.target.value);
@@ -2354,6 +2414,7 @@ function OnboardingCard(props: {
             </div>
             <textarea
               value={targetAudienceDescription}
+              placeholder="Alex va générer ici un avatar complet : situation actuelle, frustrations, peurs, désirs, objections, langage à utiliser et déclencheurs d'achat."
               onChange={(e) => {
                 targetEditedRef.current = true;
                 setTargetAudienceDescription(e.target.value);
