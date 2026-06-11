@@ -920,12 +920,15 @@ function regeneratePremiumAvatarFromOffer(args: {
 
   const variant = variants[Math.abs(args.variantSeed) % variants.length];
 
-  return `${baseAvatar}
-
+  return `🧠 Avatar régénéré #${args.variantSeed}
 ${variant.title}
 ${variant.body}
 
-${variant.trigger}`;
+${variant.trigger}
+
+---
+
+${baseAvatar}`;
 }
 
 function inferPlatform(args: {
@@ -2526,7 +2529,7 @@ function OnboardingCard(props: {
                 onClick={regenerateAvatar}
                 className="shrink-0 rounded-2xl border border-yellow-400/30 bg-yellow-400/10 px-4 py-2 text-xs font-semibold text-yellow-200 hover:bg-yellow-400/15 transition"
               >
-                Régénérer
+                Régénérer {avatarRegenerationIndex > 0 ? `#${avatarRegenerationIndex}` : ""}
               </button>
             </div>
             <textarea
@@ -3751,4 +3754,3 @@ function OptimizeCard(props: {
     </div>
   );
 }
-
