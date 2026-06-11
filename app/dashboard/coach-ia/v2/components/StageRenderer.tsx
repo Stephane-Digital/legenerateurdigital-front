@@ -1904,17 +1904,54 @@ function OnboardingCard(props: {
 
   function regenerateAvatar() {
     targetEditedRef.current = false;
-    setTargetAudienceDescription(
-      inferTargetAudienceFromOffer(
-        offerDescription,
-        businessModel,
-        businessGoal,
-        level,
-        audienceSize,
-        mainBlocker,
-        problemSolved,
-      ),
+    const inferredAvatar = inferTargetAudienceFromOffer(
+      offerDescription,
+      businessModel,
+      businessGoal,
+      level,
+      audienceSize,
+      mainBlocker,
+      safeProblemSolved,
     );
+    setTargetAudienceDescription(inferredAvatar);
+  }
+
+  function ensureMarketingMemoryGenerated() {
+    if (!offerDescription) return;
+
+    const nextProblem = isInvalidMarketingMemoryValue(problemSolved)
+      ? inferProblemSolved(offerDescription, businessModel)
+      : problemSolved;
+
+    const nextPromise = isInvalidMarketingMemoryValue(transformationPromise)
+      ? inferTransformationPromise({
+          offerDescription,
+          problemSolved: nextProblem,
+          businessGoal,
+          businessModel,
+        })
+      : transformationPromise;
+
+    const nextAvatar = isInvalidMarketingMemoryValue(targetAudienceDescription)
+      ? inferTargetAudienceFromOffer(
+          offerDescription,
+          businessModel,
+          businessGoal,
+          level,
+          audienceSize,
+          mainBlocker,
+          nextProblem,
+        )
+      : targetAudienceDescription;
+
+    if (!isInvalidMarketingMemoryValue(nextProblem)) setProblemSolved(nextProblem);
+    if (!isInvalidMarketingMemoryValue(nextPromise)) setTransformationPromise(nextPromise);
+    if (!isInvalidMarketingMemoryValue(nextAvatar)) setTargetAudienceDescription(nextAvatar);
+  }
+
+  function goNextStep() {
+    ensureMarketingMemoryGenerated();
+    setStep((s) => Math.min(totalSteps - 1, s + 1));
   }
 
   function applyDigitalProductOpportunity(opportunity: DigitalProductOpportunity) {
@@ -2413,7 +2450,7 @@ function OnboardingCard(props: {
               </button>
             </div>
             <textarea
-              value={targetAudienceDescription}
+              value={safeTargetAudienceDescription}
               placeholder="Alex va générer ici un avatar complet : situation actuelle, frustrations, peurs, désirs, objections, langage à utiliser et déclencheurs d'achat."
               onChange={(e) => {
                 targetEditedRef.current = true;
@@ -2612,7 +2649,7 @@ function OnboardingCard(props: {
 
           {step < totalSteps - 1 ? (
             <button
-              onClick={() => setStep((s) => Math.min(totalSteps - 1, s + 1))}
+              onClick={goNextStep}
               className="rounded-2xl bg-yellow-400 px-5 py-3 text-sm font-semibold text-black hover:bg-yellow-300 transition"
             >
               Continuer
