@@ -2176,7 +2176,7 @@ function OnboardingCard(props: {
     parcoursChoice === "creation_produit_digital"
       ? "Exemple : une formation, un ebook ou une méthode que tu as créé pour aider une audience précise à résoudre un problème concret..."
       : parcoursChoice === "mrr"
-        ? "Exemple : une formation MRR comme L'Indépendance Digital avec droits de revente pour aider des débutants à construire une activité digitale..."
+        ? "Exemple : une formation MRR comme [Le nom de la formation] avec droits de revente pour aider des débutants à construire une activité digitale..."
         : parcoursChoice === "affiliation"
           ? "Exemple : recommander des outils ou des formations que tu apprécies et toucher une commission sur chaque vente..."
           : businessModel === "coaching"
