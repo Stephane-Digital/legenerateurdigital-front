@@ -1968,21 +1968,30 @@ function OnboardingCard(props: {
 
   function regenerateAvatar() {
     const nextIndex = avatarRegenerationIndex + 1;
-    setAvatarRegenerationIndex(nextIndex);
-    targetEditedRef.current = false;
+    const sourceOffer = normalizeText(offerDescription);
+    const sourceProblem = isInvalidMarketingMemoryValue(safeProblemSolved)
+      ? inferProblemSolved(sourceOffer, businessModel)
+      : safeProblemSolved;
+
+    if (!sourceOffer) return;
 
     const inferredAvatar = regeneratePremiumAvatarFromOffer({
-      offerDescription,
+      offerDescription: sourceOffer,
       businessModel,
       businessGoal,
       level,
       audienceSize,
       mainBlocker,
-      problemSolved: safeProblemSolved,
+      problemSolved: sourceProblem,
       variantSeed: nextIndex,
     });
 
     if (!isInvalidMarketingMemoryValue(inferredAvatar)) {
+      // Important : on marque volontairement l'avatar comme édité afin que
+      // le useEffect d'auto-préremplissage ne réécrase pas immédiatement
+      // la variante générée par le bouton Régénérer.
+      targetEditedRef.current = true;
+      setAvatarRegenerationIndex(nextIndex);
       setTargetAudienceDescription(inferredAvatar);
     }
   }
