@@ -12,7 +12,7 @@ function fmtInt(n: number) {
   return new Intl.NumberFormat('fr-FR').format(Math.trunc(n));
 }
 
-type PageSize = 10 | 25 | 50;
+type PageSize = 10 | 25 | 50 | 100;
 
 export default function QuotaTable(props: {
   rows: AdminQuotaItem[];
@@ -75,6 +75,7 @@ export default function QuotaTable(props: {
             <option value={10}>10</option>
             <option value={25}>25</option>
             <option value={50}>50</option>
+            <option value={100}>100</option>
           </select>
 
           <button
