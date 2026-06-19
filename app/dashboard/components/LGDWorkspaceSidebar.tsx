@@ -66,9 +66,9 @@ export default function LGDWorkspaceSidebar() {
   }
 
   function openAffiliationProgram() {
-    setMobileMenuOpen(false);
-    openExternal(SYSTEMEIO_AFFILIATION_URL);
-  }
+  setMobileMenuOpen(false);
+  router.push("/dashboard/affiliation");
+}
 
   function handleLogout() {
     clearAuthStorage();
