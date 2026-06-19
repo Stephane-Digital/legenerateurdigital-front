@@ -363,12 +363,12 @@ export default function AffiliationDashboardPage() {
             </CardLuxe>
           </div>
 
-          <CardLuxe className="w-full px-5 py-7 sm:px-8" id="liens-ambassadeur">
-            <SectionTitle
-              eyebrow="Conversion"
-              title="💡 La stratégie recommandée"
-              text="Commence par l’essai gratuit : c’est généralement plus simple à proposer et plus facile à accepter pour un prospect."
-            />
+          <CardLuxe className="w-full px-5 py-7 sm:px-8">
+  <SectionTitle
+    eyebrow="Conversion"
+    title="💡 La stratégie recommandée"
+    text="Commence par l'essai gratuit : c'est généralement plus simple à proposer et plus facile à accepter pour un prospect."
+  />
 
             <div className="mb-7 rounded-3xl border border-yellow-500/25 bg-yellow-500/10 p-5 text-center">
               <p className="text-lg font-black text-yellow-100">Je ne vends pas LGD. Je fais découvrir LGD.</p>
