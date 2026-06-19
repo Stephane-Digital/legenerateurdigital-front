@@ -1,462 +1,479 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import CardLuxe from "@/components/ui/CardLuxe";
 import { motion } from "framer-motion";
+import CardLuxe from "@/components/ui/CardLuxe";
 import AffiliationSubnav from "./components/AffiliationSubnav";
-import CopyBlock from "./components/CopyBlock";
 import CopyField from "./components/CopyField";
 
 const BASE_LGD_URL = "https://legenerateurdigital.systeme.io";
-const AFFILIATE_LINK_TEMPLATE = "https://legenerateurdigital.systeme.io?sa=TON_IDENTIFIANT";
-const AFFILIATE_LINK_EXAMPLE =
-  "https://legenerateurdigital.systeme.io?sa=sa02698613581505ce9959d1609a94205a3a64efb9";
+const DEFAULT_AFFILIATE_ID = "TON_ID_AFFILIÉ";
+const EXAMPLE_AFFILIATE_ID = "sa02698613581505ce9959d1609a94205a3a64efb9";
 
-const LINKS = {
-  googleDocs:
-    "https://docs.google.com/document/d/17VMKD7tfE1lLoMI9GGFF2NzgLy1MQxi00Rs2wPBRyxY/edit?tab=t.0",
-  canvaKit:
-    "https://www.canva.com/design/DAHH2J0asfQ/zPebjpAzUXWM7dO2b8E9Dw/view?utm_content=DAHH2J0asfQ&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=h1044b0fdc1",
+const CANVA_VISUALS_URL = "https://canva.link/gotybx267eh8rb4";
+const CANVA_KIT_URL = "https://canva.link/146b24iq6gjzc1m";
+
+const COMMISSION_RATE = 0.6;
+
+const OFFERS = {
+  essentiel: { label: "Essentiel", price: 17, note: "Entrée simple pour démarrer" },
+  pro: { label: "Pro", price: 47, note: "Meilleur équilibre valeur / prix" },
+  ultime: { label: "Ultime", price: 97, note: "Offre la plus rentable à promouvoir" },
+} as const;
+
+type OfferKey = keyof typeof OFFERS;
+
+type StatCard = {
+  label: string;
+  value: string;
+  helper: string;
+  tone: "blue" | "green" | "gold" | "red" | "neutral";
 };
 
-const quickStartSteps = [
-  {
-    title: "1) Crée ton compte Systeme.io gratuit",
-    text: "Un compte gratuit suffit pour accéder à ton espace affilié Systeme.io et récupérer ton identifiant.",
-  },
-  {
-    title: "2) Récupère ton identifiant affilié",
-    text: "Dans Systeme.io, copie ton identifiant affilié personnel. Il commence généralement par sa…",
-  },
-  {
-    title: "3) Génère ton lien LGD",
-    text: "Ajoute simplement ?sa=TON_IDENTIFIANT à l’URL officielle LGD.",
-  },
-  {
-    title: "4) Partage et touche jusqu’à 60%",
-    text: "Utilise ton lien dans tes contenus, emails, DMs, stories, vidéos et ressources de promotion.",
-  },
+const stats: StatCard[] = [
+  { label: "Prospects envoyés", value: "0", helper: "En attente des données SIO", tone: "blue" },
+  { label: "Essais gratuits", value: "0", helper: "Lien recommandé", tone: "blue" },
+  { label: "Abonnés actifs", value: "0", helper: "Revenus récurrents", tone: "green" },
+  { label: "Conversion", value: "0 %", helper: "Essais → abonnés", tone: "gold" },
+  { label: "Commissions en attente", value: "0 €", helper: "Validation 30 jours", tone: "gold" },
+  { label: "Commissions validées", value: "0 €", helper: "Payables au cycle suivant", tone: "green" },
+  { label: "Commissions annulées", value: "0 €", helper: "Annulation avant 30 jours", tone: "red" },
+  { label: "CA généré", value: "0 €", helper: "Abonnements attribués", tone: "neutral" },
 ];
 
-const scriptBlocks = [
+const activityRows = [
   {
-    title: "DM Instagram / Messenger — découverte",
-    hint: "Usage : premier contact simple et naturel",
-    text:
-      "Salut 👋\nJe te partage une plateforme IA que tu peux recommander à ton audience si elle s’intéresse au business en ligne, au marketing digital ou à la création de contenu.\n\nLe Générateur Digital aide à créer des contenus, emails, pages et automatisations depuis un seul endroit.\n\nTu peux créer ton lien affilié LGD en ajoutant ton identifiant Systeme.io à cette URL :\n" +
-      AFFILIATE_LINK_TEMPLATE,
+    date: "Aujourd’hui",
+    event: "Essai gratuit généré",
+    contact: "En attente",
+    source: "Lien essai 7 jours",
+    status: "À venir",
+    commission: "—",
   },
   {
-    title: "WhatsApp — version directe",
-    hint: "Usage : contact déjà tiède ou relation existante",
-    text:
-      "Hello 👋\nSi tu veux recommander un outil utile aux entrepreneurs digitaux, LGD peut vraiment intéresser ton audience.\n\nTu crées ton compte Systeme.io gratuit, tu récupères ton identifiant affilié, puis tu partages ton lien sous cette forme :\n" +
-      AFFILIATE_LINK_TEMPLATE,
+    date: "Cycle paiement",
+    event: "Commission validée",
+    contact: "Après 30 jours actifs",
+    source: "Systeme.io",
+    status: "Payable le 10 suivant",
+    commission: "—",
   },
   {
-    title: "LinkedIn — version premium",
-    hint: "Usage : audience pro / freelance / coach / consultant",
-    text:
-      "Bonjour,\nLe Générateur Digital est une plateforme IA orientée marketing digital, création de contenu, emails, pages de vente et automatisations.\n\nPour recommander LGD, il suffit de créer un compte Systeme.io gratuit puis d’ajouter son identifiant affilié à l’URL officielle :\n" +
-      AFFILIATE_LINK_TEMPLATE,
-  },
-  {
-    title: "Réponse Story / relance douce",
-    hint: "Usage : suite à une story, un post ou une discussion",
-    text:
-      "Oui, tu peux promouvoir LGD très simplement. Tu récupères ton ID affilié Systeme.io, puis tu le colles après ?sa= dans le lien LGD.\n\nFormat à utiliser :\n" +
-      AFFILIATE_LINK_TEMPLATE,
+    date: "Sécurité",
+    event: "Annulation avant 30 jours",
+    contact: "Abonnement annulé",
+    source: "Systeme.io",
+    status: "0 € versé",
+    commission: "0 €",
   },
 ];
-
-const buttonPrimary =
-  "inline-flex items-center justify-center text-center whitespace-nowrap w-full sm:w-auto min-w-[220px] py-3 px-6 bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] text-black font-semibold rounded-2xl shadow-lg shadow-yellow-500/20 hover:shadow-yellow-400/40 hover:-translate-y-0.5 transition-all duration-300";
-
-const chipClass =
-  "rounded-full border border-yellow-600/20 bg-[#0b0b0b] px-4 py-2 text-xs sm:text-sm text-yellow-100";
-
-const sectionCardClass = "w-full px-5 sm:px-6 pt-6 pb-7 text-left";
-const twoColumnSectionClass = "grid grid-cols-1 2xl:grid-cols-2 gap-8";
-
-function SectionHeader({
-  title,
-  description,
-}: {
-  title: string;
-  description: string;
-}) {
-  return (
-    <div className="mb-5">
-      <h2 className="text-xl sm:text-2xl font-semibold text-[#ffb800]">{title}</h2>
-      <p className="mt-2 text-sm sm:text-base text-gray-300 leading-relaxed">{description}</p>
-    </div>
-  );
-}
 
 function normalizeAffiliateId(value: string) {
   return value
     .trim()
-    .replace(/^https?:\/\/legenerateurdigital\.systeme\.io\??/i, "")
+    .replace(/^https?:\/\/legenerateurdigital\.systeme\.io\/trial\?sa=/i, "")
+    .replace(/^https?:\/\/legenerateurdigital\.systeme\.io\/lgd\?sa=/i, "")
+    .replace(/^https?:\/\/legenerateurdigital\.systeme\.io\/?\?sa=/i, "")
     .replace(/^\?sa=/i, "")
     .replace(/^sa=/i, "")
     .replace(/\s+/g, "");
 }
 
-export default function AffiliationKitPage() {
-  const [affiliateId, setAffiliateId] = useState("TON_IDENTIFIANT");
+function euro(value: number) {
+  return new Intl.NumberFormat("fr-FR", {
+    style: "currency",
+    currency: "EUR",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
 
-  const generatedLink = useMemo(() => {
-    const cleanId = normalizeAffiliateId(affiliateId) || "TON_IDENTIFIANT";
-    return `${BASE_LGD_URL}?sa=${cleanId}`;
-  }, [affiliateId]);
-
-  const emailBlocks = [
-    {
-      title: "Email 1 — découverte",
-      hint: "Usage : premier email de recommandation",
-      text:
-        "Objet : Tu peux recommander LGD et toucher jusqu’à 60%\n\nHello,\n\nSi tu as une audience intéressée par le business en ligne, le marketing digital ou les outils IA, tu peux recommander Le Générateur Digital.\n\nLe principe est simple : tu crées un compte Systeme.io gratuit, tu récupères ton identifiant affilié, puis tu ajoutes ?sa=TON_IDENTIFIANT à l’URL LGD.\n\nTon lien ressemble à ça :\n" +
-        AFFILIATE_LINK_TEMPLATE +
-        "\n\nÀ bientôt,",
-    },
-    {
-      title: "Email 2 — objection / technique",
-      hint: "Usage : pour rassurer ceux qui pensent que c’est compliqué",
-      text:
-        "Objet : Pas besoin d’intégration compliquée\n\nHello,\n\nPour promouvoir LGD, tu n’as pas besoin de tunnel compliqué.\n\nTu crées ton compte Systeme.io gratuit, tu récupères ton identifiant affilié, puis tu génères ton lien LGD avec ce format :\n" +
-        AFFILIATE_LINK_TEMPLATE +
-        "\n\nEnsuite, tu peux le partager dans tes emails, DMs, posts, stories ou contenus.\n\nÀ bientôt,",
-    },
-    {
-      title: "Email 3 — bénéfices",
-      hint: "Usage : mise en avant de la simplicité affilié",
-      text:
-        "Objet : Une recommandation simple à partager\n\nHello,\n\nLGD est intéressant à recommander parce que la plateforme parle à beaucoup d’entrepreneurs digitaux : création de contenu, emails, pages, automatisations et IA marketing.\n\nTu peux partager ton lien affilié sous ce format :\n" +
-        AFFILIATE_LINK_TEMPLATE +
-        "\n\nChaque abonné actif peut te générer jusqu’à 60% de commission récurrente.\n\nÀ bientôt,",
-    },
-  ];
-
-  const postBlocks = [
-    {
-      title: "Post Instagram / Facebook — court",
-      hint: "Usage : post simple, rapide et direct",
-      text:
-        "Tu as une audience intéressée par le business en ligne ou le marketing digital ?\n\nTu peux recommander Le Générateur Digital et toucher jusqu’à 60% de commission récurrente.\n\nCrée ton compte Systeme.io gratuit, récupère ton identifiant affilié, puis génère ton lien LGD ici :\n" +
-        AFFILIATE_LINK_TEMPLATE,
-    },
-    {
-      title: "Post LinkedIn — premium",
-      hint: "Usage : audience business / B2B / consultants",
-      text:
-        "Le Générateur Digital est une plateforme IA pensée pour aider les entrepreneurs à créer, vendre et automatiser plus vite.\n\nPour la recommander, il suffit d’utiliser son identifiant affilié Systeme.io dans l’URL officielle LGD :\n" +
-        AFFILIATE_LINK_TEMPLATE +
-        "\n\nSimple, traçable et orienté commissions récurrentes.",
-    },
-    {
-      title: "Post storytelling — avant / après",
-      hint: "Usage : post plus personnel et engageant",
-      text:
-        "Avant, recommander un outil demandait souvent un tunnel compliqué.\n\nAvec LGD + Systeme.io, le principe est beaucoup plus simple : un identifiant affilié, une URL, puis un lien à partager.\n\nFormat du lien :\n" +
-        AFFILIATE_LINK_TEMPLATE,
-    },
-  ];
-
-  const hookBlocks = [
-    {
-      title: "Hooks courts",
-      hint: "À utiliser dans tes posts, stories, emails et vidéos",
-      text:
-        "- Tu veux recommander un outil IA utile aux entrepreneurs digitaux ?\n- Ton lien affilié LGD se crée en 30 secondes\n- Un ID Systeme.io + une URL LGD = ton lien affilié\n- Jusqu’à 60% de commission récurrente sur LGD\n- Tu peux promouvoir LGD sans tunnel compliqué",
-    },
-    {
-      title: "CTA affiliés",
-      hint: "Appels à l’action prêts à copier",
-      text:
-        "- Créer mon lien affilié LGD\n- Récupérer mon identifiant Systeme.io\n- Générer mon lien LGD\n- Accéder au kit marketing\n- Promouvoir LGD maintenant",
-    },
-    {
-      title: "Format officiel du lien",
-      hint: "À rappeler aux affiliés",
-      text:
-        "Format officiel à utiliser :\n" +
-        AFFILIATE_LINK_TEMPLATE +
-        "\n\nExemple réel :\n" +
-        AFFILIATE_LINK_EXAMPLE,
-    },
-  ];
+function StatCardView({ stat }: { stat: StatCard }) {
+  const toneClass = {
+    blue: "border-blue-400/20 bg-blue-400/5 text-blue-100",
+    green: "border-green-400/20 bg-green-400/5 text-green-100",
+    gold: "border-yellow-500/25 bg-yellow-500/10 text-yellow-100",
+    red: "border-red-400/20 bg-red-400/5 text-red-100",
+    neutral: "border-white/10 bg-white/[0.03] text-white/80",
+  }[stat.tone];
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white pt-[120px] pb-12">
-      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
+    <div className={`rounded-3xl border px-5 py-5 text-center ${toneClass}`}>
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/45">{stat.label}</p>
+      <p className="mt-3 text-3xl font-black text-white">{stat.value}</p>
+      <p className="mt-2 text-xs text-white/50">{stat.helper}</p>
+    </div>
+  );
+}
+
+function SectionTitle({ eyebrow, title, text }: { eyebrow?: string; title: string; text?: string }) {
+  return (
+    <div className="mb-5 text-center">
+      {eyebrow ? (
+        <p className="mb-2 text-xs font-bold uppercase tracking-[0.24em] text-yellow-300/75">{eyebrow}</p>
+      ) : null}
+      <h2 className="text-2xl font-black text-[#ffb800] sm:text-3xl">{title}</h2>
+      {text ? <p className="mx-auto mt-3 max-w-3xl text-sm leading-6 text-white/60 sm:text-base">{text}</p> : null}
+    </div>
+  );
+}
+
+function ResourceCard({ icon, title, text, href }: { icon: string; title: string; text: string; href: string }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="group rounded-3xl border border-yellow-600/20 bg-[#0b0b0b] p-5 text-left transition-all duration-300 hover:-translate-y-1 hover:border-yellow-400/50 hover:bg-yellow-500/10"
+    >
+      <div className="text-3xl">{icon}</div>
+      <h3 className="mt-4 text-lg font-black text-yellow-100">{title}</h3>
+      <p className="mt-2 text-sm leading-6 text-white/58">{text}</p>
+      <p className="mt-4 text-sm font-bold text-[#ffb800] group-hover:text-yellow-200">Ouvrir →</p>
+    </a>
+  );
+}
+
+export default function AffiliationDashboardPage() {
+  const [affiliateId, setAffiliateId] = useState(DEFAULT_AFFILIATE_ID);
+  const [selectedOffer, setSelectedOffer] = useState<OfferKey>("ultime");
+  const [subscriberGoal, setSubscriberGoal] = useState(25);
+
+  const cleanAffiliateId = useMemo(() => normalizeAffiliateId(affiliateId) || DEFAULT_AFFILIATE_ID, [affiliateId]);
+  const trialLink = `${BASE_LGD_URL}/trial?sa=${cleanAffiliateId}`;
+  const salesLink = `${BASE_LGD_URL}/lgd?sa=${cleanAffiliateId}`;
+
+  const selected = OFFERS[selectedOffer];
+  const commissionPerClient = selected.price * COMMISSION_RATE;
+  const monthlyRevenue = commissionPerClient * subscriberGoal;
+  const yearlyRevenue = monthlyRevenue * 12;
+
+  return (
+    <div className="min-h-screen bg-[#050505] px-4 pb-16 pt-10 text-white sm:px-6 lg:px-8">
+      <div className="mx-auto w-full max-w-[1440px]">
         <motion.div
-          initial={{ opacity: 0, y: -18 }}
+          initial={{ opacity: 0, y: -14 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55 }}
-          className="max-w-4xl mx-auto text-center mb-6"
+          transition={{ duration: 0.45 }}
+          className="text-center"
         >
-          <p className="mb-3 text-xs uppercase tracking-[0.28em] text-yellow-300/80">
-            Affiliation LGD x Systeme.io
+          <p className="mb-3 text-xs font-bold uppercase tracking-[0.30em] text-yellow-300/80">
+            Programme Ambassadeur LGD
           </p>
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-yellow-400 mb-3">
-            Crée ton lien affilié LGD en 30 secondes
+          <h1 className="text-4xl font-black leading-tight text-yellow-400 sm:text-5xl lg:text-6xl">
+            🤝 Centre de Croissance Ambassadeur
           </h1>
-          <p className="text-gray-300 max-w-3xl mx-auto leading-relaxed text-sm sm:text-base">
-            Crée gratuitement un compte Systeme.io, récupère ton identifiant affilié, puis ajoute
-            simplement <span className="text-yellow-200 font-semibold">?sa=ton_identifiant</span> à
-            l’URL officielle LGD.
+          <p className="mx-auto mt-4 max-w-4xl text-base leading-7 text-white/68 sm:text-lg">
+            Transforme ton audience en revenus récurrents. Suis tes essais, tes abonnés, tes commissions
+            et récupère tous tes outils pour promouvoir LGD avec sérieux.
           </p>
         </motion.div>
 
-        <AffiliationSubnav />
+        <div className="mt-8">
+          <AffiliationSubnav />
+        </div>
 
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.12, duration: 0.45 }}
-          className="space-y-8"
-        >
-          <CardLuxe className="w-full px-5 sm:px-8 pt-8 pb-8 text-center">
-            <div className="max-w-4xl mx-auto">
-              <p className="text-xs uppercase tracking-[0.28em] text-yellow-300/80 mb-3">
-                Premium Affiliate Flow
-              </p>
-              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#ffb800] leading-tight">
-                Un identifiant Systeme.io, une URL LGD, un lien prêt à partager.
-              </h2>
-              <p className="mt-4 text-sm sm:text-base text-gray-300 leading-relaxed max-w-3xl mx-auto">
-                Le programme affiliation LGD fonctionne avec le tracking Systeme.io. Tu ne cliques
-                pas sur un bouton magique : tu construis ton lien avec ton identifiant affilié.
-              </p>
-            </div>
+        <div className="space-y-8">
+          <CardLuxe className="w-full overflow-hidden px-5 py-7 sm:px-8 lg:px-10">
+            <div className="grid gap-6 lg:grid-cols-[1.25fr_0.75fr] lg:items-center">
+              <div>
+                <div className="inline-flex rounded-full border border-green-400/20 bg-green-400/10 px-4 py-2 text-sm font-bold text-green-100">
+                  🔒 Suivi Systeme.io + Dashboard LGD
+                </div>
+                <h2 className="mt-5 text-3xl font-black text-[#ffb800] sm:text-4xl">
+                  Ton tableau de bord pour piloter tes commissions.
+                </h2>
+                <p className="mt-4 max-w-3xl text-sm leading-7 text-white/65 sm:text-base">
+                  LGD enregistre le lien entre chaque prospect et l’ambassadeur qui l’a envoyé. Même si le prospect
+                  revient plus tard sans lien affilié, le rattachement initial par email permet de suivre l’essai,
+                  l’abonnement et les éventuelles annulations.
+                </p>
 
-            <div className="mt-8 flex flex-col lg:flex-row items-center justify-center gap-4">
-              <a href="#generateur-lien" className={buttonPrimary}>
-                Générer mon lien LGD
-              </a>
-              <a href={LINKS.googleDocs} target="_blank" rel="noopener noreferrer" className={buttonPrimary}>
-                Ouvrir les ressources affiliés
-              </a>
+                <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="rounded-2xl border border-yellow-500/20 bg-black/35 p-4 text-center">
+                    <p className="text-xs uppercase tracking-[0.16em] text-white/45">Partenaire depuis</p>
+                    <p className="mt-2 text-2xl font-black text-yellow-100">0 jour</p>
+                  </div>
+                  <div className="rounded-2xl border border-yellow-500/20 bg-black/35 p-4 text-center">
+                    <p className="text-xs uppercase tracking-[0.16em] text-white/45">Commission</p>
+                    <p className="mt-2 text-2xl font-black text-yellow-100">60 %</p>
+                  </div>
+                  <div className="rounded-2xl border border-yellow-500/20 bg-black/35 p-4 text-center">
+                    <p className="text-xs uppercase tracking-[0.16em] text-white/45">Objectif du mois</p>
+                    <p className="mt-2 text-2xl font-black text-yellow-100">5 abonnés</p>
+                  </div>
+                  <div className="rounded-2xl border border-yellow-500/20 bg-black/35 p-4 text-center">
+                    <p className="text-xs uppercase tracking-[0.16em] text-white/45">Prochain paiement</p>
+                    <p className="mt-2 text-2xl font-black text-yellow-100">À venir</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-[30px] border border-yellow-500/25 bg-gradient-to-br from-yellow-500/15 via-black/40 to-[#0b0b0b] p-6 text-center shadow-[0_0_55px_rgba(255,184,0,0.10)]">
+                <p className="text-sm font-bold uppercase tracking-[0.22em] text-yellow-300/75">Revenus récurrents estimés</p>
+                <p className="mt-4 text-5xl font-black text-white">0 €/mois</p>
+                <p className="mt-3 text-sm leading-6 text-white/55">
+                  Les chiffres réels seront calculés depuis les événements Systeme.io attribués à ton lien ambassadeur.
+                </p>
+                <div className="mt-5 h-3 overflow-hidden rounded-full bg-white/10">
+                  <div className="h-full w-[0%] rounded-full bg-gradient-to-r from-[#ffb800] to-[#ffcc4d]" />
+                </div>
+                <p className="mt-2 text-xs text-white/45">0 / 5 abonnés actifs ce mois-ci</p>
+              </div>
             </div>
           </CardLuxe>
 
-          <div className="grid grid-cols-1 xl:grid-cols-[0.95fr_1.25fr] gap-8 items-start">
-            <CardLuxe className={sectionCardClass}>
-              <SectionHeader
-                title="Comment ça marche"
-                description="Le vrai fonctionnement affiliation Systeme.io, sans promesse confuse ni faux bouton d’inscription automatique."
-              />
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {quickStartSteps.map((step) => (
-                  <div
-                    key={step.title}
-                    className="rounded-2xl border border-yellow-600/15 bg-[#0b0b0b] px-4 py-5"
-                  >
-                    <p className="text-yellow-200 font-semibold text-sm">{step.title}</p>
-                    <p className="mt-2 text-sm text-gray-300 leading-relaxed">{step.text}</p>
-                  </div>
-                ))}
-              </div>
-            </CardLuxe>
-
-            <div id="generateur-lien">
-              <CardLuxe className={sectionCardClass}>
-                <SectionHeader
-                  title="Générateur automatique de lien affilié"
-                  description="Colle ton identifiant affilié Systeme.io ci-dessous. Ton lien LGD est généré automatiquement au bon format."
-                />
-
-                <label className="block text-xs text-gray-400 sm:text-sm" htmlFor="affiliate-id">
-                  Ton identifiant affilié Systeme.io
-                </label>
-                <input
-                  id="affiliate-id"
-                  value={affiliateId}
-                  onChange={(event) => setAffiliateId(event.target.value)}
-                  className="mt-2 w-full rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] px-4 py-3 text-sm text-yellow-100 outline-none transition-all duration-300 placeholder:text-gray-600 focus:border-yellow-400/60 focus:ring-2 focus:ring-yellow-500/10 sm:text-base"
-                  placeholder="Exemple : sa02698613581505ce9959d1609a94205a3a64efb9"
-                />
-
-                <div className="mt-5">
-                  <CopyField
-                    label="Ton lien affilié LGD généré"
-                    value={generatedLink}
-                    helper="Format officiel : https://legenerateurdigital.systeme.io?sa=ton_identifiant"
-                  />
-                </div>
-
-                <div className="mt-5 rounded-2xl border border-yellow-600/15 bg-[#0b0b0b] px-4 py-4">
-                  <p className="text-sm text-gray-300 leading-relaxed">
-                    Exemple réel validé : <span className="break-all text-yellow-200">{AFFILIATE_LINK_EXAMPLE}</span>
-                  </p>
-                </div>
-              </CardLuxe>
-            </div>
-          </div>
-
-          <div className={twoColumnSectionClass}>
-            <CardLuxe className={sectionCardClass}>
-              <SectionHeader
-                title="Quick Start — 5 minutes"
-                description="Le chemin le plus court pour passer de zéro à un lien affilié LGD prêt à partager."
-              />
-              <div className="space-y-4">
-                {[
-                  "Créer un compte Systeme.io gratuit.",
-                  "Ouvrir son espace affiliation Systeme.io.",
-                  "Copier son identifiant affilié personnel.",
-                  "Coller l’identifiant dans le générateur LGD ci-dessus.",
-                  "Partager son lien dans les contenus, DMs, emails ou stories.",
-                ].map((item, index) => (
-                  <div
-                    key={item}
-                    className="rounded-2xl border border-yellow-600/15 bg-[#0b0b0b] px-4 py-4"
-                  >
-                    <p className="text-yellow-200 font-semibold text-sm">Étape {index + 1}</p>
-                    <p className="mt-2 text-sm text-gray-300 leading-relaxed">{item}</p>
-                  </div>
-                ))}
-              </div>
-            </CardLuxe>
-
-            <CardLuxe className={sectionCardClass}>
-              <SectionHeader
-                title="Kit marketing affilié"
-                description="Tu n’as rien à créer : textes, angles, scripts et visuels sont déjà centralisés."
-              />
-
-              <div className="grid grid-cols-1 gap-4">
-                <a
-                  href={LINKS.googleDocs}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] px-5 py-5 transition-all duration-300 hover:border-yellow-400/50 hover:bg-yellow-500/10"
-                >
-                  <p className="text-yellow-200 font-semibold">Google Docs — ressources affiliés</p>
-                  <p className="mt-2 text-sm text-gray-300 leading-relaxed">
-                    Scripts de vente, messages DM, emails, angles marketing, objections/réponses et textes prêts à copier.
-                  </p>
-                </a>
-
-                <a
-                  href={LINKS.canvaKit}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] px-5 py-5 transition-all duration-300 hover:border-yellow-400/50 hover:bg-yellow-500/10"
-                >
-                  <p className="text-yellow-200 font-semibold">Canva — créatifs prêts à publier</p>
-                  <p className="mt-2 text-sm text-gray-300 leading-relaxed">
-                    Visuels premium LGD, posts réseaux sociaux, stories et créas modifiables en quelques clics.
-                  </p>
-                </a>
-              </div>
-            </CardLuxe>
-          </div>
-
-          <div className={twoColumnSectionClass}>
-            <CardLuxe className={sectionCardClass}>
-              <SectionHeader
-                title="Scripts rapides"
-                description="Messages prêts à copier pour expliquer le vrai flow affiliation LGD + Systeme.io."
-              />
-              <div className="space-y-4">
-                {scriptBlocks.map((block) => (
-                  <CopyBlock key={block.title} title={block.title} hint={block.hint} text={block.text} />
-                ))}
-              </div>
-            </CardLuxe>
-
-            <CardLuxe className={sectionCardClass}>
-              <SectionHeader
-                title="Emails prêts à envoyer"
-                description="Emails de recommandation orientés création du lien affilié LGD."
-              />
-              <div className="space-y-4">
-                {emailBlocks.map((block) => (
-                  <CopyBlock key={block.title} title={block.title} hint={block.hint} text={block.text} />
-                ))}
-              </div>
-            </CardLuxe>
-          </div>
-
-          <div className={twoColumnSectionClass}>
-            <CardLuxe className={sectionCardClass}>
-              <SectionHeader
-                title="Posts réseaux sociaux"
-                description="Publications prêtes pour Instagram, Facebook et LinkedIn."
-              />
-              <div className="space-y-4">
-                {postBlocks.map((block) => (
-                  <CopyBlock key={block.title} title={block.title} hint={block.hint} text={block.text} />
-                ))}
-              </div>
-            </CardLuxe>
-
-            <CardLuxe className={sectionCardClass}>
-              <SectionHeader
-                title="Hooks, CTA & lien officiel"
-                description="Accroches, appels à l’action et rappel du format officiel."
-              />
-              <div className="space-y-4">
-                {hookBlocks.map((block) => (
-                  <CopyBlock key={block.title} title={block.title} hint={block.hint} text={block.text} />
-                ))}
-              </div>
-            </CardLuxe>
-          </div>
-
-          <CardLuxe className={sectionCardClass}>
-            <SectionHeader
-              title="FAQ anti-friction"
-              description="Les réponses simples aux questions qui bloquent le passage à l’action."
+          <section>
+            <SectionTitle
+              eyebrow="Performance"
+              title="Tes indicateurs clés"
+              text="Une lecture simple : prospects envoyés, essais gratuits, abonnements actifs, commissions et CA généré."
             />
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {[
-                {
-                  q: "Est-ce que LGD crée automatiquement mon lien affilié ?",
-                  a: "Non. Le tracking passe par Systeme.io. Tu dois créer ton compte Systeme.io gratuit, récupérer ton identifiant affilié et l’ajouter à l’URL LGD.",
-                },
-                {
-                  q: "Quel est le bon format de lien ?",
-                  a: AFFILIATE_LINK_TEMPLATE,
-                },
-                {
-                  q: "Est-ce que je peux utiliser les ressources marketing ?",
-                  a: "Oui. Le Google Docs et le Canva contiennent les textes, angles et visuels utiles pour promouvoir LGD plus vite.",
-                },
-                {
-                  q: "Combien puis-je toucher ?",
-                  a: "Jusqu’à 60% de commission récurrente tant que l’abonné référé reste actif, selon les règles commerciales en vigueur.",
-                },
-              ].map((item) => (
-                <div key={item.q} className="rounded-2xl border border-yellow-600/15 bg-[#0b0b0b] px-4 py-4">
-                  <p className="text-sm font-semibold text-yellow-200 sm:text-base">{item.q}</p>
-                  <p className="mt-2 break-words text-sm leading-relaxed text-gray-300">{item.a}</p>
-                </div>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              {stats.map((stat) => (
+                <StatCardView key={stat.label} stat={stat} />
               ))}
             </div>
-          </CardLuxe>
+          </section>
 
-          <CardLuxe className="w-full px-5 sm:px-8 pt-8 pb-8 text-center">
-            <h2 className="text-2xl sm:text-3xl font-bold text-[#ffb800]">
-              Ton lien officiel à retenir
-            </h2>
-            <p className="mt-3 text-sm sm:text-base text-gray-300 leading-relaxed">
-              Tous les supports doivent renvoyer vers ce format, avec ton propre identifiant Systeme.io.
-            </p>
-            <div className="mt-5 flex justify-center">
-              <span className="break-all rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] px-5 py-4 text-sm text-yellow-200 sm:text-base">
-                {AFFILIATE_LINK_TEMPLATE}
-              </span>
+          <CardLuxe className="w-full px-5 py-7 sm:px-8">
+            <SectionTitle
+              eyebrow="Activité"
+              title="📈 Évolution de ton activité ambassadeur"
+              text="Prototype visuel avant branchement définitif sur les données webhook Systeme.io."
+            />
+            <div className="mb-5 flex flex-wrap justify-center gap-3">
+              {['Aujourd’hui', '7 jours', 'Mois en cours', '90 jours'].map((period, index) => (
+                <span
+                  key={period}
+                  className={[
+                    "rounded-full border px-4 py-2 text-sm font-bold",
+                    index === 2
+                      ? "border-yellow-400/70 bg-yellow-500/15 text-yellow-100"
+                      : "border-yellow-600/20 bg-[#0b0b0b] text-white/55",
+                  ].join(" ")}
+                >
+                  {period}
+                </span>
+              ))}
+            </div>
+            <div className="relative h-[280px] overflow-hidden rounded-[28px] border border-yellow-600/20 bg-[#070707] p-5">
+              <div className="absolute inset-x-5 bottom-10 top-8 grid grid-rows-4">
+                {[1, 2, 3, 4].map((line) => (
+                  <div key={line} className="border-t border-white/6" />
+                ))}
+              </div>
+              <div className="absolute bottom-10 left-6 right-6 flex h-[190px] items-end justify-between gap-3">
+                {[18, 35, 28, 52, 44, 70, 62, 86, 74, 95, 82, 100].map((height, index) => (
+                  <div key={index} className="flex flex-1 flex-col items-center gap-2">
+                    <div
+                      className="w-full rounded-t-xl bg-gradient-to-t from-[#ffb800] to-[#ffdd72] opacity-80 shadow-[0_0_18px_rgba(255,184,0,0.20)]"
+                      style={{ height: `${height}%` }}
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="absolute bottom-3 left-5 right-5 flex items-center justify-between text-xs text-white/45">
+                <span>Jour en cours</span>
+                <span>Mois en cours</span>
+              </div>
             </div>
           </CardLuxe>
-        </motion.div>
 
-        <p className="mt-12 text-center text-xs text-gray-500">
-          © 2026 Le Générateur Digital — Affiliation LGD
-        </p>
+          <div className="grid gap-8 xl:grid-cols-[1fr_0.95fr]">
+            <CardLuxe className="w-full px-5 py-7 sm:px-8">
+              <SectionTitle
+                eyebrow="Simulation"
+                title="🚀 Simule ton potentiel de commissions"
+                text="Fais varier l’offre et le nombre d’abonnés actifs pour visualiser ton revenu récurrent potentiel."
+              />
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                {(Object.keys(OFFERS) as OfferKey[]).map((key) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setSelectedOffer(key)}
+                    className={[
+                      "rounded-2xl border px-4 py-4 text-center transition-all",
+                      selectedOffer === key
+                        ? "border-yellow-400/80 bg-yellow-500/15 text-yellow-100 shadow-[0_0_24px_rgba(255,184,0,0.12)]"
+                        : "border-yellow-600/15 bg-[#0b0b0b] text-white/60 hover:bg-yellow-500/8",
+                    ].join(" ")}
+                  >
+                    <p className="font-black">{OFFERS[key].label}</p>
+                    <p className="mt-1 text-sm">{OFFERS[key].price} €/mois</p>
+                    <p className="mt-2 text-xs text-white/45">{OFFERS[key].note}</p>
+                  </button>
+                ))}
+              </div>
+
+              <div className="mt-7 rounded-3xl border border-yellow-600/15 bg-black/35 p-5">
+                <div className="flex items-center justify-between gap-4">
+                  <p className="font-bold text-white/80">Nombre d’abonnés actifs visés</p>
+                  <p className="text-2xl font-black text-yellow-300">{subscriberGoal}</p>
+                </div>
+                <input
+                  type="range"
+                  min="1"
+                  max="200"
+                  value={subscriberGoal}
+                  onChange={(event) => setSubscriberGoal(Number(event.target.value))}
+                  className="mt-5 w-full accent-yellow-400"
+                />
+              </div>
+
+              <div className="mt-6 grid gap-4 sm:grid-cols-3">
+                <div className="rounded-2xl border border-yellow-600/15 bg-[#0b0b0b] p-4 text-center">
+                  <p className="text-xs uppercase tracking-[0.16em] text-white/45">Commission / client</p>
+                  <p className="mt-2 text-2xl font-black text-yellow-100">{euro(commissionPerClient)}</p>
+                </div>
+                <div className="rounded-2xl border border-green-400/20 bg-green-400/5 p-4 text-center">
+                  <p className="text-xs uppercase tracking-[0.16em] text-white/45">Mensuel estimé</p>
+                  <p className="mt-2 text-2xl font-black text-green-100">{euro(monthlyRevenue)}</p>
+                </div>
+                <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/5 p-4 text-center">
+                  <p className="text-xs uppercase tracking-[0.16em] text-white/45">Annuel estimé</p>
+                  <p className="mt-2 text-2xl font-black text-yellow-100">{euro(yearlyRevenue)}</p>
+                </div>
+              </div>
+            </CardLuxe>
+
+            <CardLuxe className="w-full px-5 py-7 sm:px-8">
+              <SectionTitle
+                eyebrow="Confiance"
+                title="💰 Paiements & commissions"
+                text="Règle claire, sans ambiguïté : une commission n’est acquise qu’après 30 jours d’abonnement actif."
+              />
+
+              <div className="space-y-4 text-sm leading-6 text-white/68">
+                <div className="rounded-3xl border border-yellow-600/20 bg-[#0b0b0b] p-5">
+                  <p className="text-lg font-black text-yellow-100">✅ Cas validé</p>
+                  <p className="mt-3">Abonnement validé le 19 juin → actif pendant 30 jours → commission validée le 19 juillet → paiement le 10 août.</p>
+                </div>
+                <div className="rounded-3xl border border-red-400/20 bg-red-400/5 p-5">
+                  <p className="text-lg font-black text-red-100">❌ Cas annulé</p>
+                  <p className="mt-3">Si l’abonnement est annulé avant la fin des 30 jours, la commission est annulée : 0 € versé.</p>
+                </div>
+                <div className="rounded-3xl border border-blue-400/20 bg-blue-400/5 p-5">
+                  <p className="text-lg font-black text-blue-100">🔒 Intermédiaire de paiement</p>
+                  <p className="mt-3">Systeme.io récupère les paiements des abonnements, calcule les commissions, puis reverse la commission à l’ambassadeur et le solde à LGD.</p>
+                  <p className="mt-3">L’ambassadeur connecte son compte Stripe ou PayPal dans son espace affilié Systeme.io.</p>
+                </div>
+              </div>
+            </CardLuxe>
+          </div>
+
+          <CardLuxe className="w-full px-5 py-7 sm:px-8" id="liens-ambassadeur">
+            <SectionTitle
+              eyebrow="Conversion"
+              title="💡 La stratégie recommandée"
+              text="Commence par l’essai gratuit : c’est généralement plus simple à proposer et plus facile à accepter pour un prospect."
+            />
+
+            <div className="mb-7 rounded-3xl border border-yellow-500/25 bg-yellow-500/10 p-5 text-center">
+              <p className="text-lg font-black text-yellow-100">Je ne vends pas LGD. Je fais découvrir LGD.</p>
+              <p className="mx-auto mt-2 max-w-3xl text-sm leading-6 text-white/65">
+                Si ton prospect est déjà convaincu, tu peux lui envoyer la page de vente. Sinon, partage l’essai gratuit 7 jours et laisse la plateforme démontrer sa valeur.
+              </p>
+            </div>
+
+            <div className="mb-6 rounded-3xl border border-yellow-600/20 bg-[#0b0b0b] p-5">
+              <label className="text-sm font-bold text-yellow-100" htmlFor="affiliate-id">
+                Ton identifiant affilié Systeme.io
+              </label>
+              <input
+                id="affiliate-id"
+                value={affiliateId}
+                onChange={(event) => setAffiliateId(event.target.value)}
+                placeholder={EXAMPLE_AFFILIATE_ID}
+                className="mt-3 w-full rounded-2xl border border-yellow-600/25 bg-black px-4 py-3 text-yellow-100 outline-none transition focus:border-yellow-400"
+              />
+              <p className="mt-2 text-xs text-white/45">Colle uniquement ton identifiant, ou un lien complet contenant ?sa=. LGD nettoie le format automatiquement.</p>
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-2">
+              <div className="rounded-[28px] border border-green-400/25 bg-green-400/5 p-5">
+                <div className="mb-4 flex flex-wrap items-center gap-3">
+                  <span className="rounded-full border border-green-400/30 bg-green-400/10 px-3 py-1 text-xs font-black text-green-100">⭐ Recommandé</span>
+                  <span className="rounded-full border border-white/10 bg-black/30 px-3 py-1 text-xs text-white/55">Convertit généralement mieux</span>
+                </div>
+                <CopyField
+                  label="🟢 Lien Essai Gratuit 7 jours"
+                  value={trialLink}
+                  helper="À partager en priorité avec les prospects froids, tièdes ou curieux."
+                />
+                <a href={trialLink} target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex w-full items-center justify-center rounded-2xl border border-green-400/25 bg-green-400/10 px-6 py-3 font-semibold text-green-100 transition hover:bg-green-400/15 sm:w-auto">
+                  Ouvrir le lien
+                </a>
+              </div>
+
+              <div className="rounded-[28px] border border-yellow-500/25 bg-yellow-500/5 p-5">
+                <div className="mb-4 flex flex-wrap items-center gap-3">
+                  <span className="rounded-full border border-yellow-400/30 bg-yellow-400/10 px-3 py-1 text-xs font-black text-yellow-100">🚀 Vente directe</span>
+                  <span className="rounded-full border border-white/10 bg-black/30 px-3 py-1 text-xs text-white/55">Prospects déjà convaincus</span>
+                </div>
+                <CopyField
+                  label="🚀 Lien Page de Vente / Abonnement"
+                  value={salesLink}
+                  helper="À utiliser quand ton argumentaire est solide ou que le prospect est déjà prêt à s’abonner."
+                />
+                <a href={salesLink} target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex w-full items-center justify-center rounded-2xl border border-yellow-400/25 bg-yellow-400/10 px-6 py-3 font-semibold text-yellow-100 transition hover:bg-yellow-400/15 sm:w-auto">
+                  Ouvrir le lien
+                </a>
+              </div>
+            </div>
+          </CardLuxe>
+
+          <CardLuxe className="w-full px-5 py-7 sm:px-8">
+            <SectionTitle
+              eyebrow="Suivi"
+              title="🧾 Activité récente"
+              text="Cette zone sera alimentée par les webhooks Systeme.io : essais, ventes, annulations, paiements échoués et commissions."
+            />
+            <div className="overflow-x-auto rounded-3xl border border-yellow-600/20">
+              <table className="w-full min-w-[760px] border-collapse bg-[#070707] text-left text-sm">
+                <thead className="bg-yellow-500/10 text-yellow-100">
+                  <tr>
+                    <th className="px-4 py-3">Date</th>
+                    <th className="px-4 py-3">Événement</th>
+                    <th className="px-4 py-3">Contact</th>
+                    <th className="px-4 py-3">Source</th>
+                    <th className="px-4 py-3">Statut</th>
+                    <th className="px-4 py-3">Commission</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {activityRows.map((row) => (
+                    <tr key={`${row.date}-${row.event}`} className="border-t border-yellow-600/10 text-white/65">
+                      <td className="px-4 py-4">{row.date}</td>
+                      <td className="px-4 py-4 font-semibold text-white/85">{row.event}</td>
+                      <td className="px-4 py-4">{row.contact}</td>
+                      <td className="px-4 py-4">{row.source}</td>
+                      <td className="px-4 py-4">{row.status}</td>
+                      <td className="px-4 py-4 font-bold text-yellow-100">{row.commission}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardLuxe>
+
+          <CardLuxe className="w-full px-5 py-7 sm:px-8">
+            <SectionTitle
+              eyebrow="Ressources"
+              title="📚 Centre de Ressources Ambassadeur"
+              text="Tous les supports pour passer à l’action rapidement : visuels, kit, scripts, emails et conditions."
+            />
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <ResourceCard icon="🎨" title="Visuels Canva" text="Visuels prêts à publier pour posts, stories, lives et campagnes." href={CANVA_VISUALS_URL} />
+              <ResourceCard icon="🤝" title="Kit Ambassadeur" text="Support complet pour présenter LGD et vendre avec méthode." href={CANVA_KIT_URL} />
+              <ResourceCard icon="📚" title="Académie Ambassadeur" text="Modules 1 à 10 pour comprendre quoi faire et dans quel ordre." href="/dashboard/affiliation/kit" />
+              <ResourceCard icon="🎥" title="Scripts Live" text="Angles de lives pour présenter LGD sans pression commerciale." href="/dashboard/affiliation/kit" />
+              <ResourceCard icon="✉️" title="Emails de prospection" text="Relances et messages prêts à adapter selon ton audience." href="/dashboard/affiliation/kit" />
+              <ResourceCard icon="📜" title="Paiements & conditions" text="Règles de commission, validation 30 jours et paiement." href="/dashboard/affiliation/payouts" />
+            </div>
+          </CardLuxe>
+        </div>
       </div>
     </div>
   );
