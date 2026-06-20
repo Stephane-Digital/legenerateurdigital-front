@@ -197,9 +197,9 @@ const FOUNDER_DEMO_ACTIVITY_PERIODS: ActivityPeriod[] = [
     sales: 7,
     commissions: 406,
     growth: "+18 % cette semaine",
-    highlight: "7 ventes suivies",
+    highlight: "7 ventes cette semaine",
     trialsLine: [22, 30, 38, 34, 46, 52, 60, 64, 72, 70, 78, 86],
-    subscribersLine: [0, 1, 1, 3, 6, 6, 7],
+    subscribersLine: [1, 0, 3, 2, 0, 1, 0],
     cancellationsLine: [3, 4, 4, 5, 6, 5, 7, 8, 7, 9, 10, 9],
     xLabels: ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"],
   },
@@ -211,9 +211,9 @@ const FOUNDER_DEMO_ACTIVITY_PERIODS: ActivityPeriod[] = [
     sales: 76,
     commissions: 1184,
     growth: "+56 % de conversion essai → vente",
-    highlight: "76 ventes cumulées",
+    highlight: "76 ventes ce mois-ci",
     trialsLine: [18, 35, 28, 52, 44, 70, 62, 86, 74, 95, 82, 100],
-    subscribersLine: [0, 4, 10, 15, 24, 30, 42, 48, 55, 64, 70, 76],
+    subscribersLine: [4, 6, 3, 8, 5, 10, 7, 12, 9, 6, 4, 2],
     cancellationsLine: [2, 5, 4, 8, 7, 12, 10, 14, 13, 18, 16, 20],
     xLabels: ["01", "04", "07", "10", "13", "16", "19", "22", "25", "28", "30", "31"],
   },
@@ -225,9 +225,9 @@ const FOUNDER_DEMO_ACTIVITY_PERIODS: ActivityPeriod[] = [
     sales: 98,
     commissions: 1682,
     growth: "+42 abonnés actifs conservés",
-    highlight: "Tendance solide",
+    highlight: "98 ventes sur 90 jours",
     trialsLine: [24, 31, 43, 50, 56, 63, 69, 76, 82, 88, 92, 98],
-    subscribersLine: [3, 8, 16, 24, 35, 43, 52, 58, 70, 81, 90, 98],
+    subscribersLine: [6, 4, 9, 8, 7, 12, 11, 9, 10, 8, 7, 7],
     cancellationsLine: [3, 4, 7, 8, 10, 12, 14, 15, 17, 18, 20, 22],
     xLabels: ["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10", "S11", "S12"],
   },
@@ -312,6 +312,16 @@ function euro(value: number) {
 }
 
 
+function euroPrecise(value: number) {
+  return new Intl.NumberFormat("fr-FR", {
+    style: "currency",
+    currency: "EUR",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+
 function buildChartPoints(values: number[], width = 900, height = 230) {
   const safeValues = values.length ? values : [0];
   const max = Math.max(...safeValues, 1);
@@ -333,6 +343,17 @@ function buildSmoothPath(values: number[], width = 900, height = 230) {
       return `L ${point.x} ${point.y}`;
     })
     .join(" ");
+}
+
+
+function buildYAxisTicks(maxValue: number) {
+  const safeMax = Math.max(Math.ceil(maxValue), 1);
+
+  if (safeMax <= 8) {
+    return Array.from({ length: safeMax + 1 }, (_, index) => safeMax - index);
+  }
+
+  return [safeMax, Math.round(safeMax * 0.75), Math.round(safeMax * 0.5), Math.round(safeMax * 0.25), 0];
 }
 
 function ActivityMiniStat({
@@ -539,7 +560,7 @@ function isFounderDemoDashboard() {
 export default function AffiliationDashboardPage() {
   const [affiliateId, setAffiliateId] = useState(DEFAULT_AFFILIATE_ID);
   const [selectedOffer, setSelectedOffer] = useState<OfferKey>("ultime");
-  const [subscriberGoal, setSubscriberGoal] = useState(25);
+  const [subscriberGoal, setSubscriberGoal] = useState(10);
   const [founderDemo] = useState(() => isFounderDemoDashboard());
   const [activePeriodKey, setActivePeriodKey] = useState<ActivityPeriodKey>("month");
 
@@ -562,7 +583,7 @@ export default function AffiliationDashboardPage() {
   const activePeriod = activityPeriods.find((item) => item.key === activePeriodKey) || activityPeriods[2];
   const activeChartPoints = buildChartPoints(activePeriod.subscribersLine);
   const activeChartMax = Math.max(...activePeriod.subscribersLine, 1);
-  const activeYAxis = [activeChartMax, Math.round(activeChartMax * 0.75), Math.round(activeChartMax * 0.5), Math.round(activeChartMax * 0.25), 0];
+  const activeYAxis = buildYAxisTicks(activeChartMax);
 
   return (
     <div className="min-h-screen w-full bg-[#050505] px-3 pb-12 pt-5 text-white sm:px-6 sm:pb-16 sm:pt-8 lg:px-8">
@@ -694,8 +715,8 @@ export default function AffiliationDashboardPage() {
           <Panel className="p-4 sm:p-7 lg:p-8">
             <SectionTitle
               eyebrow="Activité"
-              title="📈 Croissance de tes abonnés récurrents"
-              text="Vue claire et premium de la progression des abonnés actifs générés par ton activité ambassadeur."
+              title="📈 Ventes générées par jour"
+              text="Vue claire et premium du nombre exact d’abonnements générés chaque jour par ton activité ambassadeur."
             />
             <div className="mb-4 flex flex-wrap justify-center gap-2 sm:mb-5 sm:gap-3">
               {activityPeriods.map((period) => (
@@ -717,7 +738,7 @@ export default function AffiliationDashboardPage() {
             <div className="overflow-hidden rounded-[22px] border border-yellow-600/20 bg-[#070707] p-4 sm:rounded-[28px] sm:p-5">
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 <ActivityMiniStat label="Essais" value={String(activePeriod.trials)} tone="orange" />
-                <ActivityMiniStat label="Abonnés" value={String(activePeriod.sales)} tone="green" />
+                <ActivityMiniStat label="Ventes" value={String(activePeriod.sales)} tone="green" />
                 <ActivityMiniStat label="Désabonnements" value={founderDemo ? String(Math.max(1, Math.round(activePeriod.sales * 0.18))) : "0"} tone="red" />
                 <ActivityMiniStat label="Commissions" value={euro(activePeriod.commissions)} tone="gold" />
               </div>
@@ -725,13 +746,13 @@ export default function AffiliationDashboardPage() {
               <div className="mt-4 flex justify-center">
                 <span className="inline-flex items-center gap-2 rounded-full border border-green-400/20 bg-green-400/10 px-4 py-2 text-xs font-bold text-green-100">
                   <span className="h-2.5 w-2.5 rounded-full bg-green-400" />
-                  Abonnés actifs
+                  Ventes par jour
                 </span>
               </div>
 
               <div className="relative mt-4 h-[280px] overflow-hidden rounded-[22px] border border-yellow-600/12 bg-black/55 px-3 pb-10 pt-5 sm:h-[360px] sm:rounded-[26px] sm:px-5 sm:pb-12 sm:pt-6">
                 <div className="absolute left-4 top-5 text-xs font-bold text-white/55 sm:left-6 sm:top-6">
-                  Abonnés actifs
+                  Ventes
                 </div>
 
                 <svg
@@ -877,10 +898,13 @@ export default function AffiliationDashboardPage() {
             <div className="mt-5 grid gap-3 sm:mt-6 sm:grid-cols-3 xl:grid-cols-1 2xl:grid-cols-3">
               <div className="rounded-2xl border border-yellow-600/15 bg-[#0b0b0b] p-4 text-center">
                 <p className="text-[10px] uppercase tracking-[0.14em] text-white/45 sm:text-xs sm:tracking-[0.16em]">
-                  Commission / client
+                  Commission / client (60 %)
                 </p>
                 <p className="mt-2 text-2xl font-black text-yellow-100">
-                  {euro(commissionPerClient)}
+                  {euroPrecise(commissionPerClient)}
+                </p>
+                <p className="mt-2 text-xs text-white/45">
+                  sur l'offre {selected.label} ({euro(selected.price)})
                 </p>
               </div>
               <div className="rounded-2xl border border-green-400/20 bg-green-400/5 p-4 text-center">
@@ -890,6 +914,9 @@ export default function AffiliationDashboardPage() {
                 <p className="mt-2 text-2xl font-black text-green-100">
                   {euro(monthlyRevenue)}
                 </p>
+                <p className="mt-2 text-xs text-white/45">
+                  {subscriberGoal} abonnés × {euroPrecise(commissionPerClient)}
+                </p>
               </div>
               <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/5 p-4 text-center">
                 <p className="text-[10px] uppercase tracking-[0.14em] text-white/45 sm:text-xs sm:tracking-[0.16em]">
@@ -897,6 +924,9 @@ export default function AffiliationDashboardPage() {
                 </p>
                 <p className="mt-2 text-2xl font-black text-yellow-100">
                   {euro(yearlyRevenue)}
+                </p>
+                <p className="mt-2 text-xs text-white/45">
+                  {euro(monthlyRevenue)} × 12 mois
                 </p>
               </div>
             </div>
