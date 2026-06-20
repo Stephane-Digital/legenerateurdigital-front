@@ -155,6 +155,116 @@ const FOUNDER_DEMO_ACTIVITY_ROWS = [
   },
 ];
 
+
+
+type ActivityPeriodKey = "today" | "week" | "month" | "quarter";
+
+type ActivityPeriod = {
+  key: ActivityPeriodKey;
+  label: string;
+  prospects: number;
+  trials: number;
+  sales: number;
+  commissions: number;
+  growth: string;
+  highlight: string;
+  bars: number[];
+};
+
+const FOUNDER_DEMO_ACTIVITY_PERIODS: ActivityPeriod[] = [
+  {
+    key: "today",
+    label: "Aujourd'hui",
+    prospects: 3,
+    trials: 2,
+    sales: 1,
+    commissions: 58,
+    growth: "+1 abonnement aujourd'hui",
+    highlight: "Démarrage actif",
+    bars: [18, 34, 24, 40, 32, 54, 48, 66, 58, 74, 68, 82],
+  },
+  {
+    key: "week",
+    label: "7 jours",
+    prospects: 18,
+    trials: 11,
+    sales: 7,
+    commissions: 406,
+    growth: "+18 % cette semaine",
+    highlight: "7 ventes suivies",
+    bars: [22, 30, 38, 34, 46, 52, 60, 64, 72, 70, 78, 86],
+  },
+  {
+    key: "month",
+    label: "Mois",
+    prospects: 135,
+    trials: 135,
+    sales: 76,
+    commissions: 1184,
+    growth: "+56 % de conversion essai → vente",
+    highlight: "76 ventes cumulées",
+    bars: [18, 35, 28, 52, 44, 70, 62, 86, 74, 95, 82, 100],
+  },
+  {
+    key: "quarter",
+    label: "90 jours",
+    prospects: 220,
+    trials: 180,
+    sales: 98,
+    commissions: 1682,
+    growth: "+42 abonnés actifs conservés",
+    highlight: "Tendance solide",
+    bars: [24, 31, 43, 50, 56, 63, 69, 76, 82, 88, 92, 98],
+  },
+];
+
+const EMPTY_ACTIVITY_PERIODS: ActivityPeriod[] = [
+  {
+    key: "today",
+    label: "Aujourd'hui",
+    prospects: 0,
+    trials: 0,
+    sales: 0,
+    commissions: 0,
+    growth: "En attente des premiers événements",
+    highlight: "À venir",
+    bars: [4, 6, 5, 8, 7, 9, 8, 10, 9, 12, 10, 14],
+  },
+  {
+    key: "week",
+    label: "7 jours",
+    prospects: 0,
+    trials: 0,
+    sales: 0,
+    commissions: 0,
+    growth: "Aucune donnée webhook disponible",
+    highlight: "À venir",
+    bars: [4, 6, 5, 8, 7, 9, 8, 10, 9, 12, 10, 14],
+  },
+  {
+    key: "month",
+    label: "Mois",
+    prospects: 0,
+    trials: 0,
+    sales: 0,
+    commissions: 0,
+    growth: "Aucune donnée webhook disponible",
+    highlight: "À venir",
+    bars: [4, 6, 5, 8, 7, 9, 8, 10, 9, 12, 10, 14],
+  },
+  {
+    key: "quarter",
+    label: "90 jours",
+    prospects: 0,
+    trials: 0,
+    sales: 0,
+    commissions: 0,
+    growth: "Aucune donnée webhook disponible",
+    highlight: "À venir",
+    bars: [4, 6, 5, 8, 7, 9, 8, 10, 9, 12, 10, 14],
+  },
+];
+
 function normalizeAffiliateId(value: string) {
   return value
     .trim()
@@ -356,6 +466,7 @@ export default function AffiliationDashboardPage() {
   const [selectedOffer, setSelectedOffer] = useState<OfferKey>("ultime");
   const [subscriberGoal, setSubscriberGoal] = useState(25);
   const [founderDemo] = useState(() => isFounderDemoDashboard());
+  const [activePeriodKey, setActivePeriodKey] = useState<ActivityPeriodKey>("month");
 
   const cleanAffiliateId = useMemo(
     () => normalizeAffiliateId(affiliateId) || DEFAULT_AFFILIATE_ID,
@@ -372,6 +483,8 @@ export default function AffiliationDashboardPage() {
   const dashboardActivityRows = founderDemo
     ? FOUNDER_DEMO_ACTIVITY_ROWS
     : EMPTY_ACTIVITY_ROWS;
+  const activityPeriods = founderDemo ? FOUNDER_DEMO_ACTIVITY_PERIODS : EMPTY_ACTIVITY_PERIODS;
+  const activePeriod = activityPeriods.find((item) => item.key === activePeriodKey) || activityPeriods[2];
 
   return (
     <div className="min-h-screen w-full bg-[#050505] px-3 pb-12 pt-5 text-white sm:px-6 sm:pb-16 sm:pt-8 lg:px-8">
@@ -507,21 +620,21 @@ export default function AffiliationDashboardPage() {
               text="Prototype visuel avant branchement définitif sur les données webhook Systeme.io."
             />
             <div className="mb-4 flex flex-wrap justify-center gap-2 sm:mb-5 sm:gap-3">
-              {["Aujourd'hui", "7 jours", "Mois", "90 jours"].map(
-                (period, index) => (
-                  <span
-                    key={period}
-                    className={[
-                      "rounded-full border px-3 py-2 text-xs font-bold sm:px-4 sm:text-sm",
-                      index === 2
-                        ? "border-yellow-400/70 bg-yellow-500/15 text-yellow-100"
-                        : "border-yellow-600/20 bg-[#0b0b0b] text-white/55",
-                    ].join(" ")}
-                  >
-                    {period}
-                  </span>
-                ),
-              )}
+              {activityPeriods.map((period) => (
+                <button
+                  key={period.key}
+                  type="button"
+                  onClick={() => setActivePeriodKey(period.key)}
+                  className={[
+                    "rounded-full border px-3 py-2 text-xs font-bold transition sm:px-4 sm:text-sm",
+                    activePeriodKey === period.key
+                      ? "border-yellow-400/70 bg-yellow-500/15 text-yellow-100 shadow-[0_0_18px_rgba(255,184,0,0.12)]"
+                      : "border-yellow-600/20 bg-[#0b0b0b] text-white/55 hover:bg-yellow-500/10 hover:text-yellow-100",
+                  ].join(" ")}
+                >
+                  {period.label}
+                </button>
+              ))}
             </div>
             <div className="relative h-[250px] overflow-hidden rounded-[22px] border border-yellow-600/20 bg-[#070707] p-4 sm:h-[360px] sm:rounded-[28px] sm:p-5">
               <div className="absolute inset-x-4 bottom-10 top-8 grid grid-rows-4 sm:inset-x-5 sm:bottom-12">
@@ -529,24 +642,43 @@ export default function AffiliationDashboardPage() {
                   <div key={line} className="border-t border-white/6" />
                 ))}
               </div>
-              <div className="absolute bottom-10 left-4 right-4 flex h-[170px] items-end justify-between gap-1.5 sm:bottom-12 sm:left-6 sm:right-6 sm:h-[250px] sm:gap-3">
-                {[18, 35, 28, 52, 44, 70, 62, 86, 74, 95, 82, 100].map(
-                  (height, index) => (
-                    <div
-                      key={index}
-                      className="flex flex-1 flex-col items-center gap-2"
-                    >
-                      <div
-                        className="w-full rounded-t-lg bg-gradient-to-t from-[#ffb800] to-[#ffdd72] opacity-80 shadow-[0_0_18px_rgba(255,184,0,0.20)] sm:rounded-t-xl"
-                        style={{ height: `${height}%` }}
-                      />
-                    </div>
-                  ),
-                )}
+              <div className="absolute left-4 right-4 top-4 z-10 grid grid-cols-2 gap-2 sm:left-5 sm:right-5 sm:top-5 sm:grid-cols-4">
+                <div className="rounded-2xl border border-blue-400/15 bg-blue-400/5 px-3 py-2 text-center">
+                  <p className="text-[10px] uppercase tracking-[0.14em] text-white/40">Prospects</p>
+                  <p className="mt-1 text-lg font-black text-blue-100">{activePeriod.prospects}</p>
+                </div>
+                <div className="rounded-2xl border border-blue-400/15 bg-blue-400/5 px-3 py-2 text-center">
+                  <p className="text-[10px] uppercase tracking-[0.14em] text-white/40">Essais</p>
+                  <p className="mt-1 text-lg font-black text-blue-100">{activePeriod.trials}</p>
+                </div>
+                <div className="rounded-2xl border border-green-400/15 bg-green-400/5 px-3 py-2 text-center">
+                  <p className="text-[10px] uppercase tracking-[0.14em] text-white/40">Ventes</p>
+                  <p className="mt-1 text-lg font-black text-green-100">{activePeriod.sales}</p>
+                </div>
+                <div className="rounded-2xl border border-yellow-400/15 bg-yellow-400/5 px-3 py-2 text-center">
+                  <p className="text-[10px] uppercase tracking-[0.14em] text-white/40">Commissions</p>
+                  <p className="mt-1 text-lg font-black text-yellow-100">{euro(activePeriod.commissions)}</p>
+                </div>
               </div>
-              <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between text-[11px] text-white/45 sm:left-5 sm:right-5 sm:text-xs">
-                <span>Jour</span>
-                <span>Mois en cours</span>
+              <div className="absolute bottom-12 left-4 right-4 flex h-[118px] items-end justify-between gap-1.5 sm:bottom-16 sm:left-6 sm:right-6 sm:h-[180px] sm:gap-3">
+                {activePeriod.bars.map((height, index) => (
+                  <motion.div
+                    key={`${activePeriod.key}-${index}`}
+                    initial={{ height: 0, opacity: 0.35 }}
+                    animate={{ height: `${height}%`, opacity: 1 }}
+                    transition={{ duration: 0.35, delay: index * 0.025 }}
+                    className="flex-1 rounded-t-lg bg-gradient-to-t from-[#ffb800] to-[#ffdd72] shadow-[0_0_18px_rgba(255,184,0,0.20)] sm:rounded-t-xl"
+                  />
+                ))}
+              </div>
+              <div className="absolute bottom-4 left-4 right-4 flex flex-col gap-1 text-[11px] text-white/45 sm:left-5 sm:right-5 sm:text-xs">
+                <div className="flex items-center justify-between">
+                  <span>{activePeriod.highlight}</span>
+                  <span className="font-bold text-green-200">{activePeriod.growth}</span>
+                </div>
+                <div className="h-1.5 overflow-hidden rounded-full bg-white/8">
+                  <div className="h-full rounded-full bg-gradient-to-r from-green-400 via-yellow-300 to-[#ffb800]" style={{ width: founderDemo ? "76%" : "8%" }} />
+                </div>
               </div>
             </div>
           </Panel>
