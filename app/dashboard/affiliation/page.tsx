@@ -171,6 +171,7 @@ type ActivityPeriod = {
   trialsLine: number[];
   subscribersLine: number[];
   cancellationsLine: number[];
+  xLabels: string[];
 };
 
 const FOUNDER_DEMO_ACTIVITY_PERIODS: ActivityPeriod[] = [
@@ -184,8 +185,9 @@ const FOUNDER_DEMO_ACTIVITY_PERIODS: ActivityPeriod[] = [
     growth: "+1 abonnement aujourd'hui",
     highlight: "Démarrage actif",
     trialsLine: [18, 34, 24, 40, 32, 54, 48, 66, 58, 74, 68, 82],
-    subscribersLine: [8, 14, 12, 18, 20, 24, 25, 31, 32, 36, 38, 44],
+    subscribersLine: [0, 1, 0, 3, 1, 6, 2, 4, 1, 5, 3, 7],
     cancellationsLine: [2, 3, 2, 4, 3, 5, 4, 6, 5, 7, 6, 8],
+    xLabels: ["08h", "09h", "10h", "11h", "12h", "13h", "14h", "15h", "16h", "17h", "18h", "19h"],
   },
   {
     key: "week",
@@ -197,8 +199,9 @@ const FOUNDER_DEMO_ACTIVITY_PERIODS: ActivityPeriod[] = [
     growth: "+18 % cette semaine",
     highlight: "7 ventes suivies",
     trialsLine: [22, 30, 38, 34, 46, 52, 60, 64, 72, 70, 78, 86],
-    subscribersLine: [10, 15, 18, 22, 25, 28, 34, 37, 40, 44, 47, 52],
+    subscribersLine: [1, 0, 3, 2, 6, 1, 4],
     cancellationsLine: [3, 4, 4, 5, 6, 5, 7, 8, 7, 9, 10, 9],
+    xLabels: ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"],
   },
   {
     key: "month",
@@ -210,8 +213,9 @@ const FOUNDER_DEMO_ACTIVITY_PERIODS: ActivityPeriod[] = [
     growth: "+56 % de conversion essai → vente",
     highlight: "76 ventes cumulées",
     trialsLine: [18, 35, 28, 52, 44, 70, 62, 86, 74, 95, 82, 100],
-    subscribersLine: [8, 18, 16, 30, 26, 44, 42, 56, 58, 68, 66, 76],
+    subscribersLine: [0, 2, 1, 6, 3, 9, 4, 7, 0, 11, 5, 14],
     cancellationsLine: [2, 5, 4, 8, 7, 12, 10, 14, 13, 18, 16, 20],
+    xLabels: ["01", "04", "07", "10", "13", "16", "19", "22", "25", "28", "30", "31"],
   },
   {
     key: "quarter",
@@ -223,8 +227,9 @@ const FOUNDER_DEMO_ACTIVITY_PERIODS: ActivityPeriod[] = [
     growth: "+42 abonnés actifs conservés",
     highlight: "Tendance solide",
     trialsLine: [24, 31, 43, 50, 56, 63, 69, 76, 82, 88, 92, 98],
-    subscribersLine: [10, 14, 22, 28, 34, 40, 45, 52, 58, 64, 70, 76],
+    subscribersLine: [3, 0, 7, 4, 12, 6, 9, 2, 15, 8, 13, 18],
     cancellationsLine: [3, 4, 7, 8, 10, 12, 14, 15, 17, 18, 20, 22],
+    xLabels: ["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10", "S11", "S12"],
   },
 ];
 
@@ -239,8 +244,9 @@ const EMPTY_ACTIVITY_PERIODS: ActivityPeriod[] = [
     growth: "En attente des premiers événements",
     highlight: "À venir",
     trialsLine: [4, 6, 5, 8, 7, 9, 8, 10, 9, 12, 10, 14],
-    subscribersLine: [1, 2, 1, 3, 2, 3, 3, 4, 3, 5, 4, 6],
+    subscribersLine: [0, 0, 0, 0, 0, 0, 0],
     cancellationsLine: [0, 1, 0, 1, 1, 1, 1, 2, 1, 2, 2, 2],
+    xLabels: ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"],
   },
   {
     key: "week",
@@ -252,8 +258,9 @@ const EMPTY_ACTIVITY_PERIODS: ActivityPeriod[] = [
     growth: "Aucune donnée webhook disponible",
     highlight: "À venir",
     trialsLine: [4, 6, 5, 8, 7, 9, 8, 10, 9, 12, 10, 14],
-    subscribersLine: [1, 2, 1, 3, 2, 3, 3, 4, 3, 5, 4, 6],
+    subscribersLine: [0, 0, 0, 0, 0, 0, 0],
     cancellationsLine: [0, 1, 0, 1, 1, 1, 1, 2, 1, 2, 2, 2],
+    xLabels: ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"],
   },
   {
     key: "month",
@@ -265,8 +272,9 @@ const EMPTY_ACTIVITY_PERIODS: ActivityPeriod[] = [
     growth: "Aucune donnée webhook disponible",
     highlight: "À venir",
     trialsLine: [4, 6, 5, 8, 7, 9, 8, 10, 9, 12, 10, 14],
-    subscribersLine: [1, 2, 1, 3, 2, 3, 3, 4, 3, 5, 4, 6],
+    subscribersLine: [0, 0, 0, 0, 0, 0, 0],
     cancellationsLine: [0, 1, 0, 1, 1, 1, 1, 2, 1, 2, 2, 2],
+    xLabels: ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"],
   },
   {
     key: "quarter",
@@ -278,8 +286,9 @@ const EMPTY_ACTIVITY_PERIODS: ActivityPeriod[] = [
     growth: "Aucune donnée webhook disponible",
     highlight: "À venir",
     trialsLine: [4, 6, 5, 8, 7, 9, 8, 10, 9, 12, 10, 14],
-    subscribersLine: [1, 2, 1, 3, 2, 3, 3, 4, 3, 5, 4, 6],
+    subscribersLine: [0, 0, 0, 0, 0, 0, 0],
     cancellationsLine: [0, 1, 0, 1, 1, 1, 1, 2, 1, 2, 2, 2],
+    xLabels: ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"],
   },
 ];
 
@@ -303,19 +312,20 @@ function euro(value: number) {
 }
 
 
-function buildSmoothPath(values: number[], width = 900, height = 230) {
-  if (!values.length) return "";
+function buildChartPoints(values: number[], width = 900, height = 230) {
+  const safeValues = values.length ? values : [0];
+  const max = Math.max(...safeValues, 1);
+  const step = width / Math.max(safeValues.length - 1, 1);
 
-  const max = Math.max(...values, 1);
-  const min = Math.min(...values, 0);
-  const range = Math.max(max - min, 1);
-  const step = width / Math.max(values.length - 1, 1);
-
-  const points = values.map((value, index) => {
+  return safeValues.map((value, index) => {
     const x = index * step;
-    const y = height - ((value - min) / range) * (height - 30) - 15;
-    return { x, y };
+    const y = height - (value / max) * (height - 35) - 15;
+    return { x, y, value };
   });
+}
+
+function buildSmoothPath(values: number[], width = 900, height = 230) {
+  const points = buildChartPoints(values, width, height);
 
   return points
     .map((point, index) => {
@@ -552,6 +562,9 @@ export default function AffiliationDashboardPage() {
     : EMPTY_ACTIVITY_ROWS;
   const activityPeriods = founderDemo ? FOUNDER_DEMO_ACTIVITY_PERIODS : EMPTY_ACTIVITY_PERIODS;
   const activePeriod = activityPeriods.find((item) => item.key === activePeriodKey) || activityPeriods[2];
+  const activeChartPoints = buildChartPoints(activePeriod.subscribersLine);
+  const activeChartMax = Math.max(...activePeriod.subscribersLine, 1);
+  const activeYAxis = [activeChartMax, Math.round(activeChartMax * 0.75), Math.round(activeChartMax * 0.5), Math.round(activeChartMax * 0.25), 0];
 
   return (
     <div className="min-h-screen w-full bg-[#050505] px-3 pb-12 pt-5 text-white sm:px-6 sm:pb-16 sm:pt-8 lg:px-8">
@@ -718,40 +731,89 @@ export default function AffiliationDashboardPage() {
                 </span>
               </div>
 
-              <div className="relative mt-4 h-[250px] overflow-hidden rounded-[22px] border border-yellow-600/12 bg-black/55 sm:h-[330px] sm:rounded-[26px]">
-                <div className="absolute inset-x-4 bottom-10 top-8 grid grid-rows-4 sm:inset-x-6 sm:bottom-14">
-                  {[1, 2, 3, 4].map((line) => (
-                    <div key={line} className="border-t border-yellow-500/10" />
-                  ))}
+              <div className="relative mt-4 h-[280px] overflow-hidden rounded-[22px] border border-yellow-600/12 bg-black/55 px-3 pb-10 pt-5 sm:h-[360px] sm:rounded-[26px] sm:px-5 sm:pb-12 sm:pt-6">
+                <div className="absolute left-4 top-5 text-xs font-bold text-white/55 sm:left-6 sm:top-6">
+                  Abonnés actifs
                 </div>
 
                 <svg
-                  className="absolute inset-x-4 bottom-10 top-8 h-[180px] w-[calc(100%-32px)] overflow-visible sm:inset-x-6 sm:bottom-14 sm:h-[235px] sm:w-[calc(100%-48px)]"
+                  className="absolute inset-x-4 bottom-14 top-10 h-[190px] w-[calc(100%-32px)] overflow-visible sm:inset-x-6 sm:bottom-16 sm:top-14 sm:h-[235px] sm:w-[calc(100%-48px)]"
                   viewBox="0 0 900 230"
                   preserveAspectRatio="none"
                   aria-hidden="true"
                 >
+                  {[0, 1, 2, 3, 4].map((line) => {
+                    const y = line * (230 / 4);
+                    return (
+                      <line
+                        key={`grid-${activePeriod.key}-${line}`}
+                        x1="0"
+                        y1={y}
+                        x2="900"
+                        y2={y}
+                        stroke="rgba(255,255,255,0.14)"
+                        strokeDasharray="4 6"
+                        strokeWidth="1"
+                      />
+                    );
+                  })}
+
                   <motion.path
                     key={`subscribers-${activePeriod.key}`}
                     d={buildSmoothPath(activePeriod.subscribersLine)}
                     fill="none"
-                    stroke="#22c55e"
+                    stroke="#4ade80"
                     strokeWidth="3"
                     strokeLinecap="round"
+                    strokeLinejoin="round"
                     initial={{ pathLength: 0, opacity: 0 }}
                     animate={{ pathLength: 1, opacity: 1 }}
                     transition={{ duration: 0.75 }}
                   />
+
+                  {activeChartPoints.map((point, index) => (
+                    <motion.circle
+                      key={`point-${activePeriod.key}-${index}`}
+                      cx={point.x}
+                      cy={point.y}
+                      r="5"
+                      fill="#4ade80"
+                      stroke="#0b0b0b"
+                      strokeWidth="2"
+                      initial={{ scale: 0, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ duration: 0.25, delay: 0.18 + index * 0.025 }}
+                    />
+                  ))}
                 </svg>
 
-                <div className="absolute bottom-4 left-4 right-4 flex flex-col gap-1 text-[11px] text-white/45 sm:left-6 sm:right-6 sm:text-xs">
+                <div className="absolute bottom-14 left-4 top-10 flex w-8 flex-col justify-between text-[11px] font-semibold text-white/50 sm:bottom-16 sm:left-6 sm:top-14 sm:text-xs">
+                  {activeYAxis.map((tick, index) => (
+                    <span key={`axis-${activePeriod.key}-${index}`}>{tick}</span>
+                  ))}
+                </div>
+
+                <div className="absolute bottom-7 left-12 right-4 grid text-center text-[10px] font-semibold leading-4 text-white/50 sm:left-16 sm:right-6 sm:text-xs">
+                  <div
+                    className="grid"
+                    style={{ gridTemplateColumns: `repeat(${activePeriod.xLabels.length}, minmax(0, 1fr))` }}
+                  >
+                    {activePeriod.xLabels.map((label, index) => (
+                      <span key={`x-${activePeriod.key}-${index}`} className="truncate px-1">
+                        {label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="absolute bottom-2 left-4 right-4 flex flex-col gap-1 text-[11px] text-white/45 sm:left-6 sm:right-6 sm:text-xs">
                   <div className="flex items-center justify-between gap-4">
                     <span>{activePeriod.highlight}</span>
                     <span className="text-right font-bold text-green-200">{activePeriod.growth}</span>
                   </div>
                   <div className="h-1.5 overflow-hidden rounded-full bg-white/8">
                     <div
-                      className="h-full rounded-full bg-green-400"
+                      className="h-full rounded-full bg-gradient-to-r from-green-400 to-[#ffb800]"
                       style={{ width: founderDemo ? "76%" : "8%" }}
                     />
                   </div>
