@@ -229,7 +229,7 @@ const FOUNDER_DEMO_ACTIVITY_PERIODS: ActivityPeriod[] = [
     trialsLine: [24, 31, 43, 50, 56, 63, 69, 76, 82, 88, 92, 98],
     subscribersLine: [6, 4, 9, 8, 7, 12, 11, 9, 10, 8, 7, 7],
     cancellationsLine: [3, 4, 7, 8, 10, 12, 14, 15, 17, 18, 20, 22],
-    xLabels: ["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10", "S11", "S12"],
+    xLabels: ["S14", "S15", "S16", "S17", "S18", "S19", "S20", "S21", "S22", "S23", "S24", "S25"],
   },
 ];
 
