@@ -168,7 +168,9 @@ type ActivityPeriod = {
   commissions: number;
   growth: string;
   highlight: string;
-  bars: number[];
+  trialsLine: number[];
+  subscribersLine: number[];
+  cancellationsLine: number[];
 };
 
 const FOUNDER_DEMO_ACTIVITY_PERIODS: ActivityPeriod[] = [
@@ -181,7 +183,9 @@ const FOUNDER_DEMO_ACTIVITY_PERIODS: ActivityPeriod[] = [
     commissions: 58,
     growth: "+1 abonnement aujourd'hui",
     highlight: "Démarrage actif",
-    bars: [18, 34, 24, 40, 32, 54, 48, 66, 58, 74, 68, 82],
+    trialsLine: [18, 34, 24, 40, 32, 54, 48, 66, 58, 74, 68, 82],
+    subscribersLine: [8, 14, 12, 18, 20, 24, 25, 31, 32, 36, 38, 44],
+    cancellationsLine: [2, 3, 2, 4, 3, 5, 4, 6, 5, 7, 6, 8],
   },
   {
     key: "week",
@@ -192,7 +196,9 @@ const FOUNDER_DEMO_ACTIVITY_PERIODS: ActivityPeriod[] = [
     commissions: 406,
     growth: "+18 % cette semaine",
     highlight: "7 ventes suivies",
-    bars: [22, 30, 38, 34, 46, 52, 60, 64, 72, 70, 78, 86],
+    trialsLine: [22, 30, 38, 34, 46, 52, 60, 64, 72, 70, 78, 86],
+    subscribersLine: [10, 15, 18, 22, 25, 28, 34, 37, 40, 44, 47, 52],
+    cancellationsLine: [3, 4, 4, 5, 6, 5, 7, 8, 7, 9, 10, 9],
   },
   {
     key: "month",
@@ -203,7 +209,9 @@ const FOUNDER_DEMO_ACTIVITY_PERIODS: ActivityPeriod[] = [
     commissions: 1184,
     growth: "+56 % de conversion essai → vente",
     highlight: "76 ventes cumulées",
-    bars: [18, 35, 28, 52, 44, 70, 62, 86, 74, 95, 82, 100],
+    trialsLine: [18, 35, 28, 52, 44, 70, 62, 86, 74, 95, 82, 100],
+    subscribersLine: [8, 18, 16, 30, 26, 44, 42, 56, 58, 68, 66, 76],
+    cancellationsLine: [2, 5, 4, 8, 7, 12, 10, 14, 13, 18, 16, 20],
   },
   {
     key: "quarter",
@@ -214,7 +222,9 @@ const FOUNDER_DEMO_ACTIVITY_PERIODS: ActivityPeriod[] = [
     commissions: 1682,
     growth: "+42 abonnés actifs conservés",
     highlight: "Tendance solide",
-    bars: [24, 31, 43, 50, 56, 63, 69, 76, 82, 88, 92, 98],
+    trialsLine: [24, 31, 43, 50, 56, 63, 69, 76, 82, 88, 92, 98],
+    subscribersLine: [10, 14, 22, 28, 34, 40, 45, 52, 58, 64, 70, 76],
+    cancellationsLine: [3, 4, 7, 8, 10, 12, 14, 15, 17, 18, 20, 22],
   },
 ];
 
@@ -228,7 +238,9 @@ const EMPTY_ACTIVITY_PERIODS: ActivityPeriod[] = [
     commissions: 0,
     growth: "En attente des premiers événements",
     highlight: "À venir",
-    bars: [4, 6, 5, 8, 7, 9, 8, 10, 9, 12, 10, 14],
+    trialsLine: [4, 6, 5, 8, 7, 9, 8, 10, 9, 12, 10, 14],
+    subscribersLine: [1, 2, 1, 3, 2, 3, 3, 4, 3, 5, 4, 6],
+    cancellationsLine: [0, 1, 0, 1, 1, 1, 1, 2, 1, 2, 2, 2],
   },
   {
     key: "week",
@@ -239,7 +251,9 @@ const EMPTY_ACTIVITY_PERIODS: ActivityPeriod[] = [
     commissions: 0,
     growth: "Aucune donnée webhook disponible",
     highlight: "À venir",
-    bars: [4, 6, 5, 8, 7, 9, 8, 10, 9, 12, 10, 14],
+    trialsLine: [4, 6, 5, 8, 7, 9, 8, 10, 9, 12, 10, 14],
+    subscribersLine: [1, 2, 1, 3, 2, 3, 3, 4, 3, 5, 4, 6],
+    cancellationsLine: [0, 1, 0, 1, 1, 1, 1, 2, 1, 2, 2, 2],
   },
   {
     key: "month",
@@ -250,7 +264,9 @@ const EMPTY_ACTIVITY_PERIODS: ActivityPeriod[] = [
     commissions: 0,
     growth: "Aucune donnée webhook disponible",
     highlight: "À venir",
-    bars: [4, 6, 5, 8, 7, 9, 8, 10, 9, 12, 10, 14],
+    trialsLine: [4, 6, 5, 8, 7, 9, 8, 10, 9, 12, 10, 14],
+    subscribersLine: [1, 2, 1, 3, 2, 3, 3, 4, 3, 5, 4, 6],
+    cancellationsLine: [0, 1, 0, 1, 1, 1, 1, 2, 1, 2, 2, 2],
   },
   {
     key: "quarter",
@@ -261,7 +277,9 @@ const EMPTY_ACTIVITY_PERIODS: ActivityPeriod[] = [
     commissions: 0,
     growth: "Aucune donnée webhook disponible",
     highlight: "À venir",
-    bars: [4, 6, 5, 8, 7, 9, 8, 10, 9, 12, 10, 14],
+    trialsLine: [4, 6, 5, 8, 7, 9, 8, 10, 9, 12, 10, 14],
+    subscribersLine: [1, 2, 1, 3, 2, 3, 3, 4, 3, 5, 4, 6],
+    cancellationsLine: [0, 1, 0, 1, 1, 1, 1, 2, 1, 2, 2, 2],
   },
 ];
 
@@ -282,6 +300,70 @@ function euro(value: number) {
     currency: "EUR",
     maximumFractionDigits: 0,
   }).format(value);
+}
+
+
+function buildSmoothPath(values: number[], width = 900, height = 230) {
+  if (!values.length) return "";
+
+  const max = Math.max(...values, 1);
+  const min = Math.min(...values, 0);
+  const range = Math.max(max - min, 1);
+  const step = width / Math.max(values.length - 1, 1);
+
+  const points = values.map((value, index) => {
+    const x = index * step;
+    const y = height - ((value - min) / range) * (height - 30) - 15;
+    return { x, y };
+  });
+
+  return points
+    .map((point, index) => {
+      if (index === 0) return `M ${point.x} ${point.y}`;
+      const previous = points[index - 1];
+      const cx = (previous.x + point.x) / 2;
+      return `C ${cx} ${previous.y}, ${cx} ${point.y}, ${point.x} ${point.y}`;
+    })
+    .join(" ");
+}
+
+function ChartLegendDot({
+  colorClass,
+  label,
+}: {
+  colorClass: string;
+  label: string;
+}) {
+  return (
+    <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/35 px-3 py-1.5 text-[11px] font-bold text-white/70 sm:text-xs">
+      <span className={`h-2.5 w-2.5 rounded-full ${colorClass}`} />
+      {label}
+    </span>
+  );
+}
+
+function ActivityMiniStat({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone: "orange" | "green" | "red" | "gold";
+}) {
+  const toneClass = {
+    orange: "border-orange-400/20 bg-orange-400/5 text-orange-100",
+    green: "border-green-400/20 bg-green-400/5 text-green-100",
+    red: "border-red-400/20 bg-red-400/5 text-red-100",
+    gold: "border-yellow-400/20 bg-yellow-400/5 text-yellow-100",
+  }[tone];
+
+  return (
+    <div className={`rounded-2xl border px-3 py-2 text-center ${toneClass}`}>
+      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/45">{label}</p>
+      <p className="mt-1 text-base font-black sm:text-lg">{value}</p>
+    </div>
+  );
 }
 
 function Panel({
@@ -636,48 +718,104 @@ export default function AffiliationDashboardPage() {
                 </button>
               ))}
             </div>
-            <div className="relative h-[250px] overflow-hidden rounded-[22px] border border-yellow-600/20 bg-[#070707] p-4 sm:h-[360px] sm:rounded-[28px] sm:p-5">
-              <div className="absolute inset-x-4 bottom-10 top-8 grid grid-rows-4 sm:inset-x-5 sm:bottom-12">
-                {[1, 2, 3, 4].map((line) => (
-                  <div key={line} className="border-t border-white/6" />
-                ))}
+            <div className="overflow-hidden rounded-[22px] border border-yellow-600/20 bg-[#070707] p-4 sm:rounded-[28px] sm:p-5">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <ActivityMiniStat label="Essais" value={String(activePeriod.trials)} tone="orange" />
+                <ActivityMiniStat label="Abonnés" value={String(activePeriod.sales)} tone="green" />
+                <ActivityMiniStat label="Désabonnements" value={founderDemo ? String(Math.max(1, Math.round(activePeriod.sales * 0.18))) : "0"} tone="red" />
+                <ActivityMiniStat label="Commissions" value={euro(activePeriod.commissions)} tone="gold" />
               </div>
-              <div className="absolute left-4 right-4 top-4 z-10 grid grid-cols-2 gap-2 sm:left-5 sm:right-5 sm:top-5 sm:grid-cols-4">
-                <div className="rounded-2xl border border-blue-400/15 bg-blue-400/5 px-3 py-2 text-center">
-                  <p className="text-[10px] uppercase tracking-[0.14em] text-white/40">Prospects</p>
-                  <p className="mt-1 text-lg font-black text-blue-100">{activePeriod.prospects}</p>
-                </div>
-                <div className="rounded-2xl border border-blue-400/15 bg-blue-400/5 px-3 py-2 text-center">
-                  <p className="text-[10px] uppercase tracking-[0.14em] text-white/40">Essais</p>
-                  <p className="mt-1 text-lg font-black text-blue-100">{activePeriod.trials}</p>
-                </div>
-                <div className="rounded-2xl border border-green-400/15 bg-green-400/5 px-3 py-2 text-center">
-                  <p className="text-[10px] uppercase tracking-[0.14em] text-white/40">Ventes</p>
-                  <p className="mt-1 text-lg font-black text-green-100">{activePeriod.sales}</p>
-                </div>
-                <div className="rounded-2xl border border-yellow-400/15 bg-yellow-400/5 px-3 py-2 text-center">
-                  <p className="text-[10px] uppercase tracking-[0.14em] text-white/40">Commissions</p>
-                  <p className="mt-1 text-lg font-black text-yellow-100">{euro(activePeriod.commissions)}</p>
-                </div>
+
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
+                <ChartLegendDot colorClass="bg-orange-400" label="Essais gratuits" />
+                <ChartLegendDot colorClass="bg-green-400" label="Abonnés actifs" />
+                <ChartLegendDot colorClass="bg-red-400" label="Désabonnements" />
               </div>
-              <div className="absolute bottom-12 left-4 right-4 flex h-[118px] items-end justify-between gap-1.5 sm:bottom-16 sm:left-6 sm:right-6 sm:h-[180px] sm:gap-3">
-                {activePeriod.bars.map((height, index) => (
-                  <motion.div
-                    key={`${activePeriod.key}-${index}`}
-                    initial={{ height: 0, opacity: 0.35 }}
-                    animate={{ height: `${height}%`, opacity: 1 }}
-                    transition={{ duration: 0.35, delay: index * 0.025 }}
-                    className="flex-1 rounded-t-lg bg-gradient-to-t from-[#ffb800] to-[#ffdd72] shadow-[0_0_18px_rgba(255,184,0,0.20)] sm:rounded-t-xl"
+
+              <div className="relative mt-4 h-[250px] overflow-hidden rounded-[22px] border border-yellow-600/12 bg-black/55 sm:h-[330px] sm:rounded-[26px]">
+                <div className="absolute inset-x-4 bottom-10 top-8 grid grid-rows-4 sm:inset-x-6 sm:bottom-14">
+                  {[1, 2, 3, 4].map((line) => (
+                    <div key={line} className="border-t border-yellow-500/10" />
+                  ))}
+                </div>
+
+                <svg
+                  className="absolute inset-x-4 bottom-10 top-8 h-[180px] w-[calc(100%-32px)] overflow-visible sm:inset-x-6 sm:bottom-14 sm:h-[235px] sm:w-[calc(100%-48px)]"
+                  viewBox="0 0 900 230"
+                  preserveAspectRatio="none"
+                  aria-hidden="true"
+                >
+                  <defs>
+                    <filter id={`glow-${activePeriod.key}`} x="-20%" y="-20%" width="140%" height="140%">
+                      <feGaussianBlur stdDeviation="4" result="blur" />
+                      <feMerge>
+                        <feMergeNode in="blur" />
+                        <feMergeNode in="SourceGraphic" />
+                      </feMerge>
+                    </filter>
+                    <linearGradient id={`orange-line-${activePeriod.key}`} x1="0" x2="1" y1="0" y2="0">
+                      <stop offset="0%" stopColor="#fb923c" />
+                      <stop offset="100%" stopColor="#ffb800" />
+                    </linearGradient>
+                    <linearGradient id={`green-line-${activePeriod.key}`} x1="0" x2="1" y1="0" y2="0">
+                      <stop offset="0%" stopColor="#22c55e" />
+                      <stop offset="100%" stopColor="#86efac" />
+                    </linearGradient>
+                    <linearGradient id={`red-line-${activePeriod.key}`} x1="0" x2="1" y1="0" y2="0">
+                      <stop offset="0%" stopColor="#ef4444" />
+                      <stop offset="100%" stopColor="#fb7185" />
+                    </linearGradient>
+                  </defs>
+
+                  <motion.path
+                    key={`trials-${activePeriod.key}`}
+                    d={buildSmoothPath(activePeriod.trialsLine)}
+                    fill="none"
+                    stroke={`url(#orange-line-${activePeriod.key})`}
+                    strokeWidth="8"
+                    strokeLinecap="round"
+                    filter={`url(#glow-${activePeriod.key})`}
+                    initial={{ pathLength: 0, opacity: 0 }}
+                    animate={{ pathLength: 1, opacity: 1 }}
+                    transition={{ duration: 0.7 }}
                   />
-                ))}
-              </div>
-              <div className="absolute bottom-4 left-4 right-4 flex flex-col gap-1 text-[11px] text-white/45 sm:left-5 sm:right-5 sm:text-xs">
-                <div className="flex items-center justify-between">
-                  <span>{activePeriod.highlight}</span>
-                  <span className="font-bold text-green-200">{activePeriod.growth}</span>
-                </div>
-                <div className="h-1.5 overflow-hidden rounded-full bg-white/8">
-                  <div className="h-full rounded-full bg-gradient-to-r from-green-400 via-yellow-300 to-[#ffb800]" style={{ width: founderDemo ? "76%" : "8%" }} />
+                  <motion.path
+                    key={`subscribers-${activePeriod.key}`}
+                    d={buildSmoothPath(activePeriod.subscribersLine)}
+                    fill="none"
+                    stroke={`url(#green-line-${activePeriod.key})`}
+                    strokeWidth="7"
+                    strokeLinecap="round"
+                    filter={`url(#glow-${activePeriod.key})`}
+                    initial={{ pathLength: 0, opacity: 0 }}
+                    animate={{ pathLength: 1, opacity: 1 }}
+                    transition={{ duration: 0.75, delay: 0.08 }}
+                  />
+                  <motion.path
+                    key={`cancellations-${activePeriod.key}`}
+                    d={buildSmoothPath(activePeriod.cancellationsLine)}
+                    fill="none"
+                    stroke={`url(#red-line-${activePeriod.key})`}
+                    strokeWidth="6"
+                    strokeLinecap="round"
+                    filter={`url(#glow-${activePeriod.key})`}
+                    initial={{ pathLength: 0, opacity: 0 }}
+                    animate={{ pathLength: 1, opacity: 0.9 }}
+                    transition={{ duration: 0.75, delay: 0.16 }}
+                  />
+                </svg>
+
+                <div className="absolute bottom-4 left-4 right-4 flex flex-col gap-1 text-[11px] text-white/45 sm:left-6 sm:right-6 sm:text-xs">
+                  <div className="flex items-center justify-between gap-4">
+                    <span>{activePeriod.highlight}</span>
+                    <span className="text-right font-bold text-green-200">{activePeriod.growth}</span>
+                  </div>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-white/8">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-orange-400 via-green-300 to-[#ffb800]"
+                      style={{ width: founderDemo ? "76%" : "8%" }}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
