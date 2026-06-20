@@ -185,7 +185,7 @@ const FOUNDER_DEMO_ACTIVITY_PERIODS: ActivityPeriod[] = [
     growth: "+1 abonnement aujourd'hui",
     highlight: "Démarrage actif",
     trialsLine: [18, 34, 24, 40, 32, 54, 48, 66, 58, 74, 68, 82],
-    subscribersLine: [0, 1, 0, 3, 1, 6, 2, 4, 1, 5, 3, 7],
+    subscribersLine: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
     cancellationsLine: [2, 3, 2, 4, 3, 5, 4, 6, 5, 7, 6, 8],
     xLabels: ["08h", "09h", "10h", "11h", "12h", "13h", "14h", "15h", "16h", "17h", "18h", "19h"],
   },
@@ -199,7 +199,7 @@ const FOUNDER_DEMO_ACTIVITY_PERIODS: ActivityPeriod[] = [
     growth: "+18 % cette semaine",
     highlight: "7 ventes suivies",
     trialsLine: [22, 30, 38, 34, 46, 52, 60, 64, 72, 70, 78, 86],
-    subscribersLine: [1, 0, 3, 2, 6, 1, 4],
+    subscribersLine: [0, 1, 1, 3, 6, 6, 7],
     cancellationsLine: [3, 4, 4, 5, 6, 5, 7, 8, 7, 9, 10, 9],
     xLabels: ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"],
   },
@@ -213,7 +213,7 @@ const FOUNDER_DEMO_ACTIVITY_PERIODS: ActivityPeriod[] = [
     growth: "+56 % de conversion essai → vente",
     highlight: "76 ventes cumulées",
     trialsLine: [18, 35, 28, 52, 44, 70, 62, 86, 74, 95, 82, 100],
-    subscribersLine: [0, 2, 1, 6, 3, 9, 4, 7, 0, 11, 5, 14],
+    subscribersLine: [0, 4, 10, 15, 24, 30, 42, 48, 55, 64, 70, 76],
     cancellationsLine: [2, 5, 4, 8, 7, 12, 10, 14, 13, 18, 16, 20],
     xLabels: ["01", "04", "07", "10", "13", "16", "19", "22", "25", "28", "30", "31"],
   },
@@ -227,7 +227,7 @@ const FOUNDER_DEMO_ACTIVITY_PERIODS: ActivityPeriod[] = [
     growth: "+42 abonnés actifs conservés",
     highlight: "Tendance solide",
     trialsLine: [24, 31, 43, 50, 56, 63, 69, 76, 82, 88, 92, 98],
-    subscribersLine: [3, 0, 7, 4, 12, 6, 9, 2, 15, 8, 13, 18],
+    subscribersLine: [3, 8, 16, 24, 35, 43, 52, 58, 70, 81, 90, 98],
     cancellationsLine: [3, 4, 7, 8, 10, 12, 14, 15, 17, 18, 20, 22],
     xLabels: ["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10", "S11", "S12"],
   },
@@ -330,9 +330,7 @@ function buildSmoothPath(values: number[], width = 900, height = 230) {
   return points
     .map((point, index) => {
       if (index === 0) return `M ${point.x} ${point.y}`;
-      const previous = points[index - 1];
-      const cx = (previous.x + point.x) / 2;
-      return `C ${cx} ${previous.y}, ${cx} ${point.y}, ${point.x} ${point.y}`;
+      return `L ${point.x} ${point.y}`;
     })
     .join(" ");
 }
