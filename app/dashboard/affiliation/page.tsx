@@ -15,8 +15,8 @@ const CANVA_KIT_URL = "https://canva.link/146b24iq6gjzc1m";
 const COMMISSION_RATE = 0.6;
 
 const OFFERS = {
-  essentiel: { label: "Essentiel", price: 17, note: "Entrée simple" },
-  pro: { label: "Pro", price: 47, note: "Bon équilibre" },
+  essentiel: { label: "Essentiel", price: 29, note: "Entrée simple" },
+  pro: { label: "Pro", price: 67, note: "Bon équilibre" },
   ultime: { label: "Ultime", price: 97, note: "Plus rentable" },
 } as const;
 
