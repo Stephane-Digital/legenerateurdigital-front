@@ -327,21 +327,6 @@ function buildSmoothPath(values: number[], width = 900, height = 230) {
     .join(" ");
 }
 
-function ChartLegendDot({
-  colorClass,
-  label,
-}: {
-  colorClass: string;
-  label: string;
-}) {
-  return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/35 px-3 py-1.5 text-[11px] font-bold text-white/70 sm:text-xs">
-      <span className={`h-2.5 w-2.5 rounded-full ${colorClass}`} />
-      {label}
-    </span>
-  );
-}
-
 function ActivityMiniStat({
   label,
   value,
@@ -698,8 +683,8 @@ export default function AffiliationDashboardPage() {
           <Panel className="p-4 sm:p-7 lg:p-8">
             <SectionTitle
               eyebrow="Activité"
-              title="📈 Évolution de ton activité ambassadeur"
-              text="Prototype visuel avant branchement définitif sur les données webhook Systeme.io."
+              title="📈 Croissance de tes abonnés récurrents"
+              text="Vue claire et premium de la progression des abonnés actifs générés par ton activité ambassadeur."
             />
             <div className="mb-4 flex flex-wrap justify-center gap-2 sm:mb-5 sm:gap-3">
               {activityPeriods.map((period) => (
@@ -710,7 +695,7 @@ export default function AffiliationDashboardPage() {
                   className={[
                     "rounded-full border px-3 py-2 text-xs font-bold transition sm:px-4 sm:text-sm",
                     activePeriodKey === period.key
-                      ? "border-yellow-400/70 bg-yellow-500/15 text-yellow-100 shadow-[0_0_18px_rgba(255,184,0,0.12)]"
+                      ? "border-yellow-400/70 bg-yellow-500/15 text-yellow-100"
                       : "border-yellow-600/20 bg-[#0b0b0b] text-white/55 hover:bg-yellow-500/10 hover:text-yellow-100",
                   ].join(" ")}
                 >
@@ -726,10 +711,11 @@ export default function AffiliationDashboardPage() {
                 <ActivityMiniStat label="Commissions" value={euro(activePeriod.commissions)} tone="gold" />
               </div>
 
-              <div className="mt-4 flex flex-wrap justify-center gap-2">
-                <ChartLegendDot colorClass="bg-orange-400" label="Essais gratuits" />
-                <ChartLegendDot colorClass="bg-green-400" label="Abonnés actifs" />
-                <ChartLegendDot colorClass="bg-red-400" label="Désabonnements" />
+              <div className="mt-4 flex justify-center">
+                <span className="inline-flex items-center gap-2 rounded-full border border-green-400/20 bg-green-400/10 px-4 py-2 text-xs font-bold text-green-100">
+                  <span className="h-2.5 w-2.5 rounded-full bg-green-400" />
+                  Abonnés actifs
+                </span>
               </div>
 
               <div className="relative mt-4 h-[250px] overflow-hidden rounded-[22px] border border-yellow-600/12 bg-black/55 sm:h-[330px] sm:rounded-[26px]">
@@ -745,63 +731,16 @@ export default function AffiliationDashboardPage() {
                   preserveAspectRatio="none"
                   aria-hidden="true"
                 >
-                  <defs>
-                    <filter id={`glow-${activePeriod.key}`} x="-20%" y="-20%" width="140%" height="140%">
-                      <feGaussianBlur stdDeviation="4" result="blur" />
-                      <feMerge>
-                        <feMergeNode in="blur" />
-                        <feMergeNode in="SourceGraphic" />
-                      </feMerge>
-                    </filter>
-                    <linearGradient id={`orange-line-${activePeriod.key}`} x1="0" x2="1" y1="0" y2="0">
-                      <stop offset="0%" stopColor="#fb923c" />
-                      <stop offset="100%" stopColor="#ffb800" />
-                    </linearGradient>
-                    <linearGradient id={`green-line-${activePeriod.key}`} x1="0" x2="1" y1="0" y2="0">
-                      <stop offset="0%" stopColor="#22c55e" />
-                      <stop offset="100%" stopColor="#86efac" />
-                    </linearGradient>
-                    <linearGradient id={`red-line-${activePeriod.key}`} x1="0" x2="1" y1="0" y2="0">
-                      <stop offset="0%" stopColor="#ef4444" />
-                      <stop offset="100%" stopColor="#fb7185" />
-                    </linearGradient>
-                  </defs>
-
-                  <motion.path
-                    key={`trials-${activePeriod.key}`}
-                    d={buildSmoothPath(activePeriod.trialsLine)}
-                    fill="none"
-                    stroke={`url(#orange-line-${activePeriod.key})`}
-                    strokeWidth="8"
-                    strokeLinecap="round"
-                    filter={`url(#glow-${activePeriod.key})`}
-                    initial={{ pathLength: 0, opacity: 0 }}
-                    animate={{ pathLength: 1, opacity: 1 }}
-                    transition={{ duration: 0.7 }}
-                  />
                   <motion.path
                     key={`subscribers-${activePeriod.key}`}
                     d={buildSmoothPath(activePeriod.subscribersLine)}
                     fill="none"
-                    stroke={`url(#green-line-${activePeriod.key})`}
-                    strokeWidth="7"
+                    stroke="#22c55e"
+                    strokeWidth="3"
                     strokeLinecap="round"
-                    filter={`url(#glow-${activePeriod.key})`}
                     initial={{ pathLength: 0, opacity: 0 }}
                     animate={{ pathLength: 1, opacity: 1 }}
-                    transition={{ duration: 0.75, delay: 0.08 }}
-                  />
-                  <motion.path
-                    key={`cancellations-${activePeriod.key}`}
-                    d={buildSmoothPath(activePeriod.cancellationsLine)}
-                    fill="none"
-                    stroke={`url(#red-line-${activePeriod.key})`}
-                    strokeWidth="6"
-                    strokeLinecap="round"
-                    filter={`url(#glow-${activePeriod.key})`}
-                    initial={{ pathLength: 0, opacity: 0 }}
-                    animate={{ pathLength: 1, opacity: 0.9 }}
-                    transition={{ duration: 0.75, delay: 0.16 }}
+                    transition={{ duration: 0.75 }}
                   />
                 </svg>
 
@@ -812,7 +751,7 @@ export default function AffiliationDashboardPage() {
                   </div>
                   <div className="h-1.5 overflow-hidden rounded-full bg-white/8">
                     <div
-                      className="h-full rounded-full bg-gradient-to-r from-orange-400 via-green-300 to-[#ffb800]"
+                      className="h-full rounded-full bg-green-400"
                       style={{ width: founderDemo ? "76%" : "8%" }}
                     />
                   </div>
