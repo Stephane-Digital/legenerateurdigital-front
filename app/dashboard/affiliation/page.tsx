@@ -839,7 +839,7 @@ export default function AffiliationDashboardPage() {
                     d={buildSmoothPath(activePeriod.subscribersLine)}
                     fill="none"
                     stroke="#5cff85"
-                    strokeWidth="5"
+                    strokeWidth="2"
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     filter={`url(#sales-soft-glow-${activePeriod.key})`}
