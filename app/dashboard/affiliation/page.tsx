@@ -213,9 +213,9 @@ const FOUNDER_DEMO_ACTIVITY_PERIODS: ActivityPeriod[] = [
     growth: "+56 % de conversion essai → vente",
     highlight: "76 ventes ce mois-ci",
     trialsLine: [18, 35, 28, 52, 44, 70, 62, 86, 74, 95, 82, 100],
-    subscribersLine: [4, 6, 3, 8, 5, 10, 7, 12, 9, 6, 4, 2],
-    cancellationsLine: [2, 5, 4, 8, 7, 12, 10, 14, 13, 18, 16, 20],
-    xLabels: ["01", "04", "07", "10", "13", "16", "19", "22", "25", "28", "30", "31"],
+    subscribersLine: [3, 4, 2, 6, 4, 7, 5, 8, 6, 5, 3, 5, 4, 4, 2, 2, 3, 1, 1, 1],
+    cancellationsLine: [1, 1, 0, 2, 1, 2, 1, 3, 2, 2, 1, 2, 1, 2, 1, 1, 2, 0, 1, 0],
+    xLabels: ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20"],
   },
   {
     key: "quarter",
