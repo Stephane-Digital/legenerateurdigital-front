@@ -337,10 +337,22 @@ function buildChartPoints(values: number[], width = 900, height = 230) {
 function buildSmoothPath(values: number[], width = 900, height = 230) {
   const points = buildChartPoints(values, width, height);
 
+  if (points.length === 0) return "";
+  if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
+
   return points
     .map((point, index) => {
       if (index === 0) return `M ${point.x} ${point.y}`;
-      return `L ${point.x} ${point.y}`;
+
+      const previous = points[index - 1];
+      const next = points[index + 1] || point;
+      const smoothing = 0.22;
+      const controlX1 = previous.x + (point.x - previous.x) * smoothing;
+      const controlY1 = previous.y + (point.y - previous.y) * smoothing;
+      const controlX2 = point.x - (next.x - previous.x) * smoothing * 0.28;
+      const controlY2 = point.y - (next.y - previous.y) * smoothing * 0.28;
+
+      return `C ${controlX1} ${controlY1}, ${controlX2} ${controlY2}, ${point.x} ${point.y}`;
     })
     .join(" ");
 }
