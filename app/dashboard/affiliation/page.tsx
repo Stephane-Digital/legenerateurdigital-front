@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
+import { useMemo, useState } from "react";
 import AffiliationSubnav from "./components/AffiliationSubnav";
 import CopyField from "./components/CopyField";
 
@@ -185,7 +185,7 @@ const FOUNDER_DEMO_ACTIVITY_PERIODS: ActivityPeriod[] = [
     growth: "+1 abonnement aujourd'hui",
     highlight: "Démarrage actif",
     trialsLine: [18, 34, 24, 40, 32, 54, 48, 66, 58, 74, 68, 82],
-    subscribersLine: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    subscribersLine: [0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     cancellationsLine: [2, 3, 2, 4, 3, 5, 4, 6, 5, 7, 6, 8],
     xLabels: ["08h", "09h", "10h", "11h", "12h", "13h", "14h", "15h", "16h", "17h", "18h", "19h"],
   },
@@ -340,21 +340,36 @@ function buildSmoothPath(values: number[], width = 900, height = 230) {
   if (points.length === 0) return "";
   if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
 
-  return points
-    .map((point, index) => {
-      if (index === 0) return `M ${point.x} ${point.y}`;
+  const line = points.reduce((path, point, index) => {
+    if (index === 0) return `M ${point.x} ${point.y}`;
 
-      const previous = points[index - 1];
-      const next = points[index + 1] || point;
-      const smoothing = 0.22;
-      const controlX1 = previous.x + (point.x - previous.x) * smoothing;
-      const controlY1 = previous.y + (point.y - previous.y) * smoothing;
-      const controlX2 = point.x - (next.x - previous.x) * smoothing * 0.28;
-      const controlY2 = point.y - (next.y - previous.y) * smoothing * 0.28;
+    const previous = points[index - 1];
+    const beforePrevious = points[index - 2] || previous;
+    const next = points[index + 1] || point;
+    const tension = 0.42;
 
-      return `C ${controlX1} ${controlY1}, ${controlX2} ${controlY2}, ${point.x} ${point.y}`;
-    })
-    .join(" ");
+    const controlX1 = previous.x + (point.x - beforePrevious.x) * tension;
+    const controlY1 = previous.y + (point.y - beforePrevious.y) * tension;
+    const controlX2 = point.x - (next.x - previous.x) * tension;
+    const controlY2 = point.y - (next.y - previous.y) * tension;
+
+    return `${path} C ${controlX1} ${controlY1}, ${controlX2} ${controlY2}, ${point.x} ${point.y}`;
+  }, "");
+
+  return line;
+}
+
+function buildAreaPath(values: number[], width = 900, height = 230) {
+  const points = buildChartPoints(values, width, height);
+  const line = buildSmoothPath(values, width, height);
+
+  if (!line || points.length === 0) return "";
+
+  const first = points[0];
+  const last = points[points.length - 1];
+  const baseline = height;
+
+  return `${line} L ${last.x} ${baseline} L ${first.x} ${baseline} Z`;
 }
 
 
@@ -789,14 +804,45 @@ export default function AffiliationDashboardPage() {
                     );
                   })}
 
+                  <defs>
+                    <linearGradient
+                      id={`sales-area-gradient-${activePeriod.key}`}
+                      x1="0"
+                      x2="0"
+                      y1="0"
+                      y2="1"
+                    >
+                      <stop offset="0%" stopColor="#4ade80" stopOpacity="0.42" />
+                      <stop offset="45%" stopColor="#22c55e" stopOpacity="0.20" />
+                      <stop offset="100%" stopColor="#22c55e" stopOpacity="0" />
+                    </linearGradient>
+                    <filter id={`sales-soft-glow-${activePeriod.key}`} x="-20%" y="-20%" width="140%" height="140%">
+                      <feGaussianBlur stdDeviation="5" result="blur" />
+                      <feMerge>
+                        <feMergeNode in="blur" />
+                        <feMergeNode in="SourceGraphic" />
+                      </feMerge>
+                    </filter>
+                  </defs>
+
+                  <motion.path
+                    key={`sales-area-${activePeriod.key}`}
+                    d={buildAreaPath(activePeriod.subscribersLine)}
+                    fill={`url(#sales-area-gradient-${activePeriod.key})`}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.7 }}
+                  />
+
                   <motion.path
                     key={`subscribers-${activePeriod.key}`}
                     d={buildSmoothPath(activePeriod.subscribersLine)}
                     fill="none"
-                    stroke="#4ade80"
-                    strokeWidth="3"
+                    stroke="#5cff85"
+                    strokeWidth="5"
                     strokeLinecap="round"
                     strokeLinejoin="round"
+                    filter={`url(#sales-soft-glow-${activePeriod.key})`}
                     initial={{ pathLength: 0, opacity: 0 }}
                     animate={{ pathLength: 1, opacity: 1 }}
                     transition={{ duration: 0.75 }}
@@ -808,7 +854,7 @@ export default function AffiliationDashboardPage() {
                       cx={point.x}
                       cy={point.y}
                       r="5"
-                      fill="#4ade80"
+                      fill="#5cff85"
                       stroke="#0b0b0b"
                       strokeWidth="2"
                       initial={{ scale: 0, opacity: 0 }}
