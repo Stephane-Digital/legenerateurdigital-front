@@ -26,7 +26,7 @@ export default function AffiliationKitPage() {
             Kit Marketing Affiliation LGD
           </h1>
           <p className="mx-auto max-w-3xl text-sm text-gray-300 leading-relaxed sm:text-base">
-            Tout le contenu marketing affilié LGD est centralisé ici. Utilise ces ressources avec le format officiel : https://legenerateurdigital.systeme.io?sa=ton_identifiant.
+            Tout le contenu marketing affilié LGD est centralisé ici. Utilise ces ressources avec le format officiel : https://legenerateurdigital.systeme.io/lgd?sa=ton_identifiant.
           </p>
         </motion.div>
 
