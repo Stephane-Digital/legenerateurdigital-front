@@ -47,7 +47,7 @@ export default function AffiliationKitPage() {
                 Accède aux ressources et ajoute toujours ton identifiant Systeme.io à l’URL LGD.
               </h2>
               <p className="mx-auto mt-4 max-w-3xl text-sm text-gray-300 leading-relaxed sm:text-base">
-                Emails, scripts DM, hooks, CTA, posts réseaux sociaux, angles de vente, scripts Reels et visuels : tout est prêt. Tu ajoutes simplement ton lien au format https://legenerateurdigital.systeme.io?sa=ton_identifiant.
+                Emails, scripts DM, hooks, CTA, posts réseaux sociaux, angles de vente, scripts Reels et visuels : tout est prêt. Tu ajoutes simplement ton lien au format https://legenerateurdigital.systeme.io/lgd?sa=ton_identifiant.
               </p>
             </div>
 
