@@ -1176,7 +1176,7 @@ export default function AffiliationDashboardPage() {
           <SectionTitle
             eyebrow="Ressources"
             title="📚 Centre de Ressources Ambassadeur"
-            text="Tous les supports pour passer à l'action rapidement : visuels, kit, scripts, emails et conditions."
+            text="Tous les supports essentiels pour promouvoir LGD rapidement : visuels Canva et kit ambassadeur."
           />
           <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">
             <ResourceCard
@@ -1190,24 +1190,6 @@ export default function AffiliationDashboardPage() {
               title="Kit Ambassadeur"
               text="Support complet pour présenter LGD et vendre avec méthode."
               href={CANVA_KIT_URL}
-            />
-            <ResourceCard
-              icon="🎥"
-              title="Scripts Live"
-              text="Angles de lives pour présenter LGD sans pression commerciale."
-              href="/dashboard/affiliation/kit"
-            />
-            <ResourceCard
-              icon="✉️"
-              title="Emails de prospection"
-              text="Relances et messages prêts à adapter selon ton audience."
-              href="/dashboard/affiliation/kit"
-            />
-            <ResourceCard
-              icon="📜"
-              title="Paiements & conditions"
-              text="Règles de commission, validation 30 jours et paiement."
-              href="/dashboard/affiliation/payouts"
             />
           </div>
         </Panel>
