@@ -31,33 +31,53 @@ type StatCard = {
 
 const EMPTY_STATS: StatCard[] = [
   {
-    label: "Prospects envoyés",
-    value: "0",
-    helper: "En attente SIO",
+    label: "Premier prospect",
+    value: "À venir",
+    helper: "Partage ton lien",
     tone: "blue",
   },
   {
-    label: "Essais gratuits",
-    value: "0",
-    helper: "Lien recommandé",
+    label: "Premier essai",
+    value: "À venir",
+    helper: "Essai gratuit 7 jours",
     tone: "blue",
   },
-  { label: "Abonnés actifs", value: "0", helper: "Récurrent", tone: "green" },
+  {
+    label: "Premier abonné",
+    value: "À venir",
+    helper: "Commission récurrente",
+    tone: "green",
+  },
   {
     label: "Conversion",
-    value: "0 %",
-    helper: "Essais → abonnés",
+    value: "En attente",
+    helper: "Données réelles",
     tone: "gold",
   },
   {
-    label: "En attente",
-    value: "0 €",
+    label: "Commissions",
+    value: "À venir",
     helper: "Validation 30 jours",
     tone: "gold",
   },
-  { label: "Validées", value: "0 €", helper: "Payables", tone: "green" },
-  { label: "Annulées", value: "0 €", helper: "Avant 30 jours", tone: "red" },
-  { label: "CA généré", value: "0 €", helper: "Attribué", tone: "neutral" },
+  {
+    label: "Paiements",
+    value: "À venir",
+    helper: "Payables",
+    tone: "green",
+  },
+  {
+    label: "Historique",
+    value: "Vide",
+    helper: "Aucune annulation",
+    tone: "red",
+  },
+  {
+    label: "Potentiel",
+    value: "Illimité",
+    helper: "À toi de jouer",
+    tone: "neutral",
+  },
 ];
 
 const FOUNDER_DEMO_STATS: StatCard[] = [
@@ -729,7 +749,7 @@ export default function AffiliationDashboardPage() {
                 Revenus récurrents estimés
               </p>
               <p className="mt-3 text-4xl font-black text-white sm:mt-4 sm:text-6xl">
-                {founderDemo ? "1 184 €/mois" : "0 €/mois"}
+                {founderDemo ? "1 184 €/mois" : "Prêt à démarrer"}
               </p>
               <p className="mt-3 text-sm leading-6 text-white/55">
                 Les chiffres réels seront calculés depuis les événements
@@ -743,7 +763,7 @@ export default function AffiliationDashboardPage() {
               <p className="mt-2 text-xs text-white/45">
                 {founderDemo
                   ? "42 abonnés actifs • 76 ventes cumulées"
-                  : "0 / 5 abonnés actifs ce mois-ci"}
+                  : "Ton compteur démarrera avec ton premier abonné"}
               </p>
             </div>
           </div>
