@@ -117,7 +117,7 @@ export default function AffiliationKitPage() {
                   },
                   {
                     title: "3) Ajoute ton lien affilié",
-                    text: "Ajoute toujours ton lien affilié LGD au format https://legenerateurdigital.systeme.io?sa=ton_identifiant dans tes messages et publications.",
+                    text: "Ajoute toujours ton lien affilié LGD au format https://legenerateurdigital.systeme.io/lgd?sa=ton_identifiant dans tes messages et publications.",
                   },
                   {
                     title: "4) Passe à l’action",
