@@ -132,7 +132,7 @@ const FOUNDER_DEMO_ACTIVITY_ROWS = [
   {
     date: "Aujourd'hui",
     event: "Essai gratuit généré",
-    contact: "prospect-135@email.fr",
+    contact: "toullious@gmail.com",
     source: "Lien essai 7 jours",
     status: "Attribué",
     commission: "—",
@@ -140,18 +140,26 @@ const FOUNDER_DEMO_ACTIVITY_ROWS = [
   {
     date: "Hier",
     event: "Abonnement actif",
-    contact: "client-042@email.fr",
+    contact: "oualibadandiseverin@gmail.com",
     source: "Page vente LGD",
     status: "En validation 30 jours",
-    commission: "+58 €",
+    commission: "+58.20 €",
   },
   {
     date: "Cette semaine",
     event: "Commission validée",
-    contact: "client-031@email.fr",
+    contact: "entreprisemavis@gmail.com",
     source: "Systeme.io",
     status: "Payable le 10 suivant",
-    commission: "+28 €",
+    commission: "+40.20 €",
+  },
+  {
+    date: "Cette semaine",
+    event: "Commission validée",
+    contact: "laetitiaamour13@gmail.com",
+    source: "Systeme.io",
+    status: "Payable le 10 suivant",
+    commission: "+40.20 €",
   },
 ];
 
