@@ -137,6 +137,14 @@ const FOUNDER_DEMO_ACTIVITY_ROWS = [
     status: "Attribué",
     commission: "—",
   },
+   {
+    date: "Aujourd'hui",
+    event: "Essai gratuit généré",
+    contact: "affiliaverycom@gmail.com",
+    source: "Lien essai 7 jours",
+    status: "Attribué",
+    commission: "—",
+  },
   {
     date: "Hier",
     event: "Abonnement actif",
