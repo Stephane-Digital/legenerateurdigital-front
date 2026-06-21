@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 
 const items = [
   { href: "/dashboard/affiliation", label: "Vue d’ensemble" },
-  { href: "/dashboard/affiliation/kit", label: "Kit marketing" },
   { href: "/dashboard/affiliation/payouts", label: "Paiements" },
   { href: "/dashboard/affiliation/terms", label: "Conditions" },
 ];
