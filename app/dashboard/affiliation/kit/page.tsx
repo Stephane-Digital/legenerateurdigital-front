@@ -5,9 +5,9 @@ import { motion } from "framer-motion";
 import AffiliationSubnav from "../components/AffiliationSubnav";
 
 const GOOGLE_DOCS_LINK =
-  "https://docs.google.com/document/d/17VMKD7tfE1lLoMI9GGFF2NzgLy1MQxi00Rs2wPBRyxY/edit?tab=t.0";
+  "https://canva.link/146b24iq6gjzc1m";
 
-const CANVA_LINK = "https://www.canva.com/design/DAHH2J0asfQ/zPebjpAzUXWM7dO2b8E9Dw/view?utm_content=DAHH2J0asfQ&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=h1044b0fdc1";
+const CANVA_LINK = "https://canva.link/gotybx267eh8rb4";
 
 const buttonPrimary =
   "inline-flex items-center justify-center text-center whitespace-nowrap w-full sm:w-auto min-w-[240px] py-3 px-6 bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] text-black font-semibold rounded-2xl shadow-lg shadow-yellow-500/20 hover:shadow-yellow-400/40 hover:-translate-y-0.5 transition-all duration-300";
