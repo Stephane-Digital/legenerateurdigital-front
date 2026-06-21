@@ -58,7 +58,7 @@ export default function AffiliationKitPage() {
                 rel="noopener noreferrer"
                 className={buttonPrimary}
               >
-                Ouvrir le Google Docs
+                Ouvrir le kit ambassadeur LGD
               </a>
 
               <a
