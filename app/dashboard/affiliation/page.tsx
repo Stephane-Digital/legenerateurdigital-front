@@ -839,7 +839,7 @@ export default function AffiliationDashboardPage() {
                     d={buildSmoothPath(activePeriod.subscribersLine)}
                     fill="none"
                     stroke="#5cff85"
-                    strokeWidth="2"
+                    strokeWidth="5"
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     filter={`url(#sales-soft-glow-${activePeriod.key})`}
@@ -1194,8 +1194,8 @@ export default function AffiliationDashboardPage() {
             <ResourceCard
               icon="📚"
               title="Académie Ambassadeur"
-              text="Modules 1 à 10 pour comprendre quoi faire et dans quel ordre."
-              href="/dashboard/affiliation/kit"
+              text="Bientôt disponible : un parcours guidé pour apprendre à promouvoir LGD étape par étape."
+              href="/dashboard/affiliation/academy"
             />
             <ResourceCard
               icon="🎥"
