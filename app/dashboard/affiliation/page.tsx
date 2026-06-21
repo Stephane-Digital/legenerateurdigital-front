@@ -215,7 +215,7 @@ const FOUNDER_DEMO_ACTIVITY_PERIODS: ActivityPeriod[] = [
     growth: "+18 % cette semaine",
     highlight: "7 ventes cette semaine",
     trialsLine: [22, 30, 38, 34, 46, 52, 60, 64, 72, 70, 78, 86],
-    subscribersLine: [1, 0, 3, 2, 0, 1, 0],
+    subscribersLine: [1, 1, 1, 2, 1, 1, 0],
     cancellationsLine: [3, 4, 4, 5, 6, 5, 7, 8, 7, 9, 10, 9],
     xLabels: ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"],
   },
@@ -356,23 +356,31 @@ function buildSmoothPath(values: number[], width = 900, height = 230) {
   if (points.length === 0) return "";
   if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
 
-  const line = points.reduce((path, point, index) => {
-    if (index === 0) return `M ${point.x} ${point.y}`;
+  const path: string[] = [`M ${points[0].x} ${points[0].y}`];
 
-    const previous = points[index - 1];
-    const beforePrevious = points[index - 2] || previous;
-    const next = points[index + 1] || point;
-    const tension = 0.42;
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const current = points[index];
+    const next = points[index + 1];
+    const previous = points[index - 1] || current;
+    const afterNext = points[index + 2] || next;
 
-    const controlX1 = previous.x + (point.x - beforePrevious.x) * tension;
-    const controlY1 = previous.y + (point.y - beforePrevious.y) * tension;
-    const controlX2 = point.x - (next.x - previous.x) * tension;
-    const controlY2 = point.y - (next.y - previous.y) * tension;
+    const segmentWidth = next.x - current.x;
+    const smoothness = 0.24;
 
-    return `${path} C ${controlX1} ${controlY1}, ${controlX2} ${controlY2}, ${point.x} ${point.y}`;
-  }, "");
+    const currentSlope = Math.abs(next.y - previous.y) < 1 ? 0 : next.y - previous.y;
+    const nextSlope = Math.abs(afterNext.y - current.y) < 1 ? 0 : afterNext.y - current.y;
 
-  return line;
+    const controlX1 = current.x + segmentWidth * smoothness;
+    const controlY1 = current.y + currentSlope * smoothness;
+    const controlX2 = next.x - segmentWidth * smoothness;
+    const controlY2 = next.y - nextSlope * smoothness;
+
+    path.push(
+      `C ${controlX1} ${controlY1}, ${controlX2} ${controlY2}, ${next.x} ${next.y}`,
+    );
+  }
+
+  return path.join(" ");
 }
 
 function buildAreaPath(values: number[], width = 900, height = 230) {
@@ -833,7 +841,7 @@ export default function AffiliationDashboardPage() {
                       <stop offset="100%" stopColor="#22c55e" stopOpacity="0" />
                     </linearGradient>
                     <filter id={`sales-soft-glow-${activePeriod.key}`} x="-20%" y="-20%" width="140%" height="140%">
-                      <feGaussianBlur stdDeviation="5" result="blur" />
+                      <feGaussianBlur stdDeviation="3" result="blur" />
                       <feMerge>
                         <feMergeNode in="blur" />
                         <feMergeNode in="SourceGraphic" />
@@ -869,10 +877,10 @@ export default function AffiliationDashboardPage() {
                       key={`point-${activePeriod.key}-${index}`}
                       cx={point.x}
                       cy={point.y}
-                      r="5"
+                      r="4"
                       fill="#5cff85"
                       stroke="#0b0b0b"
-                      strokeWidth="2"
+                      strokeWidth="1.5"
                       initial={{ scale: 0, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
                       transition={{ duration: 0.25, delay: 0.18 + index * 0.025 }}
