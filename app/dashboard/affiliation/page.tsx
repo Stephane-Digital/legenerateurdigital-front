@@ -1192,12 +1192,6 @@ export default function AffiliationDashboardPage() {
               href={CANVA_KIT_URL}
             />
             <ResourceCard
-              icon="📚"
-              title="Académie Ambassadeur"
-              text="Bientôt disponible : un parcours guidé pour apprendre à promouvoir LGD étape par étape."
-              href="/dashboard/affiliation/academy"
-            />
-            <ResourceCard
               icon="🎥"
               title="Scripts Live"
               text="Angles de lives pour présenter LGD sans pression commerciale."
