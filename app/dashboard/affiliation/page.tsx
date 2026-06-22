@@ -1170,6 +1170,28 @@ export default function AffiliationDashboardPage() {
 
         <Panel className="p-4 sm:p-7 lg:p-8">
           <SectionTitle
+            eyebrow="Ressources"
+            title="📚 Centre de Ressources Ambassadeur"
+            text="Tous les supports essentiels pour promouvoir LGD rapidement : visuels Canva et kit ambassadeur."
+          />
+          <div className="mx-auto grid max-w-5xl gap-4 sm:grid-cols-2">
+            <ResourceCard
+              icon="🎨"
+              title="14 Visuels Canva"
+              text="Visuels prêts pour vos live TikTok, posts, stories et campagnes."
+              href={CANVA_VISUALS_URL}
+            />
+            <ResourceCard
+              icon="🤝"
+              title="Kit Ambassadeur"
+              text="Support complet pour présenter LGD et vendre avec méthode."
+              href={CANVA_KIT_URL}
+            />
+          </div>
+        </Panel>
+
+        <Panel className="p-4 sm:p-7 lg:p-8">
+          <SectionTitle
             eyebrow="Suivi"
             title="🧾 Activité récente"
             text="Cette zone sera alimentée par les webhooks Systeme.io : essais, ventes, annulations, paiements échoués et commissions."
@@ -1216,27 +1238,7 @@ export default function AffiliationDashboardPage() {
           </div>
         </Panel>
 
-        <Panel className="p-4 sm:p-7 lg:p-8">
-          <SectionTitle
-            eyebrow="Ressources"
-            title="📚 Centre de Ressources Ambassadeur"
-            text="Tous les supports essentiels pour promouvoir LGD rapidement : visuels Canva et kit ambassadeur."
-          />
-          <div className="mx-auto grid max-w-5xl gap-4 sm:grid-cols-2">
-            <ResourceCard
-              icon="🎨"
-              title="14 Visuels Canva"
-              text="Visuels prêts pour vos live TikTok, posts, stories et campagnes."
-              href={CANVA_VISUALS_URL}
-            />
-            <ResourceCard
-              icon="🤝"
-              title="Kit Ambassadeur"
-              text="Support complet pour présenter LGD et vendre avec méthode."
-              href={CANVA_KIT_URL}
-            />
-          </div>
-        </Panel>
+
       </div>
     </div>
   );
