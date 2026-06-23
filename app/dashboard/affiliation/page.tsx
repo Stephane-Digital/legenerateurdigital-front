@@ -101,11 +101,11 @@ const FOUNDER_DEMO_STATS: StatCard[] = [
     tone: "gold",
   },
   {
-    label: "En attente",
-    value: "859 €",
-    helper: "Validation 30 jours",
-    tone: "gold",
-  },
+  label: "En attente",
+  value: "175 €",
+  helper: "Validation 30 jours",
+  tone: "gold",
+},
   { label: "Validées", value: "1 184 €", helper: "Payables", tone: "green" },
   {
     label: "Annulées",
