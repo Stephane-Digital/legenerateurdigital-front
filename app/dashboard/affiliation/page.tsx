@@ -83,40 +83,40 @@ const EMPTY_STATS: StatCard[] = [
 const FOUNDER_DEMO_STATS: StatCard[] = [
   {
     label: "Prospects envoyés",
-    value: "135",
-    helper: "Sur 45 jours",
+    value: "3",
+    helper: "Aujourd'hui",
     tone: "blue",
   },
   {
     label: "Essais gratuits",
-    value: "135",
-    helper: "Lien recommandé",
+    value: "3",
+    helper: "Mardi 23/06",
     tone: "blue",
   },
-  { label: "Abonnés actifs", value: "42", helper: "Récurrent", tone: "green" },
+  { label: "Abonnés actifs", value: "3", helper: "Depuis le 21/06", tone: "green" },
   {
     label: "Conversion",
-    value: "56 %",
-    helper: "76 ventes cumulées",
+    value: "En cours",
+    helper: "Suivi 30 jours",
     tone: "gold",
   },
   {
     label: "En attente",
-    value: "684 €",
+    value: "175 €",
     helper: "Validation 30 jours",
     tone: "gold",
   },
-  { label: "Validées", value: "1 184 €", helper: "Payables", tone: "green" },
+  { label: "Validées", value: "0 €", helper: "À venir", tone: "green" },
   {
     label: "Annulées",
-    value: "34",
-    helper: "Avant/après validation",
+    value: "0",
+    helper: "Aucune annulation",
     tone: "red",
   },
   {
     label: "CA généré",
-    value: "5 832 €",
-    helper: "Abonnements attribués",
+    value: "291 €",
+    helper: "3 abonnements attribués",
     tone: "neutral",
   },
 ];
@@ -150,44 +150,52 @@ const EMPTY_ACTIVITY_ROWS = [
 
 const FOUNDER_DEMO_ACTIVITY_ROWS = [
   {
-    date: "Aujourd'hui",
+    date: "Mardi 23/06",
     event: "Essai gratuit généré",
-    contact: "toullious@gmail.com",
-    source: "Lien essai 7 jours",
-    status: "Attribué",
-    commission: "—",
-  },
-   {
-    date: "Aujourd'hui",
-    event: "Essai gratuit généré",
-    contact: "affiliaverycom@gmail.com",
+    contact: "contact.business.fr@gmail.com",
     source: "Lien essai 7 jours",
     status: "Attribué",
     commission: "—",
   },
   {
-    date: "Hier",
+    date: "Mardi 23/06",
+    event: "Essai gratuit généré",
+    contact: "formation.revenus.web@gmail.com",
+    source: "Lien essai 7 jours",
+    status: "Attribué",
+    commission: "—",
+  },
+  {
+    date: "Mardi 23/06",
+    event: "Essai gratuit généré",
+    contact: "entreprendre.en.ligne@gmail.com",
+    source: "Lien essai 7 jours",
+    status: "Attribué",
+    commission: "—",
+  },
+  {
+    date: "Lundi 22/06",
     event: "Abonnement actif",
-    contact: "oualibadandiseverin@gmail.com",
+    contact: "julien.martin.pro@gmail.com",
     source: "Lien LGD Systeme.io",
     status: "En validation 30 jours",
     commission: "+58.20 €",
   },
   {
-    date: "Cette semaine",
-    event: "Commission validée",
-    contact: "entreprisemavis@gmail.com",
+    date: "Lundi 22/06",
+    event: "Abonnement actif",
+    contact: "sophie.bernard.biz@gmail.com",
     source: "Lien LGD Systeme.io",
-    status: "Payable le 10 suivant",
-    commission: "+40.20 €",
+    status: "En validation 30 jours",
+    commission: "+58.20 €",
   },
   {
-    date: "Cette semaine",
-    event: "Commission validée",
-    contact: "laetitiaamour13@gmail.com",
+    date: "Dimanche 21/06",
+    event: "Abonnement actif",
+    contact: "thomas.durand.digital@gmail.com",
     source: "Lien LGD Systeme.io",
-    status: "Payable le 10 suivant",
-    commission: "+40.20 €",
+    status: "En validation 30 jours",
+    commission: "+58.20 €",
   },
 ];
 
@@ -215,57 +223,57 @@ const FOUNDER_DEMO_ACTIVITY_PERIODS: ActivityPeriod[] = [
     key: "today",
     label: "Aujourd'hui",
     prospects: 3,
-    trials: 2,
-    sales: 1,
-    commissions: 58,
-    growth: "+1 abonnement aujourd'hui",
-    highlight: "Démarrage actif",
-    trialsLine: [18, 34, 24, 40, 32, 54, 48, 66, 58, 74, 68, 82],
-    subscribersLine: [0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    cancellationsLine: [2, 3, 2, 4, 3, 5, 4, 6, 5, 7, 6, 8],
-    xLabels: ["08h", "09h", "10h", "11h", "12h", "13h", "14h", "15h", "16h", "17h", "18h", "19h"],
+    trials: 3,
+    sales: 0,
+    commissions: 0,
+    growth: "3 essais générés aujourd'hui",
+    highlight: "Mardi 23/06 : 3 essais gratuits",
+    trialsLine: [1, 2, 3],
+    subscribersLine: [0, 0, 0],
+    cancellationsLine: [0, 0, 0],
+    xLabels: ["Matin", "Midi", "Après-midi"],
   },
   {
     key: "week",
     label: "7 jours",
-    prospects: 18,
-    trials: 11,
-    sales: 7,
-    commissions: 406,
-    growth: "+18 % cette semaine",
-    highlight: "7 ventes cette semaine",
-    trialsLine: [22, 30, 38, 34, 46, 52, 60, 64, 72, 70, 78, 86],
-    subscribersLine: [1, 1, 1, 2, 1, 1, 0],
-    cancellationsLine: [3, 4, 4, 5, 6, 5, 7, 8, 7, 9, 10, 9],
-    xLabels: ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"],
+    prospects: 3,
+    trials: 3,
+    sales: 3,
+    commissions: 175,
+    growth: "+3 abonnés actifs en 3 jours",
+    highlight: "1 vente dimanche • 2 ventes lundi • 3 essais mardi",
+    trialsLine: [0, 0, 3],
+    subscribersLine: [1, 2, 0],
+    cancellationsLine: [0, 0, 0],
+    xLabels: ["Dim 21", "Lun 22", "Mar 23"],
   },
   {
     key: "month",
     label: "Mois",
-    prospects: 135,
-    trials: 135,
-    sales: 76,
-    commissions: 1184,
-    growth: "+56 % de conversion essai → vente",
-    highlight: "76 ventes ce mois-ci",
-    trialsLine: [18, 35, 28, 52, 44, 70, 62, 86, 74, 95, 82, 100],
-    subscribersLine: [3, 4, 2, 6, 4, 7, 5, 8, 6, 5, 3, 5, 4, 4, 2, 2, 3, 1, 1, 1],
-    cancellationsLine: [1, 1, 0, 2, 1, 2, 1, 3, 2, 2, 1, 2, 1, 2, 1, 1, 2, 0, 1, 0],
-    xLabels: ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20"],
+    prospects: 3,
+    trials: 3,
+    sales: 3,
+    commissions: 175,
+    growth: "3 abonnements en validation 30 jours",
+    highlight: "Activité réelle du 21/06 au 23/06",
+    trialsLine: [0, 0, 3],
+    subscribersLine: [1, 2, 0],
+    cancellationsLine: [0, 0, 0],
+    xLabels: ["21/06", "22/06", "23/06"],
   },
   {
     key: "quarter",
     label: "90 jours",
-    prospects: 220,
-    trials: 180,
-    sales: 98,
-    commissions: 1682,
-    growth: "+42 abonnés actifs conservés",
-    highlight: "98 ventes sur 90 jours",
-    trialsLine: [24, 31, 43, 50, 56, 63, 69, 76, 82, 88, 92, 98],
-    subscribersLine: [6, 4, 9, 8, 7, 12, 11, 9, 10, 8, 7, 7],
-    cancellationsLine: [3, 4, 7, 8, 10, 12, 14, 15, 17, 18, 20, 22],
-    xLabels: ["S14", "S15", "S16", "S17", "S18", "S19", "S20", "S21", "S22", "S23", "S24", "S25"],
+    prospects: 3,
+    trials: 3,
+    sales: 3,
+    commissions: 175,
+    growth: "Démarrage ambassadeur actif",
+    highlight: "Premiers signaux positifs",
+    trialsLine: [0, 0, 3],
+    subscribersLine: [1, 2, 0],
+    cancellationsLine: [0, 0, 0],
+    xLabels: ["21/06", "22/06", "23/06"],
   },
 ];
 
@@ -633,7 +641,7 @@ export default function AffiliationDashboardPage() {
   const [selectedOffer, setSelectedOffer] = useState<OfferKey>("ultime");
   const [subscriberGoal, setSubscriberGoal] = useState(10);
   const [founderDemo] = useState(() => isFounderDemoDashboard());
-  const [activePeriodKey, setActivePeriodKey] = useState<ActivityPeriodKey>("month");
+  const [activePeriodKey, setActivePeriodKey] = useState<ActivityPeriodKey>("week");
 
   const cleanAffiliateId = useMemo(
     () => normalizeAffiliateId(affiliateId) || DEFAULT_AFFILIATE_ID,
@@ -714,7 +722,7 @@ export default function AffiliationDashboardPage() {
                     Partenaire depuis
                   </p>
                   <p className="mt-2 text-xl font-black text-yellow-100 sm:text-2xl">
-                    {founderDemo ? "45 jours" : "0 jour"}
+                    {founderDemo ? "3 jours" : "0 jour"}
                   </p>
                 </div>
                 <div className="rounded-2xl border border-yellow-500/20 bg-black/35 p-3 text-center sm:p-4">
@@ -749,7 +757,7 @@ export default function AffiliationDashboardPage() {
                 Revenus récurrents estimés
               </p>
               <p className="mt-3 text-4xl font-black text-white sm:mt-4 sm:text-6xl">
-                {founderDemo ? "1 184 €/mois" : "Prêt à démarrer"}
+                {founderDemo ? "175 €/mois" : "Prêt à démarrer"}
               </p>
               <p className="mt-3 text-sm leading-6 text-white/55">
                 Les chiffres réels seront calculés depuis les événements
@@ -757,12 +765,12 @@ export default function AffiliationDashboardPage() {
               </p>
               <div className="mt-5 h-3 overflow-hidden rounded-full bg-white/10 sm:mt-6">
                 <div
-                  className={`h-full rounded-full bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] ${founderDemo ? "w-[84%]" : "w-[0%]"}`}
+                  className={`h-full rounded-full bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] ${founderDemo ? "w-[60%]" : "w-[0%]"}`}
                 />
               </div>
               <p className="mt-2 text-xs text-white/45">
                 {founderDemo
-                  ? "42 abonnés actifs • 76 ventes cumulées"
+                  ? "3 abonnés actifs • 3 ventes en validation"
                   : "Ton compteur démarrera avec ton premier abonné"}
               </p>
             </div>
@@ -935,7 +943,7 @@ export default function AffiliationDashboardPage() {
                   <div className="h-1.5 overflow-hidden rounded-full bg-white/8">
                     <div
                       className="h-full rounded-full bg-gradient-to-r from-green-400 to-[#ffb800]"
-                      style={{ width: founderDemo ? "76%" : "8%" }}
+                      style={{ width: founderDemo ? "60%" : "8%" }}
                     />
                   </div>
                 </div>
