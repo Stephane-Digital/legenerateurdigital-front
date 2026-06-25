@@ -1,6 +1,7 @@
 "use client";
 
 import { CANVAS_FORMATS, type CanvasFormatKey } from "../v5/config/formats";
+import { toPng } from "html-to-image";
 
 type LayerStyle = {
   color?: string;
@@ -19,8 +20,6 @@ type LayerStyle = {
   textDecoration?: string;
   letterSpacing?: number;
   textTransform?: string;
-
-  // Ombre texte
   textShadowEnabled?: boolean;
   textShadowColor?: string;
   textShadowBlur?: number;
@@ -207,6 +206,11 @@ function getLayerStyle(layer: LayerData): LayerStyle & Record<string, any> {
     lineHeight: typeof style.lineHeight === "number" ? style.lineHeight : layer?.lineHeight,
     color: style.color ?? style.fill ?? style.textColor ?? layer?.color ?? layer?.fill,
     fill: style.fill ?? layer?.fill,
+    textShadowEnabled: style.textShadowEnabled,
+    textShadowColor: style.textShadowColor,
+    textShadowBlur: style.textShadowBlur,
+    textShadowOffsetX: style.textShadowOffsetX,
+    textShadowOffsetY: style.textShadowOffsetY,
   };
 }
 
@@ -216,31 +220,16 @@ function getLayerTextAlign(style: Record<string, any>): "left" | "center" | "rig
   return "left";
 }
 
-function getTextShadowCss(style: Record<string, any>): string {
-  if (style?.textShadowEnabled !== true) return "none";
+function buildTextShadow(style: Record<string, any>) {
+  const enabled = style?.textShadowEnabled === true;
+  if (!enabled) return "none";
 
-  const color = firstNonEmptyString(style?.textShadowColor, "rgba(0,0,0,0.65)");
-  const blur = Math.max(0, Math.min(80, Number(style?.textShadowBlur ?? 0) || 0));
-  const offsetX = Math.max(-80, Math.min(80, Number(style?.textShadowOffsetX ?? 0) || 0));
-  const offsetY = Math.max(-80, Math.min(80, Number(style?.textShadowOffsetY ?? 0) || 0));
+  const color = firstNonEmptyString(style?.textShadowColor, "rgba(0,0,0,0.55)");
+  const blur = Math.max(0, Number(style?.textShadowBlur ?? 8) || 0);
+  const offsetX = Number(style?.textShadowOffsetX ?? 2) || 0;
+  const offsetY = Number(style?.textShadowOffsetY ?? 2) || 0;
 
-  if (blur <= 0 && offsetX === 0 && offsetY === 0) return "none";
   return `${offsetX}px ${offsetY}px ${blur}px ${color}`;
-}
-
-function applyCanvasTextShadow(ctx: CanvasRenderingContext2D, style: Record<string, any>) {
-  if (style?.textShadowEnabled !== true) {
-    ctx.shadowColor = "transparent";
-    ctx.shadowBlur = 0;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 0;
-    return;
-  }
-
-  ctx.shadowColor = firstNonEmptyString(style?.textShadowColor, "rgba(0,0,0,0.65)");
-  ctx.shadowBlur = Math.max(0, Math.min(80, Number(style?.textShadowBlur ?? 0) || 0));
-  ctx.shadowOffsetX = Math.max(-80, Math.min(80, Number(style?.textShadowOffsetX ?? 0) || 0));
-  ctx.shadowOffsetY = Math.max(-80, Math.min(80, Number(style?.textShadowOffsetY ?? 0) || 0));
 }
 
 function getTextLayerHtml(layer: LayerData) {
@@ -323,7 +312,6 @@ async function drawTextLayerRich(ctx: CanvasRenderingContext2D, layer: LayerData
   const textDecoration = String(style?.textDecoration || (style?.underline ? "underline" : "none"));
   const letterSpacing = typeof style?.letterSpacing === "number" ? `${style.letterSpacing}px` : "normal";
   const textTransform = style?.textTransform ? String(style.textTransform) : "none";
-  const textShadow = getTextShadowCss(style);
   const layerOpacity = typeof layer?.opacity === "number" ? layer.opacity : 1;
   const containerStyles = [
     `width:${w}px`,
@@ -337,7 +325,6 @@ async function drawTextLayerRich(ctx: CanvasRenderingContext2D, layer: LayerData
     `line-height:${lineHeight}`,
     `text-align:${textAlign}`,
     `text-decoration:${escapeXml(textDecoration)}`,
-    `text-shadow:${escapeXml(textShadow)}`,
     `white-space:pre-wrap`,
     `word-break:break-word`,
     `overflow-wrap:break-word`,
@@ -509,6 +496,95 @@ function wrapText(
   return lines;
 }
 
+async function renderTextLayerToImage(layer: LayerData) {
+  const text = String(layer?.text || "").trim();
+  if (!text) return null;
+
+  const w = Math.max(20, Math.round(getLayerW(layer, 520)));
+  const h = Math.max(20, Math.round(getLayerH(layer, 240)));
+  const style = getLayerStyle(layer);
+
+  await ensureFontReady(style);
+
+  const fontSize = Math.max(10, Number(style?.fontSize ?? 48) || 48);
+  const lineHeight = Math.max(0.8, Number(style?.lineHeight ?? 1.2) || 1.2);
+  const color = firstNonEmptyString(style?.fill, style?.color, style?.textColor, "#ffffff");
+  const backgroundColor = firstNonEmptyString(style?.backgroundColor, "");
+  const textAlign = getLayerTextAlign(style);
+  const opacity = Math.max(0, Math.min(1, Number(layer?.opacity ?? 1) || 1));
+  const paddingX = backgroundColor ? 22 : 0;
+  const paddingY = backgroundColor ? 16 : 0;
+  const fontFamily = normalizeFontFamily(style?.fontFamily);
+  const fontWeight = String(style?.fontWeight ?? 400);
+  const fontStyle = style?.italic || style?.fontStyle === "italic" ? "italic" : "normal";
+  const letterSpacing = typeof style?.letterSpacing === "number" ? `${style.letterSpacing}px` : "0px";
+  const textTransform = style?.textTransform ? String(style.textTransform) : "none";
+  const textDecoration = String(style?.textDecoration || (style?.underline ? "underline" : "none"));
+  const textShadow = buildTextShadow(style);
+  const html = getTextLayerHtml(layer);
+  const hasRichHtml = typeof layer?.html === "string" && layer.html.trim().length > 0;
+
+  const node = document.createElement("div");
+  node.style.position = "fixed";
+  node.style.left = "-20000px";
+  node.style.top = "0";
+  node.style.width = `${w}px`;
+  node.style.height = `${h}px`;
+  node.style.boxSizing = "border-box";
+  node.style.display = backgroundColor ? "flex" : "block";
+  node.style.alignItems = backgroundColor ? "center" : "flex-start";
+  node.style.justifyContent =
+    backgroundColor && textAlign === "center"
+      ? "center"
+      : backgroundColor && textAlign === "right"
+      ? "flex-end"
+      : "flex-start";
+  node.style.padding = `${paddingY}px ${paddingX}px`;
+  node.style.margin = "0";
+  node.style.overflow = "hidden";
+  node.style.whiteSpace = hasRichHtml ? "normal" : "pre-wrap";
+  node.style.wordBreak = "break-word";
+  node.style.overflowWrap = "anywhere";
+  node.style.background = backgroundColor || "transparent";
+  node.style.borderRadius = backgroundColor ? "18px" : "0px";
+  node.style.color = color;
+  node.style.fontFamily = `"${fontFamily}"`;
+  node.style.fontSize = `${fontSize}px`;
+  node.style.fontWeight = fontWeight;
+  node.style.fontStyle = fontStyle;
+  node.style.lineHeight = String(lineHeight);
+  node.style.letterSpacing = letterSpacing;
+  node.style.textTransform = textTransform;
+  node.style.textDecoration = textDecoration;
+  node.style.textAlign = textAlign;
+  node.style.textShadow = textShadow;
+  node.style.opacity = String(opacity);
+  node.style.transform = "translateZ(0)";
+  node.style.fontKerning = "normal";
+  (node.style as any).textRendering = "geometricPrecision";
+  node.innerHTML = html;
+
+  document.body.appendChild(node);
+
+  try {
+    await delay(40);
+    if (typeof document !== "undefined" && (document.fonts as any)?.ready) {
+      await (document.fonts as any).ready;
+    }
+
+    const dataUrl = await toPng(node, {
+      cacheBust: true,
+      pixelRatio: 1,
+      backgroundColor: "transparent",
+      skipAutoScale: true,
+    });
+
+    return await loadImage(dataUrl);
+  } finally {
+    node.remove();
+  }
+}
+
 async function drawTextLayer(
   ctx: CanvasRenderingContext2D,
   layer: LayerData
@@ -520,8 +596,22 @@ async function drawTextLayer(
   const y = getLayerY(layer);
   const w = getLayerW(layer, 520);
   const h = getLayerH(layer, 240);
-  const style = getLayerStyle(layer);
+  const opacity = Math.max(0, Math.min(1, Number(layer?.opacity ?? 1) || 1));
 
+  try {
+    const textImg = await renderTextLayerToImage(layer);
+    if (!textImg) return;
+
+    ctx.save();
+    ctx.globalAlpha = opacity;
+    ctx.drawImage(textImg, x, y, w, h);
+    ctx.restore();
+    return;
+  } catch {
+    // fallback canvas path if DOM rasterization fails
+  }
+
+  const style = getLayerStyle(layer);
   await ensureFontReady(style);
 
   const fontSize = Math.max(10, Number(style?.fontSize ?? 48) || 48);
@@ -529,7 +619,6 @@ async function drawTextLayer(
   const color = firstNonEmptyString(style?.fill, style?.color, style?.textColor, "#ffffff");
   const backgroundColor = firstNonEmptyString(style?.backgroundColor, "");
   const align = getLayerTextAlign(style) as CanvasTextAlign;
-  const opacity = Math.max(0, Math.min(1, Number(layer?.opacity ?? 1) || 1));
   const paddingX = backgroundColor ? 22 : 0;
   const paddingY = backgroundColor ? 16 : 0;
   const maxTextWidth = Math.max(40, w - paddingX * 2 - 12);
@@ -560,7 +649,13 @@ async function drawTextLayer(
 
   ctx.font = buildFont(style);
   ctx.fillStyle = color;
-  applyCanvasTextShadow(ctx, style);
+
+  if (style?.textShadowEnabled === true) {
+    ctx.shadowColor = firstNonEmptyString(style?.textShadowColor, "rgba(0,0,0,0.55)");
+    ctx.shadowBlur = Math.max(0, Number(style?.textShadowBlur ?? 8) || 0);
+    ctx.shadowOffsetX = Number(style?.textShadowOffsetX ?? 2) || 0;
+    ctx.shadowOffsetY = Number(style?.textShadowOffsetY ?? 2) || 0;
+  }
   ctx.textBaseline = "top";
   ctx.textAlign = align;
 
