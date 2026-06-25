@@ -177,6 +177,52 @@ function textToHtml(text: string) {
     .replace(/>/g, "&gt;");
 }
 
+function decodeHtmlEntities(value: string) {
+  if (typeof document === "undefined") {
+    return String(value ?? "")
+      .replace(/&nbsp;/g, " ")
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'");
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.innerHTML = String(value ?? "");
+  return textarea.value;
+}
+
+function htmlToPlainText(html: string) {
+  return decodeHtmlEntities(
+    String(html ?? "")
+      .replace(/<br\s*\/?\s*>/gi, "\n")
+      .replace(/<\/p\s*>/gi, "\n\n")
+      .replace(/<p[^>]*>/gi, "")
+      .replace(/<\/div\s*>/gi, "\n")
+      .replace(/<div[^>]*>/gi, "")
+      .replace(/<\/li\s*>/gi, "\n")
+      .replace(/<li[^>]*>/gi, "• ")
+      .replace(/<[^>]+>/g, "")
+  )
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function getLayerPlainText(layer: LayerData) {
+  if (typeof layer?.html === "string" && layer.html.trim()) {
+    const htmlText = htmlToPlainText(layer.html);
+    if (htmlText) return htmlText;
+  }
+
+  return String(layer?.text ?? "")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .trim();
+}
+
 function escapeXml(value: string) {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -268,7 +314,7 @@ async function ensureFontReady(style: Record<string, any>) {
 }
 
 async function drawTextLayerRich(ctx: CanvasRenderingContext2D, layer: LayerData) {
-  const text = String(layer?.text || "").trim();
+  const text = getLayerPlainText(layer);
   if (!text) return false;
 
   const x = getLayerX(layer);
@@ -322,7 +368,7 @@ async function drawTextLayerRich(ctx: CanvasRenderingContext2D, layer: LayerData
     `margin:0`,
   ].join(";");
 
-  const safeTextHtml = textToHtml(String(layer?.text ?? ""));
+  const safeTextHtml = textToHtml(text);
   const bodyHtml = `
     <div xmlns="http://www.w3.org/1999/xhtml" style="${containerStyles}">${safeTextHtml}</div>
   `;
@@ -509,7 +555,7 @@ async function drawTextLayer(
   ctx: CanvasRenderingContext2D,
   layer: LayerData
 ) {
-  const text = String(layer?.text || "").trim();
+  const text = getLayerPlainText(layer);
   if (!text) return;
 
   const x = getLayerX(layer);
