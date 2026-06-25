@@ -1,7 +1,6 @@
 "use client";
 
 import { CANVAS_FORMATS, type CanvasFormatKey } from "../v5/config/formats";
-import { toPng } from "html-to-image";
 
 type LayerStyle = {
   color?: string;
@@ -20,11 +19,6 @@ type LayerStyle = {
   textDecoration?: string;
   letterSpacing?: number;
   textTransform?: string;
-  textShadowEnabled?: boolean;
-  textShadowColor?: string;
-  textShadowBlur?: number;
-  textShadowOffsetX?: number;
-  textShadowOffsetY?: number;
 };
 
 type LayerData = {
@@ -206,11 +200,6 @@ function getLayerStyle(layer: LayerData): LayerStyle & Record<string, any> {
     lineHeight: typeof style.lineHeight === "number" ? style.lineHeight : layer?.lineHeight,
     color: style.color ?? style.fill ?? style.textColor ?? layer?.color ?? layer?.fill,
     fill: style.fill ?? layer?.fill,
-    textShadowEnabled: style.textShadowEnabled,
-    textShadowColor: style.textShadowColor,
-    textShadowBlur: style.textShadowBlur,
-    textShadowOffsetX: style.textShadowOffsetX,
-    textShadowOffsetY: style.textShadowOffsetY,
   };
 }
 
@@ -218,18 +207,6 @@ function getLayerTextAlign(style: Record<string, any>): "left" | "center" | "rig
   const value = String(style?.textAlign ?? style?.align ?? "left");
   if (value === "center" || value === "right" || value === "justify") return value;
   return "left";
-}
-
-function buildTextShadow(style: Record<string, any>) {
-  const enabled = style?.textShadowEnabled === true;
-  if (!enabled) return "none";
-
-  const color = firstNonEmptyString(style?.textShadowColor, "rgba(0,0,0,0.55)");
-  const blur = Math.max(0, Number(style?.textShadowBlur ?? 8) || 0);
-  const offsetX = Number(style?.textShadowOffsetX ?? 2) || 0;
-  const offsetY = Number(style?.textShadowOffsetY ?? 2) || 0;
-
-  return `${offsetX}px ${offsetY}px ${blur}px ${color}`;
 }
 
 function getTextLayerHtml(layer: LayerData) {
@@ -496,93 +473,36 @@ function wrapText(
   return lines;
 }
 
-async function renderTextLayerToImage(layer: LayerData) {
-  const text = String(layer?.text || "").trim();
-  if (!text) return null;
 
-  const w = Math.max(20, Math.round(getLayerW(layer, 520)));
-  const h = Math.max(20, Math.round(getLayerH(layer, 240)));
-  const style = getLayerStyle(layer);
-
-  await ensureFontReady(style);
-
-  const fontSize = Math.max(10, Number(style?.fontSize ?? 48) || 48);
-  const lineHeight = Math.max(0.8, Number(style?.lineHeight ?? 1.2) || 1.2);
-  const color = firstNonEmptyString(style?.fill, style?.color, style?.textColor, "#ffffff");
-  const backgroundColor = firstNonEmptyString(style?.backgroundColor, "");
-  const textAlign = getLayerTextAlign(style);
-  const opacity = Math.max(0, Math.min(1, Number(layer?.opacity ?? 1) || 1));
-  const paddingX = backgroundColor ? 22 : 0;
-  const paddingY = backgroundColor ? 16 : 0;
-  const fontFamily = normalizeFontFamily(style?.fontFamily);
-  const fontWeight = String(style?.fontWeight ?? 400);
-  const fontStyle = style?.italic || style?.fontStyle === "italic" ? "italic" : "normal";
-  const letterSpacing = typeof style?.letterSpacing === "number" ? `${style.letterSpacing}px` : "0px";
-  const textTransform = style?.textTransform ? String(style.textTransform) : "none";
-  const textDecoration = String(style?.textDecoration || (style?.underline ? "underline" : "none"));
-  const textShadow = buildTextShadow(style);
-  const html = getTextLayerHtml(layer);
-  const hasRichHtml = typeof layer?.html === "string" && layer.html.trim().length > 0;
-
-  const node = document.createElement("div");
-  node.style.position = "fixed";
-  node.style.left = "-20000px";
-  node.style.top = "0";
-  node.style.width = `${w}px`;
-  node.style.height = `${h}px`;
-  node.style.boxSizing = "border-box";
-  node.style.display = backgroundColor ? "flex" : "block";
-  node.style.alignItems = backgroundColor ? "center" : "flex-start";
-  node.style.justifyContent =
-    backgroundColor && textAlign === "center"
-      ? "center"
-      : backgroundColor && textAlign === "right"
-      ? "flex-end"
-      : "flex-start";
-  node.style.padding = `${paddingY}px ${paddingX}px`;
-  node.style.margin = "0";
-  node.style.overflow = "hidden";
-  node.style.whiteSpace = hasRichHtml ? "normal" : "pre-wrap";
-  node.style.wordBreak = "break-word";
-  node.style.overflowWrap = "anywhere";
-  node.style.background = backgroundColor || "transparent";
-  node.style.borderRadius = backgroundColor ? "18px" : "0px";
-  node.style.color = color;
-  node.style.fontFamily = `"${fontFamily}"`;
-  node.style.fontSize = `${fontSize}px`;
-  node.style.fontWeight = fontWeight;
-  node.style.fontStyle = fontStyle;
-  node.style.lineHeight = String(lineHeight);
-  node.style.letterSpacing = letterSpacing;
-  node.style.textTransform = textTransform;
-  node.style.textDecoration = textDecoration;
-  node.style.textAlign = textAlign;
-  node.style.textShadow = textShadow;
-  node.style.opacity = String(opacity);
-  node.style.transform = "translateZ(0)";
-  node.style.fontKerning = "normal";
-  (node.style as any).textRendering = "geometricPrecision";
-  node.innerHTML = html;
-
-  document.body.appendChild(node);
-
-  try {
-    await delay(40);
-    if (typeof document !== "undefined" && (document.fonts as any)?.ready) {
-      await (document.fonts as any).ready;
-    }
-
-    const dataUrl = await toPng(node, {
-      cacheBust: true,
-      pixelRatio: 1,
-      backgroundColor: "transparent",
-      skipAutoScale: true,
-    });
-
-    return await loadImage(dataUrl);
-  } finally {
-    node.remove();
+function drawTextWithLetterSpacing(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  letterSpacing: number
+) {
+  if (!letterSpacing) {
+    ctx.fillText(text, x, y);
+    return;
   }
+
+  const align = ctx.textAlign;
+  const totalWidth = text
+    .split("")
+    .reduce((sum, char, index) => sum + ctx.measureText(char).width + (index > 0 ? letterSpacing : 0), 0);
+
+  let drawX = x;
+  if (align === "center") drawX = x - totalWidth / 2;
+  if (align === "right" || align === "end") drawX = x - totalWidth;
+
+  ctx.save();
+  ctx.textAlign = "left";
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    ctx.fillText(char, drawX, y);
+    drawX += ctx.measureText(char).width + letterSpacing;
+  }
+  ctx.restore();
 }
 
 async function drawTextLayer(
@@ -597,19 +517,6 @@ async function drawTextLayer(
   const w = getLayerW(layer, 520);
   const h = getLayerH(layer, 240);
   const opacity = Math.max(0, Math.min(1, Number(layer?.opacity ?? 1) || 1));
-
-  try {
-    const textImg = await renderTextLayerToImage(layer);
-    if (!textImg) return;
-
-    ctx.save();
-    ctx.globalAlpha = opacity;
-    ctx.drawImage(textImg, x, y, w, h);
-    ctx.restore();
-    return;
-  } catch {
-    // fallback canvas path if DOM rasterization fails
-  }
 
   const style = getLayerStyle(layer);
   await ensureFontReady(style);
@@ -649,15 +556,10 @@ async function drawTextLayer(
 
   ctx.font = buildFont(style);
   ctx.fillStyle = color;
-
-  if (style?.textShadowEnabled === true) {
-    ctx.shadowColor = firstNonEmptyString(style?.textShadowColor, "rgba(0,0,0,0.55)");
-    ctx.shadowBlur = Math.max(0, Number(style?.textShadowBlur ?? 8) || 0);
-    ctx.shadowOffsetX = Number(style?.textShadowOffsetX ?? 2) || 0;
-    ctx.shadowOffsetY = Number(style?.textShadowOffsetY ?? 2) || 0;
-  }
   ctx.textBaseline = "top";
   ctx.textAlign = align;
+  ctx.lineJoin = "round";
+  ctx.miterLimit = 2;
 
   const lines = wrapText(ctx, text, maxTextWidth);
   const step = fontSize * lineHeight;
@@ -666,10 +568,12 @@ async function drawTextLayer(
   if (align === "center") drawX = x + w / 2;
   if (align === "right") drawX = x + w - paddingX - 6;
 
+  const letterSpacing = typeof style?.letterSpacing === "number" ? style.letterSpacing : 0;
+
   lines.forEach((line, index) => {
     const lineY = y + paddingY + 6 + index * step;
     if (lineY > y + h) return;
-    ctx.fillText(line, drawX, lineY, maxTextWidth);
+    drawTextWithLetterSpacing(ctx, line, drawX, lineY, letterSpacing);
 
     if (style?.underline) {
       const metrics = ctx.measureText(line);
