@@ -83,39 +83,39 @@ const EMPTY_STATS: StatCard[] = [
 const FOUNDER_DEMO_STATS: StatCard[] = [
   {
     label: "Prospects envoyés",
-    value: "140",
-    helper: "Sur 49 jours",
+    value: "164",
+    helper: "Sur 53 jours",
     tone: "blue",
   },
   {
     label: "Essais gratuits",
-    value: "138",
+    value: "160",
     helper: "Lien recommandé",
     tone: "blue",
   },
-  { label: "Abonnés actifs", value: "47", helper: "Récurrent", tone: "green" },
+  { label: "Abonnés actifs", value: "61", helper: "Récurrent", tone: "green" },
   {
     label: "Conversion",
     value: "59 %",
-    helper: "81 ventes cumulées",
+    helper: "95 ventes cumulées",
     tone: "gold",
   },
   {
   label: "En attente",
-  value: "291,40 €",
+  value: "689,80 €",
   helper: "Validation 30 jours",
   tone: "gold",
 },
   { label: "Validées", value: "1 184 €", helper: "Payables", tone: "green" },
   {
     label: "Annulées",
-    value: "34",
+    value: "35",
     helper: "Avant/après validation",
     tone: "red",
   },
   {
     label: "CA généré",
-    value: "6 317 €",
+    value: "6 981 €",
     helper: "Abonnements attribués",
     tone: "neutral",
   },
@@ -149,6 +149,118 @@ const EMPTY_ACTIVITY_ROWS = [
 ];
 
 const FOUNDER_DEMO_ACTIVITY_ROWS = [
+  {
+    date: "Aujourd'hui 29/06",
+    event: "Abonnement actif",
+    contact: "contactmarketing2026@gmail.com",
+    source: "Lien LGD Systeme.io",
+    status: "En validation 30 jours",
+    commission: "+40.20 €",
+  },
+  {
+    date: "Aujourd'hui 29/06",
+    event: "Abonnement actif",
+    contact: "entreprendrefacile@gmail.com",
+    source: "Lien LGD Systeme.io",
+    status: "En validation 30 jours",
+    commission: "+40.20 €",
+  },
+  {
+    date: "Aujourd'hui 29/06",
+    event: "Abonnement actif",
+    contact: "objectifbusiness@gmail.com",
+    source: "Lien LGD Systeme.io",
+    status: "En validation 30 jours",
+    commission: "+40.20 €",
+  },
+  {
+    date: "Aujourd'hui 29/06",
+    event: "Abonnement actif",
+    contact: "revenusdigitaux@gmail.com",
+    source: "Lien LGD Systeme.io",
+    status: "En validation 30 jours",
+    commission: "+17.40 €",
+  },
+  {
+    date: "Aujourd'hui 29/06",
+    event: "Abonnement actif",
+    contact: "freelancepro@gmail.com",
+    source: "Lien LGD Systeme.io",
+    status: "En validation 30 jours",
+    commission: "+17.40 €",
+  },
+  {
+    date: "Samedi 28/06",
+    event: "Abonnement actif",
+    contact: "studioindependant@gmail.com",
+    source: "Lien LGD Systeme.io",
+    status: "En validation 30 jours",
+    commission: "+17.40 €",
+  },
+  {
+    date: "Samedi 28/06",
+    event: "Abonnement actif",
+    contact: "objectifliberte2026@gmail.com",
+    source: "Lien LGD Systeme.io",
+    status: "En validation 30 jours",
+    commission: "+17.40 €",
+  },
+  {
+    date: "Vendredi 27/06",
+    event: "Abonnement actif",
+    contact: "businessstarter27@gmail.com",
+    source: "Lien LGD Systeme.io",
+    status: "En validation 30 jours",
+    commission: "+58.20 €",
+  },
+  {
+    date: "Vendredi 27/06",
+    event: "Abonnement actif",
+    contact: "marcheaction@gmail.com",
+    source: "Lien LGD Systeme.io",
+    status: "En validation 30 jours",
+    commission: "+40.20 €",
+  },
+  {
+    date: "Vendredi 27/06",
+    event: "Abonnement actif",
+    contact: "lancementdigital@gmail.com",
+    source: "Lien LGD Systeme.io",
+    status: "En validation 30 jours",
+    commission: "+17.40 €",
+  },
+  {
+    date: "Vendredi 27/06",
+    event: "Abonnement actif",
+    contact: "nouvelleactivite@gmail.com",
+    source: "Lien LGD Systeme.io",
+    status: "En validation 30 jours",
+    commission: "+17.40 €",
+  },
+  {
+    date: "Jeudi 26/06",
+    event: "Abonnement actif",
+    contact: "atelierdigital26@gmail.com",
+    source: "Lien LGD Systeme.io",
+    status: "En validation 30 jours",
+    commission: "+40.20 €",
+  },
+  {
+    date: "Jeudi 26/06",
+    event: "Abonnement actif",
+    contact: "monbusinessweb@gmail.com",
+    source: "Lien LGD Systeme.io",
+    status: "En validation 30 jours",
+    commission: "+17.40 €",
+  },
+  {
+    date: "Jeudi 26/06",
+    event: "Abonnement actif",
+    contact: "objectifclient@gmail.com",
+    source: "Lien LGD Systeme.io",
+    status: "En validation 30 jours",
+    commission: "+17.40 €",
+  },
   {
     date: "Aujourd'hui 25/06",
     event: "Abonnement actif",
@@ -279,54 +391,54 @@ const FOUNDER_DEMO_ACTIVITY_PERIODS: ActivityPeriod[] = [
   {
     key: "today",
     label: "Aujourd'hui",
-    prospects: 2,
-    trials: 0,
-    sales: 2,
-    commissions: 116,
-    growth: "+2 abonnements aujourd'hui",
-    highlight: "2 ventes générées aujourd'hui",
+    prospects: 5,
+    trials: 5,
+    sales: 5,
+    commissions: 155,
+    growth: "+5 abonnements aujourd'hui",
+    highlight: "5 ventes générées aujourd'hui",
     trialsLine: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    subscribersLine: [0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2],
+    subscribersLine: [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 5],
     cancellationsLine: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     xLabels: ["08h", "09h", "10h", "11h", "12h", "13h", "14h", "15h", "16h", "17h", "18h", "19h"],
   },
   {
     key: "week",
     label: "7 jours",
-    prospects: 23,
-    trials: 14,
-    sales: 12,
-    commissions: 697,
-    growth: "+2 abonnements aujourd'hui",
-    highlight: "12 ventes cette semaine",
+    prospects: 47,
+    trials: 36,
+    sales: 26,
+    commissions: 1095,
+    growth: "+14 abonnements depuis le 26/06",
+    highlight: "26 ventes cette semaine",
     trialsLine: [38, 34, 46, 52, 60, 64, 72, 70, 78, 86, 92, 98, 98, 98],
-    subscribersLine: [1, 2, 1, 1, 3, 0, 2],
+    subscribersLine: [2, 0, 2, 3, 4, 2, 5],
     cancellationsLine: [4, 5, 6, 5, 7, 8, 7, 9, 10, 9, 9, 10, 10, 10],
-    xLabels: ["Jeu", "Ven", "Sam", "Dim", "Lun", "Mar", "Mer"],
+    xLabels: ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"],
   },
   {
     key: "month",
     label: "Mois",
-    prospects: 140,
-    trials: 138,
-    sales: 81,
-    commissions: 1475,
+    prospects: 164,
+    trials: 160,
+    sales: 95,
+    commissions: 1873,
     growth: "+59 % de conversion essai → vente",
-    highlight: "81 ventes ce mois-ci",
-    trialsLine: [18, 35, 28, 52, 44, 70, 62, 86, 74, 95, 82, 100, 88, 72, 80, 64, 58, 50, 42, 45, 49, 52, 55, 55, 55],
-    subscribersLine: [3, 4, 2, 6, 4, 7, 5, 8, 6, 5, 3, 5, 4, 4, 2, 2, 3, 1, 1, 1, 1, 2, 0, 0, 2],
-    cancellationsLine: [1, 1, 0, 2, 1, 2, 1, 3, 2, 2, 1, 2, 1, 2, 1, 1, 2, 0, 1, 0, 0, 0, 0, 0, 0],
-    xLabels: ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25"],
+    highlight: "95 ventes ce mois-ci",
+    trialsLine: [18, 35, 28, 52, 44, 70, 62, 86, 74, 95, 82, 100, 88, 72, 80, 64, 58, 50, 42, 45, 49, 52, 55, 55, 55, 60, 63, 66, 70],
+    subscribersLine: [3, 4, 2, 6, 4, 7, 5, 8, 6, 5, 3, 5, 4, 4, 2, 2, 3, 1, 1, 1, 1, 2, 0, 0, 2, 3, 4, 2, 5],
+    cancellationsLine: [1, 1, 0, 2, 1, 2, 1, 3, 2, 2, 1, 2, 1, 2, 1, 1, 2, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+    xLabels: ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29"],
   },
   {
     key: "quarter",
     label: "90 jours",
-    prospects: 225,
-    trials: 183,
-    sales: 103,
-    commissions: 1973,
-    growth: "+47 abonnés actifs conservés",
-    highlight: "103 ventes sur 90 jours",
+    prospects: 249,
+    trials: 205,
+    sales: 117,
+    commissions: 2371,
+    growth: "+61 abonnés actifs conservés",
+    highlight: "117 ventes sur 90 jours",
     trialsLine: [24, 31, 43, 50, 56, 63, 69, 76, 82, 88, 92, 98, 103],
     subscribersLine: [6, 4, 9, 8, 7, 12, 11, 9, 10, 8, 7, 7, 12],
     cancellationsLine: [3, 4, 7, 8, 10, 12, 14, 15, 17, 18, 20, 22, 22],
@@ -779,7 +891,7 @@ export default function AffiliationDashboardPage() {
                     Partenaire depuis
                   </p>
                   <p className="mt-2 text-xl font-black text-yellow-100 sm:text-2xl">
-                    {founderDemo ? "49 jours" : "0 jour"}
+                    {founderDemo ? "53 jours" : "0 jour"}
                   </p>
                 </div>
                 <div className="rounded-2xl border border-yellow-500/20 bg-black/35 p-3 text-center sm:p-4">
@@ -814,7 +926,7 @@ export default function AffiliationDashboardPage() {
                 Revenus récurrents estimés
               </p>
               <p className="mt-3 text-4xl font-black text-white sm:mt-4 sm:text-6xl">
-                {founderDemo ? "1 475 €/mois" : "Prêt à démarrer"}
+                {founderDemo ? "1 873 €/mois" : "Prêt à démarrer"}
               </p>
               <p className="mt-3 text-sm leading-6 text-white/55">
                 Les chiffres réels seront calculés depuis les événements
@@ -827,7 +939,7 @@ export default function AffiliationDashboardPage() {
               </div>
               <p className="mt-2 text-xs text-white/45">
                 {founderDemo
-                  ? "47 abonnés actifs • 81 ventes cumulées"
+                  ? "61 abonnés actifs • 95 ventes cumulées"
                   : "Ton compteur démarrera avec ton premier abonné"}
               </p>
             </div>
