@@ -11,6 +11,7 @@ const EXAMPLE_AFFILIATE_ID = "sa02698613581505ce9959d1609a94205a3a64efb9";
 
 const CANVA_VISUALS_URL = "https://canva.link/gotybx267eh8rb4";
 const CANVA_KIT_URL = "https://canva.link/146b24iq6gjzc1m";
+const CANVA_MANUAL_URL = "https://canva.link/4wwrqllc4tagbnk";
 
 const COMMISSION_RATE = 0.6;
 
@@ -1349,9 +1350,9 @@ export default function AffiliationDashboardPage() {
           <SectionTitle
             eyebrow="Ressources"
             title="📚 Centre de Ressources Ambassadeur"
-            text="Tous les supports essentiels pour promouvoir LGD rapidement : visuels Canva et kit ambassadeur."
+            text="Tous les supports essentiels pour promouvoir LGD rapidement : visuels Canva, kit ambassadeur et manuel officiel de présentation."
           />
-          <div className="mx-auto grid max-w-5xl gap-4 sm:grid-cols-2">
+          <div className="mx-auto grid max-w-6xl gap-4 sm:grid-cols-2 xl:grid-cols-3">
             <ResourceCard
               icon="🎨"
               title="14 Visuels Canva"
@@ -1363,6 +1364,12 @@ export default function AffiliationDashboardPage() {
               title="Kit Ambassadeur"
               text="Support complet pour présenter LGD et vendre avec méthode."
               href={CANVA_KIT_URL}
+            />
+            <ResourceCard
+              icon="📘"
+              title="Manuel Officiel LGD"
+              text="Manuel de présentation pour guider les ambassadeurs dans leurs lives, démonstrations et échanges prospects."
+              href={CANVA_MANUAL_URL}
             />
           </div>
         </Panel>
