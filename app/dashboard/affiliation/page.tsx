@@ -11,7 +11,6 @@ const EXAMPLE_AFFILIATE_ID = "sa02698613581505ce9959d1609a94205a3a64efb9";
 
 const CANVA_VISUALS_URL = "https://canva.link/gotybx267eh8rb4";
 const CANVA_KIT_URL = "https://canva.link/146b24iq6gjzc1m";
-const CANVA_MANUAL_URL = "https://canva.link/4wwrqllc4tagbnk";
 
 const COMMISSION_RATE = 0.6;
 
@@ -84,26 +83,26 @@ const EMPTY_STATS: StatCard[] = [
 const FOUNDER_DEMO_STATS: StatCard[] = [
   {
     label: "Prospects envoyés",
-    value: "164",
-    helper: "Sur 53 jours",
+    value: "166",
+    helper: "Sur 54 jours",
     tone: "blue",
   },
   {
     label: "Essais gratuits",
-    value: "160",
+    value: "161",
     helper: "Lien recommandé",
     tone: "blue",
   },
-  { label: "Abonnés actifs", value: "61", helper: "Récurrent", tone: "green" },
+  { label: "Abonnés actifs", value: "62", helper: "Récurrent", tone: "green" },
   {
     label: "Conversion",
     value: "59 %",
-    helper: "95 ventes cumulées",
+    helper: "96 ventes cumulées",
     tone: "gold",
   },
   {
   label: "En attente",
-  value: "689,80 €",
+  value: "707,20 €",
   helper: "Validation 30 jours",
   tone: "gold",
 },
@@ -116,7 +115,7 @@ const FOUNDER_DEMO_STATS: StatCard[] = [
   },
   {
     label: "CA généré",
-    value: "6 981 €",
+    value: "7 010 €",
     helper: "Abonnements attribués",
     tone: "neutral",
   },
@@ -150,6 +149,14 @@ const EMPTY_ACTIVITY_ROWS = [
 ];
 
 const FOUNDER_DEMO_ACTIVITY_ROWS = [
+  {
+    date: "Aujourd'hui 30/06",
+    event: "Abonnement actif",
+    contact: "entreprendremaintenant@gmail.com",
+    source: "Lien LGD Systeme.io",
+    status: "En validation 30 jours",
+    commission: "+17.40 €",
+  },
   {
     date: "Aujourd'hui 29/06",
     event: "Abonnement actif",
@@ -392,54 +399,54 @@ const FOUNDER_DEMO_ACTIVITY_PERIODS: ActivityPeriod[] = [
   {
     key: "today",
     label: "Aujourd'hui",
-    prospects: 5,
-    trials: 5,
-    sales: 5,
-    commissions: 155,
-    growth: "+5 abonnements aujourd'hui",
-    highlight: "5 ventes générées aujourd'hui",
+    prospects: 1,
+    trials: 1,
+    sales: 1,
+    commissions: 17,
+    growth: "+1 abonnement aujourd'hui",
+    highlight: "1 vente générée aujourd'hui",
     trialsLine: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    subscribersLine: [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 5],
+    subscribersLine: [0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1],
     cancellationsLine: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     xLabels: ["08h", "09h", "10h", "11h", "12h", "13h", "14h", "15h", "16h", "17h", "18h", "19h"],
   },
   {
     key: "week",
     label: "7 jours",
-    prospects: 47,
-    trials: 36,
-    sales: 26,
-    commissions: 1095,
-    growth: "+14 abonnements depuis le 26/06",
-    highlight: "26 ventes cette semaine",
+    prospects: 49,
+    trials: 37,
+    sales: 27,
+    commissions: 1112,
+    growth: "+1 abonnement aujourd'hui",
+    highlight: "27 ventes cette semaine",
     trialsLine: [38, 34, 46, 52, 60, 64, 72, 70, 78, 86, 92, 98, 98, 98],
-    subscribersLine: [2, 0, 2, 3, 4, 2, 5],
+    subscribersLine: [0, 2, 3, 4, 2, 5, 1],
     cancellationsLine: [4, 5, 6, 5, 7, 8, 7, 9, 10, 9, 9, 10, 10, 10],
     xLabels: ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"],
   },
   {
     key: "month",
     label: "Mois",
-    prospects: 164,
-    trials: 160,
-    sales: 95,
-    commissions: 1873,
+    prospects: 166,
+    trials: 161,
+    sales: 96,
+    commissions: 1902,
     growth: "+59 % de conversion essai → vente",
-    highlight: "95 ventes ce mois-ci",
-    trialsLine: [18, 35, 28, 52, 44, 70, 62, 86, 74, 95, 82, 100, 88, 72, 80, 64, 58, 50, 42, 45, 49, 52, 55, 55, 55, 60, 63, 66, 70],
-    subscribersLine: [3, 4, 2, 6, 4, 7, 5, 8, 6, 5, 3, 5, 4, 4, 2, 2, 3, 1, 1, 1, 1, 2, 0, 0, 2, 3, 4, 2, 5],
-    cancellationsLine: [1, 1, 0, 2, 1, 2, 1, 3, 2, 2, 1, 2, 1, 2, 1, 1, 2, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-    xLabels: ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29"],
+    highlight: "96 ventes ce mois-ci",
+    trialsLine: [18, 35, 28, 52, 44, 70, 62, 86, 74, 95, 82, 100, 88, 72, 80, 64, 58, 50, 42, 45, 49, 52, 55, 55, 55, 60, 63, 66, 70, 71],
+    subscribersLine: [3, 4, 2, 6, 4, 7, 5, 8, 6, 5, 3, 5, 4, 4, 2, 2, 3, 1, 1, 1, 1, 2, 0, 0, 2, 3, 4, 2, 5, 1],
+    cancellationsLine: [1, 1, 0, 2, 1, 2, 1, 3, 2, 2, 1, 2, 1, 2, 1, 1, 2, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
+    xLabels: ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30"],
   },
   {
     key: "quarter",
     label: "90 jours",
-    prospects: 249,
-    trials: 205,
-    sales: 117,
-    commissions: 2371,
-    growth: "+61 abonnés actifs conservés",
-    highlight: "117 ventes sur 90 jours",
+    prospects: 251,
+    trials: 206,
+    sales: 118,
+    commissions: 2388,
+    growth: "+62 abonnés actifs conservés",
+    highlight: "118 ventes sur 90 jours",
     trialsLine: [24, 31, 43, 50, 56, 63, 69, 76, 82, 88, 92, 98, 103],
     subscribersLine: [6, 4, 9, 8, 7, 12, 11, 9, 10, 8, 7, 7, 12],
     cancellationsLine: [3, 4, 7, 8, 10, 12, 14, 15, 17, 18, 20, 22, 22],
@@ -892,7 +899,7 @@ export default function AffiliationDashboardPage() {
                     Partenaire depuis
                   </p>
                   <p className="mt-2 text-xl font-black text-yellow-100 sm:text-2xl">
-                    {founderDemo ? "53 jours" : "0 jour"}
+                    {founderDemo ? "54 jours" : "0 jour"}
                   </p>
                 </div>
                 <div className="rounded-2xl border border-yellow-500/20 bg-black/35 p-3 text-center sm:p-4">
@@ -927,7 +934,7 @@ export default function AffiliationDashboardPage() {
                 Revenus récurrents estimés
               </p>
               <p className="mt-3 text-4xl font-black text-white sm:mt-4 sm:text-6xl">
-                {founderDemo ? "1 873 €/mois" : "Prêt à démarrer"}
+                {founderDemo ? "1 902 €/mois" : "Prêt à démarrer"}
               </p>
               <p className="mt-3 text-sm leading-6 text-white/55">
                 Les chiffres réels seront calculés depuis les événements
@@ -940,7 +947,7 @@ export default function AffiliationDashboardPage() {
               </div>
               <p className="mt-2 text-xs text-white/45">
                 {founderDemo
-                  ? "61 abonnés actifs • 95 ventes cumulées"
+                  ? "62 abonnés actifs • 96 ventes cumulées"
                   : "Ton compteur démarrera avec ton premier abonné"}
               </p>
             </div>
@@ -1350,9 +1357,9 @@ export default function AffiliationDashboardPage() {
           <SectionTitle
             eyebrow="Ressources"
             title="📚 Centre de Ressources Ambassadeur"
-            text="Tous les supports essentiels pour promouvoir LGD rapidement : visuels Canva, kit ambassadeur et manuel officiel de présentation."
+            text="Tous les supports essentiels pour promouvoir LGD rapidement : visuels Canva et kit ambassadeur."
           />
-          <div className="mx-auto grid max-w-6xl gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="mx-auto grid max-w-5xl gap-4 sm:grid-cols-2">
             <ResourceCard
               icon="🎨"
               title="14 Visuels Canva"
@@ -1364,12 +1371,6 @@ export default function AffiliationDashboardPage() {
               title="Kit Ambassadeur"
               text="Support complet pour présenter LGD et vendre avec méthode."
               href={CANVA_KIT_URL}
-            />
-            <ResourceCard
-              icon="📘"
-              title="Manuel Officiel LGD"
-              text="Manuel de présentation pour guider les ambassadeurs dans leurs lives, démonstrations et échanges prospects."
-              href={CANVA_MANUAL_URL}
             />
           </div>
         </Panel>
