@@ -11,6 +11,7 @@ const EXAMPLE_AFFILIATE_ID = "sa02698613581505ce9959d1609a94205a3a64efb9";
 
 const CANVA_VISUALS_URL = "https://canva.link/gotybx267eh8rb4";
 const CANVA_KIT_URL = "https://canva.link/146b24iq6gjzc1m";
+const CANVA_MANUAL_URL = "https://canva.link/4wwrqllc4tagbnk";
 
 const COMMISSION_RATE = 0.6;
 
@@ -93,10 +94,10 @@ const FOUNDER_DEMO_STATS: StatCard[] = [
     helper: "Lien recommandé",
     tone: "blue",
   },
-  { label: "Abonnés actifs", value: "62", helper: "Récurrent", tone: "green" },
+  { label: "Abonnés actifs", value: "96", helper: "Récurrent", tone: "green" },
   {
     label: "Conversion",
-    value: "59 %",
+    value: "60 %",
     helper: "96 ventes cumulées",
     tone: "gold",
   },
@@ -109,8 +110,8 @@ const FOUNDER_DEMO_STATS: StatCard[] = [
   { label: "Validées", value: "1 184 €", helper: "Payables", tone: "green" },
   {
     label: "Annulées",
-    value: "35",
-    helper: "Avant/après validation",
+    value: "0",
+    helper: "Aucun désabonnement",
     tone: "red",
   },
   {
@@ -421,7 +422,7 @@ const FOUNDER_DEMO_ACTIVITY_PERIODS: ActivityPeriod[] = [
     highlight: "27 ventes cette semaine",
     trialsLine: [38, 34, 46, 52, 60, 64, 72, 70, 78, 86, 92, 98, 98, 98],
     subscribersLine: [0, 2, 3, 4, 2, 5, 1],
-    cancellationsLine: [4, 5, 6, 5, 7, 8, 7, 9, 10, 9, 9, 10, 10, 10],
+    cancellationsLine: [0, 0, 0, 0, 0, 0, 0],
     xLabels: ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"],
   },
   {
@@ -435,7 +436,7 @@ const FOUNDER_DEMO_ACTIVITY_PERIODS: ActivityPeriod[] = [
     highlight: "96 ventes ce mois-ci",
     trialsLine: [18, 35, 28, 52, 44, 70, 62, 86, 74, 95, 82, 100, 88, 72, 80, 64, 58, 50, 42, 45, 49, 52, 55, 55, 55, 60, 63, 66, 70, 71],
     subscribersLine: [3, 4, 2, 6, 4, 7, 5, 8, 6, 5, 3, 5, 4, 4, 2, 2, 3, 1, 1, 1, 1, 2, 0, 0, 2, 3, 4, 2, 5, 1],
-    cancellationsLine: [1, 1, 0, 2, 1, 2, 1, 3, 2, 2, 1, 2, 1, 2, 1, 1, 2, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
+    cancellationsLine: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     xLabels: ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30"],
   },
   {
@@ -449,7 +450,7 @@ const FOUNDER_DEMO_ACTIVITY_PERIODS: ActivityPeriod[] = [
     highlight: "118 ventes sur 90 jours",
     trialsLine: [24, 31, 43, 50, 56, 63, 69, 76, 82, 88, 92, 98, 103],
     subscribersLine: [6, 4, 9, 8, 7, 12, 11, 9, 10, 8, 7, 7, 12],
-    cancellationsLine: [3, 4, 7, 8, 10, 12, 14, 15, 17, 18, 20, 22, 22],
+    cancellationsLine: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     xLabels: ["S13", "S14", "S15", "S16", "S17", "S18", "S19", "S20", "S21", "S22", "S23", "S24", "S25"],
   },
 ];
@@ -466,7 +467,7 @@ const EMPTY_ACTIVITY_PERIODS: ActivityPeriod[] = [
     highlight: "À venir",
     trialsLine: [4, 6, 5, 8, 7, 9, 8, 10, 9, 12, 10, 14],
     subscribersLine: [0, 0, 0, 0, 0, 0, 0],
-    cancellationsLine: [0, 1, 0, 1, 1, 1, 1, 2, 1, 2, 2, 2],
+    cancellationsLine: [0, 0, 0, 0, 0, 0, 0],
     xLabels: ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"],
   },
   {
@@ -480,7 +481,7 @@ const EMPTY_ACTIVITY_PERIODS: ActivityPeriod[] = [
     highlight: "À venir",
     trialsLine: [4, 6, 5, 8, 7, 9, 8, 10, 9, 12, 10, 14],
     subscribersLine: [0, 0, 0, 0, 0, 0, 0],
-    cancellationsLine: [0, 1, 0, 1, 1, 1, 1, 2, 1, 2, 2, 2],
+    cancellationsLine: [0, 0, 0, 0, 0, 0, 0],
     xLabels: ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"],
   },
   {
@@ -494,7 +495,7 @@ const EMPTY_ACTIVITY_PERIODS: ActivityPeriod[] = [
     highlight: "À venir",
     trialsLine: [4, 6, 5, 8, 7, 9, 8, 10, 9, 12, 10, 14],
     subscribersLine: [0, 0, 0, 0, 0, 0, 0],
-    cancellationsLine: [0, 1, 0, 1, 1, 1, 1, 2, 1, 2, 2, 2],
+    cancellationsLine: [0, 0, 0, 0, 0, 0, 0],
     xLabels: ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"],
   },
   {
@@ -508,7 +509,7 @@ const EMPTY_ACTIVITY_PERIODS: ActivityPeriod[] = [
     highlight: "À venir",
     trialsLine: [4, 6, 5, 8, 7, 9, 8, 10, 9, 12, 10, 14],
     subscribersLine: [0, 0, 0, 0, 0, 0, 0],
-    cancellationsLine: [0, 1, 0, 1, 1, 1, 1, 2, 1, 2, 2, 2],
+    cancellationsLine: [0, 0, 0, 0, 0, 0, 0],
     xLabels: ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"],
   },
 ];
@@ -947,7 +948,7 @@ export default function AffiliationDashboardPage() {
               </div>
               <p className="mt-2 text-xs text-white/45">
                 {founderDemo
-                  ? "62 abonnés actifs • 96 ventes cumulées"
+                  ? "96 abonnés actifs • 96 ventes cumulées"
                   : "Ton compteur démarrera avec ton premier abonné"}
               </p>
             </div>
@@ -995,7 +996,7 @@ export default function AffiliationDashboardPage() {
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 <ActivityMiniStat label="Essais" value={String(activePeriod.trials)} tone="orange" />
                 <ActivityMiniStat label="Ventes" value={String(activePeriod.sales)} tone="green" />
-                <ActivityMiniStat label="Désabonnements" value={founderDemo ? String(Math.max(1, Math.round(activePeriod.sales * 0.18))) : "0"} tone="red" />
+                <ActivityMiniStat label="Désabonnements" value="0" tone="red" />
                 <ActivityMiniStat label="Commissions" value={euro(activePeriod.commissions)} tone="gold" />
               </div>
 
@@ -1357,9 +1358,9 @@ export default function AffiliationDashboardPage() {
           <SectionTitle
             eyebrow="Ressources"
             title="📚 Centre de Ressources Ambassadeur"
-            text="Tous les supports essentiels pour promouvoir LGD rapidement : visuels Canva et kit ambassadeur."
+            text="Tous les supports essentiels pour promouvoir LGD rapidement : visuels Canva, kit ambassadeur et manuel officiel."
           />
-          <div className="mx-auto grid max-w-5xl gap-4 sm:grid-cols-2">
+          <div className="mx-auto grid max-w-6xl gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <ResourceCard
               icon="🎨"
               title="14 Visuels Canva"
@@ -1371,6 +1372,12 @@ export default function AffiliationDashboardPage() {
               title="Kit Ambassadeur"
               text="Support complet pour présenter LGD et vendre avec méthode."
               href={CANVA_KIT_URL}
+            />
+            <ResourceCard
+              icon="📘"
+              title="Manuel Officiel LGD"
+              text="Le guide complet pour présenter LGD, répondre aux objections et réussir tes démonstrations."
+              href={CANVA_MANUAL_URL}
             />
           </div>
         </Panel>
