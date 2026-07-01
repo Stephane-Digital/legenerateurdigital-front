@@ -611,6 +611,15 @@ async function drawTextLayer(
   ctx.save();
   ctx.globalAlpha = opacity;
 
+  ctx.font = buildFont(style);
+  ctx.fillStyle = color;
+  ctx.textBaseline = "top";
+  ctx.textAlign = align;
+
+  const lines = wrapText(ctx, text, maxTextWidth);
+  const step = fontSize * lineHeight;
+  const h = Math.max(rawH, Math.ceil(lines.length * step + paddingY * 2 + 18));
+
   if (backgroundColor) {
     const radius = 18;
     const left = x;
@@ -631,15 +640,6 @@ async function drawTextLayer(
     ctx.fillStyle = backgroundColor;
     ctx.fill();
   }
-
-  ctx.font = buildFont(style);
-  ctx.fillStyle = color;
-  ctx.textBaseline = "top";
-  ctx.textAlign = align;
-
-  const lines = wrapText(ctx, text, maxTextWidth);
-  const step = fontSize * lineHeight;
-  const h = Math.max(rawH, Math.ceil(lines.length * step + paddingY * 2 + 18));
 
   let drawX = x + paddingX + 6;
   if (align === "center") drawX = x + w / 2;
