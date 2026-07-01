@@ -178,6 +178,63 @@ function textToHtml(text: string) {
     .replace(/>/g, "&gt;");
 }
 
+function decodeHtmlEntities(value: string) {
+  if (typeof document === "undefined") {
+    return String(value ?? "")
+      .replace(/&nbsp;/g, " ")
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'");
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.innerHTML = String(value ?? "");
+  return textarea.value;
+}
+
+function htmlToPlainText(html: string) {
+  return decodeHtmlEntities(
+    String(html ?? "")
+      .replace(/<br\s*\/?\s*>/gi, "\n")
+      .replace(/<\/p\s*>/gi, "\n\n")
+      .replace(/<p[^>]*>/gi, "")
+      .replace(/<\/div\s*>/gi, "\n")
+      .replace(/<div[^>]*>/gi, "")
+      .replace(/<\/li\s*>/gi, "\n")
+      .replace(/<li[^>]*>/gi, "• ")
+      .replace(/<[^>]+>/g, "")
+  )
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function getLayerPlainText(layer: LayerData) {
+  if (typeof layer?.html === "string" && layer.html.trim()) {
+    const htmlText = htmlToPlainText(layer.html);
+    if (htmlText) return htmlText;
+  }
+
+  return String(layer?.text ?? "")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .trim();
+}
+
+function normalizeTextLayerHtml(layer: LayerData) {
+  if (typeof layer?.html === "string" && layer.html.trim()) {
+    return layer.html
+      .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "")
+      .replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, "");
+  }
+
+  return textToHtml(String(layer?.text ?? "")).replace(/\n/g, "<br />");
+}
+
+
 function escapeXml(value: string) {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -211,8 +268,7 @@ function getLayerTextAlign(style: Record<string, any>): "left" | "center" | "rig
 }
 
 function getTextLayerHtml(layer: LayerData) {
-  if (typeof layer?.html === "string" && layer.html.trim()) return layer.html;
-  return textToHtml(String(layer?.text ?? ""));
+  return normalizeTextLayerHtml(layer);
 }
 
 function svgMarkupToDataUrl(svg: string) {
@@ -269,7 +325,7 @@ async function ensureFontReady(style: Record<string, any>) {
 }
 
 async function drawTextLayerRich(ctx: CanvasRenderingContext2D, layer: LayerData) {
-  const text = String(layer?.text || "").trim();
+  const text = getLayerPlainText(layer);
   if (!text) return false;
 
   const x = getLayerX(layer);
@@ -328,7 +384,7 @@ async function drawTextLayerRich(ctx: CanvasRenderingContext2D, layer: LayerData
     `margin:0`,
   ].join(";");
 
-  const safeTextHtml = textToHtml(String(layer?.text ?? ""));
+  const safeTextHtml = getTextLayerHtml(layer);
   const bodyHtml = `
     <div xmlns="http://www.w3.org/1999/xhtml" style="${containerStyles}">${safeTextHtml}</div>
   `;
@@ -480,7 +536,7 @@ function wrapText(
 }
 
 async function renderTextLayerToImage(layer: LayerData) {
-  const text = String(layer?.text || "").trim();
+  const text = getLayerPlainText(layer);
   if (!text) return null;
 
   const w = Math.max(20, Math.round(getLayerW(layer, 520)));
@@ -546,7 +602,7 @@ async function renderTextLayerToImage(layer: LayerData) {
   node.style.transform = "translateZ(0)";
   node.style.fontKerning = "normal";
   (node.style as any).textRendering = "geometricPrecision";
-  node.textContent = String(layer?.text ?? "");
+  node.innerHTML = getTextLayerHtml(layer);
 
   document.body.appendChild(node);
 
@@ -573,7 +629,7 @@ async function drawTextLayer(
   ctx: CanvasRenderingContext2D,
   layer: LayerData
 ) {
-  const text = String(layer?.text || "").trim();
+  const text = getLayerPlainText(layer);
   if (!text) return;
 
   const x = getLayerX(layer);
@@ -608,9 +664,6 @@ async function drawTextLayer(
   const paddingY = backgroundColor ? 16 : 0;
   const maxTextWidth = Math.max(40, w - paddingX * 2 - 12);
 
-  ctx.save();
-  ctx.globalAlpha = opacity;
-
   ctx.font = buildFont(style);
   ctx.fillStyle = color;
   ctx.textBaseline = "top";
@@ -619,6 +672,9 @@ async function drawTextLayer(
   const lines = wrapText(ctx, text, maxTextWidth);
   const step = fontSize * lineHeight;
   const h = Math.max(rawH, Math.ceil(lines.length * step + paddingY * 2 + 18));
+
+  ctx.save();
+  ctx.globalAlpha = opacity;
 
   if (backgroundColor) {
     const radius = 18;
@@ -841,4 +897,3 @@ export async function renderEditorCreationToDataUrl(args: {
   if (!fallbackLayers.length) throw new Error("Aucun contenu carrousel à rendre.");
   return renderSingleCreationToDataUrl({ layers: fallbackLayers, ui: draft?.ui });
 }
-
