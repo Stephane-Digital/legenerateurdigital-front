@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { renderEditorCreationToDataUrl } from "../../utils/downloadEditorCreation";
+import { renderEditorCreationToDataUrl } from "../editor/utils/downloadEditorCreation";
 
 type Network = "instagram" | "facebook" | "linkedin" | string;
 
