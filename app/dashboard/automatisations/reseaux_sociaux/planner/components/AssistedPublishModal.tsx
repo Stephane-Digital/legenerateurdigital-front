@@ -940,20 +940,26 @@ async function exportPreviewCanvasImage(params: {
       ctx.shadowBlur = 10;
       ctx.shadowOffsetY = 2;
 
-      const words = String(layer.text).split(/\s+/);
       const lines: string[] = [];
-      let currentLine = "";
-
-      for (const word of words) {
-        const tentative = currentLine ? `${currentLine} ${word}` : word;
-        if (ctx.measureText(tentative).width <= maxWidth || !currentLine) {
-          currentLine = tentative;
-        } else {
-          lines.push(currentLine);
-          currentLine = word;
+      for (const rawLine of String(layer.text).replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n")) {
+        const words = rawLine.split(/\s+/).filter(Boolean);
+        if (!words.length) {
+          lines.push("");
+          continue;
         }
+
+        let currentLine = words[0];
+        for (let index = 1; index < words.length; index += 1) {
+          const tentative = `${currentLine} ${words[index]}`;
+          if (ctx.measureText(tentative).width <= maxWidth) {
+            currentLine = tentative;
+          } else {
+            lines.push(currentLine);
+            currentLine = words[index];
+          }
+        }
+        lines.push(currentLine);
       }
-      if (currentLine) lines.push(currentLine);
 
       const drawX = align === "center" ? x + maxWidth / 2 : align === "right" ? x + maxWidth : x;
       lines.forEach((line, index) => {
@@ -1117,7 +1123,7 @@ function PreviewCanvasView({ canvas }: { canvas: PreviewCanvas }) {
                     whiteSpace: "pre-wrap",
                     lineHeight: 1.1,
                     textShadow: "0 2px 10px rgba(0,0,0,0.45)",
-                    overflow: "hidden",
+                    overflow: "visible",
                   }}
                 >
                   {layer.text}
@@ -1474,11 +1480,10 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
   }, [open]);
 
   useEffect(() => {
-    // LGD FIX — si une image exacte est déjà enregistrée depuis l’éditeur,
-    // on l’utilise en priorité et on ne tente PAS de reconstruire depuis les layers.
-    // Cela évite le faux rouge console "Aucun layer de post à rendre" tout en
-    // conservant le fallback rendu fidèle pour les anciens posts sans preview.
-    if (!open || !post || exactPreviewImage) {
+    // LGD FIX LIVE — si les layers/slides existent, on reconstruit toujours
+    // l'aperçu avec le moteur de rendu réel de l'éditeur.
+    // Les images exactPreviewImage anciennes restent uniquement en fallback.
+    if (!open || !post) {
       setEditorPreviewUrl("");
       setEditorPreviewLoading(false);
       return;
@@ -1540,7 +1545,7 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
       window.clearTimeout(t2);
       window.clearTimeout(t3);
     };
-  }, [open, post?.id, editorRenderSpec, exactPreviewImage]);
+  }, [open, post?.id, editorRenderSpec]);
 
   if (!open || !post) return null;
 
@@ -1570,6 +1575,15 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
     try {
       setExporting(format);
 
+      if (editorPreviewUrl) {
+        await exportDataUrlImage({
+          dataUrl: editorPreviewUrl,
+          title: title || "publication-lgd",
+          format,
+        });
+        return;
+      }
+
       if (exactPreviewImage && exactPreviewImage.startsWith("data:image/")) {
         await exportDataUrlImage({
           dataUrl: exactPreviewImage,
@@ -1582,15 +1596,6 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
       if (exactPreviewImage) {
         await exportMediaUrlImage({
           mediaUrl: exactPreviewImage,
-          title: title || "publication-lgd",
-          format,
-        });
-        return;
-      }
-
-      if (editorPreviewUrl) {
-        await exportDataUrlImage({
-          dataUrl: editorPreviewUrl,
           title: title || "publication-lgd",
           format,
         });
@@ -2033,19 +2038,7 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
               </div>
 
               <div className="mt-4 space-y-4 rounded-2xl border border-dashed border-white/10 bg-black/20 p-4 text-sm text-white/70">
-                {exactPreviewImage ? (
-                  <div className="rounded-2xl border border-yellow-500/20 bg-black/30 p-3">
-                    <div className="mb-3 flex items-center gap-2 text-sm text-yellow-200">
-                      <ImageIcon className="h-4 w-4 text-yellow-400" />
-                      Aperçu exact enregistré depuis l’éditeur.
-                    </div>
-                    <img
-                      src={exactPreviewImage}
-                      alt="aperçu exact"
-                      className="max-h-[560px] w-full rounded-xl border border-white/10 object-contain bg-black/40"
-                    />
-                  </div>
-                ) : editorPreviewLoading ? (
+                {editorPreviewLoading ? (
                   <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/5 px-4 py-4 text-sm text-yellow-200">
                     Préparation du rendu fidèle depuis l’éditeur…
                   </div>
@@ -2058,6 +2051,18 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
                     <img
                       src={editorPreviewUrl}
                       alt="aperçu fidèle"
+                      className="max-h-[560px] w-full rounded-xl border border-white/10 object-contain bg-black/40"
+                    />
+                  </div>
+                ) : exactPreviewImage ? (
+                  <div className="rounded-2xl border border-yellow-500/20 bg-black/30 p-3">
+                    <div className="mb-3 flex items-center gap-2 text-sm text-yellow-200">
+                      <ImageIcon className="h-4 w-4 text-yellow-400" />
+                      Aperçu enregistré depuis l’éditeur.
+                    </div>
+                    <img
+                      src={exactPreviewImage}
+                      alt="aperçu enregistré"
                       className="max-h-[560px] w-full rounded-xl border border-white/10 object-contain bg-black/40"
                     />
                   </div>
@@ -2081,7 +2086,7 @@ export default function AssistedPublishModal({ open, post, onClose, onMarkStatus
                   </p>
                 )}
 
-                {!exactPreviewImage && !previewCanvas && mediaUrls.length > 1 && (
+                {!editorPreviewUrl && !exactPreviewImage && !previewCanvas && mediaUrls.length > 1 && (
                   <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-3">
                     <p className="mb-2 text-xs uppercase tracking-[0.18em] text-yellow-300/80">Médias détectés</p>
                     <div className="space-y-2">
