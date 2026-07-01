@@ -762,28 +762,41 @@ export async function renderSingleCreationToDataUrl(args: {
     .filter((layer) => layer && layer !== backgroundLayer)
     .sort((a, b) => Number(a?.zIndex ?? 0) - Number(b?.zIndex ?? 0));
 
-  for (const layer of drawableLayers) {
+  // LGD FIX LIVE — rendu stable Éditeur → Planner.
+  // Certains drafts sauvegardent les layers dans l'ordre UI (textes avant image)
+  // avec des zIndex absents ou identiques. Si on dessine strictement cet ordre,
+  // l'image est dessinée après les textes et les recouvre entièrement.
+  // On force donc un ordre de rendu sûr : médias d'abord, textes ensuite.
+  const imageLayers = drawableLayers.filter(
+    (layer) => String(layer?.type || "").toLowerCase() === "image" && !!layer?.src,
+  );
+
+  const textLayers = drawableLayers.filter((layer) => {
     const type = String(layer?.type || "").toLowerCase();
+    return (
+      type === "text" ||
+      type.includes("text") ||
+      !!getLayerPlainText(layer)
+    );
+  });
 
-    if (type === "image" && layer?.src) {
-      try {
-        await drawImageCover(
-          ctx,
-          layer.src,
-          getLayerX(layer),
-          getLayerY(layer),
-          getLayerW(layer, 360),
-          getLayerH(layer, 360)
-        );
-      } catch {
-        // ignore
-      }
-      continue;
+  for (const layer of imageLayers) {
+    try {
+      await drawImageCover(
+        ctx,
+        layer.src || "",
+        getLayerX(layer),
+        getLayerY(layer),
+        getLayerW(layer, 360),
+        getLayerH(layer, 360)
+      );
+    } catch {
+      // ignore
     }
+  }
 
-    if (type === "text") {
-      await drawTextLayer(ctx, layer);
-    }
+  for (const layer of textLayers) {
+    await drawTextLayer(ctx, layer);
   }
 
   return canvas.toDataURL("image/png");
