@@ -1,7 +1,6 @@
 "use client";
 
 import { CANVAS_FORMATS, type CanvasFormatKey } from "../v5/config/formats";
-import { toPng } from "html-to-image";
 
 type LayerStyle = {
   color?: string;
@@ -224,17 +223,6 @@ function getLayerPlainText(layer: LayerData) {
     .trim();
 }
 
-function normalizeTextLayerHtml(layer: LayerData) {
-  if (typeof layer?.html === "string" && layer.html.trim()) {
-    return layer.html
-      .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "")
-      .replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, "");
-  }
-
-  return textToHtml(String(layer?.text ?? "")).replace(/\n/g, "<br />");
-}
-
-
 function escapeXml(value: string) {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -268,7 +256,8 @@ function getLayerTextAlign(style: Record<string, any>): "left" | "center" | "rig
 }
 
 function getTextLayerHtml(layer: LayerData) {
-  return normalizeTextLayerHtml(layer);
+  if (typeof layer?.html === "string" && layer.html.trim()) return layer.html;
+  return textToHtml(String(layer?.text ?? ""));
 }
 
 function svgMarkupToDataUrl(svg: string) {
@@ -331,7 +320,7 @@ async function drawTextLayerRich(ctx: CanvasRenderingContext2D, layer: LayerData
   const x = getLayerX(layer);
   const y = getLayerY(layer);
   const w = Math.max(20, Math.round(getLayerW(layer, 520)));
-  const rawH = Math.max(20, Math.round(getLayerH(layer, 240)));
+  const h = Math.max(20, Math.round(getLayerH(layer, 240)));
   const style = getLayerStyle(layer);
   await ensureFontReady(style);
 
@@ -347,11 +336,6 @@ async function drawTextLayerRich(ctx: CanvasRenderingContext2D, layer: LayerData
   const letterSpacing = typeof style?.letterSpacing === "number" ? `${style.letterSpacing}px` : "normal";
   const textTransform = style?.textTransform ? String(style.textTransform) : "none";
   const layerOpacity = typeof layer?.opacity === "number" ? layer.opacity : 1;
-  const approxLineCount = String(text || "").split("\n").reduce((total, line) => {
-    const estimated = Math.max(1, Math.ceil(line.length / Math.max(12, Math.floor(w / Math.max(fontSize * 0.55, 1)))));
-    return total + estimated;
-  }, 0);
-  const h = Math.max(rawH, Math.ceil(approxLineCount * fontSize * lineHeight + (backgroundColor ? 32 : 8)));
   const containerStyles = [
     `width:${w}px`,
     `min-height:${h}px`,
@@ -384,7 +368,7 @@ async function drawTextLayerRich(ctx: CanvasRenderingContext2D, layer: LayerData
     `margin:0`,
   ].join(";");
 
-  const safeTextHtml = getTextLayerHtml(layer);
+  const safeTextHtml = textToHtml(text);
   const bodyHtml = `
     <div xmlns="http://www.w3.org/1999/xhtml" style="${containerStyles}">${safeTextHtml}</div>
   `;
@@ -535,94 +519,36 @@ function wrapText(
   return lines;
 }
 
-async function renderTextLayerToImage(layer: LayerData) {
-  const text = getLayerPlainText(layer);
-  if (!text) return null;
 
-  const w = Math.max(20, Math.round(getLayerW(layer, 520)));
-  const rawH = Math.max(20, Math.round(getLayerH(layer, 240)));
-  const style = getLayerStyle(layer);
-
-  await ensureFontReady(style);
-
-  const fontSize = Math.max(10, Number(style?.fontSize ?? 48) || 48);
-  const lineHeight = Math.max(0.8, Number(style?.lineHeight ?? 1.2) || 1.2);
-  const color = firstNonEmptyString(style?.fill, style?.color, style?.textColor, "#ffffff");
-  const backgroundColor = firstNonEmptyString(style?.backgroundColor, "");
-  const textAlign = getLayerTextAlign(style);
-  const opacity = Math.max(0, Math.min(1, Number(layer?.opacity ?? 1) || 1));
-  const paddingX = backgroundColor ? 22 : 0;
-  const paddingY = backgroundColor ? 16 : 0;
-  const fontFamily = normalizeFontFamily(style?.fontFamily);
-  const fontWeight = String(style?.fontWeight ?? 400);
-  const fontStyle = style?.italic || style?.fontStyle === "italic" ? "italic" : "normal";
-  const letterSpacing = typeof style?.letterSpacing === "number" ? `${style.letterSpacing}px` : "0px";
-  const textTransform = style?.textTransform ? String(style.textTransform) : "none";
-  const textDecoration = String(style?.textDecoration || (style?.underline ? "underline" : "none"));
-  const estimatedLineCount = String(text || "").split("\n").reduce((total, line) => {
-    const estimated = Math.max(1, Math.ceil(line.length / Math.max(10, Math.floor(w / Math.max(fontSize * 0.52, 1)))));
-    return total + estimated;
-  }, 0);
-  const h = Math.max(rawH, Math.ceil(estimatedLineCount * fontSize * lineHeight + paddingY * 2 + 20));
-
-  const node = document.createElement("div");
-  node.style.position = "fixed";
-  node.style.left = "-20000px";
-  node.style.top = "0";
-  node.style.width = `${w}px`;
-  node.style.height = `${h}px`;
-  node.style.boxSizing = "border-box";
-  node.style.display = backgroundColor ? "flex" : "block";
-  node.style.alignItems = backgroundColor ? "center" : "flex-start";
-  node.style.justifyContent =
-    backgroundColor && textAlign === "center"
-      ? "center"
-      : backgroundColor && textAlign === "right"
-      ? "flex-end"
-      : "flex-start";
-  node.style.padding = `${paddingY}px ${paddingX}px`;
-  node.style.margin = "0";
-  node.style.overflow = "hidden";
-  node.style.whiteSpace = "pre-wrap";
-  node.style.wordBreak = "break-word";
-  node.style.overflowWrap = "break-word";
-  node.style.background = backgroundColor || "transparent";
-  node.style.borderRadius = backgroundColor ? "18px" : "0px";
-  node.style.color = color;
-  node.style.fontFamily = `"${fontFamily}"`;
-  node.style.fontSize = `${fontSize}px`;
-  node.style.fontWeight = fontWeight;
-  node.style.fontStyle = fontStyle;
-  node.style.lineHeight = String(lineHeight);
-  node.style.letterSpacing = letterSpacing;
-  node.style.textTransform = textTransform;
-  node.style.textDecoration = textDecoration;
-  node.style.textAlign = textAlign;
-  node.style.opacity = String(opacity);
-  node.style.transform = "translateZ(0)";
-  node.style.fontKerning = "normal";
-  (node.style as any).textRendering = "geometricPrecision";
-  node.innerHTML = getTextLayerHtml(layer);
-
-  document.body.appendChild(node);
-
-  try {
-    await delay(40);
-    if (typeof document !== "undefined" && (document.fonts as any)?.ready) {
-      await (document.fonts as any).ready;
-    }
-
-    const dataUrl = await toPng(node, {
-      cacheBust: true,
-      pixelRatio: 1,
-      backgroundColor: "transparent",
-      skipAutoScale: true,
-    });
-
-    return await loadImage(dataUrl);
-  } finally {
-    node.remove();
+function drawTextWithLetterSpacing(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  letterSpacing: number
+) {
+  if (!letterSpacing) {
+    ctx.fillText(text, x, y);
+    return;
   }
+
+  const align = ctx.textAlign;
+  const totalWidth = text
+    .split("")
+    .reduce((sum, char, index) => sum + ctx.measureText(char).width + (index > 0 ? letterSpacing : 0), 0);
+
+  let drawX = x;
+  if (align === "center") drawX = x - totalWidth / 2;
+  if (align === "right" || align === "end") drawX = x - totalWidth;
+
+  ctx.save();
+  ctx.textAlign = "left";
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    ctx.fillText(char, drawX, y);
+    drawX += ctx.measureText(char).width + letterSpacing;
+  }
+  ctx.restore();
 }
 
 async function drawTextLayer(
@@ -635,22 +561,8 @@ async function drawTextLayer(
   const x = getLayerX(layer);
   const y = getLayerY(layer);
   const w = getLayerW(layer, 520);
-  const rawH = getLayerH(layer, 240);
+  const h = getLayerH(layer, 240);
   const opacity = Math.max(0, Math.min(1, Number(layer?.opacity ?? 1) || 1));
-
-  try {
-    const textImg = await renderTextLayerToImage(layer);
-    if (!textImg) return;
-
-    ctx.save();
-    ctx.globalAlpha = opacity;
-    const drawH = textImg.naturalHeight || textImg.height || rawH;
-    ctx.drawImage(textImg, x, y, w, drawH);
-    ctx.restore();
-    return;
-  } catch {
-    // fallback canvas path if DOM rasterization fails
-  }
 
   const style = getLayerStyle(layer);
   await ensureFontReady(style);
@@ -663,15 +575,6 @@ async function drawTextLayer(
   const paddingX = backgroundColor ? 22 : 0;
   const paddingY = backgroundColor ? 16 : 0;
   const maxTextWidth = Math.max(40, w - paddingX * 2 - 12);
-
-  ctx.font = buildFont(style);
-  ctx.fillStyle = color;
-  ctx.textBaseline = "top";
-  ctx.textAlign = align;
-
-  const lines = wrapText(ctx, text, maxTextWidth);
-  const step = fontSize * lineHeight;
-  const h = Math.max(rawH, Math.ceil(lines.length * step + paddingY * 2 + 18));
 
   ctx.save();
   ctx.globalAlpha = opacity;
@@ -697,13 +600,26 @@ async function drawTextLayer(
     ctx.fill();
   }
 
+  ctx.font = buildFont(style);
+  ctx.fillStyle = color;
+  ctx.textBaseline = "top";
+  ctx.textAlign = align;
+  ctx.lineJoin = "round";
+  ctx.miterLimit = 2;
+
+  const lines = wrapText(ctx, text, maxTextWidth);
+  const step = fontSize * lineHeight;
+
   let drawX = x + paddingX + 6;
   if (align === "center") drawX = x + w / 2;
   if (align === "right") drawX = x + w - paddingX - 6;
 
+  const letterSpacing = typeof style?.letterSpacing === "number" ? style.letterSpacing : 0;
+
   lines.forEach((line, index) => {
     const lineY = y + paddingY + 6 + index * step;
-    ctx.fillText(line, drawX, lineY, maxTextWidth);
+    if (lineY > y + h) return;
+    drawTextWithLetterSpacing(ctx, line, drawX, lineY, letterSpacing);
 
     if (style?.underline) {
       const metrics = ctx.measureText(line);
@@ -762,41 +678,28 @@ export async function renderSingleCreationToDataUrl(args: {
     .filter((layer) => layer && layer !== backgroundLayer)
     .sort((a, b) => Number(a?.zIndex ?? 0) - Number(b?.zIndex ?? 0));
 
-  // LGD FIX LIVE — rendu stable Éditeur → Planner.
-  // Certains drafts sauvegardent les layers dans l'ordre UI (textes avant image)
-  // avec des zIndex absents ou identiques. Si on dessine strictement cet ordre,
-  // l'image est dessinée après les textes et les recouvre entièrement.
-  // On force donc un ordre de rendu sûr : médias d'abord, textes ensuite.
-  const imageLayers = drawableLayers.filter(
-    (layer) => String(layer?.type || "").toLowerCase() === "image" && !!layer?.src,
-  );
-
-  const textLayers = drawableLayers.filter((layer) => {
+  for (const layer of drawableLayers) {
     const type = String(layer?.type || "").toLowerCase();
-    return (
-      type === "text" ||
-      type.includes("text") ||
-      !!getLayerPlainText(layer)
-    );
-  });
 
-  for (const layer of imageLayers) {
-    try {
-      await drawImageCover(
-        ctx,
-        layer.src || "",
-        getLayerX(layer),
-        getLayerY(layer),
-        getLayerW(layer, 360),
-        getLayerH(layer, 360)
-      );
-    } catch {
-      // ignore
+    if (type === "image" && layer?.src) {
+      try {
+        await drawImageCover(
+          ctx,
+          layer.src,
+          getLayerX(layer),
+          getLayerY(layer),
+          getLayerW(layer, 360),
+          getLayerH(layer, 360)
+        );
+      } catch {
+        // ignore
+      }
+      continue;
     }
-  }
 
-  for (const layer of textLayers) {
-    await drawTextLayer(ctx, layer);
+    if (type === "text") {
+      await drawTextLayer(ctx, layer);
+    }
   }
 
   return canvas.toDataURL("image/png");
