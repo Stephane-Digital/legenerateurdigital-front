@@ -46,6 +46,23 @@ interface Props {
 }
 /* ========================================================== */
 
+const LS_EDITOR_FORMAT_KEY = "lgd_editor_last_format_key";
+
+function getSavedFormatKeyFromStorage(): CanvasFormatKey | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const saved = window.localStorage.getItem(LS_EDITOR_FORMAT_KEY);
+    if (saved && CANVAS_FORMATS[saved as CanvasFormatKey]) {
+      return saved as CanvasFormatKey;
+    }
+  } catch {
+    // ignore localStorage access errors
+  }
+
+  return null;
+}
+
 const GRADIENT_PRESETS = [
   { label: "LGD Gold", color1: "#ffb800", color2: "#ff8c00", angle: 135 },
   { label: "Midnight", color1: "#0f2027", color2: "#203a43", angle: 135 },
@@ -257,9 +274,23 @@ export default function EditorLayout({
   onCloseMobileTools,
 }: Props) {
   /* ================= FORMAT ================= */
-  const [formatKey, setFormatKey] = useState<CanvasFormatKey>(
-    initialUI?.formatKey ?? "instagram_post"
-  );
+  const [formatKey, setFormatKey] = useState<CanvasFormatKey>(() => {
+    if (initialUI?.formatKey && CANVAS_FORMATS[initialUI.formatKey]) {
+      return initialUI.formatKey;
+    }
+
+    return getSavedFormatKeyFromStorage() ?? "instagram_post";
+  });
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      window.localStorage.setItem(LS_EDITOR_FORMAT_KEY, formatKey);
+    } catch {
+      // ignore localStorage write errors
+    }
+  }, [formatKey]);
+
   const rawFormat = CANVAS_FORMATS[formatKey] as any;
 
   // Provide both width/height and w/h to be compatible with CanvasStage
@@ -1966,6 +1997,3 @@ export default function EditorLayout({
     </div>
   );
 }
-
-
-
