@@ -66,7 +66,7 @@ function estimateTextHeight(
     fontStyle: string;
   }
 ) {
-  const fontSize = clamp(options.fontSize || 48, 8, 400);
+  const fontSize = clamp(options.fontSize || 25, 8, 400);
   const lineHeight = clampFloat(options.lineHeight || 1.2, 0.8, 3);
   const width = clamp(options.width || 420, 40, 4000);
 
@@ -136,7 +136,7 @@ export default function PropertiesDrawer({ open, layer, onClose, onChange }: Pro
     if (!layer) return null;
     const w = typeof (layer as any).width === "number" ? (layer as any).width : isText ? 420 : 300;
     const h = typeof (layer as any).height === "number" ? (layer as any).height : isText ? 120 : 300;
-    const fontSize = typeof style.fontSize === "number" ? style.fontSize : 48;
+    const fontSize = typeof style.fontSize === "number" ? style.fontSize : 25;
     return { w, h, fontSize };
   }, [layer, isText, style.fontSize]);
 
@@ -156,7 +156,7 @@ export default function PropertiesDrawer({ open, layer, onClose, onChange }: Pro
 
     const nextHeight = estimateTextHeight(value, {
       width,
-      fontSize: typeof nextStyle.fontSize === "number" ? nextStyle.fontSize : 48,
+      fontSize: typeof nextStyle.fontSize === "number" ? nextStyle.fontSize : 25,
       lineHeight:
         typeof nextStyle.lineHeight === "number" && Number.isFinite(nextStyle.lineHeight)
           ? nextStyle.lineHeight
@@ -176,7 +176,7 @@ export default function PropertiesDrawer({ open, layer, onClose, onChange }: Pro
       const width = typeof (layer as any)?.width === "number" ? (layer as any).width : 420;
       const nextHeight = estimateTextHeight(String(textDraft || ""), {
         width,
-        fontSize: typeof nextStyle.fontSize === "number" ? nextStyle.fontSize : 48,
+        fontSize: typeof nextStyle.fontSize === "number" ? nextStyle.fontSize : 25,
         lineHeight:
           typeof nextStyle.lineHeight === "number" && Number.isFinite(nextStyle.lineHeight)
             ? nextStyle.lineHeight
@@ -257,6 +257,23 @@ export default function PropertiesDrawer({ open, layer, onClose, onChange }: Pro
 
   const setLineHeight = (v: number) => {
     setStyle({ lineHeight: clampFloat(v, 0.8, 3) });
+  };
+
+  const applyFontSize = (value: number) => {
+    const nextFontSize = clamp(Number(value || 25), 8, 400);
+    setFontSizeDraft(String(nextFontSize));
+    setStyle({ fontSize: nextFontSize });
+  };
+
+  const nudgeFontSize = (delta: number) => {
+    const current =
+      fontSizeDraft !== ""
+        ? Number(fontSizeDraft)
+        : typeof style.fontSize === "number"
+          ? style.fontSize
+          : 25;
+
+    applyFontSize(current + delta);
   };
 
   return (
@@ -364,32 +381,51 @@ export default function PropertiesDrawer({ open, layer, onClose, onChange }: Pro
 
             <div>
               <label className="block text-yellow-400 text-xs mb-2">Taille (px)</label>
-              <input
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                value={fontSizeDraft}
-                onChange={(e) => {
-                  const rawValue = e.target.value.replace(/[^0-9]/g, "");
+              <div className="grid grid-cols-[42px_1fr_42px] gap-2">
+                <button
+                  type="button"
+                  onClick={() => nudgeFontSize(-1)}
+                  className="rounded-xl border border-yellow-500/20 bg-black/40 px-3 py-2 text-yellow-200 transition hover:bg-yellow-500/10 active:scale-[0.98]"
+                  aria-label="Réduire la taille de la police"
+                  title="Réduire de 1 px"
+                >
+                  −
+                </button>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={fontSizeDraft}
+                  onChange={(e) => {
+                    const rawValue = e.target.value.replace(/[^0-9]/g, "");
 
-                  if (rawValue === "") {
-                    setFontSizeDraft("");
-                    return;
-                  }
+                    if (rawValue === "") {
+                      setFontSizeDraft("");
+                      return;
+                    }
 
-                  const normalizedValue = String(Number(rawValue));
-                  const nextFontSize = clamp(Number(normalizedValue), 0, 400);
-                  setFontSizeDraft(normalizedValue);
-                  setStyle({ fontSize: nextFontSize });
-                }}
-                onBlur={() => {
-                  if (fontSizeDraft === "") return;
-                  const normalizedValue = String(clamp(Number(fontSizeDraft), 0, 400));
-                  setFontSizeDraft(normalizedValue);
-                  setStyle({ fontSize: Number(normalizedValue) });
-                }}
-                className="w-full rounded-xl bg-black/40 border border-yellow-500/20 px-3 py-2 text-yellow-100"
-              />
+                    const normalizedValue = String(Number(rawValue));
+                    applyFontSize(Number(normalizedValue));
+                  }}
+                  onBlur={() => {
+                    if (fontSizeDraft === "") {
+                      applyFontSize(25);
+                      return;
+                    }
+                    applyFontSize(Number(fontSizeDraft));
+                  }}
+                  className="w-full rounded-xl bg-black/40 border border-yellow-500/20 px-3 py-2 text-center text-yellow-100"
+                />
+                <button
+                  type="button"
+                  onClick={() => nudgeFontSize(1)}
+                  className="rounded-xl border border-yellow-500/20 bg-black/40 px-3 py-2 text-yellow-200 transition hover:bg-yellow-500/10 active:scale-[0.98]"
+                  aria-label="Augmenter la taille de la police"
+                  title="Augmenter de 1 px"
+                >
+                  +
+                </button>
+              </div>
             </div>
           </div>
 
@@ -615,7 +651,7 @@ export default function PropertiesDrawer({ open, layer, onClose, onChange }: Pro
                   const width = clamp(Number(e.target.value || 0), 40, 4000);
                   const nextHeight = estimateTextHeight(textDraft, {
                     width,
-                    fontSize: typeof style.fontSize === "number" ? style.fontSize : 48,
+                    fontSize: typeof style.fontSize === "number" ? style.fontSize : 25,
                     lineHeight,
                     fontFamily: String(style.fontFamily || "Inter"),
                     fontWeight: String(style.fontWeight || "normal"),
