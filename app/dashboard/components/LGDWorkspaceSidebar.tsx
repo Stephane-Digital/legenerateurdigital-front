@@ -77,10 +77,10 @@ export default function LGDWorkspaceSidebar() {
   }
 
   const navButton =
-    "rounded-2xl px-4 py-2.5 text-left text-white/72 transition hover:bg-yellow-500/10 hover:text-yellow-100";
+    "rounded-2xl px-5 py-3 text-left text-[15px] font-medium text-white/85 transition hover:bg-yellow-500/10 hover:text-yellow-100";
 
   const mobileButton =
-    "rounded-2xl px-4 py-2.5 text-left text-white/75 transition hover:bg-yellow-500/10 hover:text-yellow-100";
+    "rounded-2xl px-5 py-3 text-left text-[15px] font-medium text-white/85 transition hover:bg-yellow-500/10 hover:text-yellow-100";
 
   return (
     <>
@@ -89,16 +89,16 @@ export default function LGDWorkspaceSidebar() {
           <img
             src="/images/logo-side-bar2.png"
             alt="Le Générateur Digital"
-            className="h-auto w-[150px] select-none object-contain"
+            className="h-auto w-[205px] select-none object-contain"
             draggable={false}
           />
         </div>
 
-        <nav className="grid gap-1.5 text-sm">
+        <nav className="grid gap-2 text-[15px]">
           <button
             type="button"
             onClick={() => go("/dashboard")}
-            className="rounded-2xl border border-yellow-600/15 bg-yellow-500/10 px-4 py-2.5 text-left font-semibold text-yellow-100 transition hover:bg-yellow-500/15"
+            className="rounded-2xl border border-yellow-600/15 bg-yellow-500/10 px-5 py-3 text-left text-[15px] font-semibold text-yellow-100 transition hover:bg-yellow-500/15"
           >
             🏠 Accueil
           </button>
@@ -126,7 +126,7 @@ export default function LGDWorkspaceSidebar() {
           </button>
 
           <button type="button" onClick={() => requireLogin("/dashboard/lead-engine")} className={navButton}>
-            🧲 Lead Engine IA
+            🧲 Lead Magnet IA
           </button>
 
           <button
@@ -142,9 +142,9 @@ export default function LGDWorkspaceSidebar() {
           </button>
         </nav>
 
-        <div className="mt-4 grid gap-2 border-t border-yellow-600/15 pt-4 text-sm">
+        <div className="mt-4 grid gap-2 border-t border-yellow-600/15 pt-4 text-[15px]">
           <button type="button" onClick={openPlans} className={navButton}>
-            👑 Voir les Plans
+            👑 Voir lesPlans
           </button>
 
           <button type="button" onClick={() => requireLogin("/dashboard/settings")} className={navButton}>
@@ -154,17 +154,17 @@ export default function LGDWorkspaceSidebar() {
           <button
             type="button"
             onClick={handleLogout}
-            className="rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-2.5 text-left font-semibold text-red-100 transition hover:bg-red-500/10"
+            className="rounded-2xl border border-red-500/20 bg-red-500/5 px-5 py-3 text-left text-[15px] font-semibold text-red-100 transition hover:bg-red-500/10"
           >
             🚪 Se déconnecter
           </button>
         </div>
 
-        <div className="mt-4 grid gap-2 border-t border-yellow-600/15 pt-4 text-sm">
+        <div className="mt-4 grid gap-2 border-t border-yellow-600/15 pt-4 text-[15px]">
           <button
             type="button"
             onClick={() => go("/dashboard?workspace=activity")}
-            className="rounded-2xl border border-yellow-600/15 bg-yellow-500/5 px-4 py-2.5 text-left font-semibold text-yellow-100 transition hover:bg-yellow-500/10"
+            className="rounded-2xl border border-yellow-600/15 bg-yellow-500/5 px-5 py-3 text-left text-[15px] font-semibold text-yellow-100 transition hover:bg-yellow-500/10"
           >
             📈 Activité Progression
           </button>
@@ -172,7 +172,7 @@ export default function LGDWorkspaceSidebar() {
           <button
             type="button"
             onClick={openAffiliationProgram}
-            className="rounded-2xl border border-yellow-500/20 bg-yellow-500/5 px-4 py-2.5 text-left font-semibold text-yellow-100 transition hover:bg-yellow-500/10"
+            className="rounded-2xl border border-yellow-500/20 bg-yellow-500/5 px-5 py-3 text-left text-[15px] font-semibold text-yellow-100 transition hover:bg-yellow-500/10"
           >
             💰 Programme d&apos;affiliation LGD
           </button>
@@ -199,11 +199,11 @@ export default function LGDWorkspaceSidebar() {
         </div>
 
         {mobileMenuOpen ? (
-          <div className="mt-4 grid gap-2 rounded-3xl border border-yellow-600/20 bg-[#080808] p-3 text-sm shadow-[0_0_45px_rgba(255,184,0,0.12)]">
+          <div className="mt-4 grid gap-2 rounded-3xl border border-yellow-600/20 bg-[#080808] p-3 text-[15px] shadow-[0_0_45px_rgba(255,184,0,0.12)]">
             <button
               type="button"
               onClick={() => go("/dashboard")}
-              className="rounded-2xl bg-yellow-500/10 px-4 py-2.5 text-left font-semibold text-yellow-100"
+              className="rounded-2xl bg-yellow-500/10 px-5 py-3 text-left text-[15px] font-semibold text-yellow-100"
             >
               🏠 Accueil
             </button>
@@ -243,7 +243,7 @@ export default function LGDWorkspaceSidebar() {
             <button
               type="button"
               onClick={() => go("/dashboard?workspace=activity")}
-              className="rounded-2xl border border-yellow-600/15 bg-black/35 px-4 py-2.5 text-left text-white/75"
+              className="rounded-2xl border border-yellow-600/15 bg-black/35 px-5 py-3 text-left text-[15px] font-medium text-white/85"
             >
               📈 Activité Progression
             </button>
@@ -251,19 +251,19 @@ export default function LGDWorkspaceSidebar() {
             <button
               type="button"
               onClick={openAffiliationProgram}
-              className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-2.5 text-left font-semibold text-yellow-100"
+              className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-5 py-3 text-left text-[15px] font-semibold text-yellow-100"
             >
               💰 Programme Ambassadeur LGD
             </button>
 
-            <button type="button" onClick={openPlans} className="rounded-2xl px-4 py-3 text-left text-white/75 hover:bg-yellow-500/10">
+            <button type="button" onClick={openPlans} className="rounded-2xl px-5 py-3 text-left text-[15px] font-medium text-white/85 hover:bg-yellow-500/10">
               👑 Plans
             </button>
 
             <button
               type="button"
               onClick={() => requireLogin("/dashboard/settings")}
-              className="rounded-2xl px-4 py-3 text-left text-white/75 hover:bg-yellow-500/10"
+              className="rounded-2xl px-5 py-3 text-left text-[15px] font-medium text-white/85 hover:bg-yellow-500/10"
             >
               ⚙️ Paramètres
             </button>
@@ -271,7 +271,7 @@ export default function LGDWorkspaceSidebar() {
             <button
               type="button"
               onClick={handleLogout}
-              className="rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-left font-semibold text-red-100 hover:bg-red-500/10"
+              className="rounded-2xl border border-red-500/20 bg-red-500/5 px-5 py-3 text-left text-[15px] font-semibold text-red-100 hover:bg-red-500/10"
             >
               🚪 Se déconnecter
             </button>
