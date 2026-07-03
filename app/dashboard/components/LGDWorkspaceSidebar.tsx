@@ -154,7 +154,7 @@ export default function LGDWorkspaceSidebar() {
           <button
             type="button"
             onClick={handleLogout}
-            className="rounded-2xl border border-red-500/20 bg-red-500/5 px-5 py-3 text-left text-[22px] font-semibold text-red-100 transition hover:bg-red-500/10"
+            className="rounded-2xl border border-red-500/20 bg-red-500/5 px-5 py-3 text-left text-[15px] font-semibold text-red-100 transition hover:bg-red-500/10"
           >
             🚪 Se déconnecter
           </button>
@@ -164,7 +164,7 @@ export default function LGDWorkspaceSidebar() {
           <button
             type="button"
             onClick={() => go("/dashboard?workspace=activity")}
-            className="rounded-2xl border border-yellow-600/15 bg-yellow-500/5 px-5 py-3 text-left text-[22px] font-semibold text-yellow-100 transition hover:bg-yellow-500/10"
+            className="rounded-2xl border border-yellow-600/15 bg-yellow-500/5 px-5 py-3 text-left text-[15px] font-semibold text-yellow-100 transition hover:bg-yellow-500/10"
           >
             📈 Activité Progression
           </button>
@@ -172,7 +172,7 @@ export default function LGDWorkspaceSidebar() {
           <button
             type="button"
             onClick={openAffiliationProgram}
-            className="rounded-2xl border border-yellow-500/20 bg-yellow-500/5 px-5 py-3 text-left text-[22px] font-semibold text-yellow-100 transition hover:bg-yellow-500/10"
+            className="rounded-2xl border border-yellow-500/20 bg-yellow-500/5 px-5 py-3 text-left text-[15px] font-semibold text-yellow-100 transition hover:bg-yellow-500/10"
           >
             💰 Programme d&apos;affiliation LGD
           </button>
