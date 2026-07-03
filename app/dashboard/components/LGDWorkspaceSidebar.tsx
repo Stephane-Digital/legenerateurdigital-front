@@ -84,7 +84,31 @@ export default function LGDWorkspaceSidebar() {
 
   return (
     <>
-      <aside className="fixed left-4 top-4 z-[2147483646] hidden h-[calc(100vh-32px)] w-[280px] flex-col overflow-hidden rounded-[30px] border border-yellow-600/20 bg-[#070707]/95 p-4 shadow-[0_0_55px_rgba(255,184,0,0.08)] backdrop-blur-xl lg:flex">
+      <style jsx global>{`
+        .lgd-sidebar-scroll {
+          scrollbar-width: thin;
+          scrollbar-color: rgba(255, 184, 0, 0.28) transparent;
+        }
+
+        .lgd-sidebar-scroll::-webkit-scrollbar {
+          width: 6px;
+        }
+
+        .lgd-sidebar-scroll::-webkit-scrollbar-track {
+          background: transparent;
+        }
+
+        .lgd-sidebar-scroll::-webkit-scrollbar-thumb {
+          background: rgba(255, 184, 0, 0.22);
+          border-radius: 999px;
+        }
+
+        .lgd-sidebar-scroll::-webkit-scrollbar-thumb:hover {
+          background: rgba(255, 184, 0, 0.42);
+        }
+      `}</style>
+
+      <aside className="fixed left-4 top-4 z-[2147483646] hidden h-[calc(100vh-32px)] w-[280px] flex-col overflow-y-auto overflow-x-hidden rounded-[30px] lgd-sidebar-scroll border border-yellow-600/20 bg-[#070707]/95 p-4 shadow-[0_0_55px_rgba(255,184,0,0.08)] backdrop-blur-xl lg:flex">
         <div className="mb-4 flex justify-center border-b border-yellow-600/15 pb-4">
           <img
             src="/images/logo-side-bar2.png"
@@ -98,7 +122,7 @@ export default function LGDWorkspaceSidebar() {
           <button
             type="button"
             onClick={() => go("/dashboard")}
-            className="rounded-2xl border border-yellow-600/15 bg-yellow-500/10 px-5 py-3 text-semibold text-[22px] font-semibold text-yellow-100 transition hover:bg-yellow-500/15"
+            className="rounded-2xl border border-yellow-600/15 bg-yellow-500/10 px-5 py-3 text-left text-[15px] font-semibold text-yellow-100 transition hover:bg-yellow-500/15"
           >
             🏠 Accueil
           </button>
