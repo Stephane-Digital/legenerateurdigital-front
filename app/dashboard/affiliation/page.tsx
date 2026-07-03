@@ -934,7 +934,7 @@ export default function AffiliationDashboardPage() {
               <p className="text-xs font-bold uppercase tracking-[0.20em] text-yellow-300/75 sm:text-sm sm:tracking-[0.22em]">
                 Revenus récurrents estimés
               </p>
-              <p className="mt-3 text-4xl font-black text-white sm:mt-4 sm:text-6xl">
+              <p className="mt-3 text-4xl font-black text-white sm:mt-4 sm:text-4xl">
                 {founderDemo ? "1 902 €/mois" : "Prêt à démarrer"}
               </p>
               <p className="mt-3 text-sm leading-6 text-white/55">
