@@ -98,7 +98,7 @@ export default function LGDWorkspaceSidebar() {
           <button
             type="button"
             onClick={() => go("/dashboard")}
-            className="rounded-2xl border border-yellow-600/15 bg-yellow-500/10 px-5 py-3 text-left text-[15px] font-semibold text-yellow-100 transition hover:bg-yellow-500/15"
+            className="rounded-2xl border border-yellow-600/15 bg-yellow-500/10 px-5 py-3 text-left text-[22px] font-semibold text-yellow-100 transition hover:bg-yellow-500/15"
           >
             🏠 Accueil
           </button>
