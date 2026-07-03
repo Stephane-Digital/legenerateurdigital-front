@@ -486,7 +486,7 @@ const EMPTY_ACTIVITY_PERIODS: ActivityPeriod[] = [
   },
   {
     key: "month",
-    label: "Mois",
+    label: "30 jours",
     prospects: 0,
     trials: 0,
     sales: 0,
