@@ -1293,11 +1293,11 @@ export default function AlexV2Shell() {
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
             <div className="text-4xl font-semibold text-yellow-400">
-              Alex IA 🤖 Digital Coach
+             Alex IA 🤖 Ton Digital Coach Personnel
             </div>
             <div className="text-sm text-white/55">
-              Workflow guidé · Instagram → Facebook → Pinterest · Objectif :
-              ventes MMR/MLR.
+              Workflow guidé · Instagram → TikTok → Pinterest · Objectif :
+              ventes Formations MRR/MLR, Ebook, Affiliation LGD.
             </div>
           </div>
 
