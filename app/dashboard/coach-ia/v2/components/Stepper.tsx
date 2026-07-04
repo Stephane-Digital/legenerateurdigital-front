@@ -42,7 +42,7 @@ export default function Stepper({ currentStage, completedKeys, onGoStage }: Prop
     <div className="rounded-3xl border border-[#2a2416] bg-gradient-to-b from-[#0b0f16] to-[#0b1220] p-5">
       <div className="mb-3">
         <div className="text-white font-semibold">Parcours Alex</div>
-        <div className="text-white/55 text-sm">MMR · MLR · Contenu (Instagram → Facebook → Pinterest)</div>
+        <div className="text-white/55 text-sm">MRR · MLR · Contenu (Instagram → TikTok → Facebook → Pinterest)</div>
       </div>
 
       <div className="space-y-3">
