@@ -150,7 +150,7 @@ export default function LGDWorkspaceSidebar() {
           </button>
 
           <button type="button" onClick={() => requireLogin("/dashboard/lead-engine")} className={navButton}>
-            🧲 Lead Magnet IA
+            🧲 Tunnel et Lead Magnet IA
           </button>
 
           <button
