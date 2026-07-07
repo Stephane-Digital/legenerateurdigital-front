@@ -168,7 +168,7 @@ export default function LGDWorkspaceSidebar() {
 
         <div className="mt-4 grid gap-2 border-t border-yellow-600/15 pt-4 text-[15px]">
           <button type="button" onClick={openPlans} className={navButton}>
-            👑 Voir lesPlans
+            👑 Voir les Plans
           </button>
 
           <button type="button" onClick={() => requireLogin("/dashboard/settings")} className={navButton}>
@@ -190,7 +190,7 @@ export default function LGDWorkspaceSidebar() {
             onClick={() => go("/dashboard?workspace=activity")}
             className="rounded-2xl border border-yellow-600/15 bg-yellow-500/5 px-5 py-3 text-left text-[15px] font-semibold text-yellow-100 transition hover:bg-yellow-500/10"
           >
-            📈 Activité Progression
+            📈 Activité Et Progression
           </button>
 
           <button
@@ -198,7 +198,7 @@ export default function LGDWorkspaceSidebar() {
             onClick={openAffiliationProgram}
             className="rounded-2xl border border-yellow-500/20 bg-yellow-500/5 px-5 py-3 text-left text-[15px] font-semibold text-yellow-100 transition hover:bg-yellow-500/10"
           >
-            💰 Programme d&apos;affiliation LGD
+            💰 Programme ambassadeur LGD
           </button>
         </div>
       </aside>
