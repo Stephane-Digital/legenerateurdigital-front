@@ -76,7 +76,7 @@ export default function ActionPanel(props: {
 
       <div className="rounded-3xl border border-[#2a2416] bg-gradient-to-r from-[#0b0f16] to-[#0b1220] p-5">
         <div className="text-white/80 font-semibold">Focus réseaux</div>
-        <div className="mt-2 text-sm text-white/55">Instagram d’abord. Facebook ensuite. Pinterest plus tard.</div>
+        <div className="mt-2 text-sm text-white/55">Instagram TikTok Facebook et Pinterest.</div>
       </div>
     </div>
   );
