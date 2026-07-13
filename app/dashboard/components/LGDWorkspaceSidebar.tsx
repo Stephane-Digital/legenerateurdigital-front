@@ -108,7 +108,7 @@ export default function LGDWorkspaceSidebar() {
         }
       `}</style>
 
-      <aside className="fixed left-4 top-4 z-[2147483646] hidden h-[calc(100vh-32px)] w-[280px] flex-col overflow-y-auto overflow-x-hidden rounded-[30px] lgd-sidebar-scroll border border-yellow-600/20 bg-[#070707]/95 p-4 shadow-[0_0_55px_rgba(255,184,0,0.08)] backdrop-blur-xl lg:flex">
+      <aside className="fixed left-4 top-4 z-[2147483646] hidden h-[calc(100vh-32px)] w-[400px] flex-col overflow-y-auto overflow-x-hidden rounded-[30px] lgd-sidebar-scroll border border-yellow-600/20 bg-[#070707]/95 p-4 shadow-[0_0_55px_rgba(255,184,0,0.08)] backdrop-blur-xl lg:flex">
         <div className="mb-4 flex justify-center border-b border-yellow-600/15 pb-4">
           <img
             src="/images/logo-side-bar2.png"
