@@ -1296,7 +1296,7 @@ export default function AlexV2Shell() {
              Alex IA 🤖 Ton Digital Coach Personnel
             </div>
             <div className="text-sm text-white/55">
-              Workflow guidé · Instagram → TikTok → Pinterest · Objectif :
+              Workflow guidé · Instagram → TikTok → Facebook · Objectif :
               ventes Formations MRR/MLR, Ebook, Affiliation LGD.
             </div>
           </div>
