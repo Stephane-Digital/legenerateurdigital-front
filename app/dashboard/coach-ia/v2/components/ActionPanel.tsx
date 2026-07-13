@@ -70,7 +70,7 @@ export default function ActionPanel(props: {
         </button>
 
         <div className="mt-2 text-[11px] text-white/45">
-          Astuce : si tu vois des étapes verrouillées ou une progression incohérente, ce reset remet Alex V2 à zéro pour le compte connecté.
+          Astuce : si tu vois des étapes verrouillées ou une progression incohérente, ce reset remet Alex V3 à zéro pour le compte connecté.
         </div>
       </div>
 
