@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AffiliationSubnav from "./components/AffiliationSubnav";
 import CopyField from "./components/CopyField";
 
