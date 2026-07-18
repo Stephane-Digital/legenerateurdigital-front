@@ -1,13 +1,14 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AffiliationSubnav from "./components/AffiliationSubnav";
 import CopyField from "./components/CopyField";
 
 const BASE_LGD_URL = "https://legenerateurdigital.systeme.io";
 const DEFAULT_AFFILIATE_ID = "TON_ID_AFFILIÉ";
 const EXAMPLE_AFFILIATE_ID = "sa02698613581505ce9959d1609a94205a3a64efb9";
+const AFFILIATE_ID_STORAGE_KEY = "lgd_systemeio_affiliate_id";
 
 const CANVA_VISUALS_URL = "https://canva.link/gotybx267eh8rb4";
 const CANVA_KIT_URL = "https://canva.link/146b24iq6gjzc1m";
@@ -84,26 +85,26 @@ const EMPTY_STATS: StatCard[] = [
 const FOUNDER_DEMO_STATS: StatCard[] = [
   {
     label: "Prospects envoyés",
-    value: "171",
-    helper: "Sur 57 jours",
+    value: "166",
+    helper: "Sur 54 jours",
     tone: "blue",
   },
   {
     label: "Essais gratuits",
-    value: "166",
+    value: "161",
     helper: "Lien recommandé",
     tone: "blue",
   },
-  { label: "Abonnés actifs", value: "99", helper: "Récurrent", tone: "green" },
+  { label: "Abonnés actifs", value: "96", helper: "Récurrent", tone: "green" },
   {
     label: "Conversion",
     value: "60 %",
-    helper: "99 ventes cumulées",
+    helper: "96 ventes cumulées",
     tone: "gold",
   },
   {
   label: "En attente",
-  value: "759,40 €",
+  value: "707,20 €",
   helper: "Validation 30 jours",
   tone: "gold",
 },
@@ -116,7 +117,7 @@ const FOUNDER_DEMO_STATS: StatCard[] = [
   },
   {
     label: "CA généré",
-    value: "7 097 €",
+    value: "7 010 €",
     helper: "Abonnements attribués",
     tone: "neutral",
   },
@@ -151,25 +152,9 @@ const EMPTY_ACTIVITY_ROWS = [
 
 const FOUNDER_DEMO_ACTIVITY_ROWS = [
   {
-    date: "Aujourd'hui 03/07",
+    date: "Aujourd'hui 30/06",
     event: "Abonnement actif",
-    contact: "demarragebusiness0307@gmail.com",
-    source: "Lien LGD Systeme.io",
-    status: "En validation 30 jours",
-    commission: "+17.40 €",
-  },
-  {
-    date: "Jeudi 02/07",
-    event: "Abonnement actif",
-    contact: "objectifindependance0207@gmail.com",
-    source: "Lien LGD Systeme.io",
-    status: "En validation 30 jours",
-    commission: "+17.40 €",
-  },
-  {
-    date: "Mercredi 01/07",
-    event: "Abonnement actif",
-    contact: "projetdigital0107@gmail.com",
+    contact: "entreprendremaintenant@gmail.com",
     source: "Lien LGD Systeme.io",
     status: "En validation 30 jours",
     commission: "+17.40 €",
@@ -443,28 +428,27 @@ const FOUNDER_DEMO_ACTIVITY_PERIODS: ActivityPeriod[] = [
   },
   {
     key: "month",
-    label: "30 jours",
-    prospects: 171,
-    trials: 166,
-    sales: 99,
-    commissions: 1954,
-    growth: "+60 % de conversion essai → vente",
-    highlight: "99 ventes sur 30 jours",
-    trialsLine: [52, 44, 70, 62, 86, 74, 95, 82, 100, 88, 72, 80, 64, 58, 50, 42, 45, 49, 52, 55, 55, 55, 60, 63, 66, 70, 71, 74, 77, 80],
-    subscribersLine: [7, 5, 8, 5, 8, 6, 5, 4, 5, 4, 4, 2, 2, 3, 1, 1, 1, 1, 2, 0, 0, 2, 3, 4, 2, 5, 2, 2, 2, 3],
+    label: "Mois",
+    prospects: 166,
+    trials: 161,
+    sales: 96,
+    commissions: 1902,
+    growth: "+59 % de conversion essai → vente",
+    highlight: "96 ventes ce mois-ci",
+    trialsLine: [18, 35, 28, 52, 44, 70, 62, 86, 74, 95, 82, 100, 88, 72, 80, 64, 58, 50, 42, 45, 49, 52, 55, 55, 55, 60, 63, 66, 70, 71],
+    subscribersLine: [3, 4, 2, 6, 4, 7, 5, 8, 6, 5, 3, 5, 4, 4, 2, 2, 3, 1, 1, 1, 1, 2, 0, 0, 2, 3, 4, 2, 5, 1],
     cancellationsLine: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    xLabels: ["04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "01", "02", "03"],
+    xLabels: ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30"],
   },
-
   {
     key: "quarter",
     label: "90 jours",
-    prospects: 256,
-    trials: 211,
-    sales: 121,
-    commissions: 2440,
-    growth: "+99 abonnés actifs conservés",
-    highlight: "121 ventes sur 90 jours",
+    prospects: 251,
+    trials: 206,
+    sales: 118,
+    commissions: 2388,
+    growth: "+62 abonnés actifs conservés",
+    highlight: "118 ventes sur 90 jours",
     trialsLine: [24, 31, 43, 50, 56, 63, 69, 76, 82, 88, 92, 98, 103],
     subscribersLine: [6, 4, 9, 8, 7, 12, 11, 9, 10, 8, 7, 7, 12],
     cancellationsLine: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -503,7 +487,7 @@ const EMPTY_ACTIVITY_PERIODS: ActivityPeriod[] = [
   },
   {
     key: "month",
-    label: "30 jours",
+    label: "Mois",
     prospects: 0,
     trials: 0,
     sales: 0,
@@ -532,14 +516,33 @@ const EMPTY_ACTIVITY_PERIODS: ActivityPeriod[] = [
 ];
 
 function normalizeAffiliateId(value: string) {
-  return value
-    .trim()
-    .replace(/^https?:\/\/legenerateurdigital\.systeme\.io\/trial\?sa=/i, "")
-    .replace(/^https?:\/\/legenerateurdigital\.systeme\.io\/lgd\?sa=/i, "")
-    .replace(/^https?:\/\/legenerateurdigital\.systeme\.io\/?\?sa=/i, "")
+  const trimmedValue = value.trim();
+  if (!trimmedValue) return "";
+
+  try {
+    const parsedUrl = new URL(trimmedValue);
+    const affiliateIdFromUrl = parsedUrl.searchParams.get("sa");
+    if (affiliateIdFromUrl) {
+      return affiliateIdFromUrl.trim().replace(/\s+/g, "");
+    }
+  } catch {
+    // La valeur n'est pas une URL complète : on continue avec le nettoyage manuel.
+  }
+
+  const affiliateParameter = trimmedValue.match(/[?&]sa=([^&#\s]+)/i);
+  if (affiliateParameter?.[1]) {
+    return decodeURIComponent(affiliateParameter[1]).trim().replace(/\s+/g, "");
+  }
+
+  return trimmedValue
     .replace(/^\?sa=/i, "")
     .replace(/^sa=/i, "")
     .replace(/\s+/g, "");
+}
+
+function getSavedAffiliateId() {
+  if (typeof window === "undefined") return "";
+  return window.localStorage.getItem(AFFILIATE_ID_STORAGE_KEY) || "";
 }
 
 function euro(value: number) {
@@ -832,18 +835,29 @@ function isFounderDemoDashboard() {
 }
 
 export default function AffiliationDashboardPage() {
-  const [affiliateId, setAffiliateId] = useState(DEFAULT_AFFILIATE_ID);
+  const [affiliateId, setAffiliateId] = useState(() => getSavedAffiliateId());
   const [selectedOffer, setSelectedOffer] = useState<OfferKey>("ultime");
   const [subscriberGoal, setSubscriberGoal] = useState(10);
   const [founderDemo] = useState(() => isFounderDemoDashboard());
   const [activePeriodKey, setActivePeriodKey] = useState<ActivityPeriodKey>("month");
 
   const cleanAffiliateId = useMemo(
-    () => normalizeAffiliateId(affiliateId) || DEFAULT_AFFILIATE_ID,
+    () => normalizeAffiliateId(affiliateId),
     [affiliateId],
   );
-  const trialLink = `${BASE_LGD_URL}/trial?sa=${cleanAffiliateId}`;
-  const salesLink = `${BASE_LGD_URL}/lgd?sa=${cleanAffiliateId}`;
+  const displayedAffiliateId = cleanAffiliateId || DEFAULT_AFFILIATE_ID;
+  const trialLink = `${BASE_LGD_URL}/trial?sa=${displayedAffiliateId}`;
+  const salesLink = `${BASE_LGD_URL}/lgd?sa=${displayedAffiliateId}`;
+  const hasAffiliateId = Boolean(cleanAffiliateId);
+
+  useEffect(() => {
+    if (cleanAffiliateId) {
+      window.localStorage.setItem(AFFILIATE_ID_STORAGE_KEY, cleanAffiliateId);
+      return;
+    }
+
+    window.localStorage.removeItem(AFFILIATE_ID_STORAGE_KEY);
+  }, [cleanAffiliateId]);
 
   const selected = OFFERS[selectedOffer];
   const commissionPerClient = selected.price * COMMISSION_RATE;
@@ -917,7 +931,7 @@ export default function AffiliationDashboardPage() {
                     Partenaire depuis
                   </p>
                   <p className="mt-2 text-xl font-black text-yellow-100 sm:text-2xl">
-                    {founderDemo ? "57 jours" : "0 jour"}
+                    {founderDemo ? "54 jours" : "0 jour"}
                   </p>
                 </div>
                 <div className="rounded-2xl border border-yellow-500/20 bg-black/35 p-3 text-center sm:p-4">
@@ -952,7 +966,7 @@ export default function AffiliationDashboardPage() {
                 Revenus récurrents estimés
               </p>
               <p className="mt-3 text-4xl font-black text-white sm:mt-4 sm:text-4xl">
-                {founderDemo ? "1 954 €/mois" : "Prêt à démarrer"}
+                {founderDemo ? "1 902 €/mois" : "Prêt à démarrer"}
               </p>
               <p className="mt-3 text-sm leading-6 text-white/55">
                 Les chiffres réels seront calculés depuis les événements
@@ -965,7 +979,7 @@ export default function AffiliationDashboardPage() {
               </div>
               <p className="mt-2 text-xs text-white/45">
                 {founderDemo
-                  ? "99 abonnés actifs • 99 ventes cumulées"
+                  ? "96 abonnés actifs • 96 ventes cumulées"
                   : "Ton compteur démarrera avec ton premier abonné"}
               </p>
             </div>
@@ -1308,14 +1322,29 @@ export default function AffiliationDashboardPage() {
               </label>
               <input
                 id="affiliate-id"
+                type="text"
                 value={affiliateId}
                 onChange={(event) => setAffiliateId(event.target.value)}
+                onBlur={() => setAffiliateId(cleanAffiliateId)}
                 placeholder={EXAMPLE_AFFILIATE_ID}
+                autoComplete="off"
+                autoCapitalize="none"
+                spellCheck={false}
                 className="mt-3 w-full rounded-2xl border border-yellow-600/25 bg-black px-4 py-3 text-sm text-yellow-100 outline-none transition focus:border-yellow-400 sm:text-base"
               />
               <p className="mt-2 text-xs leading-5 text-white/45">
-                Colle uniquement ton identifiant, ou un lien complet contenant
-                ?sa=. LGD nettoie le format automatiquement.
+                Colle ton identifiant affilié ou n'importe quel lien Systeme.io
+                contenant le paramètre ?sa=. LGD extrait l'identifiant, génère
+                les deux liens automatiquement et le conserve sur cet appareil.
+              </p>
+              <p
+                className={`mt-2 text-xs font-semibold ${
+                  hasAffiliateId ? "text-green-300" : "text-yellow-200/70"
+                }`}
+              >
+                {hasAffiliateId
+                  ? "✓ Identifiant enregistré : tes deux liens sont prêts à être copiés."
+                  : "Ajoute ton identifiant affilié pour activer tes liens personnels."}
               </p>
             </div>
 
