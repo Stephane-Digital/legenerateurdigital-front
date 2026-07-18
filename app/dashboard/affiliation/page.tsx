@@ -1004,7 +1004,7 @@ export default function AffiliationDashboardPage() {
                 <ActivityMiniStat label="Essais" value={String(activePeriod.trials)} tone="orange" />
                 <ActivityMiniStat label="Ventes" value={String(activePeriod.sales)} tone="green" />
                 <ActivityMiniStat label="Désabonnements" value="0" tone="red" />
-                <ActivityMiniStat label="Commissions" value={euro(activePeriod.commissions)} tone="gold" />
+                <ActivityMiniStat label="Commissions/Mois" value={euro(activePeriod.commissions)} tone="gold" />
               </div>
 
               <div className="mt-4 flex justify-center">
