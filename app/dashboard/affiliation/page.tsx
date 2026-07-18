@@ -1,14 +1,13 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import AffiliationSubnav from "./components/AffiliationSubnav";
 import CopyField from "./components/CopyField";
 
 const BASE_LGD_URL = "https://legenerateurdigital.systeme.io";
 const DEFAULT_AFFILIATE_ID = "TON_ID_AFFILIÉ";
 const EXAMPLE_AFFILIATE_ID = "sa02698613581505ce9959d1609a94205a3a64efb9";
-const AFFILIATE_ID_STORAGE_KEY = "lgd_systemeio_affiliate_id";
 
 const CANVA_VISUALS_URL = "https://canva.link/gotybx267eh8rb4";
 const CANVA_KIT_URL = "https://canva.link/146b24iq6gjzc1m";
@@ -516,33 +515,14 @@ const EMPTY_ACTIVITY_PERIODS: ActivityPeriod[] = [
 ];
 
 function normalizeAffiliateId(value: string) {
-  const trimmedValue = value.trim();
-  if (!trimmedValue) return "";
-
-  try {
-    const parsedUrl = new URL(trimmedValue);
-    const affiliateIdFromUrl = parsedUrl.searchParams.get("sa");
-    if (affiliateIdFromUrl) {
-      return affiliateIdFromUrl.trim().replace(/\s+/g, "");
-    }
-  } catch {
-    // La valeur n'est pas une URL complète : on continue avec le nettoyage manuel.
-  }
-
-  const affiliateParameter = trimmedValue.match(/[?&]sa=([^&#\s]+)/i);
-  if (affiliateParameter?.[1]) {
-    return decodeURIComponent(affiliateParameter[1]).trim().replace(/\s+/g, "");
-  }
-
-  return trimmedValue
+  return value
+    .trim()
+    .replace(/^https?:\/\/legenerateurdigital\.systeme\.io\/trial\?sa=/i, "")
+    .replace(/^https?:\/\/legenerateurdigital\.systeme\.io\/lgd\?sa=/i, "")
+    .replace(/^https?:\/\/legenerateurdigital\.systeme\.io\/?\?sa=/i, "")
     .replace(/^\?sa=/i, "")
     .replace(/^sa=/i, "")
     .replace(/\s+/g, "");
-}
-
-function getSavedAffiliateId() {
-  if (typeof window === "undefined") return "";
-  return window.localStorage.getItem(AFFILIATE_ID_STORAGE_KEY) || "";
 }
 
 function euro(value: number) {
@@ -835,29 +815,25 @@ function isFounderDemoDashboard() {
 }
 
 export default function AffiliationDashboardPage() {
-  const [affiliateId, setAffiliateId] = useState(() => getSavedAffiliateId());
+  const [affiliateId, setAffiliateId] = useState(DEFAULT_AFFILIATE_ID);
   const [selectedOffer, setSelectedOffer] = useState<OfferKey>("ultime");
   const [subscriberGoal, setSubscriberGoal] = useState(10);
   const [founderDemo] = useState(() => isFounderDemoDashboard());
   const [activePeriodKey, setActivePeriodKey] = useState<ActivityPeriodKey>("month");
 
   const cleanAffiliateId = useMemo(
-    () => normalizeAffiliateId(affiliateId),
+    () => normalizeAffiliateId(affiliateId) || DEFAULT_AFFILIATE_ID,
     [affiliateId],
   );
-  const displayedAffiliateId = cleanAffiliateId || DEFAULT_AFFILIATE_ID;
-  const trialLink = `${BASE_LGD_URL}/trial?sa=${displayedAffiliateId}`;
-  const salesLink = `${BASE_LGD_URL}/lgd?sa=${displayedAffiliateId}`;
-  const hasAffiliateId = Boolean(cleanAffiliateId);
+  const generatedTrialLink = `${BASE_LGD_URL}/trial?sa=${cleanAffiliateId}`;
+  const generatedSalesLink = `${BASE_LGD_URL}/lgd?sa=${cleanAffiliateId}`;
+  const [trialLink, setTrialLink] = useState(generatedTrialLink);
+  const [salesLink, setSalesLink] = useState(generatedSalesLink);
 
   useEffect(() => {
-    if (cleanAffiliateId) {
-      window.localStorage.setItem(AFFILIATE_ID_STORAGE_KEY, cleanAffiliateId);
-      return;
-    }
-
-    window.localStorage.removeItem(AFFILIATE_ID_STORAGE_KEY);
-  }, [cleanAffiliateId]);
+    setTrialLink(generatedTrialLink);
+    setSalesLink(generatedSalesLink);
+  }, [generatedTrialLink, generatedSalesLink]);
 
   const selected = OFFERS[selectedOffer];
   const commissionPerClient = selected.price * COMMISSION_RATE;
@@ -1322,29 +1298,14 @@ export default function AffiliationDashboardPage() {
               </label>
               <input
                 id="affiliate-id"
-                type="text"
                 value={affiliateId}
                 onChange={(event) => setAffiliateId(event.target.value)}
-                onBlur={() => setAffiliateId(cleanAffiliateId)}
                 placeholder={EXAMPLE_AFFILIATE_ID}
-                autoComplete="off"
-                autoCapitalize="none"
-                spellCheck={false}
                 className="mt-3 w-full rounded-2xl border border-yellow-600/25 bg-black px-4 py-3 text-sm text-yellow-100 outline-none transition focus:border-yellow-400 sm:text-base"
               />
               <p className="mt-2 text-xs leading-5 text-white/45">
-                Colle ton identifiant affilié ou n'importe quel lien Systeme.io
-                contenant le paramètre ?sa=. LGD extrait l'identifiant, génère
-                les deux liens automatiquement et le conserve sur cet appareil.
-              </p>
-              <p
-                className={`mt-2 text-xs font-semibold ${
-                  hasAffiliateId ? "text-green-300" : "text-yellow-200/70"
-                }`}
-              >
-                {hasAffiliateId
-                  ? "✓ Identifiant enregistré : tes deux liens sont prêts à être copiés."
-                  : "Ajoute ton identifiant affilié pour activer tes liens personnels."}
+                Colle uniquement ton identifiant, ou un lien complet contenant
+                ?sa=. LGD nettoie le format automatiquement.
               </p>
             </div>
 
@@ -1361,7 +1322,8 @@ export default function AffiliationDashboardPage() {
                 <CopyField
                   label="🟢 Lien Essai Gratuit 7 jours"
                   value={trialLink}
-                  helper="À partager en priorité avec les prospects froids, tièdes ou curieux."
+                  onChange={setTrialLink}
+                  helper="Tu peux modifier ce lien directement avant de le copier."
                 />
                 <a
                   href={trialLink}
@@ -1385,7 +1347,8 @@ export default function AffiliationDashboardPage() {
                 <CopyField
                   label="🚀 Lien Page de Vente / Abonnement"
                   value={salesLink}
-                  helper="À utiliser quand ton argumentaire est solide ou que le prospect est prêt à s'abonner."
+                  onChange={setSalesLink}
+                  helper="Tu peux modifier ce lien directement avant de le copier."
                 />
                 <a
                   href={salesLink}
