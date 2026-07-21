@@ -427,7 +427,7 @@ const FOUNDER_DEMO_ACTIVITY_PERIODS: ActivityPeriod[] = [
   },
   {
     key: "month",
-    label: "Depuis le lancement",
+    label: "30 jours",
     prospects: 84,
     trials: 58,
     sales: 23,
@@ -441,7 +441,7 @@ const FOUNDER_DEMO_ACTIVITY_PERIODS: ActivityPeriod[] = [
   },
   {
     key: "quarter",
-    label: "Depuis le lancement",
+    label: "30 jours",
     prospects: 251,
     trials: 206,
     sales: 118,
@@ -486,7 +486,7 @@ const EMPTY_ACTIVITY_PERIODS: ActivityPeriod[] = [
   },
   {
     key: "month",
-    label: "Depuis le lancement",
+    label: "30 jours",
     prospects: 0,
     trials: 0,
     sales: 0,
@@ -500,7 +500,7 @@ const EMPTY_ACTIVITY_PERIODS: ActivityPeriod[] = [
   },
   {
     key: "quarter",
-    label: "Depuis le lancement",
+    label: "30 jours",
     prospects: 0,
     trials: 0,
     sales: 0,
