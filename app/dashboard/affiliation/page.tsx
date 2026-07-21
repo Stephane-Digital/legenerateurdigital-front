@@ -1289,6 +1289,50 @@ export default function AffiliationDashboardPage() {
               </p>
             </div>
 
+            <div className="mb-5 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-5">
+              <div className="flex items-start gap-3">
+                <div className="text-3xl">🚀</div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-bold text-white">
+                    Pas encore d'identifiant affilié ?
+                  </h3>
+
+                  <p className="mt-2 text-sm leading-6 text-gray-300">
+                    Crée gratuitement ton compte affilié <strong>Systeme.io</strong>,
+                    récupère ton <strong>identifiant d'affilié</strong>, puis colle-le
+                    dans le champ ci-dessous.
+                  </p>
+
+                  <p className="mt-2 text-sm font-medium text-amber-300">
+                    LGD générera automatiquement tous tes liens d'affiliation.
+                  </p>
+
+                  <a
+                    href="https://systeme.io/fr?sa=sa0002231987aa1d615980fb12bbe9e2d52bd9dfd110"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-5 inline-flex items-center justify-center rounded-xl bg-amber-500 px-5 py-3 text-sm font-semibold text-black transition hover:bg-amber-400"
+                  >
+                    🟠 Créer gratuitement mon compte affilié Systeme.io
+                  </a>
+
+                  <div className="mt-5 rounded-2xl border border-white/10 bg-black/30 p-4">
+                    <div className="space-y-2 text-sm text-white/80">
+                      <p>1️⃣ Crée ton compte affilié gratuitement</p>
+                      <p>⬇️</p>
+                      <p>2️⃣ Copie ton identifiant d'affilié</p>
+                      <p>⬇️</p>
+                      <p>3️⃣ Colle-le dans LGD</p>
+                      <p>⬇️</p>
+                      <p className="font-semibold text-amber-300">
+                        ✨ LGD génère automatiquement tous tes liens d'affiliation
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div className="mb-5 rounded-2xl border border-yellow-600/20 bg-[#0b0b0b] p-4 sm:mb-6 sm:rounded-3xl sm:p-5">
               <label
                 className="text-sm font-bold text-yellow-100"
