@@ -84,39 +84,39 @@ const EMPTY_STATS: StatCard[] = [
 const FOUNDER_DEMO_STATS: StatCard[] = [
   {
     label: "Prospects envoyés",
-    value: "166",
-    helper: "Sur 54 jours",
+    value: "84",
+    helper: "Depuis le 10/06/2026",
     tone: "blue",
   },
   {
     label: "Essais gratuits",
-    value: "161",
+    value: "58",
     helper: "Lien recommandé",
     tone: "blue",
   },
-  { label: "Abonnés actifs", value: "96", helper: "Récurrent", tone: "green" },
+  { label: "Abonnés actifs", value: "23", helper: "Récurrent", tone: "green" },
   {
     label: "Conversion",
-    value: "60 %",
-    helper: "96 ventes cumulées",
+    value: "39,7 %",
+    helper: "23 abonnés actifs",
     tone: "gold",
   },
   {
   label: "En attente",
-  value: "707,20 €",
+  value: "316,20 €",
   helper: "Validation 30 jours",
   tone: "gold",
 },
-  { label: "Validées", value: "1 184 €", helper: "Payables", tone: "green" },
+  { label: "Validées", value: "412,80 €", helper: "Payables", tone: "green" },
   {
     label: "Annulées",
-    value: "0",
-    helper: "Aucun désabonnement",
+    value: "1",
+    helper: "1 désabonnement",
     tone: "red",
   },
   {
     label: "CA généré",
-    value: "7 010 €",
+    value: "1 653 €",
     helper: "Abonnements attribués",
     tone: "neutral",
   },
@@ -414,10 +414,10 @@ const FOUNDER_DEMO_ACTIVITY_PERIODS: ActivityPeriod[] = [
   {
     key: "week",
     label: "7 jours",
-    prospects: 49,
-    trials: 37,
-    sales: 27,
-    commissions: 1112,
+    prospects: 18,
+    trials: 12,
+    sales: 7,
+    commissions: 191,
     growth: "+1 abonnement aujourd'hui",
     highlight: "27 ventes cette semaine",
     trialsLine: [38, 34, 46, 52, 60, 64, 72, 70, 78, 86, 92, 98, 98, 98],
@@ -427,13 +427,13 @@ const FOUNDER_DEMO_ACTIVITY_PERIODS: ActivityPeriod[] = [
   },
   {
     key: "month",
-    label: "Mois",
-    prospects: 166,
-    trials: 161,
-    sales: 96,
-    commissions: 1902,
-    growth: "+59 % de conversion essai → vente",
-    highlight: "96 ventes ce mois-ci",
+    label: "Depuis le lancement",
+    prospects: 84,
+    trials: 58,
+    sales: 23,
+    commissions: 552,
+    growth: "39,7 % de conversion essai → vente",
+    highlight: "23 abonnés depuis le lancement",
     trialsLine: [18, 35, 28, 52, 44, 70, 62, 86, 74, 95, 82, 100, 88, 72, 80, 64, 58, 50, 42, 45, 49, 52, 55, 55, 55, 60, 63, 66, 70, 71],
     subscribersLine: [3, 4, 2, 6, 4, 7, 5, 8, 6, 5, 3, 5, 4, 4, 2, 2, 3, 1, 1, 1, 1, 2, 0, 0, 2, 3, 4, 2, 5, 1],
     cancellationsLine: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -441,7 +441,7 @@ const FOUNDER_DEMO_ACTIVITY_PERIODS: ActivityPeriod[] = [
   },
   {
     key: "quarter",
-    label: "90 jours",
+    label: "Depuis le lancement",
     prospects: 251,
     trials: 206,
     sales: 118,
@@ -486,7 +486,7 @@ const EMPTY_ACTIVITY_PERIODS: ActivityPeriod[] = [
   },
   {
     key: "month",
-    label: "Mois",
+    label: "Depuis le lancement",
     prospects: 0,
     trials: 0,
     sales: 0,
@@ -500,7 +500,7 @@ const EMPTY_ACTIVITY_PERIODS: ActivityPeriod[] = [
   },
   {
     key: "quarter",
-    label: "90 jours",
+    label: "Depuis le lancement",
     prospects: 0,
     trials: 0,
     sales: 0,
@@ -886,7 +886,7 @@ export default function AffiliationDashboardPage() {
                   </div>
                   {founderDemo ? (
                     <div className="inline-flex rounded-full border border-yellow-400/25 bg-yellow-500/10 px-3 py-2 text-xs font-bold text-yellow-100 sm:px-4 sm:text-sm">
-                      ⭐ Compte fondateur
+                      🚀 Ambassadeur Pionnier
                     </div>
                   ) : null}
                 </div>
@@ -907,7 +907,7 @@ export default function AffiliationDashboardPage() {
                     Partenaire depuis
                   </p>
                   <p className="mt-2 text-xl font-black text-yellow-100 sm:text-2xl">
-                    {founderDemo ? "54 jours" : "0 jour"}
+                    {founderDemo ? "24 jours" : "0 jour"}
                   </p>
                 </div>
                 <div className="rounded-2xl border border-yellow-500/20 bg-black/35 p-3 text-center sm:p-4">
@@ -942,7 +942,7 @@ export default function AffiliationDashboardPage() {
                 Revenus récurrents estimés
               </p>
               <p className="mt-3 text-4xl font-black text-white sm:mt-4 sm:text-4xl">
-                {founderDemo ? "1 902 €/mois" : "Prêt à démarrer"}
+                {founderDemo ? "552 €/mois" : "Prêt à démarrer"}
               </p>
               <p className="mt-3 text-sm leading-6 text-white/55">
                 Les chiffres réels seront calculés depuis les événements
@@ -950,12 +950,12 @@ export default function AffiliationDashboardPage() {
               </p>
               <div className="mt-5 h-3 overflow-hidden rounded-full bg-white/10 sm:mt-6">
                 <div
-                  className={`h-full rounded-full bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] ${founderDemo ? "w-[92%]" : "w-[0%]"}`}
+                  className={`h-full rounded-full bg-gradient-to-r from-[#ffb800] to-[#ffcc4d] ${founderDemo ? "w-[23%]" : "w-[0%]"}`}
                 />
               </div>
               <p className="mt-2 text-xs text-white/45">
                 {founderDemo
-                  ? "96 abonnés actifs • 96 ventes cumulées"
+                  ? "23 abonnés actifs • Objectif : 100 abonnés"
                   : "Ton compteur démarrera avec ton premier abonné"}
               </p>
             </div>
