@@ -1846,7 +1846,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white">
+    <div className="min-h-screen bg-[#f3f0e8] text-[#171717]">
       <style>{`
         body > header,
         header {
@@ -1860,33 +1860,120 @@ export default function DashboardPage() {
         }
       `}</style>
 
-      <div className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(circle_at_top_right,rgba(255,184,0,0.10),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(255,184,0,0.07),transparent_32%)]" />
+      <div className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(circle_at_top_right,rgba(184,129,6,0.10),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.85),transparent_38%)]" />
 
 
 
       <main className="relative z-[2147483645] px-4 pb-16 pt-4 sm:px-6 lg:pr-8 lg:pt-4">
-        <motion.div
+        <motion.section
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35 }}
-          className="mx-auto max-w-[1600px] text-center"
+          className="mx-auto w-full max-w-[1500px]"
         >
-          <div className="relative overflow-hidden rounded-[34px] border border-yellow-600/20 bg-[#050505] shadow-[0_0_70px_rgba(255,184,0,0.10)] max-sm:rounded-[26px]">
-            <img
-              src="/images/HerodesktopLGD.jpg"
-              alt="Cerveau Collectif IA LGD - Le Générateur Digital"
-              className="hidden h-auto w-full select-none object-cover sm:block"
-              draggable={false}
-            />
-            <img
-              src="/images/HeromobileLGD.jpg"
-              alt="LGD - Lance ton business dans le marketing digital avec TikTok et Instagram"
-              className="block h-auto w-full select-none object-cover sm:hidden"
-              draggable={false}
-            />
-          </div>
-        </motion.div>
+          <div className="overflow-hidden rounded-[34px] border border-[#e6dfcf] bg-[#fbfaf7] shadow-[0_28px_90px_rgba(35,28,14,0.10)] max-sm:rounded-[24px]">
+            <div className="grid grid-cols-1 gap-0 xl:grid-cols-[1.04fr_0.96fr]">
+              <div className="flex flex-col justify-center px-6 py-10 text-left sm:px-10 sm:py-14 lg:px-14 xl:px-16 xl:py-16">
+                <div className="inline-flex w-fit items-center gap-2 rounded-full border border-[#d8c79b] bg-[#fff8e2] px-4 py-2 text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#73530a] sm:text-xs">
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#f0b51a] shadow-[0_0_0_5px_rgba(240,181,26,0.14)]" />
+                  La FormAction Business tout-en-un
+                </div>
 
+                <h1 className="mt-7 max-w-4xl text-[2.45rem] font-black leading-[1.02] tracking-[-0.05em] text-[#171717] sm:text-5xl lg:text-6xl xl:text-[4.25rem]">
+                  Construisez votre business en ligne
+                  <span className="block text-[#b88106]">sans rester bloqué sur la prochaine étape.</span>
+                </h1>
+
+                <p className="mt-6 max-w-3xl text-base leading-7 text-[#57534a] sm:text-lg sm:leading-8">
+                  LGD vous guide de l’idée jusqu’aux premières actions commerciales. Vous apprenez,
+                  vous créez et vous avancez avec une méthode pas à pas et tous les outils IA réunis
+                  au même endroit, propulsés par OpenAI.
+                </p>
+
+                <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={() => (isLoggedIn ? accessOrExplain("coach") : goToTrial())}
+                    className="inline-flex min-h-14 items-center justify-center rounded-2xl bg-[#171717] px-7 text-base font-extrabold text-white shadow-[0_14px_30px_rgba(0,0,0,0.16)] transition hover:-translate-y-0.5 hover:bg-black"
+                  >
+                    {isLoggedIn ? "Continuer mon parcours →" : "Commencer gratuitement →"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => (isLoggedIn ? setActiveWorkspace("activity") : goToLogin())}
+                    className="inline-flex min-h-14 items-center justify-center rounded-2xl border border-[#d9d2c4] bg-white px-7 text-base font-bold text-[#28251f] transition hover:-translate-y-0.5 hover:border-[#b99742] hover:bg-[#fffdf8]"
+                  >
+                    {isLoggedIn ? "Voir ma progression" : "J’ai déjà un compte"}
+                  </button>
+                </div>
+
+                <div className="mt-7 flex flex-wrap gap-x-6 gap-y-3 text-sm font-semibold text-[#5f5a50]">
+                  <span className="inline-flex items-center gap-2"><FaCheckCircle className="text-emerald-600" /> Aucun prérequis</span>
+                  <span className="inline-flex items-center gap-2"><FaCheckCircle className="text-emerald-600" /> Progression sauvegardée</span>
+                  <span className="inline-flex items-center gap-2"><FaCheckCircle className="text-emerald-600" /> Outils IA connectés à OpenAI</span>
+                </div>
+              </div>
+
+              <div className="border-t border-[#ebe5d9] bg-white p-5 sm:p-8 xl:border-l xl:border-t-0 xl:p-10">
+                <div className="h-full rounded-[28px] border border-[#e8e1d4] bg-[#f7f5ef] p-5 shadow-inner sm:p-7">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-[0.18em] text-[#9b710a]">Votre feuille de route</p>
+                      <h2 className="mt-2 text-2xl font-black tracking-[-0.03em] text-[#1c1b18] sm:text-3xl">
+                        Un business se construit étape par étape.
+                      </h2>
+                    </div>
+                    <span className="inline-flex w-fit rounded-full border border-[#d9d2c4] bg-white px-4 py-2 text-xs font-bold text-[#625d53]">
+                      Méthode guidée
+                    </span>
+                  </div>
+
+                  <div className="mt-7 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    {[
+                      ["01", "Trouver une idée", "Choisir une direction claire et adaptée."],
+                      ["02", "Structurer votre offre", "Transformer l’idée en proposition concrète."],
+                      ["03", "Définir votre client", "Savoir exactement à qui vous vous adressez."],
+                      ["04", "Créer votre contenu", "Publier avec un message cohérent et utile."],
+                      ["05", "Attirer des prospects", "Mettre en place votre système d’acquisition."],
+                      ["06", "Passer à l’action", "Recevoir chaque jour la prochaine priorité."],
+                    ].map(([number, title, description], index) => (
+                      <div
+                        key={number}
+                        className={[
+                          "rounded-2xl border p-4 transition",
+                          index === 0
+                            ? "border-[#d5bd78] bg-[#fff9e8] shadow-[0_10px_25px_rgba(184,129,6,0.08)]"
+                            : "border-[#e3ddd1] bg-white",
+                        ].join(" ")}
+                      >
+                        <div className="flex items-start gap-3">
+                          <span className={[
+                            "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-black",
+                            index === 0 ? "bg-[#171717] text-white" : "bg-[#f0ede6] text-[#6c665c]",
+                          ].join(" ")}>
+                            {number}
+                          </span>
+                          <div>
+                            <p className="font-extrabold text-[#25231f]">{title}</p>
+                            <p className="mt-1 text-sm leading-5 text-[#716b61]">{description}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-5 rounded-2xl border border-[#25231f] bg-[#171717] px-5 py-4 text-white">
+                    <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#f0c85c]">Votre repère quotidien</p>
+                    <p className="mt-2 text-sm leading-6 text-white/78">
+                      LGD relie votre parcours à une mission concrète pour que vous sachiez toujours quoi faire ensuite.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.section>
 
         {isLoggedIn && activeWorkspace === "activity" ? (
           <ActivityProgressWorkspace
@@ -1911,13 +1998,13 @@ export default function DashboardPage() {
                   </div>
 
                   <h2 className="mt-4 text-2xl sm:text-4xl font-extrabold text-[#ffb800]">
-                    🎯 Mission Cash du Jour IA
+                    🎯 Votre mission du jour
                   </h2>
 
                   <p className="mt-3 max-w-4xl text-white/75 text-sm sm:text-base">
-                    LGD te propose une action rapide à réaliser immédiatement.
+                    LGD analyse votre projet et vous propose l’action la plus utile à exécuter maintenant.
 
-                    Passe à l'action ou lance une nouvelle analyse IA Live pour obtenir une recommandation différente.
+                    Passez à l’action ou lancez une nouvelle analyse IA Live pour obtenir une recommandation différente.
                   </p>
 
                   <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#050505] px-4 py-2 text-[12px] font-semibold text-yellow-100 shadow-[0_0_24px_rgba(255,184,0,0.08)]">
@@ -1938,7 +2025,7 @@ export default function DashboardPage() {
                     <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                       <div>
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-yellow-300">
-                          🎯 Mission Cash du Jour
+                          🎯 Mission prioritaire
                         </p>
                         <p className="mt-3 text-xl font-extrabold leading-snug text-white">
                           {cmoResult?.priority_action || "Lancer Coach Alex pour clarifier ton action la plus rentable."}
@@ -2027,7 +2114,7 @@ export default function DashboardPage() {
                     </div>
 
                     <p className="mt-3 text-center text-xs leading-5 text-white/45">
-                      Passe à l'action avec la Mission Cash du Jour.
+                      Passez à l’action avec votre mission du jour.
 
                       Besoin d'une nouvelle stratégie ?
                       Lance le Stratège IA Live pour obtenir une analyse personnalisée de ton activité.
