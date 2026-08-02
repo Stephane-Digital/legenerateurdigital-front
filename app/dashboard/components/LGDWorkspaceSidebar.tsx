@@ -124,7 +124,7 @@ export default function LGDWorkspaceSidebar() {
             onClick={() => go("/dashboard")}
             className="rounded-2xl border border-yellow-600/15 bg-yellow-500/10 px-5 py-3 text-left text-[15px] font-semibold text-yellow-100 transition hover:bg-yellow-500/15"
           >
-            🏠 Accueil
+            🏠 Dashboard
           </button>
 
           <button type="button" onClick={() => go("/dashboard")} className={navButton}>
@@ -229,7 +229,7 @@ export default function LGDWorkspaceSidebar() {
               onClick={() => go("/dashboard")}
               className="rounded-2xl bg-yellow-500/10 px-5 py-3 text-left text-[15px] font-semibold text-yellow-100"
             >
-              🏠 Accueil
+              🏠 Dashboard
             </button>
 
             <button type="button" onClick={() => requireLogin("/dashboard/coach-ia")} className={mobileButton}>
