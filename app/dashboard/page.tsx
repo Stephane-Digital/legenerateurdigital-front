@@ -1281,17 +1281,17 @@ function BusinessJournalCard({ summary }: { summary: BusinessJournalSummary }) {
 
         <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_0.9fr]">
           <div className="rounded-2xl border border-yellow-600/15 bg-black/35 px-4 py-4">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#f4c84a]">Analyse IA locale</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-yellow-300/80">Analyse IA locale</p>
             <p className="mt-2 text-base font-bold text-yellow-100">{summary.insightTitle}</p>
             <p className="mt-2 text-sm leading-6 text-white/70">{summary.insightText}</p>
-            <div className="mt-4 rounded-2xl border border-yellow-500/25 bg-[#151515] px-5 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]">
+            <div className="mt-4 rounded-2xl border border-yellow-600/15 bg-[#0b0b0b] px-4 py-3">
               <p className="text-xs uppercase tracking-[0.18em] text-white/45">Priorité conseillée</p>
               <p className="mt-2 text-sm font-semibold leading-6 text-yellow-100">{summary.nextPriority}</p>
             </div>
           </div>
 
           <div className="rounded-2xl border border-yellow-600/15 bg-black/35 px-4 py-4">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#f4c84a]">Dernières actions détectées</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-yellow-300/80">Dernières actions détectées</p>
             {summary.recentActions.length ? (
               <div className="mt-3 space-y-3">
                 {summary.recentActions.map((action) => (
@@ -2054,24 +2054,24 @@ export default function DashboardPage() {
                       </div>
                     ) : (
                       <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
-                        <div className="rounded-2xl border border-yellow-500/25 bg-[#151515] px-5 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]">
-                          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#f4c84a]">Diagnostic rapide</p>
-                          <p className="mt-2 text-[15px] font-medium leading-7 text-[#f4f4f5]">{missionCashDiagnostic(cmoResult)}</p>
+                        <div className="rounded-2xl border border-yellow-600/15 bg-[#0b0b0b] px-4 py-3">
+                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-yellow-300/80">Diagnostic rapide</p>
+                          <p className="mt-2 text-sm leading-6 text-white/72">{missionCashDiagnostic(cmoResult)}</p>
                         </div>
 
-                        <div className="rounded-2xl border border-yellow-500/25 bg-[#151515] px-5 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]">
-                          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#f4c84a]">Opportunité du jour</p>
-                          <p className="mt-2 text-[15px] font-medium leading-7 text-[#f4f4f5]">{missionCashOpportunity(cmoResult)}</p>
+                        <div className="rounded-2xl border border-yellow-600/15 bg-[#0b0b0b] px-4 py-3">
+                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-yellow-300/80">Opportunité du jour</p>
+                          <p className="mt-2 text-sm leading-6 text-white/72">{missionCashOpportunity(cmoResult)}</p>
                         </div>
 
-                        <div className="rounded-2xl border border-yellow-500/25 bg-[#151515] px-5 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]">
-                          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#f4c84a]">Résultat attendu</p>
-                          <p className="mt-2 text-[15px] font-medium leading-7 text-[#f4f4f5]">{missionCashExpectedResult(cmoResult)}</p>
+                        <div className="rounded-2xl border border-yellow-600/15 bg-[#0b0b0b] px-4 py-3">
+                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-yellow-300/80">Résultat attendu</p>
+                          <p className="mt-2 text-sm leading-6 text-white/72">{missionCashExpectedResult(cmoResult)}</p>
                         </div>
 
-                        <div className="rounded-2xl border border-yellow-500/25 bg-[#151515] px-5 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]">
-                          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#f4c84a]">Erreur à éviter</p>
-                          <p className="mt-2 text-[15px] font-medium leading-7 text-[#f4f4f5]">{missionCashMistake(cmoResult)}</p>
+                        <div className="rounded-2xl border border-yellow-600/15 bg-[#0b0b0b] px-4 py-3">
+                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-yellow-300/80">Erreur à éviter</p>
+                          <p className="mt-2 text-sm leading-6 text-white/72">{missionCashMistake(cmoResult)}</p>
                         </div>
                       </div>
                     )}
