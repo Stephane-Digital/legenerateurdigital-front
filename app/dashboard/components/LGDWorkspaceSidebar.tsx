@@ -113,7 +113,7 @@ export default function LGDWorkspaceSidebar() {
           <img
             src="/images/ChatGPT Image 17 août 2026, 18_00_14.png"
             alt="Le Générateur Digital"
-            className="h-auto w-[150px] select-none object-contain"
+            className="h-auto w-[650px] select-none object-contain"
             draggable={false}
           />
         </div>
