@@ -277,7 +277,7 @@ export default function LGDWorkspaceSidebar() {
               onClick={openAffiliationProgram}
               className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-5 py-3 text-left text-[15px] font-semibold text-yellow-100"
             >
-              💰 Programme Ambassadeur LGD
+              💰 Accéder à mon programme Ambassadeur LGD
             </button>
 
             <button type="button" onClick={openPlans} className="rounded-2xl px-5 py-3 text-left text-[15px] font-medium text-white/85 hover:bg-yellow-500/10">
