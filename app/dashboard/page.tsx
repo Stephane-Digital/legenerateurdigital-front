@@ -1871,106 +1871,152 @@ export default function DashboardPage() {
           transition={{ duration: 0.35 }}
           className="mx-auto w-full max-w-[1500px]"
         >
-          <div className="overflow-hidden rounded-[34px] border border-[#e6dfcf] bg-[#fbfaf7] shadow-[0_28px_90px_rgba(35,28,14,0.10)] max-sm:rounded-[24px]">
+          <div className="overflow-hidden rounded-[34px] border border-[#2a2418] bg-[radial-gradient(circle_at_15%_15%,rgba(255,184,0,0.08),transparent_28%),linear-gradient(135deg,#05080d_0%,#080b10_48%,#0d1118_100%)] shadow-[0_30px_100px_rgba(0,0,0,0.42)] max-sm:rounded-[24px]">
             <div className="grid grid-cols-1 gap-0 xl:grid-cols-[1.04fr_0.96fr]">
               <div className="flex flex-col justify-center px-6 py-10 text-left sm:px-10 sm:py-14 lg:px-14 xl:px-16 xl:py-16">
-                <div className="inline-flex w-fit items-center gap-2 rounded-full border border-[#d8c79b] bg-[#fff8e2] px-4 py-2 text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#73530a] sm:text-xs">
-                  <span className="h-2.5 w-2.5 rounded-full bg-[#f0b51a] shadow-[0_0_0_5px_rgba(240,181,26,0.14)]" />
-                  La FormAction Business tout-en-un
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="flex items-center gap-3">
+                      <div className="text-5xl font-black tracking-[-0.08em] text-white sm:text-6xl">LGD</div>
+                      <span className="mt-1 inline-block h-0 w-0 border-b-[9px] border-l-[14px] border-t-[9px] border-b-transparent border-l-[#ffb800] border-t-transparent" />
+                    </div>
+                    <p className="mt-1 text-sm font-bold uppercase tracking-[0.08em] text-white/85">
+                      Le <span className="text-[#ffb800]">Générateur</span> Digital
+                    </p>
+                    <p className="mt-1 text-xs text-white/55">Ton business. Ton succès. Notre IA.</p>
+                  </div>
+
+                  <div className="inline-flex w-fit items-center gap-3 rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-xs text-white/70 xl:hidden">
+                    <FaRobot className="text-xl text-[#ffb800]" />
+                    <span><strong className="text-white">Plateforme business IA francophone</strong><br />propulsée par OpenAI</span>
+                  </div>
                 </div>
 
-                <h1 className="mt-7 max-w-4xl text-[2.45rem] font-black leading-[1.02] tracking-[-0.05em] text-[#171717] sm:text-5xl lg:text-6xl xl:text-[4.25rem]">
-                  Construisez votre business en ligne
-                  <span className="block text-[#b88106]">sans rester bloqué sur la prochaine étape.</span>
+                <div className="mt-8 inline-flex w-fit items-center gap-2 rounded-full border border-[#ffb800]/55 bg-[#ffb800]/5 px-4 py-2 text-[11px] font-extrabold uppercase tracking-[0.11em] text-white sm:text-xs">
+                  <FaBolt className="text-[#ffb800]" />
+                  Tu n’as pas besoin d’être expert pour commencer
+                </div>
+
+                <h1 className="mt-6 max-w-4xl text-[2.25rem] font-black leading-[1.04] tracking-[-0.045em] text-white sm:text-5xl lg:text-[3.4rem] xl:text-[3.65rem]">
+                  Tu as acheté des formations.<br />
+                  Tu veux te lancer dans le digital.
+                  <span className="mt-2 block text-[#ffb000]">Mais tu ne sais toujours pas quoi faire aujourd’hui.</span>
                 </h1>
 
-                <p className="mt-6 max-w-3xl text-base leading-7 text-[#57534a] sm:text-lg sm:leading-8">
-                  LGD vous guide de l’idée jusqu’aux premières actions commerciales. Vous apprenez,
-                  vous créez et vous avancez avec une méthode pas à pas et tous les outils IA réunis
-                  au même endroit, propulsés par OpenAI.
+                <div className="mt-5 h-1 w-14 rounded-full bg-[#ffb800]" />
+
+                <p className="mt-5 max-w-3xl text-lg font-bold leading-7 text-white sm:text-xl sm:leading-8">
+                  Ici, tu vas enfin avancer étape par étape, grâce à ton <span className="text-[#ffb800]">coach IA personnalisé</span> et à des <span className="text-[#ffb800]">outils interconnectés</span> qui travaillent autour de ton projet.
                 </p>
 
-                <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <p className="mt-4 max-w-3xl text-sm leading-6 text-white/68 sm:text-base sm:leading-7">
+                  LGD part de ton niveau, clarifie ton objectif et transforme ce que tu dois apprendre en actions concrètes : créer ton contenu, développer ta présence, attirer tes premiers prospects et avancer vers tes premières ventes.
+                </p>
+
+                <div className="mt-7 grid grid-cols-2 gap-2 sm:grid-cols-5">
+                  {[
+                    ["🎯", "Clarifie ton objectif"],
+                    ["✏️", "Crée ton contenu"],
+                    ["👥", "Attire tes prospects"],
+                    ["✉️", "Développe ta présence"],
+                    ["📈", "Progresse vers tes ventes"],
+                  ].map(([icon, label]) => (
+                    <div key={label} className="rounded-2xl border border-white/10 bg-black/20 px-3 py-3 text-center">
+                      <div className="text-xl">{icon}</div>
+                      <p className="mt-2 text-xs font-bold leading-4 text-white/85">{label}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-7 flex flex-col gap-3 sm:flex-row">
                   <button
                     type="button"
                     onClick={() => (isLoggedIn ? accessOrExplain("coach") : goToTrial())}
-                    className="inline-flex min-h-14 items-center justify-center rounded-2xl bg-[#171717] px-7 text-base font-extrabold text-white shadow-[0_14px_30px_rgba(0,0,0,0.16)] transition hover:-translate-y-0.5 hover:bg-black"
+                    className="inline-flex min-h-16 flex-1 items-center justify-center rounded-2xl bg-gradient-to-r from-[#ffb000] to-[#ffc83d] px-7 text-base font-black text-black shadow-[0_14px_36px_rgba(255,184,0,0.22)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_42px_rgba(255,184,0,0.30)]"
                   >
-                    {isLoggedIn ? "Continuer mon parcours →" : "Commencer gratuitement →"}
+                    {isLoggedIn ? "🤖  Lancer Coach Alex IA" : "🤖  Commencer avec Coach Alex IA"}
                   </button>
 
                   <button
                     type="button"
                     onClick={() => (isLoggedIn ? setActiveWorkspace("activity") : goToLogin())}
-                    className="inline-flex min-h-14 items-center justify-center rounded-2xl border border-[#d9d2c4] bg-white px-7 text-base font-bold text-[#28251f] transition hover:-translate-y-0.5 hover:border-[#b99742] hover:bg-[#fffdf8]"
+                    className="inline-flex min-h-16 flex-1 items-center justify-center rounded-2xl border border-white/20 bg-white/[0.035] px-7 text-base font-extrabold text-white transition hover:-translate-y-0.5 hover:border-[#ffb800]/45 hover:bg-[#ffb800]/5"
                   >
-                    {isLoggedIn ? "Voir ma progression" : "J’ai déjà un compte"}
+                    {isLoggedIn ? "📊  Voir ma progression" : "J’ai déjà un compte"}
                   </button>
                 </div>
 
-                <div className="mt-7 flex flex-wrap gap-x-6 gap-y-3 text-sm font-semibold text-[#5f5a50]">
-                  <span className="inline-flex items-center gap-2"><FaCheckCircle className="text-emerald-600" /> Aucun prérequis</span>
-                  <span className="inline-flex items-center gap-2"><FaCheckCircle className="text-emerald-600" /> Progression sauvegardée</span>
-                  <span className="inline-flex items-center gap-2"><FaCheckCircle className="text-emerald-600" /> Outils IA connectés à OpenAI</span>
+                <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-xs font-semibold text-white/58">
+                  <span className="inline-flex items-center gap-2"><FaCheckCircle className="text-emerald-400" /> Aucun prérequis</span>
+                  <span className="inline-flex items-center gap-2"><FaCheckCircle className="text-emerald-400" /> Adapté aux débutants</span>
+                  <span className="inline-flex items-center gap-2"><FaCheckCircle className="text-emerald-400" /> Progression sauvegardée</span>
                 </div>
               </div>
 
-              <div className="border-t border-[#ebe5d9] bg-white p-5 sm:p-8 xl:border-l xl:border-t-0 xl:p-10">
-                <div className="h-full rounded-[28px] border border-[#e8e1d4] bg-[#f7f5ef] p-5 shadow-inner sm:p-7">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="border-t border-white/10 bg-[#f7f4ed] p-5 sm:p-8 xl:border-l xl:border-t-0 xl:p-9">
+                <div className="mb-5 hidden items-center justify-end xl:flex">
+                  <div className="inline-flex items-center gap-3 rounded-2xl border border-[#d8d1c5] bg-white px-5 py-3 shadow-sm">
+                    <FaRobot className="text-2xl text-[#d99000]" />
                     <div>
-                      <p className="text-xs font-black uppercase tracking-[0.18em] text-[#9b710a]">Votre feuille de route</p>
-                      <h2 className="mt-2 text-2xl font-black tracking-[-0.03em] text-[#1c1b18] sm:text-3xl">
-                        Un business se construit étape par étape.
-                      </h2>
+                      <p className="text-xs font-black uppercase tracking-[0.08em] text-[#25231f]">La plateforme business IA francophone</p>
+                      <p className="mt-1 text-sm font-semibold text-[#625d53]">Propulsée par <span className="font-black text-[#171717]">OpenAI</span></p>
                     </div>
-                    <span className="inline-flex w-fit rounded-full border border-[#d9d2c4] bg-white px-4 py-2 text-xs font-bold text-[#625d53]">
-                      Méthode guidée
-                    </span>
+                  </div>
+                </div>
+
+                <div className="rounded-[28px] border border-[#ded7ca] bg-[#fbfaf7] p-4 shadow-[0_20px_50px_rgba(35,28,14,0.08)] sm:p-6">
+                  <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 text-center">
+                    <div>
+                      <span className="inline-flex rounded-full bg-[#5f6670] px-5 py-2 text-xs font-black uppercase tracking-[0.06em] text-white">Aujourd’hui</span>
+                      <p className="mt-2 text-sm font-bold text-[#27231d]">Tu galères…</p>
+                    </div>
+                    <div />
+                    <div>
+                      <span className="inline-flex rounded-full bg-emerald-700 px-5 py-2 text-xs font-black uppercase tracking-[0.06em] text-white">Avec LGD</span>
+                      <p className="mt-2 text-sm font-bold text-emerald-700">Tu avances !</p>
+                    </div>
                   </div>
 
-                  <div className="mt-7 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="mt-5 space-y-3">
                     {[
-                      ["01", "Trouver une idée", "Choisir une direction claire et adaptée."],
-                      ["02", "Structurer votre offre", "Transformer l’idée en proposition concrète."],
-                      ["03", "Définir votre client", "Savoir exactement à qui vous vous adressez."],
-                      ["04", "Créer votre contenu", "Publier avec un message cohérent et utile."],
-                      ["05", "Attirer des prospects", "Mettre en place votre système d’acquisition."],
-                      ["06", "Passer à l’action", "Recevoir chaque jour la prochaine priorité."],
-                    ].map(([number, title, description], index) => (
-                      <div
-                        key={number}
-                        className={[
-                          "rounded-2xl border p-4 transition",
-                          index === 0
-                            ? "border-[#d5bd78] bg-[#fff9e8] shadow-[0_10px_25px_rgba(184,129,6,0.08)]"
-                            : "border-[#e3ddd1] bg-white",
-                        ].join(" ")}
-                      >
-                        <div className="flex items-start gap-3">
-                          <span className={[
-                            "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-black",
-                            index === 0 ? "bg-[#171717] text-white" : "bg-[#f0ede6] text-[#6c665c]",
-                          ].join(" ")}>
-                            {number}
-                          </span>
+                      ["🌀", "Je ne sais pas quoi vendre.", "🎯", "Un objectif clair", "Tu sais ce que tu construis."],
+                      ["📱", "Je ne sais pas quoi publier.", "🤖", "Coach Alex IA te guide", "Tu n’es plus seul."],
+                      ["🧭", "Je n’ai pas d’objectif clair.", "📅", "Une mission concrète chaque jour", "Tu sais quoi faire maintenant."],
+                      ["🔋", "Je commence puis j’abandonne.", "🧊", "Des outils qui t’aident à exécuter", "Contenu, email, prospection, organisation…"],
+                      ["📚", "J’ai plein de formations, mais je n’avance pas.", "📈", "Tu avances avec régularité", "Vers tes premiers prospects et tes premières ventes."],
+                    ].map(([leftIcon, problem, rightIcon, solution, detail]) => (
+                      <div key={problem} className="grid grid-cols-[1fr_auto_1fr] items-stretch gap-2 sm:gap-3">
+                        <div className="flex items-center gap-3 rounded-2xl border border-[#ded8ce] bg-white px-3 py-4 sm:px-4">
+                          <span className="text-2xl">{leftIcon}</span>
+                          <p className="text-xs font-bold leading-5 text-[#27231d] sm:text-sm">{problem}</p>
+                        </div>
+                        <div className="flex items-center justify-center px-1 text-xl font-black text-[#e49b00]">→</div>
+                        <div className="flex items-center gap-3 rounded-2xl border border-emerald-700/20 bg-white px-3 py-4 sm:px-4">
+                          <span className="text-2xl">{rightIcon}</span>
                           <div>
-                            <p className="font-extrabold text-[#25231f]">{title}</p>
-                            <p className="mt-1 text-sm leading-5 text-[#716b61]">{description}</p>
+                            <p className="text-xs font-black leading-5 text-emerald-700 sm:text-sm">{solution}</p>
+                            <p className="mt-0.5 text-[11px] leading-4 text-[#4f4a42] sm:text-xs">{detail}</p>
                           </div>
                         </div>
                       </div>
                     ))}
                   </div>
 
-                  <div className="mt-5 rounded-2xl border border-[#25231f] bg-[#171717] px-5 py-4 text-white">
-                    <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#f0c85c]">Votre repère quotidien</p>
-                    <p className="mt-2 text-sm leading-6 text-white/78">
-                      LGD relie votre parcours à une mission concrète pour que vous sachiez toujours quoi faire ensuite.
-                    </p>
+                  <div className="mt-4 flex items-start gap-3 rounded-2xl border border-[#e0d7c6] bg-[#f3eee5] px-4 py-4">
+                    <div className="text-2xl">🛡️</div>
+                    <div>
+                      <p className="text-sm font-black text-[#24211d]">Méthode claire <span className="text-[#d99000]">•</span> Actions concrètes <span className="text-[#d99000]">•</span> Résultats mesurables</p>
+                      <p className="mt-1 text-xs leading-5 text-[#5e584e]">Tout est réuni pour que tu passes enfin à l’action et que tu obtiennes tes premières ventes.</p>
+                    </div>
                   </div>
                 </div>
               </div>
+            </div>
+
+            <div className="border-t border-white/10 bg-black/30 px-6 py-4 text-center sm:px-10">
+              <p className="text-sm font-semibold text-white/80 sm:text-base">
+                💛 Tu n’as probablement pas besoin d’une formation de plus. <span className="font-black text-[#ffb800]">Tu as besoin d’un système qui t’aide enfin à passer à l’action.</span>
+              </p>
             </div>
           </div>
         </motion.section>
