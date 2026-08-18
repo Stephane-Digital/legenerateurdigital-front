@@ -132,7 +132,7 @@ export default function LGDWorkspaceSidebar() {
           </button>
 
           <button type="button" onClick={() => requireLogin("/dashboard/coach-ia")} className={navButton}>
-            🧠 Coach Alex IA
+            🧠 Coach Alex IA personnalisé
           </button>
 
           <div className="my-2 border-t border-yellow-600/15" />
@@ -233,7 +233,7 @@ export default function LGDWorkspaceSidebar() {
             </button>
 
             <button type="button" onClick={() => requireLogin("/dashboard/coach-ia")} className={mobileButton}>
-              🧠 Coach Alex IA
+              🧠 Coach Alex IA personnalisé
             </button>
 
             <button
