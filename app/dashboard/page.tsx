@@ -1909,7 +1909,7 @@ export default function DashboardPage() {
                   Ici, tu vas enfin avancer étape par étape, grâce à ton <span className="text-[#ffb800]">coach IA personnalisé</span> et à des <span className="text-[#ffb800]">outils interconnectés</span> qui travaillent autour de ton projet.
                 </p>
 
-                <p className="mt-4 max-w-3xl text-sm leading-6 text-white/68 sm:text-base sm:leading-7">
+                <p className="mt-4 max-w-3xl text-sm font-medium leading-6 text-[#d8d8d8] sm:text-base sm:leading-7">
                   LGD part de ton niveau, clarifie ton objectif et transforme ce que tu dois apprendre en actions concrètes : créer ton contenu, développer ta présence, attirer tes premiers prospects et avancer vers tes premières ventes.
                 </p>
 
@@ -2008,6 +2008,35 @@ export default function DashboardPage() {
                       <p className="text-sm font-black text-[#24211d]">Méthode claire <span className="text-[#d99000]">•</span> Actions concrètes <span className="text-[#d99000]">•</span> Résultats mesurables</p>
                       <p className="mt-1 text-xs leading-5 text-[#5e584e]">Tout est réuni pour que tu passes enfin à l’action et que tu obtiennes tes premières ventes.</p>
                     </div>
+                  </div>
+                </div>
+
+                <div className="mt-5 rounded-[28px] border border-[#ded7ca] bg-white p-5 shadow-[0_16px_40px_rgba(35,28,14,0.06)] sm:p-6">
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#111] text-2xl shadow-sm">🤖</div>
+                    <div>
+                      <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#c78300]">Tu n’as plus à avancer seul</p>
+                      <h3 className="mt-1 text-lg font-black leading-tight text-[#171717] sm:text-xl">Coach Alex transforme ton flou en prochaine action.</h3>
+                      <p className="mt-2 text-xs leading-5 text-[#5e584e] sm:text-sm">Il part de ton niveau, de ton objectif et de ton blocage pour t’indiquer quoi faire maintenant — sans te demander de devenir expert en marketing.</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 grid grid-cols-3 gap-2">
+                    {[
+                      ["1", "Tu expliques", "Ta situation"],
+                      ["2", "Alex clarifie", "Ta priorité"],
+                      ["3", "Tu exécutes", "Dans le bon outil"],
+                    ].map(([step, title, detail]) => (
+                      <div key={step} className="rounded-2xl border border-[#e4ded3] bg-[#f8f6f1] px-3 py-3 text-center">
+                        <div className="mx-auto flex h-7 w-7 items-center justify-center rounded-full bg-[#ffb800] text-xs font-black text-black">{step}</div>
+                        <p className="mt-2 text-xs font-black text-[#211f1b]">{title}</p>
+                        <p className="mt-1 text-[10px] leading-4 text-[#6a645a] sm:text-[11px]">{detail}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-4 rounded-2xl bg-[#111] px-4 py-3 text-center">
+                    <p className="text-xs font-bold leading-5 text-white sm:text-sm">🎯 Ton objectif n’est pas de tout maîtriser. <span className="text-[#ffb800]">C’est de savoir quoi faire ensuite et de le faire.</span></p>
                   </div>
                 </div>
               </div>
