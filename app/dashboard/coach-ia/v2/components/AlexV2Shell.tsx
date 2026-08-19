@@ -82,6 +82,29 @@ type FormActionBusinessProject = {
   updatedAtISO?: string;
 };
 
+
+function hasCompletedAlexDiagnostic(
+  ctx?: AlexContext | null,
+  project?: FormActionBusinessProject | null,
+) {
+  const offer = String(project?.offerDescription || ctx?.offerDescription || "").trim();
+  const audience = String(
+    project?.targetAudienceDescription || ctx?.targetAudienceDescription || "",
+  ).trim();
+  const model = project?.businessModel || ctx?.businessModel;
+  const goal = ctx?.businessGoal || project?.firstRevenueGoal;
+  const blocker = ctx?.mainBlocker;
+
+  return Boolean(
+    offer &&
+      audience &&
+      model &&
+      model !== "pas_encore" &&
+      goal &&
+      blocker,
+  );
+}
+
 function apiBase() {
   return (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
 }
@@ -631,6 +654,15 @@ export default function AlexV2Shell() {
         return;
       }
 
+      // Diagnostic business obligatoire : un ancien contexte/plan ne doit pas
+      // permettre de sauter l'onboarding si la mémoire projet est incomplète.
+      if (!hasCompletedAlexDiagnostic(ctx, serverBusinessProject)) {
+        setStageState("ONBOARDING");
+        setV2Stage("ONBOARDING");
+        setBooted(true);
+        return;
+      }
+
       if (st) {
         setStageState(st);
         setBooted(true);
@@ -701,7 +733,13 @@ export default function AlexV2Shell() {
           setRoadmapState(rm);
           setTodayState(td);
           setLogsState(lg);
-          if (st) setStageState(st);
+
+          if (!hasCompletedAlexDiagnostic(ctx, businessProject)) {
+            setStageState("ONBOARDING");
+            setV2Stage("ONBOARDING");
+          } else if (st) {
+            setStageState(st);
+          }
         }
       } catch {
       } finally {
@@ -925,8 +963,9 @@ export default function AlexV2Shell() {
 
   const completedKeys = useMemo(() => {
     const set = new Set<string>();
-    if (context) set.add("onboarding");
-    if (roadmap) set.add("plan");
+    const diagnosticComplete = hasCompletedAlexDiagnostic(context, businessProject);
+    if (diagnosticComplete) set.add("onboarding");
+    if (diagnosticComplete && roadmap) set.add("plan");
     if (today?.committedAtISO) set.add("action");
     if (today?.startedAtISO) set.add("execution");
     if (today?.completedAtISO) set.add("feedback");
@@ -937,7 +976,7 @@ export default function AlexV2Shell() {
       );
     if (today?.completedAtISO && hasTodayLog) set.add("optim");
     return set;
-  }, [context, roadmap, today, effectiveLogs]);
+  }, [context, businessProject, roadmap, today, effectiveLogs]);
 
   // ===== handlers
   function onStartOnboarding() {
@@ -958,6 +997,30 @@ export default function AlexV2Shell() {
     channelNotes?: string;
     formActionProject?: FormActionBusinessProject;
   }) {
+    const submittedProject = data.formActionProject || null;
+    const submittedOffer = String(
+      submittedProject?.offerDescription || data.offerDescription || "",
+    ).trim();
+    const submittedAudience = String(
+      submittedProject?.targetAudienceDescription ||
+        data.targetAudienceDescription ||
+        "",
+    ).trim();
+
+    // Filet de sécurité : impossible de valider le diagnostic sans les
+    // informations minimales nécessaires à une stratégie personnalisée.
+    if (
+      !submittedOffer ||
+      !submittedAudience ||
+      !data.businessModel ||
+      data.businessModel === "pas_encore" ||
+      !data.businessGoal ||
+      !data.mainBlocker
+    ) {
+      goStage("ONBOARDING");
+      return;
+    }
+
     const ctx = createInitialContext({
       intent: data.intent,
       level: data.level,
@@ -1001,6 +1064,12 @@ export default function AlexV2Shell() {
   }
 
   function onSmartResume() {
+    // Ne jamais contourner le diagnostic avec un brief CMO ou une ancienne mission.
+    if (!hasCompletedAlexDiagnostic(context, businessProject)) {
+      goStage("ONBOARDING");
+      return;
+    }
+
     if (cmoCoachBrief) {
       const ctx =
         context ||
@@ -1078,7 +1147,12 @@ export default function AlexV2Shell() {
   }
 
   function onGoMission() {
-    if (!context || !roadmap || !today) {
+    if (
+      !context ||
+      !roadmap ||
+      !today ||
+      !hasCompletedAlexDiagnostic(context, businessProject)
+    ) {
       goStage("ONBOARDING");
       return;
     }
