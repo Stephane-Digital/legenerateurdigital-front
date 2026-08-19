@@ -93,6 +93,31 @@ function cleanMarketingMemoryValue(value: unknown) {
   return isInvalidMarketingMemoryValue(value) ? "" : String(value || "");
 }
 
+
+function hasCompletedBusinessDiagnostic(
+  ctx?: AlexContext | null,
+  project?: FormActionBusinessProject | null,
+) {
+  const offer = cleanMarketingMemoryValue(
+    project?.offerDescription || ctx?.offerDescription,
+  ).trim();
+  const audience = cleanMarketingMemoryValue(
+    project?.targetAudienceDescription || ctx?.targetAudienceDescription,
+  ).trim();
+  const model = project?.businessModel || ctx?.businessModel;
+  const goal = ctx?.businessGoal || project?.firstRevenueGoal;
+  const blocker = ctx?.mainBlocker;
+
+  return Boolean(
+    offer &&
+      audience &&
+      model &&
+      model !== "pas_encore" &&
+      goal &&
+      blocker,
+  );
+}
+
 function detectMrrFromText(value: unknown) {
   const lower = normalizeText(value).toLowerCase();
   return (
@@ -1335,13 +1360,12 @@ function BusinessDirectorPanelV4(props: {
 }) {
   const { businessProject, context, logs = [], today, compact } = props;
   const [activeTab, setActiveTab] = useState<"business" | "avatar" | "plan" | "score">("business");
-  const hasBusinessMemory = Boolean(
-    normalizeText(
-      businessProject?.offerDescription || context?.offerDescription || "",
-    ),
+  const diagnosticComplete = hasCompletedBusinessDiagnostic(
+    context,
+    businessProject,
   );
 
-  if (!hasBusinessMemory) {
+  if (!diagnosticComplete) {
     return (
       <div className="rounded-[30px] border border-yellow-500/20 bg-gradient-to-br from-[#10151f] via-[#070b11] to-black p-5 shadow-[0_0_45px_rgba(250,204,21,0.07)]">
         <div className="flex items-start justify-between gap-4">
@@ -1353,7 +1377,7 @@ function BusinessDirectorPanelV4(props: {
               🧠 Diagnostic en attente
             </h2>
             <p className="mt-2 text-sm leading-6 text-white/65">
-              Alex ne suppose rien. Il construit la stratégie seulement après ton diagnostic.
+              Ton parcours existe, mais la mémoire business nécessaire à une stratégie personnalisée est incomplète. Alex te renvoie au diagnostic pour la compléter.
             </p>
           </div>
           <div className="shrink-0 rounded-3xl border border-yellow-400/25 bg-yellow-400/10 px-4 py-3 text-center">
@@ -1368,10 +1392,10 @@ function BusinessDirectorPanelV4(props: {
             🤝 Action unique maintenant
           </div>
           <p className="mt-2 text-base font-semibold leading-7 text-white">
-            Termine le diagnostic Alex.
+            Complète ton diagnostic Alex.
           </p>
           <p className="mt-2 text-sm leading-6 text-white/60">
-            Ensuite, Alex définira ton modèle, ta promesse, ton client idéal et la première action à exécuter.
+            Dès qu’il connaît clairement ton offre, ton client idéal, ton objectif et ton blocage prioritaire, Alex recalcule une trajectoire cohérente et tes missions.
           </p>
         </div>
 
@@ -1613,6 +1637,10 @@ export default function StageRenderer(props: {
 
   const planTier: PlanTier = tierFromPlanLabel(planLabel);
   const planLimits = getCoachPlanLimits(planTier);
+  const diagnosticComplete = hasCompletedBusinessDiagnostic(
+    context,
+    businessProject || null,
+  );
 
   // ===== WELCOME
   if (stage === "WELCOME") {
@@ -1669,10 +1697,10 @@ export default function StageRenderer(props: {
 
             <div className="mt-5 flex gap-3">
               <button
-                onClick={onGoMission}
+                onClick={diagnosticComplete ? onGoMission : onStartOnboarding}
                 className="flex-1 rounded-2xl bg-yellow-400 px-4 py-3 text-sm font-semibold text-black hover:bg-yellow-300 transition"
               >
-                Reprendre la mission
+                {diagnosticComplete ? "Reprendre la mission" : "Compléter mon diagnostic"}
               </button>
               <button
                 onClick={onOpenParcours}
@@ -1730,6 +1758,29 @@ export default function StageRenderer(props: {
 
   // ===== MISSION
   if (stage === "MISSION_TODAY") {
+    if (!diagnosticComplete) {
+      return (
+        <div className="w-full max-w-none rounded-3xl border border-yellow-500/20 bg-[#0b0f16]/80 p-5 sm:p-6">
+          <div className="text-xs font-black uppercase tracking-[0.22em] text-yellow-300/70">
+            Diagnostic requis
+          </div>
+          <h2 className="mt-2 text-2xl font-black text-yellow-400">
+            Alex doit d’abord compléter ta mémoire business.
+          </h2>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-white/65">
+            Une ancienne mission existe encore, mais elle ne doit pas être utilisée tant que ton offre, ton client idéal, ton objectif et ton blocage prioritaire ne sont pas validés.
+          </p>
+          <button
+            type="button"
+            onClick={onStartOnboarding}
+            className="mt-5 rounded-2xl bg-yellow-400 px-5 py-3 text-sm font-black text-black transition hover:bg-yellow-300"
+          >
+            Compléter mon diagnostic
+          </button>
+        </div>
+      );
+    }
+
     return (
       <MissionCard
         today={today}
