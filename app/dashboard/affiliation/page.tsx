@@ -1421,7 +1421,7 @@ export default function AffiliationDashboardPage() {
               href={CANVA_VISUALS_URL}
             />
             <ResourceCard
-              icon="🤝"
+              icon="👀"
               title="Kit Instagram"
               text=" Tu disposes de 17 visuels prêts à être publiés en story"
               href={CANVA_KIT_URL}
