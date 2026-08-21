@@ -10,7 +10,7 @@ const DEFAULT_AFFILIATE_ID = "TON_ID_AFFILIÉ";
 const EXAMPLE_AFFILIATE_ID = "sa02698613581505ce9959d1609a94205a3a64efb9";
 
 const CANVA_VISUALS_URL = "https://canva.link/gotybx267eh8rb4";
-const CANVA_KIT_URL = "https://canva.link/146b24iq6gjzc1m";
+const CANVA_KIT_URL = "https://canva.link/f7037kcevsne3lk";
 const CANVA_MANUAL_URL = "https://canva.link/4wwrqllc4tagbnk";
 
 const COMMISSION_RATE = 0.6;
@@ -1417,13 +1417,13 @@ export default function AffiliationDashboardPage() {
             <ResourceCard
               icon="🎨"
               title="14 Visuels Canva"
-              text="Visuels prêts pour vos live TikTok, posts, stories et campagnes."
+              text="Visuels prêts pour vos live TikTok, posts, story et campagnes."
               href={CANVA_VISUALS_URL}
             />
             <ResourceCard
               icon="🤝"
-              title="Kit Ambassadeur"
-              text="Support complet pour présenter LGD et vendre avec méthode."
+              title="Kit Instagram"
+              text=" Tu disposes de 17 visuels prêts à être publiés en story"
               href={CANVA_KIT_URL}
             />
             <ResourceCard
