@@ -1415,9 +1415,9 @@ export default function AffiliationDashboardPage() {
           />
           <div className="mx-auto grid max-w-6xl gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <ResourceCard
-              icon="🎨"
+              icon="🎥"
               title="14 Visuels Canva"
-              text="Visuels prêts pour vos live TikTok, posts, story et campagnes."
+              text="Visuels prêts pour vos live TikTok, posts, story et campagnesn emailing."
               href={CANVA_VISUALS_URL}
             />
             <ResourceCard
