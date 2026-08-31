@@ -1411,7 +1411,7 @@ export default function AffiliationDashboardPage() {
           <SectionTitle
             eyebrow="Ressources"
             title="📚 Centre de Ressources Ambassadeur"
-            text="Tous les supports essentiels pour promouvoir LGD rapidement : visuels Canva, kit ambassadeur et manuel officiel."
+            text="Tous les supports essentiels pour promouvoir LGD : visuels Canva pour vos présesntation, visuels Instagram et le manuel officiel LGD."
           />
           <div className="mx-auto grid max-w-6xl gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <ResourceCard
