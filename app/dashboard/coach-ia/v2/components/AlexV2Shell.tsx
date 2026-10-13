@@ -1367,7 +1367,7 @@ export default function AlexV2Shell() {
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
             <div className="text-4xl font-semibold text-yellow-400">
-             Alex IA 🤖 Ton Digital Coach Personnel
+             Alex IA 🤖 Ton Digital Coach Personnel connecté à OpenAI
             </div>
             <div className="text-sm text-white/55">
               Workflow guidé · Instagram → TikTok → Facebook · Objectif :
