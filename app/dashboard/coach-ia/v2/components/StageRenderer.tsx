@@ -2152,7 +2152,7 @@ function OnboardingCard(props: {
   return (
     <div className="w-full max-w-none max-sm:relative max-sm:left-1/2 max-sm:w-screen max-sm:-translate-x-1/2 max-sm:rounded-none max-sm:border-x-0 max-sm:px-0 rounded-3xl border border-[#2a2416] bg-[#0b0f16]/70 p-4 sm:p-6">
       <div className="text-2xl font-semibold text-yellow-400 sm:text-3xl">
-        Coach Alex V3 · FormAction Premium
+        Coach Alex à besoin de connaître ton projet et le mémoriser. 
       </div>
       <div className="mt-1 text-sm text-white/55">
         Alex ne collecte plus seulement des réponses : il construit la mémoire
