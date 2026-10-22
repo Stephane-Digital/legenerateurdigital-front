@@ -2407,7 +2407,8 @@ function OnboardingCard(props: {
       : parcoursChoice === "mrr"
         ? "Exemple : une formation MRR comme [Le nom de la formation] avec droits de revente pour aider des débutants à construire une activité digitale rentable..."
         : parcoursChoice === "affiliation"
-          ? "Exemple 1 : recommander des outils ou des formations que tu apprécies et toucher une commission sur chaque vente. Exemple 2 : Recommander LGD à mon audience sur les réseaux et également à mes apprants à qui, j'ai déjà vendu une formation en MRR..."
+          ? "Exemple 1 : recommander des outils ou des formations que tu apprécies et toucher une commission sur chaque vente. 
+    Exemple 2 : Recommander LGD à mon audience sur les réseaux et également à mes apprenants à qui, j'ai déjà vendu une formation en MRR..."
           : businessModel === "coaching"
             ? "Exemple : accompagner des entrepreneurs à atteindre un objectif précis grâce à ton expertise..."
             : businessModel === "contenu"
