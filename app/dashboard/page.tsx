@@ -137,7 +137,7 @@ const LOGIN_PATH = "/auth/login";
 const LGD_DAILY_PROGRESS_KEY = "lgd_dashboard_daily_progress";
 
 const DEFAULT_PROGRESS: DailyProgress = {
-  idea: true,
+  idea: false,
   content: false,
   email: false,
   offer: false,
@@ -1559,6 +1559,25 @@ function ActivityProgressWorkspace({
 export default function DashboardPage() {
   const router = useRouter();
 
+  const [projectState, setProjectState] = useState<"loading" | "empty" | "started" | "ready" | "unavailable">("loading");
+  useEffect(() => {
+    let cancelled = false;
+    const token = getStoredToken();
+    if (!token) return;
+    const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
+    fetchCoachProfileSnapshot(base, token).then((snapshot) => {
+      if (cancelled) return;
+      if (!snapshot) { setProjectState("unavailable"); return; }
+      const { context, mission } = extractCoachV2Profile(snapshot);
+      const offer = firstProfileString(context, "offerDescription", "offer", "offerName", "product", "service");
+      const audience = firstProfileString(context, "targetAudienceDescription", "audience", "target", "targetAudience");
+      const goal = firstProfileString(context, "businessGoal", "goal", "objective", "intent") || snapshot.intent;
+      // Un contexte exploitable, pas une validation de toutes les étapes du questionnaire.
+      setProjectState((offer && audience) || firstProfileString(mission || {}, "title") ? "ready" : offer || audience || goal ? "started" : "empty");
+    });
+    return () => { cancelled = true; };
+  }, []);
+
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [plan, setPlan] = useState<Plan>("none");
   const [loadingPlan, setLoadingPlan] = useState(true);
@@ -1845,26 +1864,7 @@ export default function DashboardPage() {
     writeDailyProgress(updated);
   }
 
-  return (
-    <div className="min-h-screen bg-[#f3f0e8] text-[#171717]">
-      <style>{`
-        body > header,
-        header {
-          display: none !important;
-          visibility: hidden !important;
-          pointer-events: none !important;
-          height: 0 !important;
-          min-height: 0 !important;
-          max-height: 0 !important;
-          overflow: hidden !important;
-        }
-      `}</style>
-
-      <div className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(circle_at_top_right,rgba(184,129,6,0.10),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.85),transparent_38%)]" />
-
-
-
-      <main className="relative z-[2147483645] px-4 pb-16 pt-4 sm:px-6 lg:pr-8 lg:pt-4">
+  const dashboardPresentation = (
         <motion.section
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -2049,183 +2049,110 @@ export default function DashboardPage() {
             </div>
           </div>
         </motion.section>
+  );
+
+  return (
+    <div className="min-h-screen bg-[#080a0e] text-white">
+      <style>{`
+        body > header,
+        header {
+          display: none !important;
+          visibility: hidden !important;
+          pointer-events: none !important;
+          height: 0 !important;
+          min-height: 0 !important;
+          max-height: 0 !important;
+          overflow: hidden !important;
+        }
+      `}</style>
+
+      <div className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(circle_at_top_right,rgba(184,129,6,0.10),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.015),transparent_38%)]" />
+
+
+
+      <main className="relative z-[2147483645] px-4 pb-16 pt-4 sm:px-6 lg:pr-8 lg:pt-4">
+        {!loadingPlan && !isLoggedIn ? dashboardPresentation : null}
+        {loadingPlan ? <div role="status" className="mx-auto max-w-[1200px] py-16 text-white/70">Chargement de ton espace…</div> : null}
+
 
         {isLoggedIn && activeWorkspace === "activity" ? (
+          <div className="mx-auto max-w-[1200px]">
+          <button type="button" onClick={() => setActiveWorkspace("home")} className="my-5 rounded-xl border border-white/15 px-4 py-3 text-sm text-white/75">← Retour à ma priorité</button>
           <ActivityProgressWorkspace
             dailyProgress={dailyProgress}
             summary={businessJournalSummary}
             missions={readMissionCashHistory()}
             onOpenCoach={() => accessOrExplain("coach")}
           />
+          </div>
         ) : isLoggedIn ? (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.06, duration: 0.32 }}
-            className="mx-auto mt-10 w-full max-w-[1200px] max-sm:max-w-none px-4 max-sm:px-0"
-          >
-            <div className="w-full rounded-[32px] border border-yellow-600/25 bg-gradient-to-br from-[#101010] via-[#090909] to-[#15110a] px-6 py-8 shadow-[0_0_70px_rgba(255,184,0,0.10)] max-sm:rounded-none max-sm:border-x-0 max-sm:px-3 sm:px-10 sm:py-10">
-              <div className="mx-auto w-full max-w-none">
-                <div className="flex flex-col items-center text-center">
-                  <div className="inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-4 py-1 text-[12px] text-white/75">
-                    <span className={["h-2.5 w-2.5 rounded-full", cmoLoading ? "bg-yellow-300 animate-pulse" : cmoResult?.source === "live" ? "bg-green-400" : "bg-yellow-400"].join(" ")} />
-                    {cmoLoading ? "IA Business en cours" : cmoResult?.source === "live" ? "IA Business Active" : "Fallback premium"}
-                  </div>
-
-                  <h2 className="mt-4 text-2xl sm:text-4xl font-extrabold text-[#ffb800]">
-                    🎯 Votre mission du jour
-                  </h2>
-
-                  <p className="mt-3 max-w-4xl text-white/75 text-sm sm:text-base">
-                    LGD analyse votre projet et vous propose l’action la plus utile à exécuter maintenant.
-
-                    Passez à l’action ou lancez une nouvelle analyse IA Live pour obtenir une recommandation différente.
-                  </p>
-
-                  <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#050505] px-4 py-2 text-[12px] font-semibold text-yellow-100 shadow-[0_0_24px_rgba(255,184,0,0.08)]">
-                    <FaRobot className="text-yellow-300" />
-                    {aiQuota ? (
-                      <span>
-                        Quota IA : {formatQuotaNumber(aiQuota.remaining)} / {formatQuotaNumber(aiQuota.limit)} • Plan {aiQuota.planLabel}
-                      </span>
-                    ) : (
-                      <span>Quota IA : synchronisation…</span>
-                    )}
-                  </div>
-
-                </div>
-
-                <div className="mt-7 grid grid-cols-1 gap-5 lg:grid-cols-[1.35fr_0.75fr]">
-                  <div className="rounded-3xl border border-yellow-600/20 bg-black/35 p-5 text-left shadow-[0_0_30px_rgba(255,184,0,0.06)]">
-                    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-yellow-300">
-                          🎯 Mission prioritaire
-                        </p>
-                        <p className="mt-3 text-xl font-extrabold leading-snug text-white">
-                          {cmoResult?.priority_action || "Lancer Coach Alex pour clarifier ton action la plus rentable."}
-                        </p>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={refreshLocalCmoAction}
-                        disabled={cmoLoading}
-                        className="shrink-0 rounded-2xl border border-yellow-400/30 px-4 py-2 text-sm font-semibold text-yellow-200 transition hover:bg-yellow-400/10 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        <span className="inline-flex items-center gap-2">
-                          {cmoLoading ? <FaSyncAlt className="animate-spin" /> : null}
-                          Nouvelle mission locale
-                        </span>
-                      </button>
-                    </div>
-
-                    {cmoLoading ? (
-                      <div className="mt-5 rounded-2xl border border-yellow-400/20 bg-yellow-400/10 px-4 py-3 text-sm font-semibold text-yellow-100">
-                        <span className="inline-flex items-center gap-3">
-                          <FaSyncAlt className="animate-spin text-yellow-300" />
-                          Le Stratège IA Live analyse ton activité et prépare une Mission Cash plus rentable et plus contextualisée...
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
-                        <div className="rounded-2xl border border-yellow-500/25 bg-[#151515] px-5 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]">
-                          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#f4c84a]">Diagnostic rapide</p>
-                          <p className="mt-2 text-[15px] font-medium leading-7 text-[#f4f4f5]">{missionCashDiagnostic(cmoResult)}</p>
-                        </div>
-
-                        <div className="rounded-2xl border border-yellow-500/25 bg-[#151515] px-5 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]">
-                          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#f4c84a]">Opportunité du jour</p>
-                          <p className="mt-2 text-[15px] font-medium leading-7 text-[#f4f4f5]">{missionCashOpportunity(cmoResult)}</p>
-                        </div>
-
-                        <div className="rounded-2xl border border-yellow-500/25 bg-[#151515] px-5 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]">
-                          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#f4c84a]">Résultat attendu</p>
-                          <p className="mt-2 text-[15px] font-medium leading-7 text-[#f4f4f5]">{missionCashExpectedResult(cmoResult)}</p>
-                        </div>
-
-                        <div className="rounded-2xl border border-yellow-500/25 bg-[#151515] px-5 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]">
-                          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#f4c84a]">Erreur à éviter</p>
-                          <p className="mt-2 text-[15px] font-medium leading-7 text-[#f4f4f5]">{missionCashMistake(cmoResult)}</p>
-                        </div>
-                      </div>
-                    )}
-
-                    {cmoError ? (
-                      <p className="mt-4 text-sm text-red-300">{cmoError}</p>
-                    ) : null}
-                  </div>
-
-                  <div className="rounded-3xl border border-yellow-600/20 bg-[#0b0b0b]/80 p-5 text-left">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-yellow-300">
-                      🎯 Passe à l'action
-                    </p>
-
-                    {cmoResult?.next_best_action ? (
-                      <div className="mt-4 rounded-2xl border border-yellow-600/15 bg-black/35 px-4 py-3">
-                        <p className="text-xs uppercase tracking-[0.18em] text-white/45">Action immédiate</p>
-                        <p className="mt-2 text-sm font-semibold leading-6 text-yellow-100">{cmoResult.next_best_action}</p>
-                      </div>
-                    ) : (
-                      <p className="mt-4 text-sm leading-7 text-white/60">
-                        Lance le Stratège IA Live pour obtenir une nouvelle direction stratégique.
-                      </p>
-                    )}
-
-                    <div className="mt-5 grid grid-cols-1 gap-3">
-                      <PrimaryButton onClick={executeCmoModuleAuto}>
-                        {cmoModuleTarget.label}
-                      </PrimaryButton>
-
-                      <button
-                        type="button"
-                        onClick={loadCmoLive}
-                        disabled={cmoLoading}
-                        className="w-full rounded-2xl px-5 py-3 text-center font-semibold border border-yellow-600/25 bg-[#0b0b0b] text-white/85 hover:bg-yellow-500/10 transition-all disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {cmoLoading ? "Analyse IA Live en cours..." : "🧠 Analyse stratégique IA Live"}
-                      </button>
-
-                    </div>
-
-                    <p className="mt-3 text-center text-xs leading-5 text-white/45">
-                      Passez à l’action avec votre mission du jour.
-
-                      Besoin d'une nouvelle stratégie ?
-                      Lance le Stratège IA Live pour obtenir une analyse personnalisée de ton activité.
-                    </p>
-
-
-                    <div className="mt-5 rounded-2xl border border-yellow-600/15 bg-black/35 px-4 py-3">
-                      <p className="text-xs uppercase tracking-[0.18em] text-white/45">CTA conseillé</p>
-                      <p className="mt-2 text-sm font-semibold text-yellow-100">{missionCashCta(cmoResult)}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-7 w-full border-t border-yellow-600/15 pt-6">
-                  <div className="flex flex-col items-center text-center">
-                    <div className="inline-flex items-center gap-2 rounded-full border border-yellow-600/25 bg-[#0b0b0b] px-4 py-1 text-[12px] text-white/75">
-                      <FaRobot className="text-yellow-300" />
-                      Progression du jour
-                    </div>
-
-                    <p className="mt-3 max-w-3xl text-white/70 text-sm">
-                      Clique sur une étape pour la cocher ou la décocher. Ta progression reste enregistrée
-                      même si tu recharges la page.
-                    </p>
-
-                    <div className="mt-5 grid w-full max-w-4xl grid-cols-1 md:grid-cols-2 gap-4">
-                      <ProgressItem done={dailyProgress.idea} label="Idée trouvée" onClick={() => toggleProgressItem("idea")} />
-                      <ProgressItem done={dailyProgress.content} label="Contenu créé" onClick={() => toggleProgressItem("content")} />
-                      <ProgressItem done={dailyProgress.email} label="Email généré" onClick={() => toggleProgressItem("email")} />
-                      <ProgressItem done={dailyProgress.offer} label="Offre envoyée" onClick={() => toggleProgressItem("offer")} />
-                    </div>
-                  </div>
-                </div>
+          <div className="mx-auto w-full max-w-[1200px] py-5 sm:py-8">
+            <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.22em] text-yellow-400">TON ESPACE DE TRAVAIL</p>
+                <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-white sm:text-4xl">On avance, une action à la fois.</h1>
+                <p className="mt-3 text-sm leading-6 text-white/60">Ton projet. Une priorité claire. Un résultat concret.</p>
               </div>
+              <button type="button" onClick={() => setActiveWorkspace("activity")} className="rounded-xl border border-white/15 px-4 py-3 text-sm text-white/75 hover:bg-white/5">Voir ma progression ↗</button>
             </div>
-          </motion.div>
+
+            {projectState === "loading" ? (
+              <div role="status" className="rounded-3xl border border-white/10 bg-[#111318] p-8 text-white/70">Chargement de ton projet…</div>
+            ) : projectState !== "ready" ? (
+              <section className="rounded-3xl border border-yellow-500/25 bg-[#111318] p-6 sm:p-10">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-yellow-400">{projectState === "unavailable" ? "REPRENDRE AVEC ALEX" : "TON POINT DE DÉPART"}</p>
+                <h2 className="mt-5 max-w-2xl text-3xl font-extrabold leading-tight text-white sm:text-4xl">{projectState === "started" ? "Reprenons ton projet là où tu en es." : projectState === "unavailable" ? "Retrouve ton projet avec Coach Alex." : "Donnons une direction à ton projet."}</h2>
+                <p className="mt-5 max-w-2xl leading-7 text-white/65">{projectState === "unavailable" ? "Ton profil n’a pas pu être chargé ici. Ouvre Coach Alex pour retrouver ton accompagnement." : "Alex t’aide à préciser ton idée, ton offre et les personnes que tu veux aider. C’est la première étape pour choisir une mission adaptée."}</p>
+                <div className="mt-7 max-w-sm"><PrimaryButton onClick={() => accessOrExplain("coach")}>{projectState === "empty" ? "Définir mon projet avec Alex →" : "Reprendre avec Coach Alex →"}</PrimaryButton></div>
+                <p className="mt-4 text-xs text-white/45">Avance à ton rythme, étape par étape.</p>
+              </section>
+            ) : (
+              <section className="overflow-hidden rounded-3xl border border-yellow-500/25 bg-[#111318]">
+                <div className="grid lg:grid-cols-[1.5fr_1fr]">
+                  <div className="p-6 sm:p-9">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-yellow-400">TA MISSION DU JOUR</p>
+                      <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-white/65">{cmoLoading ? "Analyse en cours…" : cmoResult?.source === "live" ? "● IA Business Active" : "Suggestion locale · à adapter"}</span>
+                    </div>
+                    <h2 className="mt-6 text-2xl font-extrabold leading-tight text-white sm:text-3xl">{cmoResult?.priority_action || "Clarifie ta prochaine action avec Coach Alex."}</h2>
+                    <p className="mt-5 text-sm leading-7 text-white/65">{cmoResult?.next_best_action || "Retrouve ton projet avec Alex pour préparer la suite."}</p>
+                    <div className="mt-7 max-w-sm"><PrimaryButton onClick={executeCmoModuleAuto}>{cmoModuleTarget.label} →</PrimaryButton></div>
+                    {cmoError ? <p role="alert" className="mt-4 text-sm text-red-300">{cmoError}</p> : null}
+                  </div>
+                  <div className="border-t border-white/10 bg-white/[0.025] p-6 sm:p-9 lg:border-l lg:border-t-0">
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/45">À LA FIN DE CETTE ACTION</p>
+                    <p className="mt-5 text-lg font-semibold leading-8 text-white">{missionCashExpectedResult(cmoResult)}</p>
+                    <p className="mt-6 text-sm leading-6 text-white/50">Un livrable utile pour faire avancer ton projet aujourd’hui.</p>
+                  </div>
+                </div>
+                <details className="border-t border-white/10 px-6 py-5 sm:px-9">
+                  <summary className="cursor-pointer text-sm font-semibold text-white/75">Comprendre cette mission et ajuster ma priorité</summary>
+                  <div className="mt-5 grid gap-5 sm:grid-cols-2">
+                    <div><p className="text-sm font-bold text-yellow-300">Pourquoi cette action ?</p><p className="mt-2 text-sm leading-6 text-white/65">{missionCashDiagnostic(cmoResult)}</p></div>
+                    <div><p className="text-sm font-bold text-yellow-300">L’erreur à éviter</p><p className="mt-2 text-sm leading-6 text-white/65">{missionCashMistake(cmoResult)}</p></div>
+                  </div>
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    <button type="button" onClick={loadCmoLive} disabled={cmoLoading} className="rounded-xl border border-white/20 px-4 py-3 text-sm text-white disabled:opacity-50">{cmoLoading ? "Analyse en cours…" : "Personnaliser avec le Stratège IA Live"}</button>
+                    <button type="button" onClick={refreshLocalCmoAction} disabled={cmoLoading} className="rounded-xl border border-white/20 px-4 py-3 text-sm text-white disabled:opacity-50">Autre suggestion locale</button>
+                  </div>
+                </details>
+              </section>
+            )}
+
+            <section className="mt-6 rounded-3xl border border-white/10 bg-[#101216] p-6 sm:p-8">
+              <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-bold text-white">Mes repères du jour</h2><span className="text-xs text-white/45">Étapes à cocher selon ton avancement</span></div>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <ProgressItem done={dailyProgress.idea} label="Idée trouvée" onClick={() => toggleProgressItem("idea")} />
+                <ProgressItem done={dailyProgress.content} label="Contenu créé" onClick={() => toggleProgressItem("content")} />
+                <ProgressItem done={dailyProgress.email} label="Email généré" onClick={() => toggleProgressItem("email")} />
+                <ProgressItem done={dailyProgress.offer} label="Offre envoyée" onClick={() => toggleProgressItem("offer")} />
+              </div>
+            </section>
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-3 px-2 text-xs text-white/45">
+              <span>{aiQuota ? `Quota IA disponible : ${formatQuotaNumber(aiQuota.remaining)} / ${formatQuotaNumber(aiQuota.limit)} · ${aiQuota.planLabel}` : "Quota IA : synchronisation…"}</span>
+              <button type="button" onClick={() => accessOrExplain("coach")} className="text-white/65 underline underline-offset-4">Revoir mon projet avec Alex</button>
+            </div>
+          </div>
         ) : (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -2320,6 +2247,12 @@ export default function DashboardPage() {
 
 
 
+        {isLoggedIn ? (
+          <details className="mx-auto mt-6 w-full max-w-[1200px] rounded-2xl border border-white/10 bg-[#101216] p-5 text-white/70">
+            <summary className="cursor-pointer text-sm font-semibold">Découvrir le fonctionnement de LGD</summary>
+            <div className="mt-5">{dashboardPresentation}</div>
+          </details>
+        ) : null}
       </main>
 
       <ModalShell
