@@ -1556,6 +1556,50 @@ function ActivityProgressWorkspace({
   );
 }
 
+// Illustrations vectorielles autonomes : aucun fichier public ni dépendance supplémentaire.
+function LgdJourneyIllustration({ step }: { step: number }) {
+  const metal = `lgd-journey-metal-${step}`;
+  const accent = `lgd-journey-accent-${step}`;
+  return (
+    <svg viewBox="0 0 200 180" className="h-28 w-32 shrink-0 sm:h-36 sm:w-40" aria-hidden="true" focusable="false">
+      <defs>
+        <linearGradient id={metal} x1="0" y1="0" x2="1" y2="1"><stop stopColor="#637080"/><stop offset="1" stopColor="#1b222c"/></linearGradient>
+        <linearGradient id={accent} x1="0" y1="0" x2="1" y2="1"><stop stopColor="#ffe783"/><stop offset="1" stopColor="#ffbd16"/></linearGradient>
+      </defs>
+      <ellipse cx="100" cy="157" rx="78" ry="13" fill="#000" opacity=".3"/>
+      <path d="M18 139 98 111 183 140 102 170Z" fill="#202834" stroke="#3b4654"/>
+      <path d="m18 139 84 27 81-26" fill="none" stroke="#ffcc33" strokeWidth="3"/>
+      {step === 1 ? <>
+        <path d="M25 23h55a9 9 0 0 1 9 9v29a9 9 0 0 1-9 9H50L34 82V70h-9a9 9 0 0 1-9-9V32a9 9 0 0 1 9-9Z" fill={`url(#${metal})`} stroke="#8591a1"/>
+        <path d="M119 19h47a10 10 0 0 1 10 10v30a10 10 0 0 1-10 10h-5v13l-16-13h-26a10 10 0 0 1-10-10V29a10 10 0 0 1 10-10Z" fill={`url(#${accent})`}/>
+        <g fill="#e7edf5"><circle cx="35" cy="46" r="4"/><circle cx="52" cy="46" r="4"/><circle cx="69" cy="46" r="4"/></g>
+        <g fill="#28313d"><circle cx="126" cy="43" r="4"/><circle cx="143" cy="43" r="4"/><circle cx="160" cy="43" r="4"/></g>
+        <circle cx="99" cy="106" r="47" fill="#ffce37"/><circle cx="99" cy="106" r="39" fill={`url(#${metal})`} stroke="#acb6c2" strokeWidth="2"/>
+        <path d="m118 78-9 38-29 18 9-38Z" fill={`url(#${accent})`}/><path d="m99 106-19 28 9-38Z" fill="#f5f7fa"/><circle cx="99" cy="106" r="5" fill="#111722"/>
+      </> : step === 2 ? <>
+        <circle cx="85" cy="91" r="60" fill={`url(#${metal})`} stroke="#8c98a8" strokeWidth="2"/><circle cx="85" cy="91" r="44" fill="#e0e5ec"/><circle cx="85" cy="91" r="30" fill="#27303c"/><circle cx="85" cy="91" r="16" fill={`url(#${accent})`}/>
+        <path d="m85 91 66-66m-17 17 2-23 18-12-2 20 20-1-16 18Z" stroke="#ffcd38" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round"/>
+        <rect x="110" y="103" width="65" height="48" rx="9" fill={`url(#${metal})`} stroke="#758295"/><rect x="120" y="114" width="23" height="24" rx="4" fill="#ffcd38"/><path d="m124 126 5 5 10-12" fill="none" stroke="#252c36" strokeWidth="3"/><path d="M151 119h14m-14 10h10" stroke="#d8e0ea" strokeWidth="3"/>
+      </> : step === 3 ? <>
+        <rect x="20" y="48" width="52" height="96" rx="10" fill={`url(#${metal})`} stroke="#8995a5"/><rect x="75" y="30" width="52" height="114" rx="10" fill={`url(#${metal})`} stroke="#8995a5"/><rect x="130" y="48" width="52" height="96" rx="10" fill={`url(#${metal})`} stroke="#8995a5"/>
+        <rect x="29" y="77" width="34" height="33" rx="3" fill="#e4eaf1"/><path d="m30 108 12-18 9 10 7-7 5 15" fill="#ffcc33"/><circle cx="55" cy="85" r="4" fill="#ffcc33"/>
+        <path d="M88 70v26a13 13 0 0 0 26 0V70" fill="none" stroke="#ffcc33" strokeWidth="10"/><path d="M88 70v11m26-11v11" stroke="#f1f4f8" strokeWidth="10"/>
+        <rect x="138" y="80" width="36" height="28" rx="3" fill={`url(#${accent})`}/><path d="m139 82 17 13 17-13" fill="none" stroke="#303946" strokeWidth="3"/>
+      </> : step === 4 ? <>
+        <rect x="35" y="33" width="109" height="112" rx="12" fill={`url(#${metal})`} stroke="#8a97a7" strokeWidth="2"/><path d="M47 33h85a12 12 0 0 1 12 12v20H35V45a12 12 0 0 1 12-12Z" fill={`url(#${accent})`}/><path d="M59 24v22m60-22v22" stroke="#d8e1ec" strokeWidth="8" strokeLinecap="round"/>
+        {[0,1,2].map(row => [0,1,2].map(col => <rect key={`${row}-${col}`} x={49+col*29} y={78+row*21} width="18" height="13" rx="3" fill={row===1&&col===1?"#ffcd38":"#d7dfe8"}/>))}
+        <path d="M119 148q35 0 47-38m-22 4 31-19-5 36-10-15Z" fill="#ffcc33" stroke="#ffcc33" strokeWidth="5" strokeLinejoin="round"/>
+      </> : <>
+        <rect x="46" y="32" width="94" height="104" rx="9" fill={`url(#${metal})`} stroke="#8190a1"/><rect x="57" y="45" width="89" height="90" rx="6" fill="#b7c4d4"/><rect x="68" y="58" width="87" height="78" rx="5" fill="#f0f4fa"/><path d="M80 73h53m-53 12h43" stroke="#9aa9bb" strokeWidth="4"/>
+        <path d="M29 77h44l12 13h79l-15 55H38Z" fill={`url(#${accent})`} stroke="#ffdf70" strokeWidth="2"/>
+        <path d="M48 154h103" stroke="#748195" strokeWidth="3"/>
+        <circle cx="48" cy="154" r="11" fill="#ffcc33"/><circle cx="98" cy="154" r="11" fill="#ffcc33"/><circle cx="151" cy="154" r="11" fill="#242d39" stroke="#e7edf5" strokeWidth="2"/>
+        <path d="m42 154 4 4 7-8m39 4 4 4 7-8" fill="none" stroke="#222b36" strokeWidth="2.5"/>
+      </>}
+    </svg>
+  );
+}
+
 export default function DashboardPage() {
   const router = useRouter();
 
@@ -1864,6 +1908,52 @@ export default function DashboardPage() {
     writeDailyProgress(updated);
   }
 
+  const journeySteps = [
+    {
+      title: "Clarifie ton projet",
+      description: "Avec Coach Alex, précise ton objectif, ton offre et les personnes que tu veux aider. Si tu as déjà commencé, reprends ton projet avec lui.",
+      outcome: "Une direction claire et un plan adapté à ton projet.",
+      actions: [{ label: "Ouvrir Coach Alex", onClick: () => accessOrExplain("coach") }],
+    },
+    {
+      title: "Choisis ta prochaine action",
+      description: "Consulte ta mission du jour. Si tu as besoin de revoir ta priorité, utilise le Stratège IA Live depuis les détails de la mission.",
+      outcome: "Une action concrète sur laquelle te concentrer maintenant.",
+      actions: [{ label: "Voir ma priorité", onClick: () => {
+        setActiveWorkspace("home");
+        requestAnimationFrame(() => document.getElementById("lgd-workspace-top")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+      } }],
+    },
+    {
+      title: "Crée avec le bon outil",
+      description: "L’Éditeur pour tes posts et carrousels, Lead Engine pour ton tunnel et ton lead magnet, Emailing IA pour tes emails. Choisis uniquement l’outil utile à ta mission.",
+      outcome: "Un contenu ou un support commercial prêt à être utilisé.",
+      actions: [
+        { label: "Éditeur Intelligent", onClick: () => accessOrExplain("editor") },
+        { label: "Lead Engine", onClick: () => accessOrExplain("lead_engine") },
+        { label: "Emailing IA", onClick: () => accessOrExplain("emailing") },
+      ],
+    },
+    {
+      title: "Passe à la diffusion",
+      description: "Organise tes publications avec le Planner, puis publie sur tes canaux. Utilise aussi tes créations dans Systeme.io pour mettre en place tes pages et tes campagnes.",
+      outcome: "Ton travail mis en circulation auprès de ton audience.",
+      actions: [{ label: "Ouvrir le Planner", onClick: accessPlanner }],
+    },
+    {
+      title: "Fais le point et avance",
+      description: "Retrouve tes créations dans la Bibliothèque, consulte ta progression et partage tes résultats ou tes blocages avec Alex pour préparer la suite.",
+      outcome: "Une prochaine étape qui tient compte du travail accompli.",
+      actions: [
+        { label: "Ma Bibliothèque", onClick: accessLibrary },
+        { label: "Ma progression", onClick: () => {
+          setActiveWorkspace("activity");
+          requestAnimationFrame(() => document.getElementById("lgd-workspace-top")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+        } },
+      ],
+    },
+  ];
+
   const dashboardPresentation = (
         <motion.section
           initial={{ opacity: 0, y: -8 }}
@@ -2070,7 +2160,7 @@ export default function DashboardPage() {
 
 
 
-      <main className="relative z-[2147483645] px-4 pb-16 pt-4 sm:px-6 lg:pr-8 lg:pt-4">
+      <main id="lgd-workspace-top" className="relative z-[2147483645] px-4 pb-16 pt-4 sm:px-6 lg:pr-8 lg:pt-4">
         {!loadingPlan && !isLoggedIn ? dashboardPresentation : null}
         {loadingPlan ? <div role="status" className="mx-auto max-w-[1200px] py-16 text-white/70">Chargement de ton espace…</div> : null}
 
@@ -2248,9 +2338,36 @@ export default function DashboardPage() {
 
 
         {isLoggedIn ? (
-          <details className="mx-auto mt-6 w-full max-w-[1200px] rounded-2xl border border-white/10 bg-[#101216] p-5 text-white/70">
-            <summary className="cursor-pointer text-sm font-semibold">Découvrir le fonctionnement de LGD</summary>
-            <div className="mt-5">{dashboardPresentation}</div>
+          <details className="mx-auto mt-6 w-full max-w-[1200px] rounded-2xl border border-white/10 bg-[#101216] p-4 text-white/70 sm:p-6">
+            <summary className="cursor-pointer rounded-lg text-sm font-semibold text-white/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-yellow-400">Comment fonctionne LGD ? Ton parcours en 5 étapes</summary>
+            <section aria-labelledby="lgd-journey-title" className="mt-8">
+              <div className="mx-auto mb-8 max-w-3xl text-center">
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-yellow-400">LE GÉNÉRATEUR DIGITAL</p>
+                <h2 id="lgd-journey-title" className="mt-3 text-2xl font-extrabold tracking-tight text-white sm:text-3xl">Ton parcours pour avancer avec LGD</h2>
+                <p className="mt-3 text-sm leading-7 text-white/65 sm:text-base">Une étape à la fois. Le bon outil au bon moment.<br />Commence avec Alex, puis utilise chaque module selon les besoins de ton projet.</p>
+              </div>
+              <ol className="space-y-4">
+                {journeySteps.map((step, index) => (
+                  <li key={step.title} className="rounded-2xl border border-white/15 bg-gradient-to-br from-[#161b23] to-[#0b0e13] p-5 sm:p-6">
+                    <div className="flex flex-col items-start gap-5 sm:flex-row sm:items-center sm:gap-6">
+                      <div className="self-center sm:self-auto"><LgdJourneyIllustration step={index + 1} /></div>
+                      <div className="min-w-0 flex-1 sm:border-l sm:border-white/10 sm:pl-6">
+                        <span className="text-3xl font-extrabold text-[#ffcc33]">{String(index + 1).padStart(2, "0")}</span>
+                        <h3 className="mt-1 text-xl font-bold leading-snug text-white sm:text-2xl">{step.title}</h3>
+                        <p className="mt-3 text-sm leading-7 text-white/70">{step.description}</p>
+                        <p className="mt-3 text-sm leading-6 text-white/85"><span className="font-semibold text-yellow-300">Résultat : </span>{step.outcome}</p>
+                        <div className="mt-5 flex flex-wrap gap-3">
+                          {step.actions.map(action => (
+                            <button key={action.label} type="button" onClick={action.onClick} className="min-h-11 w-full rounded-xl border border-yellow-400/65 px-4 py-3 text-sm font-semibold text-white transition hover:border-yellow-300 hover:bg-yellow-400/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-yellow-400 sm:w-auto">{action.label} <span aria-hidden="true">↗</span></button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+              <p className="mt-7 text-center text-sm leading-7 text-white/60">Commence avec Alex. Reviens à ce guide quand tu en as besoin.<br />Tu n’as pas besoin d’utiliser tous les outils chaque jour.</p>
+            </section>
           </details>
         ) : null}
       </main>
