@@ -1600,6 +1600,49 @@ function LgdJourneyIllustration({ step }: { step: number }) {
   );
 }
 
+// Illustration de parcours, indépendante de la progression réelle de l’utilisateur.
+function LgdProjectHeroArtwork() {
+  return (
+    <div className="relative flex items-center justify-center overflow-hidden border-t border-white/10 bg-[#f5f1e7] px-4 py-5 lg:border-l lg:border-t-0 lg:py-8" aria-hidden="true">
+      <svg viewBox="0 0 480 440" className="relative w-full max-w-[420px] max-lg:max-w-[250px]" focusable="false">
+        <defs>
+          <radialGradient id="lgd-hero-halo"><stop stopColor="#ffe188"/><stop offset="1" stopColor="#f5f1e7" stopOpacity="0"/></radialGradient>
+          <linearGradient id="lgd-hero-yellow" x2="1" y2="1"><stop stopColor="#ffde67"/><stop offset="1" stopColor="#ffbd18"/></linearGradient>
+          <filter id="lgd-hero-shadow" x="-40%" y="-40%" width="180%" height="190%"><feDropShadow dx="0" dy="10" stdDeviation="12" floodColor="#443922" floodOpacity=".13"/></filter>
+        </defs>
+        <circle cx="240" cy="216" r="220" fill="url(#lgd-hero-halo)"/>
+        <circle cx="240" cy="216" r="165" fill="none" stroke="#d8ccb1" strokeDasharray="3 8"/>
+        <path d="M108 102C290 75 392 153 365 287S170 383 105 300" fill="none" stroke="#e5d6b7" strokeWidth="2"/>
+        <g filter="url(#lgd-hero-shadow)">
+          <rect x="89" y="123" width="304" height="224" rx="22" fill="#fff" stroke="#e7e1d6" transform="rotate(-5 241 235)"/>
+          <rect x="91" y="117" width="304" height="224" rx="22" fill="#fff" stroke="#e4dfd4"/>
+        </g>
+        <rect x="112" y="138" width="42" height="42" rx="13" fill="#141b26"/>
+        <path d="m125 160 6 6 12-15" fill="none" stroke="#ffce38" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+        <text x="167" y="155" fill="#7c7e84" fontSize="10" fontWeight="700" letterSpacing="2">AVEC COACH ALEX</text>
+        <text x="167" y="175" fill="#161d28" fontSize="18" fontWeight="800">Ton projet, pas à pas.</text>
+        <path d="M113 197h258" stroke="#ece8df"/>
+        <g fontSize="13" fontWeight="600" fill="#333b47">
+          <circle cx="125" cy="224" r="12" fill="#fff0bf"/><text x="125" y="228" textAnchor="middle" fontSize="11">1</text><text x="148" y="229">Une idée à clarifier</text>
+          <circle cx="125" cy="261" r="12" fill="#fff0bf"/><text x="125" y="265" textAnchor="middle" fontSize="11">2</text><text x="148" y="266">Une offre à construire</text>
+          <circle cx="125" cy="298" r="12" fill="#fff0bf"/><text x="125" y="302" textAnchor="middle" fontSize="11">3</text><text x="148" y="303">Une action à réaliser</text>
+        </g>
+        <g filter="url(#lgd-hero-shadow)">
+          <rect x="35" y="65" width="150" height="63" rx="17" fill="#fff" stroke="#e8e1d5"/>
+          <circle cx="65" cy="96" r="17" fill="#fff1bd"/><path d="M60 99q-8-10 3-14 12-2 8 10l-4 5v5h-7Z" fill="none" stroke="#8b6610" strokeWidth="2"/><text x="91" y="101" fontSize="14" fontWeight="700" fill="#202731">Ton idée</text>
+          <rect x="285" y="73" width="153" height="52" rx="16" fill="#18212c" transform="rotate(6 361 99)"/>
+          <text x="361" y="104" textAnchor="middle" fill="#fff" fontSize="13" fontWeight="600" transform="rotate(6 361 99)">Ta prochaine étape ↗</text>
+          <rect x="247" y="316" width="191" height="64" rx="18" fill="url(#lgd-hero-yellow)" transform="rotate(-5 342 348)"/>
+          <text x="342" y="354" textAnchor="middle" fill="#202124" fontSize="15" fontWeight="800" transform="rotate(-5 342 348)">Du concret, chaque jour.</text>
+        </g>
+        <path d="m55 260 4 11 11 4-11 4-4 11-4-11-11-4 11-4Z" fill="#eebc32"/>
+        <circle cx="422" cy="216" r="5" fill="#ddb74c"/>
+        <text x="240" y="414" textAnchor="middle" fontSize="10" fontWeight="700" letterSpacing="2" fill="#80745e">CLARIFIER · CRÉER · AVANCER</text>
+      </svg>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const router = useRouter();
 
@@ -2177,36 +2220,33 @@ export default function DashboardPage() {
           </div>
         ) : isLoggedIn ? (
           <div className="mx-auto w-full max-w-[1200px] py-5 sm:py-8">
-            <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.22em] text-yellow-400">TON ESPACE DE TRAVAIL</p>
-                <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-white sm:text-4xl">On avance, une action à la fois.</h1>
-                <p className="mt-3 text-sm leading-6 text-white/60">Ton projet. Une priorité claire. Un résultat concret.</p>
-              </div>
-              <button type="button" onClick={() => setActiveWorkspace("activity")} className="rounded-xl border border-white/15 px-4 py-3 text-sm text-white/75 hover:bg-white/5">Voir ma progression ↗</button>
-            </div>
-
             {projectState === "loading" ? (
               <div role="status" className="rounded-3xl border border-white/10 bg-[#111318] p-8 text-white/70">Chargement de ton projet…</div>
             ) : projectState !== "ready" ? (
-              <section className="rounded-3xl border border-yellow-500/25 bg-[#111318] p-6 sm:p-10">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-yellow-400">{projectState === "unavailable" ? "REPRENDRE AVEC ALEX" : "TON POINT DE DÉPART"}</p>
-                <h2 className="mt-5 max-w-2xl text-3xl font-extrabold leading-tight text-white sm:text-4xl">{projectState === "started" ? "Reprenons ton projet là où tu en es." : projectState === "unavailable" ? "Retrouve ton projet avec Coach Alex." : "Donnons une direction à ton projet."}</h2>
-                <p className="mt-5 max-w-2xl leading-7 text-white/65">{projectState === "unavailable" ? "Ton profil n’a pas pu être chargé ici. Ouvre Coach Alex pour retrouver ton accompagnement." : "Alex t’aide à préciser ton idée, ton offre et les personnes que tu veux aider. C’est la première étape pour choisir une mission adaptée."}</p>
-                <div className="mt-7 max-w-sm"><PrimaryButton onClick={() => accessOrExplain("coach")}>{projectState === "empty" ? "Définir mon projet avec Alex →" : "Reprendre avec Coach Alex →"}</PrimaryButton></div>
-                <p className="mt-4 text-xs text-white/45">Avance à ton rythme, étape par étape.</p>
+              <section className="relative overflow-hidden rounded-[28px] border border-yellow-400/20 bg-[#11151c] shadow-[0_24px_80px_rgba(0,0,0,0.22)]">
+                <div className="grid lg:grid-cols-[1.15fr_1fr]">
+                  <div className="relative z-10 px-6 py-8 sm:px-10 sm:py-12">
+                    <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#ffcf39]">LE GÉNÉRATEUR DIGITAL · TON ESPACE DE TRAVAIL</p>
+                    <h1 className="mt-6 text-4xl font-extrabold leading-[1.08] tracking-tight text-white sm:text-5xl">{projectState === "started" ? <>Ton projet avance.<br /><span className="text-[#ffcf39]">Reprenons le fil.</span></> : projectState === "unavailable" ? <>Ton projet t’attend.<br /><span className="text-[#ffcf39]">Retrouve Alex.</span></> : <>Ton projet prend forme.<br /><span className="text-[#ffcf39]">Une action à la fois.</span></>}</h1>
+                    <p className="mt-6 max-w-lg text-base leading-7 text-white/70">{projectState === "unavailable" ? "Ton profil n’a pas pu être chargé ici. Ouvre Coach Alex pour retrouver ton accompagnement." : "Avec Coach Alex et les outils LGD, clarifie ta direction et transforme tes idées en réalisations concrètes."}</p>
+                    <div className="mt-7 max-w-sm"><PrimaryButton onClick={() => accessOrExplain("coach")}>{projectState === "empty" ? "Définir mon projet avec Alex →" : "Reprendre avec Coach Alex →"}</PrimaryButton></div>
+                    <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-3 text-xs text-white/50"><span>À ton rythme, étape par étape.</span><button type="button" onClick={() => setActiveWorkspace("activity")} className="min-h-8 text-white/75 underline underline-offset-4 hover:text-yellow-300">Voir ma progression ↗</button></div>
+                  </div>
+                  <LgdProjectHeroArtwork />
+                </div>
               </section>
             ) : (
-              <section className="overflow-hidden rounded-3xl border border-yellow-500/25 bg-[#111318]">
+              <section className="overflow-hidden rounded-[28px] border border-yellow-400/25 bg-[#11151c] shadow-[0_24px_80px_rgba(0,0,0,0.22)]">
                 <div className="grid lg:grid-cols-[1.5fr_1fr]">
                   <div className="p-6 sm:p-9">
                     <div className="flex flex-wrap items-center gap-3">
                       <p className="text-xs font-bold uppercase tracking-[0.18em] text-yellow-400">TA MISSION DU JOUR</p>
                       <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-white/65">{cmoLoading ? "Analyse en cours…" : cmoResult?.source === "live" ? "● IA Business Active" : "Suggestion locale · à adapter"}</span>
                     </div>
-                    <h2 className="mt-6 text-2xl font-extrabold leading-tight text-white sm:text-3xl">{cmoResult?.priority_action || "Clarifie ta prochaine action avec Coach Alex."}</h2>
+                    <h1 className="mt-6 text-3xl font-extrabold leading-tight tracking-tight text-white sm:text-4xl">{cmoResult?.priority_action || "Clarifie ta prochaine action avec Coach Alex."}</h1>
                     <p className="mt-5 text-sm leading-7 text-white/65">{cmoResult?.next_best_action || "Retrouve ton projet avec Alex pour préparer la suite."}</p>
                     <div className="mt-7 max-w-sm"><PrimaryButton onClick={executeCmoModuleAuto}>{cmoModuleTarget.label} →</PrimaryButton></div>
+                    <button type="button" onClick={() => setActiveWorkspace("activity")} className="mt-4 min-h-8 text-xs text-white/65 underline underline-offset-4 hover:text-yellow-300">Voir ma progression ↗</button>
                     {cmoError ? <p role="alert" className="mt-4 text-sm text-red-300">{cmoError}</p> : null}
                   </div>
                   <div className="border-t border-white/10 bg-white/[0.025] p-6 sm:p-9 lg:border-l lg:border-t-0">
