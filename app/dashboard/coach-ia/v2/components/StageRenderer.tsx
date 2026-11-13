@@ -141,6 +141,15 @@ function detectLidFromText(value: unknown) {
   );
 }
 
+// Le parcours choisi par l'utilisateur prévaut sur les mots présents dans sa description.
+// La détection textuelle n'intervient qu'en l'absence de parcours explicite.
+function isMrrParcours(parcours: FormActionParcours | undefined, description: unknown) {
+  return (
+    parcours === "mrr" ||
+    ((!parcours || parcours === "non_defini") && detectMrrFromText(description))
+  );
+}
+
 function labelBusinessModel(model: AlexBusinessModel) {
   if (model === "affiliation") return "Affiliation";
   if (model === "offre_digitale") return "Création de produit digital";
@@ -153,7 +162,7 @@ function labelBusinessModelForProject(
   project?: FormActionBusinessProject | null,
   model?: AlexBusinessModel,
 ) {
-  if (project?.parcours === "mrr" || detectMrrFromText(project?.offerDescription)) {
+  if (isMrrParcours(project?.parcours, project?.offerDescription)) {
     return "Formation MRR";
   }
   return labelBusinessModel((project?.businessModel || model || "pas_encore") as AlexBusinessModel);
@@ -702,6 +711,11 @@ function inferProblemSolved(
   const offer = normalizeText(offerDescription);
   const lower = offer.toLowerCase();
 
+  // En affiliation, une formation MRR peut être citée comme contexte sans être l'offre à vendre.
+  if (businessModel === "affiliation") {
+    return "Aider une audience ciblée à choisir la bonne solution, à passer à l’action et à éviter de rester bloquée dans la consommation d’informations.";
+  }
+
   if (lower.includes("mrr") || lower.includes("revente")) {
     return "Aider des personnes motivées à arrêter d’acheter des formations sans résultat et à transformer une offre digitale existante en vraie première vente.";
   }
@@ -712,10 +726,6 @@ function inferProblemSolved(
     lower.includes("liberte")
   ) {
     return "Aider des salariés ou personnes en transition à construire progressivement une activité digitale sans tout quitter du jour au lendemain.";
-  }
-
-  if (businessModel === "affiliation") {
-    return "Aider une audience ciblée à choisir la bonne solution, à passer à l’action et à éviter de rester bloquée dans la consommation d’informations.";
   }
 
   if (businessModel === "offre_digitale") {
@@ -738,12 +748,12 @@ function inferTransformationPromise(args: {
   const goal = labelBusinessGoal(args.businessGoal);
   const model = labelBusinessModel(args.businessModel).toLowerCase();
 
-  if (detectMrrFromText(args.offerDescription)) {
-    return `Passer d’une personne qui consomme des formations sans résultat à un entrepreneur capable de vendre une formation MRR, développer son audience et viser ${goal} avec une méthode claire, duplicable et orientée action.`;
-  }
-
   if (args.businessModel === "affiliation") {
     return `Passer d’une audience tiède qui hésite à une stratégie d’affiliation claire capable de générer ${goal}, avec une offre comprise, un message simple et une action quotidienne orientée vente.`;
+  }
+
+  if (detectMrrFromText(args.offerDescription)) {
+    return `Passer d’une personne qui consomme des formations sans résultat à un entrepreneur capable de vendre une formation MRR, développer son audience et viser ${goal} avec une méthode claire, duplicable et orientée action.`;
   }
 
   if (args.businessModel === "offre_digitale") {
@@ -766,7 +776,9 @@ function buildPremiumAvatar(args: {
   if (!offer) return "";
 
   const lower = offer.toLowerCase();
-  const isMrr = lower.includes("mrr") || lower.includes("revente");
+  const isMrr =
+    args.businessModel !== "affiliation" &&
+    (lower.includes("mrr") || lower.includes("revente"));
   const isAffiliation =
     args.businessModel === "affiliation" || lower.includes("affiliation");
   const isSalary =
@@ -1021,16 +1033,16 @@ function inferFormActionProject(args: {
   const audience = normalizeText(args.targetAudienceDescription);
   const lower = `${offer} ${audience} ${args.problemSolved}`.toLowerCase();
 
-  const isMrr = args.parcoursChoice === "mrr" || detectMrrFromText(offer);
-
   const parcours: FormActionParcours =
-    isMrr
-      ? "mrr"
-      : args.parcoursChoice && args.parcoursChoice !== "non_defini"
-        ? args.parcoursChoice
-        : args.businessModel === "affiliation" || lower.includes("affiliation")
-          ? "affiliation"
-          : args.businessModel === "offre_digitale"
+    args.parcoursChoice && args.parcoursChoice !== "non_defini"
+      ? args.parcoursChoice
+      : args.businessModel === "affiliation"
+        ? "affiliation"
+        : detectMrrFromText(offer)
+          ? "mrr"
+          : lower.includes("affiliation")
+            ? "affiliation"
+            : args.businessModel === "offre_digitale"
             ? "creation_produit_digital"
             : lower.includes("liberté") ||
                 lower.includes("liberte") ||
@@ -1436,7 +1448,7 @@ function BusinessDirectorPanelV4(props: {
     businessProject?.nextMission ||
     "clarifier l’action la plus rentable du jour";
 
-  const isMrrProject = businessProject?.parcours === "mrr" || detectMrrFromText(businessProject?.offerDescription);
+  const isMrrProject = isMrrParcours(businessProject?.parcours, businessProject?.offerDescription);
   const businessModelLabel = labelBusinessModelForProject(
     businessProject,
     model as AlexBusinessModel,
