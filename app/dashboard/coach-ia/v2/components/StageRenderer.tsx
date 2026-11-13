@@ -2440,7 +2440,11 @@ function OnboardingCard(props: {
             </div>
             <textarea
               value={problemSolved}
-              placeholder="Exemple : J'aide les personnes qui achètent des formations sans jamais passer à l'action à transformer une licence MRR en véritable activité digitale vendable, sans créer leur propre produit de zéro."
+              placeholder={
+                parcoursChoice === "affiliation"
+                  ? "Exemple : J'aide des entrepreneurs qui ne savent pas quel outil choisir à trouver une solution adaptée à leur projet, grâce à des recommandations honnêtes de services ou de formations que je connais."
+                  : "Exemple : J'aide les personnes qui achètent des formations sans jamais passer à l'action à transformer une licence MRR en véritable activité digitale vendable, sans créer leur propre produit de zéro."
+              }
               onChange={(e) => {
                 problemEditedRef.current = true;
                 setProblemSolved(e.target.value);
@@ -2460,7 +2464,11 @@ function OnboardingCard(props: {
             </div>
             <textarea
               value={transformationPromise}
-              placeholder="Exemple : Passer d'une personne qui collectionne les formations sans résultat à un entrepreneur capable de générer ses premières ventes avec une offre prête à commercialiser et une méthode d'action concrète."
+              placeholder={
+                parcoursChoice === "affiliation"
+                  ? "Exemple : Passer d'une personne perdue parmi les outils à quelqu'un qui choisit une solution adaptée, sait l'utiliser et avance concrètement sur son projet grâce à une recommandation transparente."
+                  : "Exemple : Passer d'une personne qui collectionne les formations sans résultat à un entrepreneur capable de générer ses premières ventes avec une offre prête à commercialiser et une méthode d'action concrète."
+              }
               onChange={(e) => {
                 promiseEditedRef.current = true;
                 setTransformationPromise(e.target.value);
