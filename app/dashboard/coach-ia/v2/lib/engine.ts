@@ -1,11 +1,11 @@
 import type {
-  AlexContext,
+  AlexAudienceSize,
   AlexBusinessGoal,
   AlexBusinessModel,
-  AlexAudienceSize,
-  AlexMainBlocker,
+  AlexContext,
   AlexIntent,
   AlexLevel,
+  AlexMainBlocker,
   AlexRoadmap,
   AlexToday,
   DayPlan,
@@ -1197,6 +1197,7 @@ function createTrajectory(args: {
   targetAudienceDescription?: string;
   primaryChannel?: string;
   channelNotes?: string;
+  customObjective?: string;
 }) {
   const target = targetFromBusinessGoal(args.businessGoal);
   const priorityModel: AlexBusinessModel = args.businessModel || "affiliation";
@@ -1205,6 +1206,25 @@ function createTrajectory(args: {
   const channel = channelLabel(args.primaryChannel || args.channelNotes);
   const blocker = readableBlocker(args.mainBlocker);
   const goal = readableBusinessGoal(args.businessGoal);
+  const customObjective = compactText(args.customObjective, "", 180);
+
+  if (args.businessModel === "pas_encore" && customObjective) {
+    return {
+      targetLabel: `Avancer sur : ${customObjective}`,
+      targetRevenueMonthly: 0,
+      horizonDays: 30,
+      priorityChannel: "instagram" as const, // compatibilité structure existante
+      priorityModel: args.businessModel,
+      currentStep: `Clarifier l'objectif et choisir une première action vérifiable : ${customObjective}`,
+      forbiddenFocus: ["ne pas choisir une activité par défaut", "ne pas promettre de revenus sans validation", "ne pas se disperser"],
+      milestones: [
+        { label: "Clarifier", objective: `Décrire le résultat attendu pour ${customObjective}`, weekFrom: 1, weekTo: 1 },
+        { label: "Explorer", objective: "Identifier et comparer des pistes réalisables", weekFrom: 2, weekTo: 3 },
+        { label: "Valider", objective: "Tester une hypothèse auprès de personnes concernées", weekFrom: 4, weekTo: 6 },
+        { label: "Décider", objective: "Choisir une direction à partir des retours mesurés", weekFrom: 7, weekTo: 9 },
+      ],
+    };
+  }
 
   return {
     targetLabel: target.label,
@@ -1258,6 +1278,7 @@ export function createInitialContext(args: {
   targetAudienceDescription?: string;
   primaryChannel?: string;
   channelNotes?: string;
+  customObjective?: string;
 }): AlexContext {
   const ts = nowISO();
   const trajectory = createTrajectory(args);
@@ -1275,11 +1296,12 @@ export function createInitialContext(args: {
     },
     businessGoal: args.businessGoal || "premiers_revenus",
     businessModel: args.businessModel || "affiliation",
+    customObjective: args.customObjective?.trim() || undefined,
     audienceSize: args.audienceSize || "moins_500",
     mainBlocker: args.mainBlocker || "dispersion",
     offerDescription: args.offerDescription || "",
     targetAudienceDescription: args.targetAudienceDescription || "",
-    primaryChannel: args.primaryChannel || "instagram",
+    primaryChannel: args.primaryChannel || (args.customObjective ? "à définir" : "instagram"),
     channelNotes: args.channelNotes || "",
     revenueGoalMonthly: trajectory.targetRevenueMonthly,
     deadlineDays: trajectory.horizonDays,
@@ -1307,6 +1329,8 @@ function readableBusinessGoal(goal?: AlexBusinessGoal): string {
       return "obtenir tes premiers clients";
     case "business_stable":
       return "construire un business stable";
+    case "objectif_personnalise":
+      return "avancer sur ton objectif personnalisé";
     case "premiers_revenus":
     default:
       return "obtenir tes premiers revenus";
@@ -1442,33 +1466,33 @@ function extractPainPoint(audienceDescription: unknown, blocker?: AlexMainBlocke
   const text = normalizeText(audienceDescription);
 
   if (/aucune vente|0 vente|zero vente|pas fait.*vente|sans vente|n['’]?ont fait aucune vente/.test(text)) {
-    return "avoir l’impression de faire tout ce qu’il faut sans jamais voir la moindre vente arriver";
+    return "ne pas avoir encore réalisé leur première vente";
   }
   if (/achete|acheté|formation|mrr|master resale/.test(text) && /bloque|bloqué|perdu|resultat|résultat/.test(text)) {
-    return "avoir déjà investi dans une formation sans réussir à la transformer en revenus concrets";
+    return "avoir acheté une formation sans réussir à la transformer en revenus";
   }
   if (/complement|revenu|argent|fin de mois/.test(text) && /salarie|employe|job|travail/.test(text)) {
-    return "vouloir un revenu complémentaire mais ne pas savoir quelle action simple lancer en premier";
+    return "vouloir un revenu complémentaire sans savoir par où commencer";
   }
   if (/maison|domicile|chez soi|chez eux/.test(text)) {
-    return "vouloir générer des revenus depuis la maison sans sacrifier la vie de famille";
+    return "vouloir gagner depuis la maison sans système clair";
   }
-  if (blocker === "vente") return "vouloir vendre sans se sentir insistant, maladroit ou illégitime";
-  if (blocker === "confiance") return "avoir peur de se montrer avant d’avoir obtenu des résultats visibles";
-  if (blocker === "temps") return "avoir peu de temps et craindre de ne jamais tenir le rythme";
-  if (blocker === "technique") return "se cacher derrière la technique au lieu d’oser publier, discuter et vendre";
-  return "rester coincés entre l’envie de changer de vie et la peur de faire la mauvaise action";
+  if (blocker === "vente") return "ne pas savoir vendre naturellement";
+  if (blocker === "confiance") return "ne pas se sentir légitime pour publier et proposer";
+  if (blocker === "temps") return "manquer de temps pour agir régulièrement";
+  if (blocker === "technique") return "se perdre dans la technique au lieu de vendre";
+  return "rester bloqués entre l’envie de réussir et le passage à l’action";
 }
 
 function extractDesiredOutcome(audienceDescription: unknown, goal?: AlexBusinessGoal, intent?: AlexIntent): string {
   const text = normalizeText(audienceDescription);
 
-  if (/complement|revenu complementaire|fin de mois/.test(text)) return "générer leurs premiers revenus en ligne pour respirer financièrement";
-  if (/maison|domicile|chez soi|chez eux/.test(text)) return "créer un revenu depuis la maison sans sacrifier leur équilibre de vie";
+  if (/complement|revenu complementaire|fin de mois/.test(text)) return "créer un revenu complémentaire";
+  if (/maison|domicile|chez soi|chez eux/.test(text)) return "travailler depuis la maison";
   if (/liberte|quitter|job|salariat/.test(text) || goal === "quitter_job" || intent === "quitter_job") {
     return "préparer une sortie progressive du salariat";
   }
-  if (/premiere vente|aucune vente|sans vente|0 vente|zero vente/.test(text)) return "réaliser leur première vente et reprendre confiance";
+  if (/premiere vente|aucune vente|sans vente|0 vente|zero vente/.test(text)) return "réaliser leur première vente";
 
   switch (goal) {
     case "revenu_500":
@@ -1479,7 +1503,7 @@ function extractDesiredOutcome(audienceDescription: unknown, goal?: AlexBusiness
       return "mettre en place un business plus stable";
     case "premiers_revenus":
     default:
-      return "obtenir leurs premiers revenus et se prouver que c’est possible";
+      return "obtenir leurs premiers revenus";
   }
 }
 
@@ -1487,16 +1511,16 @@ function humanAudienceLabel(segment: string, pain: string, desire: string): stri
   const s = String(segment || "").trim();
 
   if (/Débutants MRR/i.test(s) && /première vente|vente/.test(pain)) {
-    return "personnes qui ont déjà acheté une formation MRR, essayé d’appliquer, mais n’ont toujours pas réussi à faire leur première vente";
+    return "personnes qui ont acheté une formation MRR mais n’ont pas encore fait leur première vente";
   }
   if (/Salariés/i.test(s) && /revenu complémentaire/i.test(desire)) {
-    return "salariés qui veulent créer un revenu complémentaire sans mettre leur stabilité en danger";
+    return "salariés qui cherchent un revenu complémentaire concret";
   }
   if (/Parents/i.test(s) && /maison/i.test(desire)) {
-    return "parents qui veulent générer un revenu depuis la maison sans sacrifier leur vie de famille";
+    return "parents qui veulent travailler depuis la maison";
   }
   if (/Débutants/i.test(s)) {
-    return "débutants qui veulent arrêter de consommer du contenu et obtenir un premier résultat concret";
+    return "débutants qui veulent passer de l’envie à une vraie première action rentable";
   }
 
   return s || "ton client idéal";
@@ -1551,16 +1575,16 @@ function humanEmotionSentence(emotion: string): string {
   const text = normalizeText(emotion);
 
   if (/frustration|resultat|résultat|efforts/.test(text)) {
-    return "Ces personnes ont déjà essayé, regardent les autres avancer, et commencent à se demander pourquoi rien ne bouge pour elles.";
+    return "Ces personnes ont l’impression de faire beaucoup d’efforts sans jamais voir de résultat.";
   }
   if (/doute|investi|investir/.test(text)) {
-    return "Elles ont investi du temps ou de l’argent, mais l’absence de résultat commence à entamer leur confiance.";
+    return "Elles commencent à douter parce qu’elles ont déjà investi du temps ou de l’argent sans vraie avancée.";
   }
   if (/pression|revenus|risquer/.test(text)) {
-    return "Elles veulent améliorer leurs revenus, mais sans prendre un risque qui pourrait fragiliser leur quotidien.";
+    return "Elles veulent améliorer leur situation sans mettre en danger leur stabilité actuelle.";
   }
   if (/famille|maison/.test(text)) {
-    return "Elles veulent construire quelque chose à elles, mais sans sacrifier leur famille, leur énergie ou leur équilibre.";
+    return "Elles veulent construire mieux tout en protégeant leur équilibre de vie.";
   }
   if (/déranger|vendeur|vendre/.test(text)) {
     return "Elles ont peur de déranger ou de passer pour quelqu’un qui force la vente.";
@@ -1582,10 +1606,10 @@ function humanBeliefSentence(coreBelief: string): string {
   const text = normalizeText(coreBelief);
 
   if (/vendre|vente/.test(text)) {
-    return "Elles commencent à croire que le problème vient d’elles, alors qu’il leur manque surtout un message simple, une méthode et une façon plus naturelle de vendre.";
+    return "Elles commencent à se demander si le problème ne vient pas d’elles ou de leur façon de vendre.";
   }
   if (/quelque chose me manque|deja essaye|déjà essayé/.test(text)) {
-    return "Elles ont l’impression d’avoir déjà essayé, mais de ne jamais avoir eu le bon chemin au bon moment.";
+    return "Elles ont l’impression d’avoir essayé, mais qu’il leur manque la bonne méthode ou le bon déclic.";
   }
   if (/legitime|légitime/.test(text)) {
     return "Elles pensent qu’elles doivent encore attendre avant d’être légitimes.";
@@ -1607,60 +1631,6 @@ function humanBeliefSentence(coreBelief: string): string {
   }
 
   return "Elles veulent réussir, mais elles ne savent pas quelle action faire maintenant.";
-}
-
-function humanDesireSentence(desire: string): string {
-  const text = normalizeText(desire);
-
-  if (/revenus|financ/.test(text) && /ligne/.test(text)) {
-    return "Elles ne cherchent pas juste une méthode : elles veulent enfin voir un premier signe concret que leurs efforts peuvent payer.";
-  }
-  if (/maison|famille|equilibre|équilibre/.test(text)) {
-    return "Elles veulent construire un revenu qui respecte leur rythme, leur famille et leur quotidien.";
-  }
-  if (/premiere vente|première vente|reprendre confiance/.test(text)) {
-    return "Le vrai déclic sera leur première vente, parce qu’elle prouvera que tout ce travail peut enfin devenir réel.";
-  }
-  if (/500/.test(text)) {
-    return "Elles veulent atteindre un premier palier financier assez concret pour se sentir capables de continuer.";
-  }
-  if (/salariat|quitter/.test(text)) {
-    return "Elles veulent construire une sortie progressive, sans tout quitter sur un coup de tête.";
-  }
-
-  return "Elles veulent un résultat assez concret pour arrêter de douter et recommencer à agir.";
-}
-
-function prospectInnerVoice(pain: string, coreBelief: string): string {
-  const combined = normalizeText(`${pain} ${coreBelief}`);
-
-  if (/vente|vendre|moindre vente|premiere vente|première vente/.test(combined)) {
-    return "Je fais des efforts, j’ai essayé d’appliquer, mais pourquoi les autres vendent et pas moi ?";
-  }
-  if (/formation|investi|investir|quelque chose me manque/.test(combined)) {
-    return "J’ai déjà investi du temps ou de l’argent, mais je n’arrive toujours pas à transformer ça en résultat.";
-  }
-  if (/revenu|financier|tromper|risquer/.test(combined)) {
-    return "J’ai besoin d’un revenu en plus, mais je ne peux pas me permettre de perdre du temps ou de me tromper encore.";
-  }
-  if (/famille|maison/.test(combined)) {
-    return "Je veux avancer sans sacrifier ma famille, mon énergie ou mon équilibre.";
-  }
-  if (/legitime|légitime|montrer/.test(combined)) {
-    return "Je ne sais pas encore si je suis légitime pour me montrer ou proposer quelque chose.";
-  }
-
-  return "Je veux avancer, mais je ne sais pas quelle action simple peut vraiment changer les choses.";
-}
-
-function simpleNextStep(offer: string, desire: string): string {
-  const cleanOffer = shortText(offer, "ton offre", 58);
-  const cleanDesire = shortText(desire, "un résultat concret", 74);
-  return `Présenter ${cleanOffer} comme une étape simple pour ${cleanDesire}, pas comme une promesse magique.`;
-}
-
-function coachObjective(sentence: string): string {
-  return sentence.replace(/\s+/g, " ").trim();
 }
 
 function firstChannel(value?: string): string {
@@ -1689,9 +1659,6 @@ function strategicProfile(ctx: AlexContext) {
   const coreBelief = extractCoreBelief(ctx.targetAudienceDescription, ctx.mainBlocker);
   const emotionSentence = humanEmotionSentence(emotion);
   const beliefSentence = humanBeliefSentence(coreBelief);
-  const desireSentence = humanDesireSentence(desire);
-  const innerVoice = prospectInnerVoice(pain, coreBelief);
-  const nextStep = simpleNextStep(offer, desire);
   const channel = firstChannel(ctx.primaryChannel || ctx.channelNotes);
   const goal = objectiveAngle(ctx.businessGoal);
   const blocker = readableBlocker(ctx.mainBlocker);
@@ -1738,9 +1705,6 @@ function strategicProfile(ctx: AlexContext) {
     coreBelief,
     emotionSentence,
     beliefSentence,
-    desireSentence,
-    innerVoice,
-    nextStep,
     channel,
     goal,
     blocker,
@@ -1760,6 +1724,44 @@ function strategicProfile(ctx: AlexContext) {
 }
 
 function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: number, base: DayPlan): DayPlan {
+  if (ctx.businessModel === "pas_encore" && ctx.customObjective?.trim()) {
+    const objective = compactText(ctx.customObjective, "ton objectif", 160);
+    const weekThemes = [
+      "Clarifier le but et le point de départ",
+      "Identifier des pistes réalistes",
+      "Comparer les pistes avec tes ressources",
+      "Comprendre les besoins réels",
+      "Tester une première hypothèse",
+      "Observer les retours et les obstacles",
+      "Ajuster la piste retenue",
+      "Préparer une première proposition concrète",
+      "Décider la prochaine étape du projet",
+    ];
+    const actions = [
+      { title: "Écrire le résultat attendu", instruction: "Décris en une phrase ce que tu veux obtenir, pourquoi et comment tu sauras que tu avances.", kpi: "Objectif écrit et vérifiable" },
+      { title: "Lister tes ressources", instruction: "Note tes compétences, ton temps disponible, tes outils et tes principales contraintes.", kpi: "Ressources identifiées" },
+      { title: "Formuler trois pistes", instruction: "Décris trois petites actions ou options possibles, sans décider trop vite de l'activité finale.", kpi: "Pistes formulées" },
+      { title: "Choisir une hypothèse", instruction: "Sélectionne une piste simple à explorer et explique pourquoi elle paraît réalisable.", kpi: "Hypothèse sélectionnée" },
+      { title: "Recueillir un retour", instruction: "Échange avec une personne concernée et pose une question ouverte sur son besoin réel.", kpi: "Retours concrets recueillis" },
+      { title: "Vérifier ce qui a été appris", instruction: "Note un fait observé, une incertitude et un élément à améliorer.", kpi: "Apprentissages notés" },
+      { title: "Décider la prochaine micro-action", instruction: "Choisis une seule action pour la semaine suivante à partir des retours, sans supposer de revenus.", kpi: "Prochaine action définie" },
+    ];
+    const action = actions[Math.max(0, Math.min(6, dayIndex - 1))];
+    return {
+      ...base,
+      title: `${weekThemes[Math.max(0, Math.min(8, weekIndex - 1))]} · ${action.title}`,
+      objective: `Avancer de façon mesurable vers : ${objective}. ${action.instruction}`,
+      checklist: [
+        `Rappelle-toi ton objectif : ${objective}.`,
+        action.instruction,
+        "Note le résultat obtenu, même si l'hypothèse n'est pas confirmée.",
+      ],
+      kpiLabel: action.kpi,
+      missionType: "content",
+      format: "post",
+      businessModel: "CONTENT",
+    };
+  }
   const p = strategicProfile(ctx);
 
   const hasQuestionnaireContext = Boolean(
@@ -1782,20 +1784,20 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
 
   const week1Base: Record<number, Partial<DayPlan>> = {
     1: {
-      title: "Redonner confiance à une personne bloquée",
-      objective: coachObjective(`Partir de ce que ton prospect pense en silence : “${p.innerVoice}”. Ton rôle aujourd’hui est de lui montrer qu’une première avancée reste possible. ${p.emotionSentence} ${p.beliefSentence}`),
+      title: "Promesse qui redonne confiance",
+      objective: `Créer un message qui donne envie à ${p.humanAudience} de reprendre confiance et de te contacter. ${p.emotionSentence} ${p.beliefSentence}`,
       checklist: [
-        `Écris une phrase simple orientée résultat : “J’aide ${p.humanAudience} à ${p.desire} sans repartir de zéro”.`,
-        `Ajoute une phrase miroir : “si tu as déjà essayé sans résultat, ce n’est pas forcément toi le problème”.`,
+        `Écris une phrase simple : “J’aide ${p.humanAudience} à ${p.desire} grâce à ${p.offer}”.`,
+        `Ajoute une phrase rassurante qui montre qu’il existe une étape plus simple pour avancer.`,
         `Mets un CTA visible : “DM ${p.dmKeyword}” ou “commente ${p.dmKeyword}”.`,
       ],
       kpiLabel: "Promesse + CTA validés",
     },
     2: {
-      title: p.isInstagram ? "Post/Reel déclic humain" : "Contenu déclic humain",
-      objective: coachObjective(`Publier un contenu qui donne l’impression à ton prospect que tu as compris son blocage réel : ${p.pain}. Ensuite seulement, fais le lien avec ${p.offer}, sans vente agressive.`),
+      title: p.isInstagram ? "Post/Reel douleur → déclic" : "Contenu douleur → déclic",
+      objective: `Publier un contenu qui nomme la vraie douleur — ${p.pain} — puis fait le lien avec ${p.offer}, sans vente agressive.`,
       checklist: [
-        `Accroche : “Tu veux ${p.desire}, mais aujourd’hui tu as surtout l’impression de ${p.pain}”.`,
+        `Accroche : “Tu veux ${p.desire}, mais tu bloques encore sur ${p.pain}”.`,
         `Montre le coût du blocage : ${p.blocker}.`,
         `Termine par une question simple + mot-clé ${p.dmKeyword}.`,
       ],
@@ -1855,8 +1857,8 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
 
   const week2Instagram: Record<number, Partial<DayPlan>> = {
     1: {
-      title: "Profil qui donne envie de faire confiance",
-      objective: coachObjective(`Faire comprendre en 5 secondes que tu aides vraiment ${p.humanAudience}, que tu connais leur doute, et que ${p.offer} peut devenir une prochaine étape simple.`),
+      title: "Bio Instagram orientée DM",
+      objective: `Faire comprendre en 5 secondes qui tu aides, pourquoi ${p.offer} est utile, et quoi faire ensuite.`,
       checklist: [
         `Ligne 1 : cible + résultat recherché.`,
         `Ligne 2 : mécanisme simple lié à ${p.offer}.`,
@@ -1865,8 +1867,8 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
       kpiLabel: "Bio lisible en 5 secondes",
     },
     2: {
-      title: "Carrousel qui fait tomber le doute",
-      objective: coachObjective(`Aider ${p.humanAudience} à comprendre qu’ils ne sont pas bloqués parce qu’ils sont incapables, mais parce qu’ils répètent 3 erreurs évitables.`),
+      title: "Carrousel 3 erreurs",
+      objective: `Attirer ${p.humanAudience} avec 3 erreurs qui les empêchent de ${p.desire}.`,
       checklist: [
         `Erreur 1 : rester seul avec le problème.`,
         `Erreur 2 : consommer du contenu sans passer à l’action.`,
@@ -1876,7 +1878,7 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
       kpiLabel: "Sauvegardes / DMs",
     },
     3: {
-      title: "Présence utile auprès des bonnes personnes",
+      title: "Commentaires ciblés",
       objective: `Se rendre visible auprès de ${p.humanAudience} sans dépendre uniquement de l’algorithme.`,
       checklist: [
         `Trouve 10 comptes suivis par ton audience.`,
@@ -1886,8 +1888,8 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
       kpiLabel: "Visites profil / réponses",
     },
     4: {
-      title: "Story qui fait ressortir le vrai désir",
-      objective: coachObjective(`Faire parler les prospects silencieux sur ce qu’ils veulent vraiment : ${p.desire}. ${p.desireSentence}`),
+      title: "Story sondage désir",
+      objective: `Faire sortir les prospects silencieux en demandant ce qu’ils veulent vraiment obtenir.`,
       checklist: [
         `Question : “si tu pouvais résoudre 1 chose ce mois-ci, ce serait quoi ?”.`,
         `Sondage : temps / argent / méthode / confiance.`,
@@ -1896,7 +1898,7 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
       kpiLabel: "Réponses / votes story",
     },
     5: {
-      title: "DM d’ouverture empathique",
+      title: "DM d’ouverture propre",
       objective: `Transformer les réactions en conversations qualifiées avec ${p.humanAudience}.`,
       checklist: [
         `Choisis 5 personnes qui ont réagi.`,
@@ -1906,8 +1908,8 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
       kpiLabel: "Conversations qualifiées",
     },
     6: {
-      title: "Mini ressource qui donne un premier déclic",
-      objective: coachObjective(`Donner une première victoire simple avant de proposer ${p.offer}. L’objectif est que la personne se dise : “ok, je peux déjà avancer”.`),
+      title: "Mini ressource DM",
+      objective: `Donner une petite valeur avant de proposer ${p.offer}.`,
       checklist: [
         `Prépare 3 étapes simples pour aider ${p.humanAudience}.`,
         `Envoie-les seulement aux personnes qui demandent.`,
@@ -1929,7 +1931,7 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
 
   const week3Sales: Record<number, Partial<DayPlan>> = {
     1: {
-      title: "Conversation qui comprend avant de vendre",
+      title: "Script DM diagnostic",
       objective: `Remplacer la peur de vendre par 3 questions qui clarifient le besoin avant de parler de ${p.offer}.`,
       checklist: [
         `Question 1 : “tu veux obtenir quoi précisément ?”.`,
@@ -1939,7 +1941,7 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
       kpiLabel: "Prospects qualifiés",
     },
     2: {
-      title: "Contenu qui répond au vrai blocage",
+      title: "Contenu objections",
       objective: `Répondre publiquement à l’objection principale liée à ${p.blocker}.`,
       checklist: [
         `Nomme l’objection sans juger.`,
@@ -2002,7 +2004,7 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
 
   const week4Conversion: Record<number, Partial<DayPlan>> = {
     1: {
-      title: "Offre facile à décider",
+      title: "Offre claire en 3 bullets",
       objective: `Rendre ${p.offer} facile à comprendre pour ${p.humanAudience}.`,
       checklist: [
         `Bullet 1 : résultat concret attendu.`,
@@ -2075,18 +2077,18 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
 
   const week5Process: Record<number, Partial<DayPlan>> = {
     1: {
-      title: "Système qui transforme le doute en conversation",
-      objective: coachObjective(`Créer un process répétable pour passer du doute silencieux à une conversation réelle : contenu qui touche ${p.pain}, DM qui écoute, puis proposition claire.`),
+      title: "Système contenu → DM → offre",
+      objective: `Créer un process répétable pour aider ${p.humanAudience} à dépasser ${p.pain}, sans repartir de zéro chaque jour.`,
       checklist: [
-        `Définis 1 angle qui part de cette pensée : “${p.innerVoice}”.`,
+        `Définis 1 angle de contenu lié à ${p.pain}.`,
         `Définis 1 mot-clé DM : ${p.dmKeyword}.`,
         `Prépare 1 phrase de transition vers ${p.offer}.`,
       ],
       kpiLabel: "Process écrit",
     },
     2: {
-      title: "Relance qui respecte le doute",
-      objective: coachObjective(`Relancer sans pousser. La relance doit montrer que tu as compris le doute, pas que tu veux absolument vendre. ${p.emotionSentence}`),
+      title: "Follow-up empathique",
+      objective: `Relancer les prospects sans pression en partant de ce qu’ils ressentent vraiment. ${p.emotionSentence}`,
       checklist: [
         `Liste 10 prospects tièdes.`,
         `Relance avec une phrase courte : “tu en es où avec ${p.pain} ?”.`,
@@ -2095,8 +2097,8 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
       kpiLabel: "Réponses relance",
     },
     3: {
-      title: "Preuve qui redonne confiance",
-      objective: coachObjective(`Créer une preuve simple qui casse la croyance “ça ne marchera pas pour moi”. ${p.beliefSentence}`),
+      title: "Preuve rassurante",
+      objective: `Créer une preuve simple qui rassure les prospects au moment où ils doutent d’eux-mêmes. ${p.beliefSentence}`,
       checklist: [
         `Montre un résultat, un process ou une étape concrète.`,
         `Explique pourquoi ce résultat est accessible à ${p.humanAudience}.`,
@@ -2105,8 +2107,8 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
       kpiLabel: "DM preuve",
     },
     4: {
-      title: "Offre plus facile à croire",
-      objective: coachObjective(`${p.nextStep} Réduis la peur de se tromper avant d’ajouter des bonus ou de la rareté.`),
+      title: "Offre plus rassurante",
+      objective: `Améliorer ${p.offer} pour réduire la peur de se tromper et faciliter la décision.`,
       checklist: [
         `Ajoute 1 bénéfice concret lié à ${p.desire}.`,
         `Ajoute 1 élément rassurant : simplicité, étapes, support ou preuve.`,
@@ -2115,8 +2117,8 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
       kpiLabel: "Offre rassurante",
     },
     5: {
-      title: "Sprint DM utile, pas intrusif",
-      objective: coachObjective(`Créer du volume sans spam : chaque message doit partir d’un signal réel lié à ${p.pain}, pas d’un pitch copié-collé.`),
+      title: "Sprint DM ciblé",
+      objective: `Créer du volume sans spam auprès de personnes qui vivent ${p.pain}.`,
       checklist: [
         `Identifie 20 profils avec un signal de besoin réel.`,
         `Envoie un message court basé sur leur situation.`,
@@ -2125,7 +2127,7 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
       kpiLabel: "Messages ciblés",
     },
     6: {
-      title: "Carrousel qui casse la mauvaise croyance",
+      title: "Carrousel croyance limitante",
       objective: `Publier un carrousel qui aide les prospects à sortir de leur croyance bloquante. ${p.beliefSentence}`,
       checklist: [
         `Slide 1 : nomme le doute principal avec des mots simples.`,
@@ -2148,8 +2150,8 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
 
   const week6Proof: Record<number, Partial<DayPlan>> = {
     1: {
-      title: "Questions qui ouvrent la vraie conversation",
-      objective: coachObjective(`Qualifier sans interrogatoire : aide le prospect à formuler ce qu’il vit, ce qu’il veut, et pourquoi il doute encore. Pensée probable : “${p.innerVoice}”.`),
+      title: "Script qualification confiance",
+      objective: `Qualifier sans brusquer les prospects qui doutent encore à cause de ${p.coreBelief}.`,
       checklist: [
         `Question 1 : “tu veux obtenir quoi concrètement ?”.`,
         `Question 2 : “qu’est-ce qui t’a bloqué jusqu’ici ?”.`,
@@ -2158,7 +2160,7 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
       kpiLabel: "Prospects qualifiés",
     },
     2: {
-      title: "Story avant → après qui rassure",
+      title: "Story avant → après émotionnelle",
       objective: `Raconter comment une personne peut passer du doute à une action claire et rassurante. ${p.emotionSentence}`,
       checklist: [
         `Avant : frustration, doute ou blocage.`,
@@ -2168,7 +2170,7 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
       kpiLabel: "Réponses story",
     },
     3: {
-      title: "Offre avec les mots du prospect",
+      title: "Offre en langage client",
       objective: `Dire ${p.offer} avec les mots de ${p.humanAudience}, pas avec du jargon.`,
       checklist: [
         `Bullet 1 : douleur réelle : ${p.pain}.`,
@@ -2178,7 +2180,7 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
       kpiLabel: "DM offre",
     },
     4: {
-      title: "Profil qui enlève la méfiance",
+      title: "Audit profil confiance",
       objective: `Vérifier que ton profil ${p.channel} rassure avant de vendre.`,
       checklist: [
         `Bio : cible + résultat + CTA ${p.dmKeyword}.`,
@@ -2188,7 +2190,7 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
       kpiLabel: "Profil rassurant",
     },
     5: {
-      title: "Relances qui aident à décider",
+      title: "Relances valeur",
       objective: `Récupérer les prospects silencieux avec une relance utile, pas insistante.`,
       checklist: [
         `Relance 1 : question liée à ${p.pain}.`,
@@ -2221,8 +2223,8 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
 
   const week7Scale: Record<number, Partial<DayPlan>> = {
     1: {
-      title: "Batch contenus empathie → action",
-      objective: coachObjective(`Préparer plusieurs contenus qui suivent le même chemin : “je comprends ce que tu vis” → “voici une action simple” → “tu peux demander la suite”.`),
+      title: "Batch contenus douleur/désir",
+      objective: `Préparer plusieurs contenus autour du même pont : ${p.pain} → ${p.desire}.`,
       checklist: [
         `Liste 5 douleurs dérivées de ${p.pain}.`,
         `Liste 5 désirs dérivés de ${p.desire}.`,
@@ -2231,8 +2233,8 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
       kpiLabel: "Brouillons prêts",
     },
     2: {
-      title: "CTA qui attire les vrais prospects",
-      objective: coachObjective(`Améliorer le CTA pour filtrer les curieux et attirer les personnes qui vivent vraiment ${p.pain}.`),
+      title: "CTA plus précis",
+      objective: `Améliorer le CTA pour attirer les personnes vraiment concernées par ${p.pain}.`,
       checklist: [
         `Teste DM ${p.dmKeyword} vs commentaire ${p.dmKeyword}.`,
         `Ajoute une promesse courte au CTA.`,
@@ -2241,7 +2243,7 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
       kpiLabel: "DM reçus",
     },
     3: {
-      title: "Alliances auprès des bonnes audiences",
+      title: "Collaboration ciblée",
       objective: `Trouver des comptes déjà suivis par ${p.humanAudience}.`,
       checklist: [
         `Liste 10 comptes complémentaires.`,
@@ -2251,7 +2253,7 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
       kpiLabel: "Contacts envoyés",
     },
     4: {
-      title: "Deux preuves qui rassurent vraiment",
+      title: "Preuve x2",
       objective: `Renforcer la crédibilité avec 2 preuves adaptées à ${p.humanAudience}.`,
       checklist: [
         `Preuve 1 : process ou démonstration.`,
@@ -2261,7 +2263,7 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
       kpiLabel: "Preuves publiées",
     },
     5: {
-      title: "Sprint DM avec écoute active",
+      title: "DM sprint qualifié",
       objective: `Augmenter le volume sans perdre l’empathie. ${p.emotionSentence}`,
       checklist: [
         `30 messages courts et personnalisés.`,
@@ -2294,8 +2296,8 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
 
   const week8Optimize: Record<number, Partial<DayPlan>> = {
     1: {
-      title: "Message plus humain, moins marketing",
-      objective: coachObjective(`Rendre le message plus humain pour ${p.humanAudience} : moins de jargon, plus de vérité, plus de clarté sur la prochaine étape.`),
+      title: "Optimisation message",
+      objective: `Rendre le message plus direct pour ${p.humanAudience}.`,
       checklist: [
         `Réduis la promesse à une phrase.`,
         `Supprime un mot trop technique.`,
@@ -2304,8 +2306,8 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
       kpiLabel: "Message optimisé",
     },
     2: {
-      title: "DM qui aide à choisir",
-      objective: coachObjective(`Transformer plus de conversations en propositions naturelles en aidant la personne à comprendre si ${p.offer} est vraiment adapté à sa situation.`),
+      title: "Optimisation conversion DM",
+      objective: `Transformer plus de conversations en propositions naturelles.`,
       checklist: [
         `Repère où les prospects décrochent.`,
         `Ajoute une question de clarification.`,
@@ -2314,7 +2316,7 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
       kpiLabel: "Taux proposition",
     },
     3: {
-      title: "Preuve qui répond au doute profond",
+      title: "Angle preuve renforcé",
       objective: `Créer une preuve plus crédible pour rassurer les prospects qui doutent encore. ${p.emotionSentence}`,
       checklist: [
         `Montre le chemin plutôt que promettre un miracle.`,
@@ -2324,7 +2326,7 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
       kpiLabel: "DM preuve",
     },
     4: {
-      title: "Offre évidente à comprendre",
+      title: "Offre plus simple",
       objective: `Rendre ${p.offer} plus facile à acheter ou à demander.`,
       checklist: [
         `Clarifie ce que la personne reçoit.`,
@@ -2334,7 +2336,7 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
       kpiLabel: "Offre simplifiée",
     },
     5: {
-      title: "Réponses aux objections sans forcer",
+      title: "Relance objections",
       objective: `Traiter les objections sans argumenter.`,
       checklist: [
         `Liste 5 objections reçues.`,
@@ -2344,7 +2346,7 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
       kpiLabel: "Objections traitées",
     },
     6: {
-      title: "Contenu qui aide à passer à l’action",
+      title: "Contenu décision",
       objective: `Aider les prospects chauds à se décider sans pression.`,
       checklist: [
         `Rappelle la douleur : ${p.pain}.`,
@@ -2367,8 +2369,8 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
 
   const week9Ambassador: Record<number, Partial<DayPlan>> = {
     1: {
-      title: "Montrer le chemin parcouru",
-      objective: coachObjective(`Montrer le chemin parcouru : avant la confusion, maintenant un plan, une mission, une action. LGD apparaît comme le support du chemin, pas comme un produit poussé.`),
+      title: "Story outil/process LGD",
+      objective: `Montrer comment LGD t’aide à transformer ${p.pain} en actions simples, sans vendre l’outil frontalement.`,
       checklist: [
         `Montre ton workflow contenu → DM → offre.`,
         `Explique le gain : clarté, vitesse ou régularité.`,
@@ -2377,7 +2379,7 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
       kpiLabel: "DM OUTIL",
     },
     2: {
-      title: "Post avant/après du déclic",
+      title: "Post avant/après avec outil",
       objective: `Comparer l’avant — confusion, doute ou frustration — et l’après : un plan clair + une action simple.`,
       checklist: [
         `Avant : dispersion ou blocage.`,
@@ -2387,8 +2389,8 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
       kpiLabel: "DM PLAN",
     },
     3: {
-      title: "Mini guide première victoire",
-      objective: coachObjective(`Offrir une ressource qui donne une première victoire à ${p.humanAudience}. LGD devient ensuite la suite logique si la personne veut structurer son passage à l’action.`),
+      title: "Mini guide première action",
+      objective: `Offrir une ressource utile à ${p.humanAudience} avant de proposer LGD.`,
       checklist: [
         `1 page : première action pour dépasser ${p.pain}.`,
         `Distribue en DM.`,
@@ -2397,7 +2399,7 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
       kpiLabel: "Guides envoyés",
     },
     4: {
-      title: "Relance LGD propre et humaine",
+      title: "Follow-up affiliation soft",
       objective: `Relancer les intéressés sans pression.`,
       checklist: [
         `Demande si la ressource les a aidés.`,
@@ -2407,8 +2409,8 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
       kpiLabel: "Liens envoyés",
     },
     5: {
-      title: "Invitation LGD par le résultat",
-      objective: coachObjective(`Inviter les personnes concernées par ${p.pain} à découvrir un système qui les aide à passer de l’envie à l’exécution, sans leur promettre un miracle.`),
+      title: "Post invitation LGD",
+      objective: `Inviter les personnes concernées par ${p.pain} à découvrir le système.`,
       checklist: [
         `1 résultat ou apprentissage.`,
         `1 bénéfice concret pour ${p.humanAudience}.`,
@@ -2417,7 +2419,7 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
       kpiLabel: "DM LGD",
     },
     6: {
-      title: "Carrousel système simple",
+      title: "Carrousel système LGD",
       objective: `Montrer le système complet sans promesse agressive.`,
       checklist: [
         `Slide 1 : douleur.`,
@@ -2501,6 +2503,9 @@ function contextualizeDayPlan(ctx: AlexContext, weekIndex: number, dayIndex: num
 }
 
 function roadmapLabel(ctx: AlexContext, weekIndex: number): string {
+  if (ctx.businessModel === "pas_encore" && ctx.customObjective?.trim()) {
+    return ["Clarté", "Exploration", "Comparaison", "Besoins", "Test", "Retours", "Ajustement", "Proposition", "Décision"][Math.max(0, Math.min(8, weekIndex - 1))];
+  }
   const offer = shortText(ctx.offerDescription, "ton offre", 42);
   const audience = extractAudienceSegment(ctx.targetAudienceDescription);
   const pain = extractPainPoint(ctx.targetAudienceDescription, ctx.mainBlocker);
@@ -2510,23 +2515,23 @@ function roadmapLabel(ctx: AlexContext, weekIndex: number): string {
 
   switch (weekIndex) {
     case 1:
-      return `MESSAGE — Redonner confiance à ${humanAudience}`;
+      return `MESSAGE — Donner confiance à ${humanAudience}`;
     case 2:
-      return `RECONNEXION — Faire sentir aux bonnes personnes qu’elles sont comprises sur ${channel}`;
+      return `VISIBILITÉ — Faire venir les bonnes personnes sur ${channel}`;
     case 3:
-      return `COMPRÉHENSION — Transformer l’intérêt en vraies conversations`;
+      return `CONVERSATIONS — Transformer l’intérêt en échanges utiles`;
     case 4:
-      return `DÉCISION — Aider les prospects à avancer avec ${offer}`;
+      return `VENTE — Obtenir les premières décisions autour de ${offer}`;
     case 5:
-      return `CONFIANCE — Répéter le chemin contenu → conversation → proposition`;
+      return `SYSTÈME — Répéter contenu → DM → proposition`;
     case 6:
-      return `PREUVES — Rassurer les personnes qui doutent d’elles-mêmes`;
+      return `PREUVES — Rassurer les prospects qui doutent`;
     case 7:
-      return `AMPLIFICATION — Multiplier les occasions de rassurer sans spam`;
+      return `VOLUME — Multiplier les bons contacts sans spam`;
     case 8:
-      return `DÉCLIC — Faire avancer les prospects hésitants`;
+      return `OPTIMISATION — Faire avancer les prospects hésitants`;
     case 9:
-      return `TRANSMISSION — Partager LGD par le chemin parcouru`;
+      return `AMBASSADEUR — Partager LGD sans forcer`;
     default:
       return `PLAN ALEX — ${offer}`;
   }
@@ -2622,6 +2627,7 @@ export function buildTodayFromRoadmap(args: { ctx: AlexContext; roadmap: AlexRoa
       kpiLabel: day.kpiLabel,
       tone,
       businessGoal: ctx.businessGoal,
+      customObjective: ctx.customObjective,
       revenueGoalMonthly: ctx.revenueGoalMonthly,
       deadlineDays: ctx.deadlineDays,
       mainBlocker: ctx.mainBlocker,
