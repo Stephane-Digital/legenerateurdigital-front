@@ -59,9 +59,11 @@ type FormActionParcours =
   | "mrr"
   | "affiliation"
   | "code_liberte"
+  | "objectif_personnalise"
   | "non_defini";
 
 type FormActionBusinessProject = {
+  customObjective?: string;
   offerDescription?: string;
   problemSolved?: string;
   transformationPromise?: string;
@@ -99,7 +101,7 @@ function hasCompletedAlexDiagnostic(
     offer &&
       audience &&
       model &&
-      model !== "pas_encore" &&
+      (model !== "pas_encore" || Boolean(String(project?.customObjective || ctx?.customObjective || "").trim())) &&
       goal &&
       blocker,
   );
@@ -150,7 +152,8 @@ async function readBusinessProject(): Promise<FormActionBusinessProject | null> 
 
   if (!res.ok) return null;
   const data = await res.json().catch(() => null);
-  return (data?.business_project ||
+  return (data?.alex_business_project ||
+    data?.business_project ||
     data?.businessProject ||
     data?.project ||
     data ||
@@ -172,7 +175,7 @@ async function patchBusinessProject(
     method: "PATCH",
     headers,
     credentials: "include",
-    body: JSON.stringify(project),
+    body: JSON.stringify({ extra: project }),
   }).catch(() => null);
 
   if (direct?.ok) return;
@@ -996,6 +999,7 @@ export default function AlexV2Shell() {
     primaryChannel?: string;
     channelNotes?: string;
     formActionProject?: FormActionBusinessProject;
+    customObjective?: string;
   }) {
     const submittedProject = data.formActionProject || null;
     const submittedOffer = String(
@@ -1013,7 +1017,7 @@ export default function AlexV2Shell() {
       !submittedOffer ||
       !submittedAudience ||
       !data.businessModel ||
-      data.businessModel === "pas_encore" ||
+      (data.businessModel === "pas_encore" && !String(data.customObjective || submittedProject?.customObjective || "").trim()) ||
       !data.businessGoal ||
       !data.mainBlocker
     ) {
@@ -1027,6 +1031,7 @@ export default function AlexV2Shell() {
       timePerDay: data.timePerDay,
       businessGoal: data.businessGoal,
       businessModel: data.businessModel,
+      customObjective: data.customObjective || submittedProject?.customObjective,
       audienceSize: data.audienceSize,
       mainBlocker: data.mainBlocker,
       offerDescription: data.offerDescription,
@@ -1176,15 +1181,17 @@ export default function AlexV2Shell() {
     setTodayState(next);
     setV2Today(next);
 
-    // Bridge to editor intelligent
+    // Le parcours « Autre » commence par une action de clarification / validation,
+    // qui ne nécessite pas systématiquement un visuel dans l'éditeur.
+    if (context?.businessModel === "pas_encore" && context.customObjective?.trim()) {
+      goStage("FEEDBACK");
+      return;
+    }
+
+    // Parcours existants inchangés : ouverture de l'éditeur.
     writeEditorBrief(next.mission);
-
-    // Move stage to FEEDBACK for when user returns
     goStage("FEEDBACK");
-
-    router.push(
-      "/dashboard/automatisations/reseaux_sociaux/editor-intelligent",
-    );
+    router.push("/dashboard/automatisations/reseaux_sociaux/editor-intelligent");
   }
 
   function onFeedbackDone() {}
