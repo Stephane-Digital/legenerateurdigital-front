@@ -1,44 +1,40 @@
-export type AlexIntent = "argent_vite" | "quitter_job" | "complement" | "discipline" | (string & {});
-export type AlexLevel = "debutant" | "sans_resultat" | "quelques_ventes" | (string & {});
-export type TimePerDay = 30 | 60 | 90 | number;
+export type AlexIntent = "argent_vite" | "quitter_job" | "complement" | "discipline";
+export type AlexLevel = "debutant" | "sans_resultat" | "quelques_ventes";
+export type TimePerDay = 30 | 60 | 90;
 
-export type AlexBusinessGoal =
-  | "premiers_revenus"
-  | "revenu_500"
-  | "quitter_job"
-  | "premiers_clients"
-  | "business_stable"
-  | (string & {});
+export type AlexBusinessGoal = "premiers_revenus" | "revenu_500" | "quitter_job" | "premiers_clients" | "business_stable" | "objectif_personnalise";
+export type AlexBusinessModel = "affiliation" | "offre_digitale" | "coaching" | "contenu" | "pas_encore";
+export type AlexAudienceSize = "zero" | "moins_500" | "500_5000" | "plus_5000";
+export type AlexMainBlocker = "dispersion" | "temps" | "technique" | "vente" | "confiance";
 
-export type AlexBusinessModel =
-  | "affiliation"
-  | "offre_digitale"
-  | "coaching"
-  | "contenu"
-  | "pas_encore"
-  | (string & {});
+export type AlexPlatform = "instagram" | "facebook" | "pinterest";
+export type MissionType = "content" | "conversation" | "vente";
+export type MissionFormat = "post" | "carrousel" | "story" | "dm_script";
 
-export type AlexAudienceSize = "zero" | "moins_500" | "500_5000" | "plus_5000" | (string & {});
-export type AlexMainBlocker = "dispersion" | "temps" | "technique" | "vente" | "confiance" | (string & {});
+export type BusinessPhase = "FIRST_SALE" | "STABILIZE" | "SCALE" | "AMBASSADOR";
 
-export type BusinessPhase = "FIRST_SALE" | "STABILIZE" | "SCALE" | "AMBASSADOR" | (string & {});
-
-export type AlexPlatform = "instagram" | "facebook" | "pinterest" | (string & {});
-export type MissionType = "content" | "conversation" | "vente" | (string & {});
-export type MissionFormat = "post" | "carrousel" | "story" | "dm_script" | (string & {});
+export type AlexStage =
+  | "WELCOME"
+  | "ONBOARDING"
+  | "PLAN_OVERVIEW"
+  | "MISSION_TODAY"
+  | "COMMIT_REQUIRED"
+  | "EXECUTION"
+  | "FEEDBACK"
+  | "OPTIMIZE"
+  | "PARCOURS";
 
 export type NetworkProgress = {
-  instagram?: boolean;
-  facebookUnlocked?: boolean;
-  pinterestUnlocked?: boolean;
-  [key: string]: any;
+  instagram: true;
+  facebookUnlocked: boolean;
+  pinterestUnlocked: boolean;
 };
 
 export type AlexGoalTrajectory = {
   targetLabel: string;
   targetRevenueMonthly: number;
   horizonDays: number;
-  priorityChannel: "instagram" | string;
+  priorityChannel: "instagram";
   priorityModel: AlexBusinessModel;
   currentStep: string;
   forbiddenFocus: string[];
@@ -51,30 +47,29 @@ export type AlexGoalTrajectory = {
 };
 
 export type AlexContext = {
-  version?: number;
-  intent?: AlexIntent;
-  level?: AlexLevel;
-  timePerDay?: TimePerDay;
-  time_per_day?: TimePerDay;
+  version: 2;
+  intent: AlexIntent;
+  level: AlexLevel;
+  timePerDay: TimePerDay;
   businessPhase?: BusinessPhase;
-  platformLock?: "instagram" | string;
-  networkProgress?: NetworkProgress;
-  startedAtISO?: string;
-  lastUpdatedAtISO?: string;
+  platformLock: "instagram";
+  networkProgress: NetworkProgress;
+  startedAtISO: string;
+  lastUpdatedAtISO: string;
+
+  /** Coach IA V3 — objectif clair + trajectoire business personnalisée */
   businessGoal?: AlexBusinessGoal;
   businessModel?: AlexBusinessModel;
+  customObjective?: string;
   audienceSize?: AlexAudienceSize;
   mainBlocker?: AlexMainBlocker;
   revenueGoalMonthly?: number;
   deadlineDays?: number;
   trajectory?: AlexGoalTrajectory;
-  niche?: string;
-  offer?: string;
-  audience?: string;
-  stage?: string;
-  lastAction?: string;
-  last_action?: string;
-  [key: string]: any;
+  offerDescription?: string;
+  targetAudienceDescription?: string;
+  primaryChannel?: string;
+  channelNotes?: string;
 };
 
 export type MissionBrief = {
@@ -111,14 +106,13 @@ export type WeekPlan = {
 };
 
 export type AlexRoadmap = {
-  version?: number;
-  createdAtISO?: string;
+  version: 2;
+  createdAtISO: string;
   weeks: WeekPlan[];
-  [key: string]: any;
 };
 
 export type AlexToday = {
-  version?: number;
+  version: 2;
   weekIndex: number;
   dayIndex: number;
   mission: MissionBrief;
@@ -126,11 +120,10 @@ export type AlexToday = {
   committedAtISO?: string;
   startedAtISO?: string;
   completedAtISO?: string;
-  [key: string]: any;
 };
 
 export type DailyLog = {
-  version?: number;
+  version: 2;
   weekIndex: number;
   dayIndex: number;
   done: boolean;
@@ -141,12 +134,11 @@ export type DailyLog = {
     | "pas_de_reponses"
     | "temps"
     | "message"
-    | "autre"
-    | (string & {});
+    | "autre";
   note?: string;
   createdAtISO: string;
-  [key: string]: any;
 };
+
 
 export type CoachUserPlan = "azur" | "essentiel" | "pro" | "ultime" | (string & {});
 export type CoachFocus = "jour" | "objectif" | "diagnostic" | (string & {});
