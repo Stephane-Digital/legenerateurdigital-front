@@ -42,9 +42,11 @@ type FormActionParcours =
   | "mrr"
   | "affiliation"
   | "code_liberte"
+  | "objectif_personnalise"
   | "non_defini";
 
 type FormActionBusinessProject = {
+  customObjective?: string;
   offerDescription?: string;
   problemSolved?: string;
   transformationPromise?: string;
@@ -112,7 +114,7 @@ function hasCompletedBusinessDiagnostic(
     offer &&
       audience &&
       model &&
-      model !== "pas_encore" &&
+      (model !== "pas_encore" || Boolean(String(project?.customObjective || ctx?.customObjective || "").trim())) &&
       goal &&
       blocker,
   );
@@ -155,7 +157,7 @@ function labelBusinessModel(model: AlexBusinessModel) {
   if (model === "offre_digitale") return "Création de produit digital";
   if (model === "coaching") return "Coaching / accompagnement";
   if (model === "contenu") return "Contenu + audience";
-  return "Modèle à confirmer";
+  return "À clarifier avec Alex";
 }
 
 function labelBusinessModelForProject(
@@ -173,6 +175,7 @@ function labelBusinessGoal(goal: AlexBusinessGoal) {
   if (goal === "premiers_clients") return "premiers clients";
   if (goal === "quitter_job") return "sortie progressive du salariat";
   if (goal === "business_stable") return "business stable";
+  if (goal === "objectif_personnalise") return "objectif personnalisé";
   return "premiers revenus";
 }
 
@@ -1027,10 +1030,12 @@ function inferFormActionProject(args: {
   primaryChannel: string;
   positioning: string;
   firstRevenueGoal: string;
+  customObjective?: string;
   parcoursChoice?: FormActionParcours;
 }): FormActionBusinessProject {
   const offer = normalizeText(args.offerDescription);
   const audience = normalizeText(args.targetAudienceDescription);
+  const customObjective = normalizeText(args.customObjective);
   const lower = `${offer} ${audience} ${args.problemSolved}`.toLowerCase();
 
   const parcours: FormActionParcours =
@@ -1050,8 +1055,10 @@ function inferFormActionProject(args: {
               ? "code_liberte"
               : "non_defini";
 
-  const platform =
-    parcours === "mrr"
+  const isCustom = parcours === "objectif_personnalise";
+  const platform = isCustom
+    ? { recommendedPlatform: "À définir après validation", platformReason: "Alex commence par clarifier la piste et recueillir des retours avant de sélectionner un canal." }
+    : parcours === "mrr"
       ? {
           recommendedPlatform: `${normalizeText(args.primaryChannel) || "Instagram"} d’abord, Facebook ensuite`,
           platformReason:
@@ -1065,6 +1072,7 @@ function inferFormActionProject(args: {
         });
 
   const estimatedTimeBeforeSale =
+    isCustom ? "À déterminer après validation" :
     parcours === "mrr"
       ? args.audienceSize === "zero"
         ? "7 à 10 jours"
@@ -1092,6 +1100,7 @@ function inferFormActionProject(args: {
   );
 
   const nextMission =
+    isCustom ? `Définir une première action vérifiable pour l’objectif : ${customObjective}.` :
     parcours === "mrr"
       ? "Clarifier la promesse de la formation MRR en une phrase : résultat, simplicité, droits de revente."
       : parcours === "affiliation"
@@ -1101,6 +1110,7 @@ function inferFormActionProject(args: {
           : "Clarifier le positionnement et choisir une première action de vente simple.";
 
   const missionFollowing =
+    isCustom ? "Recueillir des retours concrets sur une première piste puis ajuster l’objectif." :
     parcours === "mrr"
       ? "Créer le premier contenu qui explique pourquoi la licence MRR évite de créer un produit de zéro."
       : parcours === "affiliation"
@@ -1110,6 +1120,7 @@ function inferFormActionProject(args: {
           : "Tester l’angle sur Instagram avec un post problème → solution.";
 
   const contentAngle =
+    isCustom ? "Expliquer simplement le besoin et le résultat recherché avant de créer du contenu commercial." :
     parcours === "mrr"
       ? "Montrer le déclic : arrêter de collectionner des formations et utiliser une licence MRR comme point de départ concret."
       : parcours === "affiliation"
@@ -1117,6 +1128,7 @@ function inferFormActionProject(args: {
         : "Montrer la transformation promise avec une situation avant/après très concrète.";
 
   const salesAngle =
+    isCustom ? "Valider d’abord qu’un besoin existe ; ne pas vendre tant que l’offre et la cible ne sont pas définies." :
     parcours === "mrr"
       ? "Ne pas vendre une formation : vendre une activité prête à lancer avec droits de revente, méthode et passage à l’action."
       : parcours === "affiliation"
@@ -1125,6 +1137,7 @@ function inferFormActionProject(args: {
 
   return {
     offerDescription: offer,
+    customObjective: isCustom ? customObjective : undefined,
     problemSolved: normalizeText(args.problemSolved),
     transformationPromise: normalizeText(args.transformationPromise),
     targetAudienceDescription: audience,
@@ -1150,6 +1163,7 @@ function parcoursLabel(parcours?: FormActionParcours) {
   if (parcours === "creation_produit_digital")
     return "Création produit digital";
   if (parcours === "code_liberte") return "Code Liberté";
+  if (parcours === "objectif_personnalise") return "Objectif personnalisé";
   return "À confirmer";
 }
 
@@ -1611,6 +1625,7 @@ export default function StageRenderer(props: {
     primaryChannel: string;
     channelNotes: string;
     formActionProject: FormActionBusinessProject;
+    customObjective?: string;
   }) => void;
   onOpenPlan: () => void;
   onGoMission: () => void;
@@ -1678,13 +1693,21 @@ export default function StageRenderer(props: {
         </div>
 
         <div className="mt-6">
-          <BusinessDirectorPanelV4
-            businessProject={businessProject || null}
-            context={context}
-            logs={logs}
-            today={today}
-            compact={!businessProject && !context}
-          />
+          {context?.businessModel === "pas_encore" && context.customObjective ? (
+            <div className="rounded-3xl border border-yellow-500/20 bg-yellow-400/5 p-5">
+              <p className="text-xs font-semibold uppercase tracking-wider text-yellow-300/75">Ton objectif personnalisé</p>
+              <p className="mt-2 text-base leading-6 text-white/85">{context.customObjective}</p>
+              <p className="mt-3 text-sm text-white/60">Alex t'accompagne dans la clarification et la validation avant de construire une offre commerciale.</p>
+            </div>
+          ) : (
+            <BusinessDirectorPanelV4
+              businessProject={businessProject || null}
+              context={context}
+              logs={logs}
+              today={today}
+              compact={!businessProject && !context}
+            />
+          )}
         </div>
 
         <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -1854,15 +1877,19 @@ function OnboardingCard(props: {
     primaryChannel: string;
     channelNotes: string;
     formActionProject: FormActionBusinessProject;
+    customObjective?: string;
   }) => void;
 }) {
   const { businessProject, onSubmit, onAfterLiveMarketAnalysis } = props;
   const [step, setStep] = useState(0);
+  const [customObjective, setCustomObjective] = useState(
+    cleanMarketingMemoryValue(businessProject?.customObjective),
+  );
   const [intent, setIntent] = useState<AlexIntent>("argent_vite");
   const [level, setLevel] = useState<AlexLevel>("debutant");
   const [timePerDay, setTimePerDay] = useState<TimePerDay>(30);
   const [businessGoal, setBusinessGoal] =
-    useState<AlexBusinessGoal>("premiers_revenus");
+    useState<AlexBusinessGoal>(businessProject?.parcours === "objectif_personnalise" ? "objectif_personnalise" : "premiers_revenus");
   const [businessModel, setBusinessModel] = useState<AlexBusinessModel>(
     (businessProject?.businessModel as AlexBusinessModel) || "pas_encore",
   );
@@ -1890,7 +1917,7 @@ function OnboardingCard(props: {
   );
   const [primaryChannel, setPrimaryChannel] = useState("instagram");
   const [firstRevenueGoal, setFirstRevenueGoal] = useState(
-    businessProject?.firstRevenueGoal || "1 première vente",
+    businessProject?.firstRevenueGoal || (businessProject?.parcours === "objectif_personnalise" ? "" : "1 première vente"),
   );
   const [channelNotes, setChannelNotes] = useState("");
   const targetEditedRef = useRef(
@@ -1909,6 +1936,14 @@ function OnboardingCard(props: {
   const [liveOpportunitiesError, setLiveOpportunitiesError] = useState("");
   const [liveOpportunitiesNotice, setLiveOpportunitiesNotice] = useState("");
 
+  const isCustomObjective = parcoursChoice === "objectif_personnalise";
+  const effectiveOfferDescription = isCustomObjective
+    ? normalizeText(offerDescription || customObjective)
+    : offerDescription;
+  const effectiveObjective = isCustomObjective
+    ? normalizeText(customObjective)
+    : firstRevenueGoal;
+
   const visibleDigitalProductOpportunities = useMemo(
     () => liveOpportunities || getDigitalProductOpportunityBatch(opportunityBatchIndex),
     [liveOpportunities, opportunityBatchIndex],
@@ -1921,15 +1956,19 @@ function OnboardingCard(props: {
 
   useEffect(() => {
     if (problemEditedRef.current && !isInvalidMarketingMemoryValue(problemSolved)) return;
-    const inferred = inferProblemSolved(offerDescription, businessModel);
-    if (!offerDescription) return;
+    const inferred = isCustomObjective
+      ? `Identifier l'obstacle concret qui empêche aujourd'hui d'avancer vers : ${customObjective.trim()}.`
+      : inferProblemSolved(offerDescription, businessModel);
+    if (!effectiveOfferDescription) return;
     setProblemSolved(inferred);
-  }, [offerDescription, businessModel, problemSolved]);
+  }, [offerDescription, businessModel, problemSolved, isCustomObjective, customObjective, effectiveOfferDescription]);
 
   useEffect(() => {
     if (promiseEditedRef.current && !isInvalidMarketingMemoryValue(transformationPromise)) return;
-    if (!offerDescription) return;
-    const inferred = inferTransformationPromise({
+    if (!effectiveOfferDescription) return;
+    const inferred = isCustomObjective
+      ? `Passer d’un objectif encore flou à une direction claire, une première action réalisée et un résultat vérifiable.`
+      : inferTransformationPromise({
       offerDescription,
       problemSolved:
         problemSolved || inferProblemSolved(offerDescription, businessModel),
@@ -1937,11 +1976,13 @@ function OnboardingCard(props: {
       businessModel,
     });
     setTransformationPromise(inferred);
-  }, [offerDescription, problemSolved, businessGoal, businessModel, transformationPromise]);
+  }, [offerDescription, problemSolved, businessGoal, businessModel, transformationPromise, isCustomObjective, customObjective, effectiveOfferDescription]);
 
   useEffect(() => {
     if (targetEditedRef.current && !isInvalidMarketingMemoryValue(targetAudienceDescription)) return;
-    const inferred = inferTargetAudienceFromOffer(
+    const inferred = isCustomObjective
+      ? `Les personnes ou le public concernés par l’objectif « ${customObjective.trim()} » restent à identifier ou à valider pendant les premières missions.`
+      : inferTargetAudienceFromOffer(
       offerDescription,
       businessModel,
       businessGoal,
@@ -1950,7 +1991,7 @@ function OnboardingCard(props: {
       mainBlocker,
       problemSolved,
     );
-    if (!inferred) return;
+    if (!inferred || !effectiveOfferDescription) return;
     setTargetAudienceDescription(inferred);
   }, [
     offerDescription,
@@ -1961,21 +2002,28 @@ function OnboardingCard(props: {
     mainBlocker,
     problemSolved,
     targetAudienceDescription,
+    isCustomObjective, customObjective, effectiveOfferDescription,
   ]);
 
   const safeProblemSolved = isInvalidMarketingMemoryValue(problemSolved)
-    ? inferProblemSolved(offerDescription, businessModel)
+    ? (isCustomObjective
+        ? `Identifier l'obstacle concret qui empêche d'avancer vers : ${customObjective.trim()}.`
+        : inferProblemSolved(offerDescription, businessModel))
     : problemSolved;
   const safeTransformationPromise = isInvalidMarketingMemoryValue(transformationPromise)
-    ? inferTransformationPromise({
+    ? (isCustomObjective
+        ? "Passer d’un objectif flou à une direction claire et à une première action mesurable."
+        : inferTransformationPromise({
         offerDescription,
         problemSolved: safeProblemSolved,
         businessGoal,
         businessModel,
-      })
+      }))
     : transformationPromise;
   const safeTargetAudienceDescription = isInvalidMarketingMemoryValue(targetAudienceDescription)
-    ? inferTargetAudienceFromOffer(
+    ? (isCustomObjective
+        ? `Personnes concernées par l'objectif « ${customObjective.trim()} », à préciser lors de la validation du projet.`
+        : inferTargetAudienceFromOffer(
         offerDescription,
         businessModel,
         businessGoal,
@@ -1983,13 +2031,14 @@ function OnboardingCard(props: {
         audienceSize,
         mainBlocker,
         safeProblemSolved,
-      )
+      ))
     : targetAudienceDescription;
 
   const formActionProject = useMemo(
     () =>
       inferFormActionProject({
-        offerDescription,
+        offerDescription: effectiveOfferDescription,
+        customObjective: isCustomObjective ? customObjective.trim() : "",
         problemSolved: safeProblemSolved,
         transformationPromise: safeTransformationPromise,
         targetAudienceDescription: safeTargetAudienceDescription,
@@ -2000,11 +2049,12 @@ function OnboardingCard(props: {
         mainBlocker,
         primaryChannel,
         positioning,
-        firstRevenueGoal,
+        firstRevenueGoal: effectiveObjective,
         parcoursChoice,
       }),
     [
-      offerDescription,
+      effectiveOfferDescription,
+      customObjective, isCustomObjective, effectiveObjective,
       safeProblemSolved,
       safeTransformationPromise,
       safeTargetAudienceDescription,
@@ -2015,7 +2065,6 @@ function OnboardingCard(props: {
       mainBlocker,
       primaryChannel,
       positioning,
-      firstRevenueGoal,
       parcoursChoice,
     ],
   );
@@ -2063,7 +2112,7 @@ function OnboardingCard(props: {
   }
 
   function ensureMarketingMemoryGenerated() {
-    if (!offerDescription) return;
+    if (!effectiveOfferDescription) return;
 
     const nextProblem = isInvalidMarketingMemoryValue(problemSolved)
       ? inferProblemSolved(offerDescription, businessModel)
@@ -2095,7 +2144,22 @@ function OnboardingCard(props: {
     if (!isInvalidMarketingMemoryValue(nextAvatar)) setTargetAudienceDescription(nextAvatar);
   }
 
+  function resetCustomModeForOtherParcours() {
+    if (!isCustomObjective) return;
+    setBusinessGoal("premiers_revenus");
+    setFirstRevenueGoal("1 première vente");
+    setPrimaryChannel("instagram");
+    setOfferDescription("");
+    setProblemSolved("");
+    setTransformationPromise("");
+    setTargetAudienceDescription("");
+    problemEditedRef.current = false;
+    promiseEditedRef.current = false;
+    targetEditedRef.current = false;
+  }
+
   function goNextStep() {
+    if (step === 0 && isCustomObjective && !customObjective.trim()) return;
     ensureMarketingMemoryGenerated();
     setStep((s) => Math.min(totalSteps - 1, s + 1));
   }
@@ -2145,6 +2209,7 @@ function OnboardingCard(props: {
   }
 
   function submitOnboarding() {
+    if (isCustomObjective && !customObjective.trim()) { setStep(0); return; }
     onSubmit({
       intent,
       level,
@@ -2153,7 +2218,8 @@ function OnboardingCard(props: {
       businessModel,
       audienceSize,
       mainBlocker,
-      offerDescription,
+      offerDescription: effectiveOfferDescription,
+      customObjective: isCustomObjective ? customObjective.trim() : undefined,
       targetAudienceDescription: safeTargetAudienceDescription,
       primaryChannel,
       channelNotes,
@@ -2196,6 +2262,7 @@ function OnboardingCard(props: {
               <PickRow
                 checked={businessModel === "offre_digitale" && parcoursChoice === "creation_produit_digital"}
                 onClick={() => {
+                  resetCustomModeForOtherParcours();
                   setBusinessModel("offre_digitale");
                   setParcoursChoice("creation_produit_digital");
                 }}
@@ -2204,6 +2271,7 @@ function OnboardingCard(props: {
               <PickRow
                 checked={parcoursChoice === "mrr"}
                 onClick={() => {
+                  resetCustomModeForOtherParcours();
                   setBusinessModel("offre_digitale");
                   setParcoursChoice("mrr");
                 }}
@@ -2212,6 +2280,7 @@ function OnboardingCard(props: {
               <PickRow
                 checked={businessModel === "affiliation" && parcoursChoice === "affiliation"}
                 onClick={() => {
+                  resetCustomModeForOtherParcours();
                   setBusinessModel("affiliation");
                   setParcoursChoice("affiliation");
                 }}
@@ -2220,6 +2289,7 @@ function OnboardingCard(props: {
               <PickRow
                 checked={businessModel === "coaching"}
                 onClick={() => {
+                  resetCustomModeForOtherParcours();
                   setBusinessModel("coaching");
                   setParcoursChoice("non_defini");
                 }}
@@ -2228,27 +2298,70 @@ function OnboardingCard(props: {
               <PickRow
                 checked={businessModel === "contenu"}
                 onClick={() => {
+                  resetCustomModeForOtherParcours();
                   setBusinessModel("contenu");
                   setParcoursChoice("non_defini");
                 }}
                 label="Construire une audience puis monétiser"
               />
               <PickRow
-                checked={businessModel === "pas_encore"}
+                checked={isCustomObjective}
                 onClick={() => {
+                  if (!isCustomObjective) {
+                    setOfferDescription("");
+                    setProblemSolved("");
+                    setTransformationPromise("");
+                    setTargetAudienceDescription("");
+                    problemEditedRef.current = false;
+                    promiseEditedRef.current = false;
+                    targetEditedRef.current = false;
+                  }
                   setBusinessModel("pas_encore");
-                  setParcoursChoice("non_defini");
+                  setParcoursChoice("objectif_personnalise");
+                  setBusinessGoal("objectif_personnalise");
+                  setFirstRevenueGoal("");
+                  setPrimaryChannel("");
                 }}
-                label="Je ne sais pas encore"
+                label="Autre · Décrire mon premier objectif"
               />
+              {isCustomObjective ? (
+                <div className="mt-2 rounded-2xl border border-yellow-500/30 bg-yellow-400/5 p-4">
+                  <label htmlFor="alex-custom-objective" className="text-sm font-semibold text-yellow-200">
+                    Que souhaites-tu accomplir ?
+                  </label>
+                  <p className="mt-1 text-xs leading-5 text-white/60">
+                    Pas besoin d'avoir déjà une offre. Décris ton idée ou la situation que tu veux changer ; Alex commencera par la clarifier.
+                  </p>
+                  <textarea
+                    id="alex-custom-objective"
+                    value={customObjective}
+                    onChange={(e) => setCustomObjective(e.target.value)}
+                    placeholder="Exemple : Je voudrais créer un revenu complémentaire avec une compétence que je possède, mais je ne sais pas quelle activité choisir."
+                    rows={4}
+                    maxLength={800}
+                    className="mt-3 w-full rounded-xl border border-[#2a2416] bg-black/30 p-3 text-sm text-white outline-none focus:border-yellow-400/50"
+                  />
+                  {!customObjective.trim() && <p className="mt-2 text-xs text-yellow-200/80">Décris ton objectif pour pouvoir continuer.</p>}
+                </div>
+              ) : null}
             </div>
           </>
         ) : step === 1 ? (
           <>
             <div className="text-white/85 font-semibold">
-              Quel objectif veux-tu atteindre en priorité ?
+              {isCustomObjective ? "Quel résultat souhaites-tu obtenir en premier ?" : "Quel objectif veux-tu atteindre en priorité ?"}
             </div>
+            {isCustomObjective ? (
+              <div className="mt-3 rounded-xl border border-yellow-500/20 bg-yellow-400/5 p-3 text-sm text-yellow-100/90">
+                Ton objectif : {customObjective}
+              </div>
+            ) : null}
             <div className="mt-3 grid grid-cols-1 gap-2">
+              {isCustomObjective ? <PickRow
+                checked={businessGoal === "objectif_personnalise"}
+                onClick={() => { setBusinessGoal("objectif_personnalise"); setFirstRevenueGoal(""); }}
+                label="Avancer sur mon objectif personnalisé"
+              /> : null}
               <PickRow
                 checked={businessGoal === "premiers_revenus"}
                 onClick={() => {
@@ -2304,7 +2417,7 @@ function OnboardingCard(props: {
           ? "Décris l'accompagnement que tu souhaites proposer"
           : businessModel === "contenu"
             ? "Décris l'univers que tu souhaites développer"
-            : "Description de l'offre"}
+            : "Décris ton point de départ et les moyens dont tu disposes"}
 </div>
 
 <div className="mt-2 text-sm text-white/50">
@@ -2318,7 +2431,7 @@ function OnboardingCard(props: {
           ? "Alex préparera ton positionnement et ton offre d'accompagnement."
           : businessModel === "contenu"
             ? "Alex préparera une stratégie de croissance et de monétisation."
-            : "Plus tu es précis, plus Alex devient puissant."}
+            : "Décris ce que tu as déjà essayé, tes compétences ou tes idées. Même sans offre, Alex peut commencer par une mission de clarification."}
 </div>
 
 {parcoursChoice === "creation_produit_digital" ? (
@@ -2424,7 +2537,7 @@ function OnboardingCard(props: {
             ? "Exemple : accompagner des entrepreneurs à atteindre un objectif précis grâce à ton expertise..."
             : businessModel === "contenu"
               ? "Exemple : développer une audience sur une thématique puis la monétiser progressivement..."
-              : "Décris ton projet..."
+              : "Exemple : Je dispose de 30 minutes par jour et je maîtrise Canva, mais je ne sais pas quelle prestation proposer à des clients."
   }
   className="mt-5 w-full rounded-2xl border border-[#2a2416] bg-black/20 p-4 text-sm leading-6 text-white outline-none focus:border-yellow-400/40"
   rows={7}
@@ -2433,15 +2546,17 @@ function OnboardingCard(props: {
         ) : step === 3 ? (
           <>
             <div className="text-white/85 font-semibold">
-              Quel problème règles-tu ?
+              {isCustomObjective ? "Qu’est-ce qui te bloque pour atteindre cet objectif ?" : "Quel problème règles-tu ?"}
             </div>
             <div className="mt-2 text-sm text-white/50">
-              Alex le préremplit depuis ton offre. Corrige seulement si besoin.
+              {isCustomObjective ? "Décris ton obstacle principal. Alex en tiendra compte pour préparer la première action." : "Alex le préremplit depuis ton offre. Corrige seulement si besoin."}
             </div>
             <textarea
               value={problemSolved}
               placeholder={
-                parcoursChoice === "affiliation"
+                isCustomObjective
+                  ? "Exemple : Je ne sais pas quelle activité correspond à mes compétences ni comment valider qu'un client en aurait besoin."
+                  : parcoursChoice === "affiliation"
                   ? "Exemple : J'aide des entrepreneurs qui ne savent pas quel outil choisir à trouver une solution adaptée à leur projet, grâce à des recommandations honnêtes de services ou de formations que je connais."
                   : "Exemple : J'aide les personnes qui achètent des formations sans jamais passer à l'action à transformer une licence MRR en véritable activité digitale vendable, sans créer leur propre produit de zéro."
               }
@@ -2456,16 +2571,17 @@ function OnboardingCard(props: {
         ) : step === 4 ? (
           <>
             <div className="text-white/85 font-semibold">
-              Quelle transformation promets-tu ?
+              {isCustomObjective ? "Quel premier changement concret veux-tu obtenir ?" : "Quelle transformation promets-tu ?"}
             </div>
             <div className="mt-2 text-sm text-white/50">
-              Ce bloc servira plus tard aux pages de vente, emails, posts et
-              scripts de conversion.
+              {isCustomObjective ? "Un résultat simple et vérifiable suffit. Pas besoin de promettre une vente ou un revenu." : "Ce bloc servira plus tard aux pages de vente, emails, posts et scripts de conversion."}
             </div>
             <textarea
               value={transformationPromise}
               placeholder={
-                parcoursChoice === "affiliation"
+                isCustomObjective
+                  ? "Exemple : Choisir une piste réaliste, la présenter à trois personnes concernées et obtenir un retour concret avant de créer une offre."
+                  : parcoursChoice === "affiliation"
                   ? "Exemple : Passer d'une personne perdue parmi les outils à quelqu'un qui choisit une solution adaptée, sait l'utiliser et avance concrètement sur son projet grâce à une recommandation transparente."
                   : "Exemple : Passer d'une personne qui collectionne les formations sans résultat à un entrepreneur capable de générer ses premières ventes avec une offre prête à commercialiser et une méthode d'action concrète."
               }
@@ -2494,12 +2610,12 @@ function OnboardingCard(props: {
               <PickRow
                 checked={level === "quelques_ventes"}
                 onClick={() => setLevel("quelques_ventes")}
-                label="J’ai déjà fait quelques ventes"
+                label={isCustomObjective ? "J'ai déjà obtenu des premiers résultats" : "J’ai déjà fait quelques ventes"}
               />
             </div>
 
             <div className="mt-5 text-white/85 font-semibold">
-              Ton audience actuelle
+              {isCustomObjective ? "Ton audience actuelle (si tu en as une)" : "Ton audience actuelle"}
             </div>
             <div className="mt-3 grid grid-cols-1 gap-2">
               <PickRow
@@ -2588,20 +2704,19 @@ function OnboardingCard(props: {
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="text-white/85 font-semibold">
-                  Avatar marketing premium
+                  {isCustomObjective ? "Public concerné par ton objectif" : "Avatar marketing premium"}
                 </div>
                 <div className="mt-2 text-sm text-white/50">
-                  Alex préremplit le client idéal avec un vrai avatar
-                  exploitable par tout LGD.
+                  {isCustomObjective ? "Identifie qui pourrait bénéficier de ton idée. Alex affinera ce public pendant les premières actions." : "Alex préremplit le client idéal avec un vrai avatar exploitable par tout LGD."}
                 </div>
               </div>
-              <button
+              {!isCustomObjective ? <button
                 type="button"
                 onClick={regenerateAvatar}
                 className="shrink-0 rounded-2xl border border-yellow-400/30 bg-yellow-400/10 px-4 py-2 text-xs font-semibold text-yellow-200 hover:bg-yellow-400/15 transition"
               >
                 Régénérer {avatarRegenerationIndex > 0 ? `#${avatarRegenerationIndex}` : ""}
-              </button>
+              </button> : null}
             </div>
             <textarea
               value={safeTargetAudienceDescription}
@@ -2622,11 +2737,10 @@ function OnboardingCard(props: {
         ) : step === 8 ? (
           <>
             <div className="text-white/85 font-semibold">
-              Positionnement et canal prioritaire
+              {isCustomObjective ? "Premier canal à tester (facultatif)" : "Positionnement et canal prioritaire"}
             </div>
             <div className="mt-2 text-sm text-white/50">
-              Alex choisit une stratégie concentrée, pas une dispersion sur tous
-              les réseaux.
+              {isCustomObjective ? "Tu peux laisser le canal vide : l’objectif est d’abord de valider ton idée, pas de publier à tout prix." : "Alex choisit une stratégie concentrée, pas une dispersion sur tous les réseaux."}
             </div>
 
             <div className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-yellow-300/70">
@@ -2687,7 +2801,7 @@ function OnboardingCard(props: {
               />
               <SummaryLine
                 label="Objectif"
-                value={firstRevenueGoal || labelBusinessGoal(businessGoal)}
+                value={isCustomObjective ? customObjective : (firstRevenueGoal || labelBusinessGoal(businessGoal))}
               />
               <SummaryLine label="Niveau" value={labelLevel(level)} />
               <SummaryLine
@@ -2703,22 +2817,28 @@ function OnboardingCard(props: {
                 value={formActionProject.recommendedPlatform || "Instagram"}
               />
               <SummaryLine
-                label="Temps estimé avant mise en vente"
-                value={formActionProject.estimatedTimeBeforeSale || "7 jours"}
+                label={isCustomObjective ? "Première étape" : "Temps estimé avant mise en vente"}
+                value={isCustomObjective ? "Clarifier et tester l'idée" : (formActionProject.estimatedTimeBeforeSale || "7 jours")}
               />
               <SummaryLine
-                label="Score de clarté offre"
-                value={`${formActionProject.offerReadinessScore || 0}/100`}
+                label={isCustomObjective ? "État du diagnostic" : "Score de clarté offre"}
+                value={isCustomObjective ? "À préciser par les premières actions" : `${formActionProject.offerReadinessScore || 0}/100`}
               />
             </div>
 
             <div className="mt-5">
-              <BusinessDirectorPanelV4
-                businessProject={formActionProject}
-                context={null}
-                logs={[]}
-                today={null}
-              />
+              {isCustomObjective ? (
+                <div className="rounded-2xl border border-yellow-500/20 bg-yellow-400/5 p-4 text-sm leading-6 text-white/75">
+                  Alex commence par explorer et valider ton objectif. Les scores commerciaux, le canal et les délais de vente seront pertinents seulement après avoir défini une activité et une offre.
+                </div>
+              ) : (
+                <BusinessDirectorPanelV4
+                  businessProject={formActionProject}
+                  context={null}
+                  logs={[]}
+                  today={null}
+                />
+              )}
             </div>
 
             <div className="mt-5 rounded-2xl border border-yellow-500/20 bg-yellow-400/5 p-4">
@@ -2738,7 +2858,7 @@ function OnboardingCard(props: {
                   .
                 </p>
                 <p>
-                  Ton offre doit résoudre :{" "}
+                  {isCustomObjective ? "Ton blocage à lever :" : "Ton offre doit résoudre :"}{" "}
                   <span className="text-white">
                     {problemSolved || "un problème clair à préciser"}
                   </span>
@@ -2750,7 +2870,7 @@ function OnboardingCard(props: {
                   </span>
                 </p>
                 <p>
-                  Ton angle de vente :{" "}
+                  {isCustomObjective ? "Comment valider l’intérêt :" : "Ton angle de vente :"}{" "}
                   <span className="text-white">
                     {formActionProject.salesAngle}
                   </span>
@@ -2804,6 +2924,7 @@ function OnboardingCard(props: {
           {step < totalSteps - 1 ? (
             <button
               onClick={goNextStep}
+              disabled={step === 0 && isCustomObjective && !customObjective.trim()}
               className="rounded-2xl bg-yellow-400 px-5 py-3 text-sm font-semibold text-black hover:bg-yellow-300 transition"
             >
               Continuer
@@ -3205,13 +3326,20 @@ function PlanOverview(props: {
       </div>
 
       <div className="mt-6">
-        <BusinessDirectorPanelV4
-          businessProject={businessProject || null}
-          context={context || null}
-          logs={logs}
-          today={null}
-          compact={true}
-        />
+        {context?.businessModel === "pas_encore" && context.customObjective ? (
+          <div className="rounded-3xl border border-yellow-500/20 bg-yellow-400/5 p-5 text-sm leading-6 text-white/70">
+            <span className="font-semibold text-yellow-200">Objectif :</span> {context.customObjective}
+            <p className="mt-2">Première étape : clarifier, choisir une piste, puis recueillir des retours vérifiables. Le modèle économique sera déterminé après validation.</p>
+          </div>
+        ) : (
+          <BusinessDirectorPanelV4
+            businessProject={businessProject || null}
+            context={context || null}
+            logs={logs}
+            today={null}
+            compact={true}
+          />
+        )}
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -3322,13 +3450,20 @@ function MissionCard(props: {
 
       {!missionHasStarted ? (
         <div className="mt-6">
-          <BusinessDirectorPanelV4
-            businessProject={businessProject || null}
-            context={context || null}
-            logs={logs}
-            today={today}
-            compact={true}
-          />
+          {context?.businessModel === "pas_encore" && context.customObjective ? (
+            <div className="rounded-2xl border border-yellow-500/20 bg-yellow-400/5 p-4 text-sm leading-6 text-white/70">
+              <span className="font-semibold text-yellow-200">Ton objectif :</span> {context.customObjective}
+              <p className="mt-2">Alex t'accompagne d'abord dans la clarification et la validation. Pas de promesse de revenus ni de contenu imposé.</p>
+            </div>
+          ) : (
+            <BusinessDirectorPanelV4
+              businessProject={businessProject || null}
+              context={context || null}
+              logs={logs}
+              today={today}
+              compact={true}
+            />
+          )}
         </div>
       ) : (
         <div className="mt-6 rounded-2xl border border-yellow-500/20 bg-yellow-400/5 p-4 text-sm leading-6 text-white/60">
@@ -3385,7 +3520,9 @@ function MissionCard(props: {
         </button>
 
         <div className="mt-3 text-xs text-white/45">
-          Accès à l’éditeur intelligent uniquement après validation.
+          {context?.businessModel === "pas_encore" && context.customObjective
+            ? "Mission de clarification : note tes réponses, puis indique le résultat à Alex. Aucun visuel à créer pour le moment."
+            : "Accès à l’éditeur intelligent uniquement après validation."}
         </div>
       </div>
     </div>
