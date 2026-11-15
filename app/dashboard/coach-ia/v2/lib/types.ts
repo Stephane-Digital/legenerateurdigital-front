@@ -2,7 +2,7 @@ export type AlexIntent = "argent_vite" | "quitter_job" | "complement" | "discipl
 export type AlexLevel = "debutant" | "sans_resultat" | "quelques_ventes";
 export type TimePerDay = 30 | 60 | 90;
 
-export type AlexBusinessGoal = "premiers_revenus" | "revenu_500" | "quitter_job" | "premiers_clients" | "business_stable";
+export type AlexBusinessGoal = "premiers_revenus" | "revenu_500" | "quitter_job" | "premiers_clients" | "business_stable" | "objectif_personnalise";
 export type AlexBusinessModel = "affiliation" | "offre_digitale" | "coaching" | "contenu" | "pas_encore";
 export type AlexAudienceSize = "zero" | "moins_500" | "500_5000" | "plus_5000";
 export type AlexMainBlocker = "dispersion" | "temps" | "technique" | "vente" | "confiance";
@@ -60,6 +60,7 @@ export type AlexContext = {
   /** Coach IA V3 — objectif clair + trajectoire business personnalisée */
   businessGoal?: AlexBusinessGoal;
   businessModel?: AlexBusinessModel;
+  customObjective?: string;
   audienceSize?: AlexAudienceSize;
   mainBlocker?: AlexMainBlocker;
   revenueGoalMonthly?: number;
