@@ -1630,6 +1630,7 @@ export default function StageRenderer(props: {
   onOpenPlan: () => void;
   onGoMission: () => void;
   onAskCommit: () => void;
+  onFinishCustomExecution: () => void;
   onFeedbackDone: () => void;
   onFeedbackNotYet: () => void;
   onSubmitFeedback: (data: {
@@ -1654,6 +1655,7 @@ export default function StageRenderer(props: {
     onOpenPlan,
     onGoMission,
     onAskCommit,
+    onFinishCustomExecution,
     onFeedbackDone,
     onFeedbackNotYet,
     onSubmitFeedback,
@@ -1816,6 +1818,31 @@ export default function StageRenderer(props: {
       );
     }
 
+    return (
+      <MissionCard
+        today={today}
+        onAskCommit={onAskCommit}
+        onOpenParcours={onOpenParcours}
+        businessProject={businessProject || null}
+        context={context}
+        logs={logs}
+      />
+    );
+  }
+
+  // ===== EXÉCUTION DE L'OBJECTIF PERSONNALISÉ
+  if (stage === "EXECUTION") {
+    if (context?.businessModel === "pas_encore" && context.customObjective?.trim()) {
+      return (
+        <CustomObjectiveExecutionCard
+          today={today}
+          context={context}
+          onFinish={onFinishCustomExecution}
+          onQuotaRefresh={onAfterLiveMarketAnalysis}
+        />
+      );
+    }
+    // Ne jamais interrompre les anciens parcours si un état EXECUTION subsiste.
     return (
       <MissionCard
         today={today}
@@ -3526,6 +3553,143 @@ function MissionCard(props: {
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * Mission personnalisée : pas de redirection vers l'Éditeur Intelligent.
+ * L'utilisateur échange avec Coach Alex à propos de son propre objectif,
+ * puis confirme manuellement la fin de l'action avant le feedback standard.
+ * Aucun appel OpenAI automatique : la requête part uniquement au clic.
+ */
+function CustomObjectiveExecutionCard(props: {
+  today: AlexToday | null;
+  context: AlexContext;
+  onFinish: () => void;
+  onQuotaRefresh?: () => void | Promise<void>;
+}) {
+  const { today, context, onFinish, onQuotaRefresh } = props;
+  const [draft, setDraft] = useState("");
+  const [reply, setReply] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const objective = context.customObjective?.trim() || "mon objectif";
+  const mission = today?.mission;
+
+  async function askAlex() {
+    const answer = draft.trim();
+    if (!answer || loading) return;
+
+    const base = getCoachApiBase();
+    if (!base) {
+      setError("Connexion à Coach Alex non configurée (NEXT_PUBLIC_API_URL).");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+    try {
+      const message = [
+        "Je suis dans le parcours Objectif personnalisé de Coach Alex LGD.",
+        `Mon objectif : ${objective.slice(0, 1000)}`,
+        `Ma mission du jour : ${mission?.title || "Clarifier mon projet"}`,
+        `Résultat demandé : ${mission?.objective || "Formuler une première action vérifiable"}`,
+        `KPI : ${mission?.kpiLabel || "Action vérifiable"}`,
+        `Voici mon travail ou ma question : ${answer.slice(0, 3000)}`,
+        "Aide-moi à concrétiser cette mission. Analyse mon retour, signale ce qui reste flou, puis propose UNE seule action mesurable et faisable maintenant. Ne suppose pas que je vends une formation MRR ou que je fais de l'affiliation. Pas de revenus garantis. Réponds brièvement et de façon personnalisée.",
+      ].join("\n");
+      const res = await fetch(`${base}/coach/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getCoachAuthHeaders(),
+        },
+        credentials: "include",
+        body: JSON.stringify({ message }),
+      });
+      if (!res.ok) {
+        if (res.status === 402) throw new Error("Ton quota IA est atteint. Tu peux terminer ta mission et passer au feedback.");
+        throw new Error(`Coach Alex est momentanément indisponible (${res.status}). Réessaie.`);
+      }
+      const data = await res.json().catch(() => null);
+      const text = typeof data?.reply === "string" ? data.reply.trim() : "";
+      if (!text) throw new Error("Alex n'a pas renvoyé de réponse. Réessaie.");
+      setReply(text);
+      void onQuotaRefresh?.();
+    } catch (err: any) {
+      setError(err instanceof Error ? err.message : "Impossible de joindre Coach Alex.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <section className="w-full max-w-none rounded-3xl border border-yellow-500/25 bg-[#0b0f16]/85 p-4 sm:p-6" aria-label="Accompagnement Coach Alex">
+      <div className="text-xs font-black uppercase tracking-[0.18em] text-yellow-300/80">
+        Exécution · Accompagnement IA
+      </div>
+      <h2 className="mt-2 text-2xl font-bold text-yellow-400">Coach Alex est à tes côtés</h2>
+      <p className="mt-2 text-sm leading-6 text-white/70">
+        Ton objectif est personnalisé : on le clarifie ensemble, sans te renvoyer vers l'Éditeur Intelligent.
+      </p>
+
+      <div className="mt-5 rounded-2xl border border-yellow-500/20 bg-yellow-400/5 p-4">
+        <div className="text-xs font-bold uppercase text-yellow-200/80">Ton objectif</div>
+        <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-white/85">{objective}</p>
+        <div className="mt-4 text-xs font-bold uppercase text-yellow-200/80">Mission du jour</div>
+        <p className="mt-1 font-semibold leading-6 text-white">{mission?.title || "Clarifier le résultat attendu"}</p>
+        {mission?.checklist?.length ? (
+          <ul className="mt-3 space-y-2 text-sm leading-6 text-white/70">
+            {mission.checklist.map((item, index) => (
+              <li className="flex gap-2" key={index}>
+                <span aria-hidden="true" className="text-yellow-400">•</span>
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
+
+      <label htmlFor="lgd-custom-mission-work" className="mt-5 block text-sm font-semibold text-yellow-100">
+        Explique ton idée, ta réponse ou ce qui te bloque
+      </label>
+      <textarea
+        id="lgd-custom-mission-work"
+        value={draft}
+        onChange={(event) => setDraft(event.target.value)}
+        maxLength={3000}
+        rows={5}
+        placeholder="Par exemple : voici mes compétences, ce que j'aimerais proposer, et ce qui me manque pour me lancer…"
+        className="mt-2 w-full resize-y rounded-2xl border border-[#2a2416] bg-black/30 px-4 py-3 text-sm leading-6 text-white outline-none placeholder:text-white/35 focus:border-yellow-400/50"
+      />
+      <button
+        type="button"
+        disabled={!draft.trim() || loading}
+        onClick={() => void askAlex()}
+        className="mt-3 w-full rounded-2xl bg-yellow-400 px-4 py-3 text-sm font-semibold text-black transition enabled:hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {loading ? "Alex analyse ton retour…" : reply ? "Demander un nouvel avis à Alex" : "Échanger avec Coach Alex"}
+      </button>
+
+      {error ? <p className="mt-3 text-sm text-red-300" role="alert">{error}</p> : null}
+      {reply ? (
+        <div className="mt-5 rounded-2xl border border-yellow-500/25 bg-[#12151a] p-4" aria-live="polite">
+          <div className="text-sm font-bold text-yellow-200">Réponse de Coach Alex</div>
+          <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-6 text-white/80">{reply}</p>
+        </div>
+      ) : null}
+
+      <button
+        type="button"
+        onClick={onFinish}
+        className="mt-5 w-full rounded-2xl border border-yellow-400/40 px-4 py-3 text-sm font-semibold text-yellow-200 transition hover:bg-yellow-400/10"
+      >
+        J'ai réalisé mon action · Passer au feedback
+      </button>
+      <p className="mt-2 text-xs leading-5 text-white/45">
+        Tu peux aussi terminer ta mission sans appel IA. Le feedback ne sera ouvert qu'après ton action.
+      </p>
+    </section>
   );
 }
 
