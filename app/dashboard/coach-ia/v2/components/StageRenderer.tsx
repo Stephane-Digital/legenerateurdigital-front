@@ -3590,13 +3590,13 @@ function CustomObjectiveExecutionCard(props: {
     setError("");
     try {
       const message = [
-        "Je suis dans le parcours Objectif personnalisé de Coach Alex LGD.",
+        "Parcours LGD : OBJECTIF_PERSONNALISE (choisi explicitement par l'utilisateur).",
         `Mon objectif : ${objective.slice(0, 1000)}`,
         `Ma mission du jour : ${mission?.title || "Clarifier mon projet"}`,
         `Résultat demandé : ${mission?.objective || "Formuler une première action vérifiable"}`,
         `KPI : ${mission?.kpiLabel || "Action vérifiable"}`,
         `Voici mon travail ou ma question : ${answer.slice(0, 3000)}`,
-        "Aide-moi à concrétiser cette mission. Analyse mon retour, signale ce qui reste flou, puis propose UNE seule action mesurable et faisable maintenant. Ne suppose pas que je vends une formation MRR ou que je fais de l'affiliation. Pas de revenus garantis. Réponds brièvement et de façon personnalisée.",
+        "Aide-moi à concrétiser cette mission. Analyse mon retour, signale ce qui reste flou, puis propose UNE seule action mesurable et faisable maintenant. Respecte mon objectif personnalisé sans supposer un modèle économique non choisi. Pas de revenus garantis. Réponds brièvement et de façon personnalisée.",
       ].join("\n");
       const res = await fetch(`${base}/coach/chat`, {
         method: "POST",
@@ -3608,7 +3608,15 @@ function CustomObjectiveExecutionCard(props: {
         body: JSON.stringify({ message }),
       });
       if (!res.ok) {
-        if (res.status === 402) throw new Error("Ton quota IA est atteint. Tu peux terminer ta mission et passer au feedback.");
+        if (res.status === 401 || res.status === 403) {
+          throw new Error("Ta session LGD a expiré ou n'est plus autorisée. Reconnecte-toi avant de relancer Coach Alex.");
+        }
+        if (res.status === 402) {
+          throw new Error("Ton quota IA est atteint. Tu peux terminer ta mission et passer au feedback.");
+        }
+        if (res.status === 500) {
+          throw new Error("Erreur interne du backend Coach Alex (500). Vérifie l'erreur correspondante dans les logs Render ; la mission reste enregistrée.");
+        }
         throw new Error(`Coach Alex est momentanément indisponible (${res.status}). Réessaie.`);
       }
       const data = await res.json().catch(() => null);
