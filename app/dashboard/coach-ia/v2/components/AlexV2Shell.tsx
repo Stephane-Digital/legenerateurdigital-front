@@ -85,6 +85,10 @@ type FormActionBusinessProject = {
 };
 
 
+function isPersonalizedObjective(ctx?: AlexContext | null): boolean {
+  return Boolean(ctx?.businessModel === "pas_encore" && ctx.customObjective?.trim());
+}
+
 function hasCompletedAlexDiagnostic(
   ctx?: AlexContext | null,
   project?: FormActionBusinessProject | null,
@@ -666,6 +670,20 @@ export default function AlexV2Shell() {
         return;
       }
 
+      // Répare les missions « Autre » lancées avant le correctif : elles étaient
+      // enregistrées en FEEDBACK sans jamais ouvrir un espace d'exécution Alex.
+      if (
+        isPersonalizedObjective(ctx) &&
+        td?.startedAtISO &&
+        !td?.completedAtISO &&
+        (st === "FEEDBACK" || st === "EXECUTION" || !st)
+      ) {
+        setStageState("EXECUTION");
+        setV2Stage("EXECUTION");
+        setBooted(true);
+        return;
+      }
+
       if (st) {
         setStageState(st);
         setBooted(true);
@@ -740,6 +758,14 @@ export default function AlexV2Shell() {
           if (!hasCompletedAlexDiagnostic(ctx, businessProject)) {
             setStageState("ONBOARDING");
             setV2Stage("ONBOARDING");
+          } else if (
+            isPersonalizedObjective(ctx) &&
+            td?.startedAtISO &&
+            !td?.completedAtISO &&
+            (st === "FEEDBACK" || st === "EXECUTION" || !st)
+          ) {
+            setStageState("EXECUTION");
+            setV2Stage("EXECUTION");
           } else if (st) {
             setStageState(st);
           }
@@ -970,7 +996,8 @@ export default function AlexV2Shell() {
     if (diagnosticComplete) set.add("onboarding");
     if (diagnosticComplete && roadmap) set.add("plan");
     if (today?.committedAtISO) set.add("action");
-    if (today?.startedAtISO) set.add("execution");
+    // Pendant l'accompagnement personnalisé, l'exécution est encore en cours.
+    if (today?.startedAtISO && stage !== "EXECUTION") set.add("execution");
     if (today?.completedAtISO) set.add("feedback");
     const hasTodayLog =
       !!today &&
@@ -1141,7 +1168,7 @@ export default function AlexV2Shell() {
       return;
     }
     if (today.startedAtISO && !today.completedAtISO) {
-      goStage("FEEDBACK");
+      goStage(isPersonalizedObjective(context) ? "EXECUTION" : "FEEDBACK");
       return;
     }
     if (today.committedAtISO && !today.startedAtISO) {
@@ -1181,10 +1208,10 @@ export default function AlexV2Shell() {
     setTodayState(next);
     setV2Today(next);
 
-    // Le parcours « Autre » commence par une action de clarification / validation,
-    // qui ne nécessite pas systématiquement un visuel dans l'éditeur.
-    if (context?.businessModel === "pas_encore" && context.customObjective?.trim()) {
-      goStage("FEEDBACK");
+    // Parcours « Autre » : ouvrir Coach Alex pour exécuter la mission.
+    // On ne passe au feedback qu'après la réalisation de l'action.
+    if (isPersonalizedObjective(context)) {
+      goStage("EXECUTION");
       return;
     }
 
@@ -1194,10 +1221,15 @@ export default function AlexV2Shell() {
     router.push("/dashboard/automatisations/reseaux_sociaux/editor-intelligent");
   }
 
+  function onFinishCustomExecution() {
+    if (!isPersonalizedObjective(context) || !today?.startedAtISO) return;
+    goStage("FEEDBACK");
+  }
+
   function onFeedbackDone() {}
 
   function onFeedbackNotYet() {
-    goStage("MISSION_TODAY");
+    goStage(isPersonalizedObjective(context) ? "EXECUTION" : "MISSION_TODAY");
   }
 
   function onSubmitFeedback(data: {
@@ -1629,6 +1661,7 @@ export default function AlexV2Shell() {
             onOpenPlan={onOpenPlan}
             onGoMission={onGoMission}
             onAskCommit={onAskCommit}
+            onFinishCustomExecution={onFinishCustomExecution}
             onFeedbackDone={onFeedbackDone}
             onFeedbackNotYet={onFeedbackNotYet}
             onSubmitFeedback={onSubmitFeedback}
