@@ -30,6 +30,8 @@ const STEPS: Array<{
 ];
 
 function isActive(stage: AlexStage, stepStage: AlexStage, key: StepKey) {
+  // Le nouveau parcours objectif personnalisé possède une vraie étape d'exécution.
+  if (stage === "EXECUTION" && key === "execution") return true;
   // mapping souple : certaines étapes partagent le même stage
   if (stage === stepStage) return true;
   if (key === "execution" && stage === "MISSION_TODAY") return true;
