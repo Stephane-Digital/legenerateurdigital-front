@@ -57,7 +57,7 @@ function safeArray(value: unknown): string[] {
 function getBrowserToken(): string {
   if (typeof window === "undefined") return "";
 
-  const localToken = window.localStorage.getItem("token") || window.localStorage.getItem("access_token") || "";
+  const localToken = window.localStorage.getItem("access_token") || window.localStorage.getItem("token") || window.localStorage.getItem("jwt") || "";
   if (localToken.trim()) return localToken.trim();
 
   const match = document.cookie.match(/(?:^|;\s*)(?:token|access_token)=([^;]+)/);
@@ -326,6 +326,7 @@ export async function generateAlexLiveStrategy(args: {
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
+      credentials: "include",
       body: JSON.stringify(payload),
       signal: args.signal,
     });
