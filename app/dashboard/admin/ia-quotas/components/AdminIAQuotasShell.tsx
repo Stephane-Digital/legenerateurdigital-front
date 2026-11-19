@@ -25,7 +25,6 @@ type ListResponse = {
 };
 
 type Query = {
-  admin_key?: string;
   q?: string;
   plan?: Plan;
   feature?: Feature;
@@ -49,23 +48,26 @@ function qs(params: Record<string, any>): string {
   return s ? `?${s}` : "";
 }
 
-async function fetchJSON<T>(url: string, init?: RequestInit): Promise<T> {
+async function fetchJSON<T>(url: string, init?: RequestInit, adminKey: string = ""): Promise<T> {
   const res = await fetch(url, {
     ...init,
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
+      ...(adminKey ? { "X-LGD-Admin-Key": adminKey } : {}),
       ...(init?.headers || {}),
     },
   });
   const text = await res.text();
   if (!res.ok) {
+    let detail = text || `HTTP ${res.status}`;
     try {
-      const j = JSON.parse(text);
-      throw new Error(j?.detail || JSON.stringify(j));
+      const parsed = JSON.parse(text);
+      detail = typeof parsed?.detail === "string" ? parsed.detail : detail;
     } catch {
-      throw new Error(text || `HTTP ${res.status}`);
+      // Keep raw response as fallback when it isn't JSON.
     }
+    throw new Error(detail);
   }
   try {
     return JSON.parse(text) as T;
@@ -124,9 +126,11 @@ export default function AdminIAQuotasShell() {
   const [source, setSource] = useState<string>("unknown");
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  // S0.B: secret entered at runtime, kept in memory only (not persisted to storage).
+  const [adminKey, setAdminKey] = useState<string>("");
+  const [adminKeyDraft, setAdminKeyDraft] = useState<string>("");
 
   const [query, setQuery] = useState<Query>({
-    admin_key: "lgd_admin_1234",
     q: "",
     plan: undefined,
     feature: "global",
@@ -238,11 +242,11 @@ export default function AdminIAQuotasShell() {
     const q: Query = { ...query, ...(next || {}) };
     setQuery(q);
 
+    if (!adminKey) return;
     setLoading(true);
     setError(null);
     try {
       const url = `${apiBase()}/admin/ia/quotas${qs({
-        admin_key: q.admin_key,
         q: q.q,
         plan: q.plan,
         feature: q.feature,
@@ -250,7 +254,7 @@ export default function AdminIAQuotasShell() {
         page_size: q.page_size,
       })}`;
 
-      const data = await fetchJSON<ListResponse>(url);
+      const data = await fetchJSON<ListResponse>(url, undefined, adminKey);
       const baseRows = (data.items || []).map(normalizeQuotaItem);
       const finalRows = applyOverrides(baseRows);
 
@@ -270,7 +274,7 @@ export default function AdminIAQuotasShell() {
   useEffect(() => {
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query.plan, query.feature, query.page, query.page_size, query.q, query.admin_key]);
+  }, [query.plan, query.feature, query.page, query.page_size, query.q, adminKey]);
 
   function patchRow(userId: number, feature: Feature, patch: Partial<QuotaRow>) {
     setRows((prev) =>
@@ -311,10 +315,10 @@ export default function AdminIAQuotasShell() {
 
     try {
       const url = `${apiBase()}/admin/ia/users/${userId}/quota/limit`;
-      await fetchJSON(url + qs({ admin_key: query.admin_key, feature, limit_tokens: limit }), {
+      await fetchJSON(url + qs({ feature, limit_tokens: limit }), {
         method: "POST",
         body: JSON.stringify({ feature, limit_tokens: limit }),
-      });
+      }, adminKey);
       // Re-fetch to keep consistent, but keep local overrides applied.
       await refresh();
     } catch (e: any) {
@@ -333,10 +337,10 @@ export default function AdminIAQuotasShell() {
 
     try {
       const url = `${apiBase()}/admin/ia/users/${userId}/quota/reset`;
-      await fetchJSON(url + qs({ admin_key: query.admin_key, feature }), {
+      await fetchJSON(url + qs({ feature }), {
         method: "POST",
         body: JSON.stringify({ feature }),
-      });
+      }, adminKey);
       await refresh();
     } catch (e: any) {
       setError(e?.message || String(e));
@@ -355,17 +359,17 @@ export default function AdminIAQuotasShell() {
 
     try {
       const url = `${apiBase()}/admin/ia/users/${userId}/plan-override`;
-      await fetchJSON(url + qs({ admin_key: query.admin_key, plan, months }), { method: "POST" });
+      await fetchJSON(url + qs({ plan, months }), { method: "POST" }, adminKey);
       // Ensure backend quota limit follows the chosen plan (prevents UI reverting after refresh)
       const limitJour = planDefaultDailyLimit(plan);
       limitOverridesRef.current[`${userId}:${feature}`] = limitJour;
       patchRow(userId, feature, { limit: limitJour });
 
       const url2 = `${apiBase()}/admin/ia/users/${userId}/quota/limit`;
-      await fetchJSON(url2 + qs({ admin_key: query.admin_key, feature, limit_tokens: limitJour }), {
+      await fetchJSON(url2 + qs({ feature, limit_tokens: limitJour }), {
         method: "POST",
         body: JSON.stringify({ feature, limit_tokens: limitJour }),
-      });
+      }, adminKey);
 
       await refresh();
     } catch (e: any) {
@@ -385,7 +389,7 @@ export default function AdminIAQuotasShell() {
 
     try {
       const url = `${apiBase()}/admin/ia/users/${userId}/plan-clear`;
-      await fetchJSON(url + qs({ admin_key: query.admin_key }), { method: "POST" });
+      await fetchJSON(url, { method: "POST" }, adminKey);
       delete limitOverridesRef.current[`${userId}:${feature}`];
       await refresh();
     } catch (e: any) {
@@ -407,7 +411,7 @@ export default function AdminIAQuotasShell() {
 
     try {
       const url = `${apiBase()}/admin/ia/users/${userId}/base-plan`;
-      await fetchJSON(url + qs({ admin_key: query.admin_key, plan }), { method: "POST" });
+      await fetchJSON(url + qs({ plan }), { method: "POST" }, adminKey);
       await refresh();
     } catch (e: any) {
       setError(e?.message || String(e));
@@ -423,6 +427,45 @@ export default function AdminIAQuotasShell() {
   const [quickFeature, setQuickFeature] = useState<Feature>("global");
   const quickUserIdInt = useMemo(() => Number(quickUserId), [quickUserId]);
 
+  if (!adminKey) {
+    return (
+      <div className="min-h-[calc(100vh-120px)] px-6 py-8 text-zinc-100">
+        <div className="mx-auto max-w-xl rounded-2xl border border-yellow-500/20 bg-black/30 p-6">
+          <h1 className="text-2xl font-semibold">Admin — IA Quotas</h1>
+          <p className="mt-2 text-sm text-zinc-400">
+            Accès sécurisé : saisis la clé administrateur configurée sur Render.
+            Elle reste uniquement en mémoire jusqu'à la fermeture ou au rechargement de cette page.
+          </p>
+          <form
+            className="mt-5 flex flex-col gap-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const key = adminKeyDraft.trim();
+              if (!key) return;
+              setAdminKey(key);
+              setAdminKeyDraft("");
+            }}
+          >
+            <label htmlFor="lgd-admin-access-key" className="text-sm text-zinc-300">Clé d'administration</label>
+            <input
+              id="lgd-admin-access-key"
+              type="password"
+              autoComplete="off"
+              required
+              value={adminKeyDraft}
+              onChange={(e) => setAdminKeyDraft(e.target.value)}
+              placeholder="Clé configurée sur Render"
+              className="h-11 rounded-xl border border-yellow-500/25 bg-black/50 px-4 text-zinc-100 outline-none focus:border-yellow-500/50"
+            />
+            <button type="submit" className="h-11 rounded-xl bg-yellow-500 px-4 font-semibold text-black hover:bg-yellow-400">
+              Accéder aux quotas
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-[calc(100vh-120px)] px-6 py-8">
       <div className="max-w-6xl mx-auto">
@@ -437,6 +480,13 @@ export default function AdminIAQuotasShell() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <button
+                type="button"
+                className="h-10 px-3 rounded-xl border border-zinc-600 text-sm text-zinc-300 hover:border-zinc-400"
+                onClick={() => { setAdminKey(""); setRows([]); setTotal(0); setError(null); }}
+              >
+                Verrouiller
+              </button>
               <button
                 className="h-10 px-4 rounded-xl border border-yellow-500/20 hover:border-yellow-500/40 text-sm text-zinc-200"
                 disabled={loading}
