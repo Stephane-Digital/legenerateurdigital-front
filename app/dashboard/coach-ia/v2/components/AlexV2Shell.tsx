@@ -8,6 +8,7 @@ import CommitModal from "./CommitModal";
 import ParcoursPanel from "./ParcoursPanel";
 import StageRenderer from "./StageRenderer";
 import Stepper from "./Stepper";
+import AlexEmailDraftPanel from "./AlexEmailDraftPanel";
 
 import { coachQuota } from "../../lib/api";
 
@@ -1453,6 +1454,10 @@ export default function AlexV2Shell() {
           </div>
         </div>
       </div>
+
+      {process.env.NEXT_PUBLIC_LGD_ALEX_EMAIL_DRAFT === "true" && context && stage !== "ONBOARDING" && (
+        <AlexEmailDraftPanel context={context} project={businessProject} />
+      )}
 
       {cmoCoachBrief && (
         <div className="mb-6 w-full max-w-none rounded-3xl border border-yellow-500/25 bg-gradient-to-r from-yellow-500/10 via-[#0b0f16] to-yellow-500/10 p-5 shadow-[0_0_35px_rgba(234,179,8,0.08)] max-sm:rounded-none max-sm:border-x-0 max-sm:px-4">
