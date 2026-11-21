@@ -10,6 +10,7 @@ export type AlexChatTurn = {
   id: string;
   role: AlexChatRole;
   content: string;
+  created_at?: string;
 };
 
 export const MAX_USER_MESSAGE = 1500;
@@ -59,4 +60,22 @@ export function getAlexChatError(status: number): string {
   if (status === 422) return "Cette demande n'est pas acceptée par le serveur. Reformule-la plus simplement.";
   if (status >= 500) return "Coach Alex est temporairement indisponible. Le message n'a pas été ajouté à la conversation.";
   return `Impossible de joindre Coach Alex (HTTP ${status}).`;
+}
+
+
+/** Validation défensive : une réponse API inattendue ne doit pas planter le chat. */
+export function normalizeStoredConversation(value: unknown): AlexChatTurn[] {
+  if (!Array.isArray(value)) return [];
+  return value.slice(-20).flatMap((item: unknown): AlexChatTurn[] => {
+    if (!item || typeof item !== "object") return [];
+    const row = item as Record<string, unknown>;
+    if (row.role !== "user" && row.role !== "assistant") return [];
+    if (typeof row.id !== "string" || typeof row.content !== "string" || !row.content.trim()) return [];
+    return [{
+      id: row.id.slice(0, 80),
+      role: row.role,
+      content: row.content.slice(0, row.role === "user" ? MAX_USER_MESSAGE : 2000),
+      ...(typeof row.created_at === "string" ? { created_at: row.created_at.slice(0, 40) } : {}),
+    }];
+  });
 }
