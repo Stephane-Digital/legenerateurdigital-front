@@ -16,6 +16,30 @@ const SUGGESTIONS = [
   "Aide-moi à clarifier ma cible et ma promesse commerciale.",
 ] as const;
 
+function renderInlineMarkdown(line: string) {
+  return line.split(/(\*\*[^*]+\*\*)/g).map((part, index) =>
+    part.startsWith("**") && part.endsWith("**")
+      ? <strong key={index} className="font-semibold text-yellow-100">{part.slice(2, -2)}</strong>
+      : part
+  );
+}
+
+function AlexFormattedMessage({ content }: { content: string }) {
+  return (
+    <div className="space-y-2">
+      {content.split("\n").map((line, index) => {
+        const value = line.trim();
+        if (!value) return <div key={index} className="h-1" aria-hidden="true" />;
+        const heading = value.match(/^#{1,3}\s+(.+)$/);
+        if (heading) return <p key={index} className="font-bold text-yellow-200">{renderInlineMarkdown(heading[1])}</p>;
+        const bullet = value.match(/^[-*]\s+(.+)$/);
+        if (bullet) return <p key={index} className="pl-3 before:mr-2 before:content-['•']">{renderInlineMarkdown(bullet[1])}</p>;
+        return <p key={index}>{renderInlineMarkdown(line)}</p>;
+      })}
+    </div>
+  );
+}
+
 function apiBase(): string {
   return (process.env.NEXT_PUBLIC_API_URL || "").trim().replace(/\/+$/, "");
 }
@@ -247,12 +271,17 @@ export default function AlexConversation() {
               <div key={message.id} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
                 <div className={`max-w-[94%] whitespace-pre-wrap break-words rounded-2xl px-4 py-3 text-sm leading-6 sm:max-w-[85%] ${message.role === "user" ? "bg-yellow-400 text-black" : "border border-yellow-500/20 bg-[#151822] text-white/85"}`}>
                   <p className="mb-1 text-xs font-bold opacity-70">{message.role === "user" ? "Toi" : "Coach Alex"}</p>
-                  {message.content}
+                  {message.role === "assistant" ? <AlexFormattedMessage content={message.content} /> : message.content}
                 </div>
               </div>
             ))
           )}
-          {busy && <p role="status" className="text-sm text-yellow-200">Alex prépare sa réponse…</p>}
+          {busy && (
+            <div role="status" aria-live="polite" className="flex items-center gap-3 rounded-2xl border border-yellow-500/20 bg-[#151822] px-4 py-3 text-sm text-yellow-200">
+              <span aria-hidden="true" className="inline-block h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-yellow-400/20 border-t-yellow-300" />
+              <span>Alex construit ta réponse…</span>
+            </div>
+          )}
           <div ref={endRef} />
         </div>
 
