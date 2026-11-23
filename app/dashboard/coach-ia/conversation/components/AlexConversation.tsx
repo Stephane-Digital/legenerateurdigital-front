@@ -286,6 +286,12 @@ export default function AlexConversation() {
         </div>
 
         <div className="border-t border-yellow-500/20 px-4 py-4 sm:px-6">
+          {busy && (
+            <div role="status" aria-live="polite" className="mb-4 flex items-center gap-3 rounded-xl border border-yellow-400/35 bg-yellow-400/10 px-4 py-3 text-sm font-semibold text-yellow-200">
+              <span aria-hidden="true" className="inline-block h-6 w-6 shrink-0 animate-spin rounded-full border-[3px] border-yellow-400/20 border-t-yellow-300" />
+              <span>Coach Alex prépare ta réponse…</span>
+            </div>
+          )}
           <form onSubmit={(e: FormEvent<HTMLFormElement>) => { e.preventDefault(); void send(); }}>
             <label htmlFor="alex-conversation-input" className="mb-2 block text-sm font-semibold text-yellow-100">Ton message</label>
             <textarea
