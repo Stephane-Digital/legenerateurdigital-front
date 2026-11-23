@@ -17,7 +17,7 @@ const SUGGESTIONS = [
 ] as const;
 
 function renderInlineMarkdown(line: string) {
-  return line.split(/(\\*\\*[^*]+\\*\\*)/g).map((part, index) =>
+  return line.split(/(\*\*[^*]+\*\*)/g).map((part, index) =>
     part.startsWith("**") && part.endsWith("**")
       ? <strong key={index} className="font-semibold text-yellow-100">{part.slice(2, -2)}</strong>
       : part
@@ -27,12 +27,12 @@ function renderInlineMarkdown(line: string) {
 function AlexFormattedMessage({ content }: { content: string }) {
   return (
     <div className="space-y-2">
-      {content.split("\\n").map((line, index) => {
+      {content.split("\n").map((line, index) => {
         const value = line.trim();
         if (!value) return <div key={index} className="h-1" aria-hidden="true" />;
-        const heading = value.match(/^#{1,3}\\s+(.+)$/);
+        const heading = value.match(/^#{1,3}\s+(.+)$/);
         if (heading) return <p key={index} className="font-bold text-yellow-200">{renderInlineMarkdown(heading[1])}</p>;
-        const bullet = value.match(/^[-*]\\s+(.+)$/);
+        const bullet = value.match(/^[-*]\s+(.+)$/);
         if (bullet) return <p key={index} className="pl-3 before:mr-2 before:content-['•']">{renderInlineMarkdown(bullet[1])}</p>;
         return <p key={index}>{renderInlineMarkdown(line)}</p>;
       })}
