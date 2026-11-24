@@ -1552,7 +1552,7 @@ export default function AlexV2Shell() {
           <div
             className={[
               "grid transition-all duration-300 ease-out",
-              liveStrategyOpen
+              (liveStrategyOpen || liveLoading)
                 ? "grid-rows-[1fr] opacity-100"
                 : "grid-rows-[0fr] opacity-0",
             ].join(" ")}
@@ -1564,11 +1564,11 @@ export default function AlexV2Shell() {
                 </div>
               )}
 
-              {liveLoading && !liveStrategy ? (
-                <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
-                  <div className="h-28 rounded-2xl border border-white/5 bg-white/5" />
-                  <div className="h-28 rounded-2xl border border-white/5 bg-white/5" />
-                  <div className="h-28 rounded-2xl border border-white/5 bg-white/5" />
+              {liveLoading ? (
+                <div role="status" aria-live="polite" className="mt-5 flex flex-col items-center gap-3 rounded-2xl border border-yellow-500/20 bg-black/25 px-4 py-8 text-center">
+                  <span aria-hidden="true" className="h-12 w-12 rounded-full border-[3px] border-yellow-400/20 border-t-yellow-300 border-r-yellow-400 motion-safe:animate-spin" />
+                  <p className="text-base font-black text-yellow-300">Alex analyse ta stratégie…</p>
+                  <p className="text-sm text-white/70">Préparation de ton analyse personnalisée et de ta mission premium.</p>
                 </div>
               ) : liveStrategy ? (
                 <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-12">
