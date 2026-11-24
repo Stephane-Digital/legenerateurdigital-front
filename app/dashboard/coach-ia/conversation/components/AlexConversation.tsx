@@ -317,7 +317,7 @@ export default function AlexConversation() {
               <button type="button" onClick={() => void loadHistory()} className="mt-3 rounded-xl border border-yellow-500/40 px-4 py-2 text-sm text-yellow-200 hover:bg-yellow-400/10">Réessayer de charger ma mémoire</button>
             )}
             <p className="mt-3 text-xs leading-5 text-white/50">
-              Chaque demande utilise ton quota IA. Tes 20 messages les plus récents (10 échanges) sont conservés dans ton compte LGD et retrouvés à ta prochaine visite. Tu peux les effacer ici sans supprimer ton profil Business.
+              Seules les demandes nécessitant une génération IA utilisent ton quota. Tes 20 messages les plus récents (10 échanges) sont conservés dans ton compte LGD et retrouvés à ta prochaine visite. Tu peux les effacer ici sans supprimer ton profil Business.
             </p>
           </form>
         </div>
