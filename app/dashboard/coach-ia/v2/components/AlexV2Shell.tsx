@@ -457,6 +457,7 @@ export default function AlexV2Shell() {
   const lastPushedSigRef = useRef<string>("");
   const quotaRefreshInFlightRef = useRef(false);
   const liveStrategistSigRef = useRef<string>("");
+  const liveRequestInFlightRef = useRef(false);
 
   // ===== data
   const [stage, setStageState] = useState<AlexStage>("WELCOME");
@@ -873,6 +874,7 @@ export default function AlexV2Shell() {
     force?: boolean;
     signal?: AbortSignal;
   }) {
+    if (liveRequestInFlightRef.current || !booted || !serverSynced) return;
     if (!context || !today?.mission) {
       setLiveStrategy(null);
       setLiveError("");
@@ -888,8 +890,9 @@ export default function AlexV2Shell() {
       missionObjective: today.mission.objective || "",
     });
 
-    if (!args?.force && liveStrategistSigRef.current === sig) return;
+    if (!args?.force && liveStrategy && liveStrategistSigRef.current === sig) return;
     liveStrategistSigRef.current = sig;
+    liveRequestInFlightRef.current = true;
 
     setLiveLoading(true);
     setLiveError("");
@@ -956,35 +959,30 @@ export default function AlexV2Shell() {
         }
       }
 
-      setLiveStrategy(result);
-      setLiveLastRefreshAtISO(new Date().toISOString());
-
-      if (result.mode === "live") {
-        void refreshQuota();
+      if (liveStrategistSigRef.current === sig) {
+        setLiveStrategy(result);
+        setLiveLastRefreshAtISO(new Date().toISOString());
       }
+
+      void refreshQuota();
     } catch (error: any) {
       if (String(error?.name || "") === "AbortError") return;
       setLiveError(
         "Alex Stratège IA Live est indisponible pour le moment. Le socle Alex 98% reste actif.",
       );
     } finally {
+      liveRequestInFlightRef.current = false;
       setLiveLoading(false);
     }
   }
 
+  // S3.C.4.2: navigation and profile changes never generate an IA analysis.
   useEffect(() => {
-    if (!booted || !serverSynced || !context || !today?.mission) {
-      setLiveStrategy(null);
-      setLiveError("");
-      return;
-    }
-
-    const controller = new AbortController();
-    void refreshLiveStrategist({ signal: controller.signal });
-
-    return () => controller.abort();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [booted, serverSynced, context, today]);
+    liveStrategistSigRef.current = "";
+    setLiveStrategy(null);
+    setLiveError("");
+    setLiveLastRefreshAtISO("");
+  }, [accountKey, context, today?.weekIndex, today?.dayIndex, today?.mission]);
 
   function goStage(next: AlexStage) {
     setStageState(next);
@@ -1523,15 +1521,20 @@ export default function AlexV2Shell() {
                   ? "Analyse en cours…"
                   : liveStrategy?.mode === "live"
                     ? "Mode IA Live"
-                    : "Mode fallback premium"}
+                    : liveStrategy
+                      ? "Mode fallback premium"
+                      : "En attente de génération"}
               </div>
               <button
                 type="button"
-                onClick={() => void refreshLiveStrategist({ force: true })}
-                disabled={liveLoading}
+                onClick={() => {
+                  setLiveStrategyOpen(true);
+                  void refreshLiveStrategist({ force: Boolean(liveStrategy) });
+                }}
+                disabled={liveLoading || !serverSynced}
                 className="rounded-2xl border border-yellow-500/30 bg-yellow-400 px-4 py-2 text-xs font-black text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {liveLoading ? "Génération…" : "Régénérer l’analyse"}
+                {liveLoading ? "Génération…" : liveStrategy ? "Régénérer l’analyse" : "Générer l’analyse"}
               </button>
               {liveLastRefreshAtISO ? (
                 <div className="rounded-2xl border border-yellow-500/10 bg-black/15 px-4 py-2 text-[11px] font-semibold text-white/45">
