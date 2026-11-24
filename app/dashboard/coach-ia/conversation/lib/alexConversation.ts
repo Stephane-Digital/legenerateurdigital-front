@@ -74,7 +74,7 @@ export function normalizeStoredConversation(value: unknown): AlexChatTurn[] {
     return [{
       id: row.id.slice(0, 80),
       role: row.role,
-      content: row.content.slice(0, row.role === "user" ? MAX_USER_MESSAGE : 2000),
+      content: row.content.slice(0, row.role === "user" ? MAX_USER_MESSAGE : 40000),
       ...(typeof row.created_at === "string" ? { created_at: row.created_at.slice(0, 40) } : {}),
     }];
   });
