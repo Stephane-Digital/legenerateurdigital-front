@@ -58,6 +58,75 @@ function AlexFormattedMessage({ content }: { content: string }) {
   );
 }
 
+function renderedCopyText(root: HTMLElement): string {
+  const clone = root.cloneNode(true) as HTMLElement;
+  for (const list of Array.from(clone.querySelectorAll("ul, ol"))) {
+    let number = list instanceof HTMLOListElement ? list.start : 1;
+    for (const item of Array.from(list.children)) {
+      if (item.tagName !== "LI") continue;
+      const prefix = list.tagName === "OL" ? `${number++}. ` : "• ";
+      const first = item.firstElementChild;
+      (first?.tagName === "P" ? first : item).prepend(document.createTextNode(prefix));
+    }
+  }
+  for (const link of Array.from(clone.querySelectorAll("a[href]"))) {
+    const href = link.getAttribute("href");
+    if (href && link.textContent?.trim() !== href) link.append(document.createTextNode(` (${href})`));
+  }
+  // A temporary rendered clone preserves block breaks and table cell separators.
+  clone.style.cssText = "position:fixed;left:-10000px;top:0;width:1000px;pointer-events:none;";
+  clone.setAttribute("aria-hidden", "true");
+  document.body.appendChild(clone);
+  try {
+    return clone.innerText.trim();
+  } finally {
+    clone.remove();
+  }
+}
+
+function AlexCopyableMessage({ content }: { content: string }) {
+  const contentRef = useRef<HTMLDivElement>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [status, setStatus] = useState<"idle" | "copying" | "copied" | "error">("idle");
+
+  useEffect(() => () => {
+    if (timerRef.current !== null) clearTimeout(timerRef.current);
+  }, []);
+
+  async function copyResponse() {
+    if (!contentRef.current || status === "copying") return;
+    if (timerRef.current !== null) clearTimeout(timerRef.current);
+    setStatus("copying");
+    try {
+      const text = renderedCopyText(contentRef.current);
+      if (!text || !navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
+      await navigator.clipboard.writeText(text);
+      setStatus("copied");
+    } catch {
+      setStatus("error");
+    }
+    timerRef.current = setTimeout(() => setStatus("idle"), 2000);
+  }
+
+  return (
+    <>
+      <div ref={contentRef}><AlexFormattedMessage content={content} /></div>
+      <div className="mt-3 flex flex-wrap items-center justify-end gap-2 border-t border-yellow-500/15 pt-2">
+        <button type="button" onClick={() => void copyResponse()} disabled={status === "copying"}
+          className={`inline-flex min-h-11 items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold transition hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-yellow-300 disabled:opacity-60 ${status === "copied" ? "text-green-400" : "text-yellow-200"}`}>
+          <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            {status === "copied" ? <path d="m5 12 4 4L19 6" /> : <><rect x="8" y="8" width="12" height="12" rx="2" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" /></>}
+          </svg>
+          {status === "copied" ? "Texte copié !" : status === "copying" ? "Copie…" : "Copier le texte"}
+        </button>
+        <span role="status" className={status === "error" ? "text-xs text-red-300" : "sr-only"}>
+          {status === "error" ? "Copie impossible. Sélectionne le texte manuellement." : status === "copied" ? "Réponse copiée dans le presse-papiers." : ""}
+        </span>
+      </div>
+    </>
+  );
+}
+
 function apiBase(): string {
   return (process.env.NEXT_PUBLIC_API_URL || "").trim().replace(/\/+$/, "");
 }
@@ -289,7 +358,7 @@ export default function AlexConversation() {
               <div key={message.id} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
                 <div className={`min-w-0 break-words rounded-2xl px-4 py-3 ${message.role === "user" ? "max-w-[94%] whitespace-pre-wrap bg-yellow-400 text-sm leading-6 text-black sm:max-w-[85%]" : "w-full max-w-full border border-yellow-500/20 bg-[#151822] text-white/85 sm:max-w-[95%]"}`}>
                   <p className="mb-1 text-xs font-bold opacity-70">{message.role === "user" ? "Toi" : "Coach Alex"}</p>
-                  {message.role === "assistant" ? <AlexFormattedMessage content={message.content} /> : message.content}
+                  {message.role === "assistant" ? <AlexCopyableMessage content={message.content} /> : message.content}
                 </div>
               </div>
             ))
