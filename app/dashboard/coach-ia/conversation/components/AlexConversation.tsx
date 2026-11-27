@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent, type FormEvent } from "react";
 import Link from "next/link";
+import Markdown, { defaultUrlTransform } from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
   getAlexChatError,
   MAX_USER_MESSAGE,
@@ -16,26 +18,42 @@ const SUGGESTIONS = [
   "Aide-moi à clarifier ma cible et ma promesse commerciale.",
 ] as const;
 
-function renderInlineMarkdown(line: string) {
-  return line.split(/(\*\*[^*]+\*\*)/g).map((part, index) =>
-    part.startsWith("**") && part.endsWith("**")
-      ? <strong key={index} className="font-semibold text-yellow-100">{part.slice(2, -2)}</strong>
-      : part
-  );
-}
-
 function AlexFormattedMessage({ content }: { content: string }) {
   return (
-    <div className="space-y-2">
-      {content.split("\n").map((line, index) => {
-        const value = line.trim();
-        if (!value) return <div key={index} className="h-1" aria-hidden="true" />;
-        const heading = value.match(/^#{1,3}\s+(.+)$/);
-        if (heading) return <p key={index} className="font-bold text-yellow-200">{renderInlineMarkdown(heading[1])}</p>;
-        const bullet = value.match(/^[-*]\s+(.+)$/);
-        if (bullet) return <p key={index} className="pl-3 before:mr-2 before:content-['•']">{renderInlineMarkdown(bullet[1])}</p>;
-        return <p key={index}>{renderInlineMarkdown(line)}</p>;
-      })}
+    <div className="min-w-0 space-y-3 whitespace-normal break-words text-[15px] leading-7 sm:text-base">
+      <Markdown
+        remarkPlugins={[remarkGfm]}
+        skipHtml
+        disallowedElements={["img"]}
+        urlTransform={(url) => {
+          const safe = defaultUrlTransform(url);
+          return /^(https?:\/\/|mailto:)/i.test(safe) ? safe : "";
+        }}
+        components={{
+          h1: ({ children }) => <h2 className="mt-5 text-xl font-bold leading-snug text-yellow-300 sm:text-2xl">{children}</h2>,
+          h2: ({ children }) => <h3 className="mt-4 text-lg font-bold leading-snug text-yellow-200 sm:text-xl">{children}</h3>,
+          h3: ({ children }) => <h4 className="mt-3 text-base font-bold text-yellow-200 sm:text-lg">{children}</h4>,
+          h4: ({ children }) => <h5 className="font-semibold text-yellow-100">{children}</h5>,
+          h5: ({ children }) => <h6 className="font-semibold text-yellow-100">{children}</h6>,
+          h6: ({ children }) => <h6 className="font-medium text-yellow-100">{children}</h6>,
+          p: ({ children }) => <p className="whitespace-pre-line">{children}</p>,
+          strong: ({ children }) => <strong className="font-semibold text-yellow-100">{children}</strong>,
+          em: ({ children }) => <em className="italic">{children}</em>,
+          ul: ({ children }) => <ul className="list-disc space-y-1 pl-5 marker:text-yellow-300">{children}</ul>,
+          ol: ({ children, start }) => <ol start={start} className="list-decimal space-y-1 pl-6 marker:text-yellow-300">{children}</ol>,
+          li: ({ children }) => <li className="pl-1">{children}</li>,
+          hr: () => <hr className="my-5 border-yellow-500/25" />,
+          blockquote: ({ children }) => <blockquote className="space-y-2 border-l-2 border-yellow-500/60 pl-3 text-white/80">{children}</blockquote>,
+          a: ({ href, children }) => href ? <a href={href} target="_blank" rel="noopener noreferrer" className="break-all text-yellow-200 underline underline-offset-4">{children}</a> : <span>{children}</span>,
+          table: ({ children }) => <div className="max-w-full overflow-x-auto rounded-lg border border-yellow-500/25" tabIndex={0} role="region" aria-label="Tableau de Coach Alex"><table className="w-full min-w-max border-collapse text-left text-sm">{children}</table></div>,
+          th: ({ children }) => <th className="border-b border-yellow-500/30 bg-yellow-500/10 px-3 py-2 font-semibold text-yellow-100">{children}</th>,
+          td: ({ children }) => <td className="border-b border-white/10 px-3 py-2 align-top">{children}</td>,
+          pre: ({ children }) => <pre className="max-w-full overflow-x-auto rounded-lg border border-white/10 bg-black/30 p-3 text-sm leading-6">{children}</pre>,
+          code: ({ children }) => <code className="rounded bg-white/5 px-1 font-mono text-[0.9em] text-yellow-100">{children}</code>,
+        }}
+      >
+        {content}
+      </Markdown>
     </div>
   );
 }
@@ -269,7 +287,7 @@ export default function AlexConversation() {
           ) : (
             messages.map((message) => (
               <div key={message.id} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
-                <div className={`max-w-[94%] whitespace-pre-wrap break-words rounded-2xl px-4 py-3 text-sm leading-6 sm:max-w-[85%] ${message.role === "user" ? "bg-yellow-400 text-black" : "border border-yellow-500/20 bg-[#151822] text-white/85"}`}>
+                <div className={`min-w-0 break-words rounded-2xl px-4 py-3 ${message.role === "user" ? "max-w-[94%] whitespace-pre-wrap bg-yellow-400 text-sm leading-6 text-black sm:max-w-[85%]" : "w-full max-w-full border border-yellow-500/20 bg-[#151822] text-white/85 sm:max-w-[95%]"}`}>
                   <p className="mb-1 text-xs font-bold opacity-70">{message.role === "user" ? "Toi" : "Coach Alex"}</p>
                   {message.role === "assistant" ? <AlexFormattedMessage content={message.content} /> : message.content}
                 </div>
