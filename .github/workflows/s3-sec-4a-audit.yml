@@ -1,0 +1,37 @@
+name: S3.SEC.4.A - Audit exact production lockfile
+on:
+  push:
+    branches: [test/s3-sec-4a-audit]
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 0f84af655fd4dac68b060aee68c07e88acd04309
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Audit production dependencies
+        run: |
+          git rev-parse HEAD > reference.txt
+          node --version >> reference.txt
+          npm --version >> reference.txt
+          status=0
+          npm audit --omit=dev --json > audit.json || status=$?
+          echo "audit exit: $status" >> reference.txt
+          node -e 'const a=require("./audit.json"); if(a.error || !a.metadata?.vulnerabilities) process.exit(1); console.log(JSON.stringify(a.metadata.vulnerabilities,null,2)); for(const [name,v] of Object.entries(a.vulnerabilities)) console.log(name,v.severity,JSON.stringify(v.fixAvailable))'
+          git diff --exit-code -- package.json package-lock.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lgd-s3-sec-4a-audit
+          path: |
+            audit.json
+            reference.txt
+            package.json
+            package-lock.json
+          retention-days: 7
