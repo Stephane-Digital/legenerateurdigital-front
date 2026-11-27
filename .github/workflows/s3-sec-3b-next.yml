@@ -1,0 +1,31 @@
+name: S3.SEC.3.B - Resolve Next.js patch
+on:
+  push:
+    branches: [test/s3-sec-3b-next]
+permissions:
+  contents: read
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm view next@15.5.29 version peerDependencies engines --json
+      - run: npm install next@15.5.29 --save-exact --package-lock-only --ignore-scripts --legacy-peer-deps --no-audit --no-fund
+      - run: npm ci --legacy-peer-deps --no-audit --no-fund
+      - run: npm ls next react react-dom --depth=0
+      - run: npm audit --omit=dev --json > audit.json
+        continue-on-error: true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lgd-next-patch
+          path: |
+            package.json
+            package-lock.json
+            audit.json
+          retention-days: 7
