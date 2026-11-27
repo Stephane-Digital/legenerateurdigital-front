@@ -14,7 +14,6 @@
   },
   "dependencies": {
     "@ffmpeg/ffmpeg": "^0.12.15",
-    "@prisma/client": "^6.18.0",
     "autoprefixer": "^10.4.22",
     "bcrypt": "^6.0.0",
     "framer-motion": "^12.23.24",
@@ -25,7 +24,6 @@
     "next": "^15.5.9",
     "next-auth": "^4.24.13",
     "postcss": "^8.5.6",
-    "prisma": "^6.18.0",
     "react": "^18.3.1",
     "react-datepicker": "^8.9.0",
     "react-dom": "^18.3.1",
