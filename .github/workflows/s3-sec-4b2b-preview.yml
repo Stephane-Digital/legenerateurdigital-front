@@ -1,0 +1,35 @@
+name: S3.SEC.4.B.2.B - Prepare exact preview
+on:
+  push:
+    branches: [test/s3-sec-4b2b-promote]
+permissions:
+  contents: write
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 344553c060f61127c9d09da8a9b490cc436b1a13
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Reproduce audited lock
+        run: |
+          npm update sharp --package-lock-only --ignore-scripts --no-audit --no-fund
+          test "$(git hash-object package-lock.json)" = "bd602d80b6fb2cb159d8d04ff11fef6a4787be2f"
+          git diff --exit-code -- package.json
+      - name: Verify native dependency
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          node -e 'const s=require("sharp"); if(s.versions.sharp!=="0.35.5") process.exit(1); s({create:{width:32,height:32,channels:3,background:"white"}}).png().toBuffer().then(b=>s(b).resize(16).webp().toBuffer()).catch(e=>{console.error(e);process.exit(1)})'
+      - name: Publish isolated candidate
+        run: |
+          test "$(git hash-object package-lock.json)" = "bd602d80b6fb2cb159d8d04ff11fef6a4787be2f"
+          test "$(git rev-parse HEAD)" = "344553c060f61127c9d09da8a9b490cc436b1a13"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- package-lock.json
+          git commit -m "S3.SEC.4.B.2.B - Sharp security patch"
+          git push origin HEAD:refs/heads/test/s3-sec-4b2b-preview
