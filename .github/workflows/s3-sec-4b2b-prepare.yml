@@ -1,0 +1,65 @@
+name: S3.SEC.4.B.2.B - Resolve sharp
+on:
+  push:
+    branches: [test/s3-sec-4b2b-prepare]
+permissions:
+  contents: read
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 344553c060f61127c9d09da8a9b490cc436b1a13
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Resolve targeted updates
+        run: |
+          cp package-lock.json /tmp/original-lock.json
+          cp package.json /tmp/original-package.json
+          npm update sharp --package-lock-only --ignore-scripts --no-audit --no-fund
+          node <<'NODE'
+          const fs=require('fs');
+          const before=require('/tmp/original-lock.json').packages;
+          const after=require('./package-lock.json').packages;
+          const targets=new Set(['sharp']);
+          const changes=[];
+          for(const k of new Set([...Object.keys(before),...Object.keys(after)])){
+            if(!k) continue;
+            const a=before[k]?.version,b=after[k]?.version;
+            if(a===b) continue;
+            changes.push({path:k,before:a,after:b});
+          }
+          fs.writeFileSync('changes.json',JSON.stringify(changes,null,2));
+          console.log(JSON.stringify(changes,null,2));
+          for(const n of new Set(['next','react','react-dom','slate','slate-react','slate-dom','postcss',...Object.keys(before[''].dependencies||{}),...Object.keys(before[''].devDependencies||{})])){
+            const k='node_modules/'+n;
+            if(before[k]?.version!==after[k]?.version) throw Error('Protected dependency changed: '+n);
+          }
+          if(after['node_modules/sharp']?.version!=='0.35.5') throw Error('Expected sharp 0.35.5');
+          if(fs.readFileSync('package.json','utf8')!==fs.readFileSync('/tmp/original-package.json','utf8')) throw Error('Manifest changed');
+          NODE
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Native sharp smoke test
+        run: |
+          node -e 'const s=require("sharp"); console.log(s.versions); (async()=>{const b=await s({create:{width:32,height:32,channels:3,background:"white"}}).png().toBuffer(); const m=await s(b).metadata(); if(m.width!==32) throw Error("Invalid image"); await s(b).resize(16).webp().toBuffer();})().catch(e=>{console.error(e);process.exit(1)})'
+      - name: Audit candidate
+        run: |
+          status=0
+          npm audit --omit=dev --json > audit.json || status=$?
+          echo "audit exit: $status"
+          node -e 'const a=require("./audit.json"); if(a.error || !a.metadata?.vulnerabilities) process.exit(1); console.log(a.metadata.vulnerabilities)'
+          git rev-parse HEAD > reference.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lgd-s3-sec-4b2b-candidate
+          path: |
+            package.json
+            package-lock.json
+            audit.json
+            changes.json
+            reference.txt
+          retention-days: 7
