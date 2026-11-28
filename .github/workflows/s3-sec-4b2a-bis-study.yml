@@ -1,0 +1,46 @@
+name: S3.SEC.4.B.2.A BIS - Study parent dependency constraints
+on:
+  push:
+    branches: [test/s3-sec-4b2a-bis-study]
+permissions:
+  contents: read
+jobs:
+  study:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 0bf1fbb663dd417c6883e63220710e7fde3faa6d
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Inspect registry metadata
+        run: |
+          mkdir -p study
+          for spec in 'sucrase@latest' 'sucrase@^3.32.0' 'tailwindcss@latest' 'tailwindcss@3' 'glob@latest' 'minimatch@latest' 'run@latest' 'rimraf@latest'; do
+            npm view "$spec" version dependencies engines --json > "study/${spec}.json"
+          done
+          npm audit --omit=dev --json > study/baseline-audit.json || true
+          node -e 'const a=require("./study/baseline-audit.json"); if(a.error || !a.metadata?.vulnerabilities) process.exit(1)'
+          git rev-parse HEAD > study/reference.txt
+      - name: Test compatible parent resolution
+        run: |
+          cp package-lock.json /tmp/base-lock.json
+          npm update sucrase glob minimatch --package-lock-only --ignore-scripts --no-audit --no-fund
+          npm audit --omit=dev --json > study/candidate-audit.json || true
+          node -e 'const a=require("./study/candidate-audit.json"); if(a.error || !a.metadata?.vulnerabilities) process.exit(1)'
+          node <<'NODE'
+          const fs=require('fs'), a=require('/tmp/base-lock.json').packages,b=require('./package-lock.json').packages;
+          const changes=[...new Set([...Object.keys(a),...Object.keys(b)])].filter(k=>a[k]?.version!==b[k]?.version).map(k=>({path:k,before:a[k]?.version,after:b[k]?.version}));
+          fs.writeFileSync('study/changes.json',JSON.stringify(changes,null,2));
+          for(const n of new Set(['next','react','react-dom','sharp','postcss','tailwindcss',...Object.keys(a[''].dependencies||{}),...Object.keys(a[''].devDependencies||{})])) if(a['node_modules/'+n]?.version!==b['node_modules/'+n]?.version) throw Error('Protected dependency changed: '+n);
+          NODE
+          git diff --exit-code -- package.json
+          cp package-lock.json study/package-lock.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lgd-s3-sec-4b2a-bis-study
+          path: study/
+          retention-days: 7
